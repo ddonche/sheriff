@@ -1,40 +1,33 @@
 /// Sheriff CLI (minimal dispatcher)
 
-/// --- front-matter splitter (keeps meta, ignores it for rendering) ---
-act split_frontmatter(markdown_text)
-    lines = split(markdown_text, "\n")
-    if lines.len == 0
-        return "", markdown_text
-    end
+/// Split optional YAML front-matter fenced by lines of exactly '---'.
+/// Returns (meta_text, body_text). If no fences, meta_text="", body_text=original.
+action split_frontmatter(markdown_text)
+    line_array = lines(markdown_text)
 
-    /// front-matter must start with a line that is exactly "---"
-    if lines[0].trim != "---"
+    if line_array.len == 0
         return "", markdown_text
-    end
+    xx
 
-    /// find the closing "---" line
-    end_idx = -1
+    if line_array[0].trim != "---"
+        return "", markdown_text
+    xx
+
+    close_index = nil
     i = 1
-    while i < lines.len
-        if lines[i].trim == "---"
-            end_idx = i
-            break
-        end
+    while i < line_array.len
+        if line_array[i].trim == "---"
+            close_index = i
+            stop
+        xx
         i = i + 1
-    end
+    xx
 
-    /// if no closing fence, treat the whole doc as body
-    if end_idx == -1
-        return "", markdown_text
-    end
+    meta_lines = line_array[1:close_index]
+    body_lines = line_array[close_index + 1:line_array.len]
 
-    meta_lines = lines[1:end_idx]
-    body_lines = lines[end_idx + 1:lines.len]
-
-    meta_text = join(meta_lines, "\n").trim
-    body_text = join(body_lines, "\n").trim
-    return meta_text, body_text
-end
+    return join(meta_lines, "\n").trim, join(body_lines, "\n").trim
+xx
 
 /// MARKDOWN RENDERING ///
 act escape_html(text)
@@ -84,7 +77,7 @@ act build
         markdown_body = "# Welcome\n\nThis site was built by Sheriff."
     end
 
-    // keep meta for later, render only the body
+    /// keep meta for later, render only the body
     meta_text, body_only = split_frontmatter(markdown_body)
     html_body = render_basic_markdown(body_only)
 
