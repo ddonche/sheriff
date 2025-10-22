@@ -1,0 +1,146 @@
+/// Sheriff CLI (minimal dispatcher)
+
+/// --- front-matter splitter (keeps meta, ignores it for rendering) ---
+act split_frontmatter(markdown_text)
+    lines = split(markdown_text, "\n")
+    if lines.len == 0
+        return "", markdown_text
+    end
+
+    /// front-matter must start with a line that is exactly "---"
+    if lines[0].trim != "---"
+        return "", markdown_text
+    end
+
+    /// find the closing "---" line
+    end_idx = -1
+    i = 1
+    while i < lines.len
+        if lines[i].trim == "---"
+            end_idx = i
+            break
+        end
+        i = i + 1
+    end
+
+    /// if no closing fence, treat the whole doc as body
+    if end_idx == -1
+        return "", markdown_text
+    end
+
+    meta_lines = lines[1:end_idx]
+    body_lines = lines[end_idx + 1:lines.len]
+
+    meta_text = join(meta_lines, "\n").trim
+    body_text = join(body_lines, "\n").trim
+    return meta_text, body_text
+end
+
+/// MARKDOWN RENDERING ///
+act escape_html(text)
+    escaped_text = text
+    update_where!(escaped_text, "&", "&amp;")
+    update_where!(escaped_text, "<", "&lt;")
+    update_where!(escaped_text, ">", "&gt;")
+    update_where!(escaped_text, "\"", "&quot;")
+    update_where!(escaped_text, "'", "&#39;")
+    return escaped_text
+end
+
+act render_basic_markdown(markdown)
+    /// Super-minimal renderer: paragraphs only
+    paragraph_blocks = split(markdown, "\n\n")
+    html_output = ""
+
+    for paragraph in paragraph_blocks
+        trimmed_paragraph = paragraph.trim
+        if trimmed_paragraph == ""
+            continue
+        end
+        html_output = html_output ++ "<p>" ++ escape_html(trimmed_paragraph) ++ "</p>\n"
+    end
+
+    return html_output
+end
+/// END MARKDOWN ///
+
+
+/// === CLI COMMANDS === ///
+act help
+    say "sheriff: build | serve"
+end
+
+
+act build
+    create_dir!("dist")
+
+    markdown_path = "content/index.md"
+    has_markdown = file_exists(markdown_path)
+
+    markdown_body = ""
+    if has_markdown == true
+        markdown_body = read_text(markdown_path)
+    else
+        markdown_body = "# Welcome\n\nThis site was built by Sheriff."
+    end
+
+    // keep meta for later, render only the body
+    meta_text, body_only = split_frontmatter(markdown_body)
+    html_body = render_basic_markdown(body_only)
+
+    html_document =
+        "<!doctype html>\n" ++
+        "<html lang=\"en\">\n" ++
+        "<head>\n" ++
+        "  <meta charset=\"utf-8\"/>\n" ++
+        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" ++
+        "  <title>Home</title>\n" ++
+        "  <link rel=\"stylesheet\" href=\"/style.css\"/>\n" ++
+        "</head>\n" ++
+        "<body>\n" ++
+        "<main>\n" ++
+        html_body ++
+        "\n</main>\n" ++
+        "</body>\n" ++
+        "</html>\n"
+
+    write_text!("dist/index.html", html_document)
+
+    if file_exists("public/style.css")
+        copy_file!("public/style.css", "dist/style.css")
+    end
+
+    say "BUILD: wrote dist/index.html"
+end
+
+
+act serve
+    say "SERVE (stub)"
+end
+
+
+/// --- one-shot CLI dispatch (if args present) ---
+command = ""
+ran_command = false
+
+if args != nil and args.len > 0
+    command = args[0].lower.trim
+    judge using command
+        == "build":
+            build()
+            ran_command = true
+        == "serve":
+            serve()
+            ran_command = true
+        == "help":
+            help()
+            ran_command = true
+        else:
+            say "unknown command:" ++ command
+            ran_command = true
+    end
+end
+
+if ran_command == false
+    help()
+end

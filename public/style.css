@@ -1,0 +1,4 @@
+:root { color-scheme: light dark; }
+body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70ch; line-height: 1.6; }
+pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { text-decoration: underline; }

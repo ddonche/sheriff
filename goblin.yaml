@@ -1,0 +1,18 @@
+name: sheriff
+version: 0.1.0
+entry: main.gbln
+
+# Define module paths for your project
+# Format: alias: ./path/to/folder
+module_paths:
+  # game: ./game
+  # data: ./data
+  # utils: ./utils
+
+ssg:
+  out_dir: "dist"
+  dev_port: 4343
+  build:
+    strict: true
+    allow_raw_html: false
+    emit_manifest: false
