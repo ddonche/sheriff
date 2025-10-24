@@ -312,7 +312,6 @@ end
 
 /// Ensure a directory tree exists (split on '/'; create each segment)
 act ensure_dir_tree(dir_path)
-    say "[dbg] ensure_dir_tree: " ++ dir_path
     if dir_path == "" or dir_path == nil
         skip
     end
@@ -327,7 +326,6 @@ act ensure_dir_tree(dir_path)
             else
                 accumulated_dir = path_join(accumulated_dir, segment)
             end
-            say "[dbg] mkdir: " ++ accumulated_dir
             create_dir!(accumulated_dir)
         end
         segment_index = segment_index + 1
@@ -402,20 +400,16 @@ end
 /// Build a single page and return its manifest record (Map)
 /// ------------------------------
 act build_single_page(relative_content_path, config, base_html)
-    say "[dbg] page: read " ++ relative_content_path
     source_text = read_text(relative_content_path)
 
     frontmatter_text, markdown_body = split_frontmatter(source_text)
-    say "[dbg] page: split_frontmatter len(fm)= " ++ ("" + frontmatter_text.len) ++ "  len(body)= " ++ ("" + markdown_body.len)
 
     frontmatter_map = nil
     if frontmatter_text !== ""
         frontmatter_map = yaml_parse(frontmatter_text)
-        say "[dbg] page: yaml count " ++ ("" + count(frontmatter_map))
     end
 
     inferred_title = extract_title(frontmatter_map, markdown_body)
-    say "[dbg] page: title= " ++ inferred_title
 
     base_filename = path_basename(relative_content_path)
     name_without_ext = base_filename
@@ -481,24 +475,13 @@ act build_single_page(relative_content_path, config, base_html)
         final_slug = "index"
     end
 
-    say "[dbg] page: slug= " ++ final_slug
 
     page_uuid = read_or_create_uuid_for(relative_content_path)
-    say "[dbg] page: uuid= " ++ page_uuid
-
-    say "[dbg] page: BEFORE render"
     html_body = md_to_html(markdown_body)
-    say "[dbg] page: AFTER  render"
-
-    say "[dbg] page: BEFORE paths"
     output_paths = compute_output_paths(relative_content_path, final_slug)
-    say "[dbg] page: AFTER  paths (dir=" ++ output_paths["out_dir"] ++ ", file=" ++ output_paths["out_file"] ++ ")"
 
-    say "[dbg] page: BEFORE ensure out_dir"
     ensure_dir_tree(output_paths["out_dir"])
-    say "[dbg] page: AFTER  ensure out_dir"
 
-    say "[dbg] page: BEFORE html build (template)"
     current_url = output_paths["href"]
     nav_html = render_nav_header(config, current_url)
     sidebar_html = ""
@@ -512,11 +495,8 @@ act build_single_page(relative_content_path, config, base_html)
         sidebar_html,
         html_body
     )
-    say "[dbg] page: AFTER  html build (template)"
 
-    say "[dbg] page: BEFORE write"
     write_text!(output_paths["out_file"], html_document)
-    say "[dbg] page: AFTER  write"
 
     return {
         "uuid":  page_uuid,
@@ -533,7 +513,6 @@ end
 /// Build entire site: all pages, public assets, manifest
 /// ------------------------------
 act build_site()
-    say "[dbg] build_site: start"
 
     config_text = read_text("goblin.yaml")
     config_map = yaml_parse(config_text)
@@ -543,16 +522,13 @@ act build_site()
 
     page_records = []
     markdown_files = list_markdown_files()
-    say "[dbg] build_site: files " ++ ("" + markdown_files.len)
 
     file_index = 0
     while file_index < markdown_files.len
         current_rel_path = markdown_files[file_index]
-        say "[dbg] build_site: -> build " ++ current_rel_path
 
         record_map = build_single_page(current_rel_path, config_map, base_html)
 
-        say "[dbg] build_site: <- built " ++ current_rel_path
         put_last!(page_records, record_map)
 
         file_index = file_index + 1
@@ -560,7 +536,6 @@ act build_site()
 
     /// Copy public/** → dist/**
     if file_exists("public")
-        say "[dbg] assets: scan public"
         public_files = walk("public", "**/*")
         public_index = 0
         while public_index < public_files.len
@@ -576,7 +551,6 @@ act build_site()
             dst_dir  = path_dirname(dst_path)
             ensure_dir_tree(dst_dir)
 
-            say "[dbg] assets: copy " ++ src_path ++ " -> " ++ dst_path
             copy_file!(src_path, dst_path)
 
             public_index = public_index + 1
@@ -586,7 +560,6 @@ act build_site()
     manifest_obj = { "pages": page_records }
     write_json!("dist/manifest.json", manifest_obj)
 
-    say "BUILD: wrote " ++ ("" + page_records.len) ++ " page(s)"
 end
 
 /// ------------------------------
