@@ -83,7 +83,7 @@ act render_nav_header(config, current_url)
                     nav_group_html = nav_group_html + item_html(nav_child_key, nav_child_val)
                 end
             end
-            return "<li><details><summary>" + escape_html(entry_label) + "</summary><ul>" + nav_group_html + "</ul></details></li>"
+            return "<li><details class=\"dropdown\"><summary>" + escape_html(entry_label) + "</summary><ul>" + nav_group_html + "</ul></details></li>"
         else
             href_value = target_or_list
             is_external = (
