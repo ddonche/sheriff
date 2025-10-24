@@ -8,8 +8,21 @@ nav details {
   display: inline-block;
 }
 
+/* Make summary look exactly like nav links */
 nav summary {
+  display: inline-block;
+  padding: var(--nav-link-spacing-vertical, 1rem) var(--nav-link-spacing-horizontal, 1rem);
   cursor: pointer;
+  color: var(--secondary);
+  text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+}
+
+nav summary:hover {
+  color: var(--secondary-hover);
+  text-decoration: underline;
 }
 
 /* Hide default details markers */
