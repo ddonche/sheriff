@@ -1,139 +1,911 @@
-/// Sheriff CLI (minimal dispatcher)
+/// Sheriff — Goblin SSG + Wiki (v0.4 multi-page baseline)
 
+/// Utility: check if s starts with `needle` at byte offset idx
+act str_starts_with_at(s, idx, needle)
+    if idx + needle.len > s.len
+        return false
+    end
+    return s[idx:idx+needle.len] == needle
+end
+
+/// ------------------------------
+/// Front-matter split
+/// ------------------------------
 /// Split optional YAML front-matter fenced by lines of exactly '---'.
 /// Returns (meta_text, body_text). If no fences, meta_text="", body_text=original.
-action split_frontmatter(markdown_text)
-    line_array = lines(markdown_text)
+act split_frontmatter(markdown_text)
+    fm_lines = lines(markdown_text)
 
-    if line_array.len == 0
+    if fm_lines.len == 0
         return "", markdown_text
-    xx
+    end
 
-    if line_array[0].trim != "---"
+    if fm_lines[0].trim !== "---"
         return "", markdown_text
-    xx
+    end
 
-    close_index = nil
-    i = 1
-    while i < line_array.len
-        if line_array[i].trim == "---"
-            close_index = i
-            stop
-        xx
-        i = i + 1
-    xx
+    fence_close_index = nil
+    scan_index = 1
+    while scan_index < fm_lines.len
+        if fm_lines[scan_index].trim == "---"
+            fence_close_index = scan_index
+            scan_index = fm_lines.len      /// break the loop without 'stop'
+            skip
+        end
+        scan_index = scan_index + 1
+    end
 
-    meta_lines = line_array[1:close_index]
-    body_lines = line_array[close_index + 1:line_array.len]
+    if fence_close_index == nil
+        /// no closing fence found; treat as no front-matter
+        return "", markdown_text
+    end
+
+    meta_lines = fm_lines[1:fence_close_index]
+    body_lines = fm_lines[fence_close_index + 1:fm_lines.len]
 
     return join(meta_lines, "\n").trim, join(body_lines, "\n").trim
-xx
-
-/// MARKDOWN RENDERING ///
-act escape_html(text)
-    escaped_text = text
-    update_where!(escaped_text, "&", "&amp;")
-    update_where!(escaped_text, "<", "&lt;")
-    update_where!(escaped_text, ">", "&gt;")
-    update_where!(escaped_text, "\"", "&quot;")
-    update_where!(escaped_text, "'", "&#39;")
-    return escaped_text
 end
 
-act render_basic_markdown(markdown)
-    /// Super-minimal renderer: paragraphs only
-    paragraph_blocks = split(markdown, "\n\n")
-    html_output = ""
+/// ------------------------------
+/// HTML escaping
+/// ------------------------------
+act escape_html(input_text)
+    out_text = input_text
+    update_where!(out_text, "&", "&amp;")
+    update_where!(out_text, "<", "&lt;")
+    update_where!(out_text, ">", "&gt;")
+    update_where!(out_text, "\"", "&quot;")
+    update_where!(out_text, "'", "&#39;")
+    return out_text
+end
 
-    for paragraph in paragraph_blocks
-        trimmed_paragraph = paragraph.trim
-        if trimmed_paragraph == ""
-            continue
+
+/// ------------------------------
+/// Basic Markdown (v0.2): h1–h3 + buffered paragraphs, CRLF-safe
+/// Uses trim_lead for heading detection (your trim_* already strips BOM/NBSP).
+/// ------------------------------
+act render_basic_markdown(markdown_text)
+    /// normalize newlines first (CRLF/CR → LF)
+    normalized = markdown_text
+    update_where!(normalized, "\r\n", "\n")
+    update_where!(normalized, "\r", "\n")
+
+    /// split into blocks by blank line
+    blocks = split(normalized, "\n\n")
+
+    html_out = ""
+
+    bi = 0
+    blen = blocks.len
+    while bi < blen
+        raw_block = blocks[bi]
+        block = raw_block.trim
+        if block == ""
+            bi = bi + 1
+            skip
         end
-        html_output = html_output ++ "<p>" ++ escape_html(trimmed_paragraph) ++ "</p>\n"
+
+        /// single-line look: treat the first line for heading detection
+        bl_lines = lines(block)
+        first = ""
+        if bl_lines.len > 0
+            first = bl_lines[0].trim_lead
+        end
+
+        is_heading = false
+        judge
+            has(first, "# ") and find(first, "# ") == 0:
+                text = first["# ".len:first.len].trim
+                html_out = html_out + "<h1>" + escape_html(text) + "</h1>\n"
+                is_heading = true
+
+            has(first, "## ") and find(first, "## ") == 0:
+                text = first["## ".len:first.len].trim
+                html_out = html_out + "<h2>" + escape_html(text) + "</h2>\n"
+                is_heading = true
+
+            has(first, "### ") and find(first, "### ") == 0:
+                text = first["### ".len:first.len].trim
+                html_out = html_out + "<h3>" + escape_html(text) + "</h3>\n"
+                is_heading = true
+
+            else:
+                is_heading = false
+        end
+
+        /// If the block wasn't a heading, process whole block as a paragraph
+        if is_heading == false
+            html_out = html_out + "<p>" + escape_html(block) + "</p>\n"
+        else
+            /// FIX: if there are more lines in this same block, emit them as a paragraph
+            if bl_lines.len > 1
+                rest = ""
+                li = 1
+                while li < bl_lines.len
+                    line = bl_lines[li]
+                    if rest == ""
+                        rest = line
+                    else
+                        rest = rest + "\n" + line
+                    end
+                    li = li + 1
+                end
+                rest = rest.trim
+                if rest !== ""
+                    html_out = html_out + "<p>" + escape_html(rest) + "</p>\n"
+                end
+            end
+        end
+
+        bi = bi + 1
     end
 
-    return html_output
-end
-/// END MARKDOWN ///
-
-
-/// === CLI COMMANDS === ///
-act help
-    say "sheriff: build | serve"
+    return html_out
 end
 
+/// Inline formatting without regex: code, strong, em, links, images, wiki links
+act render_inline(src_text)
+    /// We’ll scan characters and build HTML safely.
+    inline_src = src_text
+    cursor = 0
+    src_len = inline_src.len
+    html_inline_out = ""
 
-act build
+    /// progress guard to avoid infinite loops
+    prev_cursor = -1
+
+    while cursor < src_len
+        if cursor == prev_cursor
+            say "[fatal] render_inline: cursor did not advance at " ++ ("" + cursor)
+            stop
+        end
+        prev_cursor = cursor
+
+        ch1 = inline_src[cursor:cursor+1]
+
+        /// Inline code: `...`
+        if ch1 == "`"
+            close_idx = cursor + 1
+            while close_idx < src_len and inline_src[close_idx:close_idx+1] != "`"
+                close_idx = close_idx + 1
+            end
+            if close_idx < src_len
+                code_payload = inline_src[cursor+1:close_idx]
+                html_inline_out = html_inline_out + "<code>" + escape_html(code_payload) + "</code>"
+                cursor = close_idx + 1
+                skip
+            end
+            /// no closing backtick; treat as literal
+            html_inline_out = html_inline_out + escape_html(ch1)
+            cursor = cursor + 1
+            skip
+        end
+
+        /// Strong: **bold**
+        if str_starts_with_at(inline_src, cursor, "**")
+            close_idx = cursor + 2
+            while close_idx + 1 < src_len and not str_starts_with_at(inline_src, close_idx, "**")
+                close_idx = close_idx + 1
+            end
+            if close_idx + 1 < src_len
+                strong_text = inline_src[cursor+2:close_idx]
+                html_inline_out = html_inline_out + "<strong>" + escape_html(strong_text) + "</strong>"
+                cursor = close_idx + 2
+                skip
+            end
+        end
+
+        /// Emphasis: *italic*
+        if ch1 == "*"
+            close_idx = cursor + 1
+            while close_idx < src_len and inline_src[close_idx:close_idx+1] != "*"
+                close_idx = close_idx + 1
+            end
+            if close_idx < src_len
+                em_text = inline_src[cursor+1:close_idx]
+                html_inline_out = html_inline_out + "<em>" + escape_html(em_text) + "</em>"
+                cursor = close_idx + 1
+                skip
+            end
+        end
+
+        /// Image: ![alt](url)
+        if str_starts_with_at(inline_src, cursor, "![")
+            close_bracket_idx = cursor + 2
+            while close_bracket_idx < src_len and inline_src[close_bracket_idx:close_bracket_idx+1] != "]"
+                close_bracket_idx = close_bracket_idx + 1
+            end
+            if close_bracket_idx < src_len and close_bracket_idx + 1 < src_len and inline_src[close_bracket_idx+1:close_bracket_idx+2] == "("
+                close_paren_idx = close_bracket_idx + 2
+                while close_paren_idx < src_len and inline_src[close_paren_idx:close_paren_idx+1] != ")"
+                    close_paren_idx = close_paren_idx + 1
+                end
+                if close_paren_idx < src_len
+                    img_alt = inline_src[cursor+2:close_bracket_idx]
+                    img_url = inline_src[close_bracket_idx+2:close_paren_idx]
+                    html_inline_out = html_inline_out + "<img src=\"" + escape_html(img_url) + "\" alt=\"" + escape_html(img_alt) + "\"/>"
+                    cursor = close_paren_idx + 1
+                    skip
+                end
+            end
+        end
+
+        /// Link: [text](url)
+        if ch1 == "["
+            close_bracket_idx = cursor + 1
+            while close_bracket_idx < src_len and inline_src[close_bracket_idx:close_bracket_idx+1] != "]"
+                close_bracket_idx = close_bracket_idx + 1
+            end
+            if close_bracket_idx < src_len and close_bracket_idx + 1 < src_len and inline_src[close_bracket_idx+1:close_bracket_idx+2] == "("
+                close_paren_idx = close_bracket_idx + 2
+                while close_paren_idx < src_len and inline_src[close_paren_idx:close_paren_idx+1] != ")"
+                    close_paren_idx = close_paren_idx + 1
+                end
+                if close_paren_idx < src_len
+                    link_label = inline_src[cursor+1:close_bracket_idx]
+                    link_url = inline_src[close_bracket_idx+2:close_paren_idx]
+                    html_inline_out = html_inline_out + "<a href=\"" + escape_html(link_url) + "\">" + escape_html(link_label) + "</a>"
+                    cursor = close_paren_idx + 1
+                    skip
+                end
+            end
+        end
+
+        /// Wiki link: [[Page Name]]
+        if str_starts_with_at(inline_src, cursor, "[[")
+            close_idx = cursor + 2
+            while close_idx + 1 < src_len and not str_starts_with_at(inline_src, close_idx, "]]")
+                close_idx = close_idx + 1
+            end
+            if close_idx + 1 < src_len
+                wiki_page = inline_src[cursor+2:close_idx].trim
+                wiki_href = "/" + slug(wiki_page) + ".html"
+                html_inline_out = html_inline_out + "<a href=\"" + wiki_href + "\">" + escape_html(wiki_page) + "</a>"
+                cursor = close_idx + 2
+                skip
+            end
+        end
+
+        /// default: emit escaped char
+        html_inline_out = html_inline_out + escape_html(ch1)
+        cursor = cursor + 1
+    end
+
+    return html_inline_out
+end
+
+/// Enhanced Markdown, line-by-line, with state machine (no regex)
+act render_enhanced_markdown(markdown_text)
+    /// normalize newlines first (CRLF/CR → LF)
+    normalized = markdown_text
+    update_where!(normalized, "\r\n", "\n")
+    update_where!(normalized, "\r", "\n")
+
+    lines_arr = lines(normalized)
+
+    html_out = ""
+    i = 0
+
+    in_code = false
+    code_lang = ""
+    code_buf = []
+
+    in_ul = false
+    in_ol = false
+    list_buf = []   /// array of raw item strings
+
+    in_quote = false
+    quote_buf = []  /// array of paragraph lines inside blockquote
+
+    /// helpers
+    act flush_code
+        if in_code
+            code_text = join(code_buf, "\n")
+            lang_attr = ""
+            if code_lang !== "" and code_lang !== nil
+                lang_attr = " class=\"language-" + escape_html(code_lang) + "\""
+            end
+            html_out = html_out + "<pre><code" + lang_attr + ">" + escape_html(code_text) + "</code></pre>\n"
+            in_code = false
+            code_lang = ""
+            code_buf = []
+        end
+    end
+
+    act flush_list
+        if in_ul
+            html_out = html_out + "<ul>\n"
+            li = 0
+            while li < list_buf.len
+                html_out = html_out + "  <li>" + render_inline(list_buf[li]) + "</li>\n"
+                li = li + 1
+            end
+            html_out = html_out + "</ul>\n"
+            in_ul = false
+            list_buf = []
+        end
+        if in_ol
+            html_out = html_out + "<ol>\n"
+            li = 0
+            while li < list_buf.len
+                html_out = html_out + "  <li>" + render_inline(list_buf[li]) + "</li>\n"
+                li = li + 1
+            end
+            html_out = html_out + "</ol>\n"
+            in_ol = false
+            list_buf = []
+        end
+    end
+
+    act flush_quote
+        if in_quote
+            /// Join preserved lines into paragraphs (simple join with <br/>)
+            inner = join(quote_buf, "<br/>\n")
+            html_out = html_out + "<blockquote>\n<p>" + render_inline(inner) + "</p>\n</blockquote>\n"
+            in_quote = false
+            quote_buf = []
+        end
+    end
+
+    act flush_all
+        flush_code()
+        flush_list()
+        flush_quote()
+    end
+
+    /// small helpers
+    act is_digit(ch)
+        return ch >= "0" and ch <= "9"
+    end
+
+    /// progress guard to avoid infinite loops
+    prev_i = -1
+
+    while i < lines_arr.len
+        if i == prev_i
+            say "[fatal] render_md: line index did not advance at " ++ ("" + i)
+            stop
+        end
+        prev_i = i
+
+        raw = lines_arr[i]
+        line = raw.trim_trail       /// keep leading spaces for code fences detection; trim right-only
+        line_trim = line.trim_lead  /// for markers
+
+        /// 1) Fenced code blocks
+        if has(line_trim, "```") and find(line_trim, "```") == 0
+            fence = line_trim
+            fence_lang = fence["```".len:fence.len].trim
+            if in_code == false
+                /// entering code
+                flush_list()
+                flush_quote()
+                in_code = true
+                code_lang = fence_lang
+                code_buf = []
+            else
+                /// leaving code
+                flush_code()
+            end
+            i = i + 1
+            skip
+        end
+
+        /// If inside code, just accumulate verbatim
+        if in_code
+            put_last!(code_buf, raw)    /// raw preserves indentation
+            i = i + 1
+            skip
+        end
+
+        /// 2) Horizontal rule
+        if line_trim == "---"
+            flush_list()
+            flush_quote()
+            html_out = html_out + "<hr/>\n"
+            i = i + 1
+            skip
+        end
+
+        /// 3) Headings (h1..h3)
+        judge
+            has(line_trim, "# ") and find(line_trim, "# ") == 0:
+                flush_list()
+                flush_quote()
+                txt = line_trim["# ".len:line_trim.len].trim
+                html_out = html_out + "<h1>" + render_inline(txt) + "</h1>\n"
+
+            has(line_trim, "## ") and find(line_trim, "## ") == 0:
+                flush_list()
+                flush_quote()
+                txt = line_trim["## ".len:line_trim.len].trim
+                html_out = html_out + "<h2>" + render_inline(txt) + "</h2>\n"
+
+            has(line_trim, "### ") and find(line_trim, "### ") == 0:
+                flush_list()
+                flush_quote()
+                txt = line_trim["### ".len:line_trim.len].trim
+                html_out = html_out + "<h3>" + render_inline(txt) + "</h3>\n"
+
+            else:
+                /// not a heading; fall through
+        end
+
+        /// If it was a heading, move to next line
+        if ((has(line_trim, "# ")   and find(line_trim, "# ")   == 0) or
+            (has(line_trim, "## ")  and find(line_trim, "## ")  == 0) or
+            (has(line_trim, "### ") and find(line_trim, "### ") == 0))
+            i = i + 1
+            skip
+        end
+
+        /// 4) Blockquotes: lines starting with '>'
+        if has(line_trim, ">") and find(line_trim, ">") == 0
+            if in_quote == false
+                flush_list()
+                in_quote = true
+                quote_buf = []
+            end
+            q = line_trim[1:line_trim.len]
+            if has(q, " ") and find(q, " ") == 0
+                q = q[1:q.len]
+            end
+            put_last!(quote_buf, q)
+            i = i + 1
+            skip
+        else
+            /// leaving quote block if we were in one
+            if in_quote
+                flush_quote()
+            end
+        end
+
+        /// 5) Lists
+        /// Task/UL markers: "- " or "* "
+        if (has(line_trim, "- ") and find(line_trim, "- ") == 0) or (has(line_trim, "* ") and find(line_trim, "* ") == 0)
+            marker = line_trim[0:1]   /// "-" or "*"
+            item = line_trim[2:line_trim.len]
+
+            /// task checkbox?
+            t = item
+            is_task = false
+            checked = false
+            if t.len >= 3 and t[0:1] == "[" and t[2:3] == "]"
+                is_task = true
+                checked = (t[1:2].lower == "x")
+                if t.len > 3 and t[3:4] == " "
+                    item = t[4:t.len]
+                else
+                    item = t
+                end
+            end
+
+            /// start/continue UL
+            if in_ul == false and in_ol == false
+                in_ul = true
+                list_buf = []
+            end
+            if in_ol
+                flush_list()
+                in_ul = true
+                list_buf = []
+            end
+
+            if is_task
+                attr = ""
+                if checked
+                    attr = " checked"
+                end
+                html_item = "<input type=\"checkbox\" disabled" + attr + "/> " + item
+                put_last!(list_buf, html_item)
+            else
+                put_last!(list_buf, item)
+            end
+
+            i = i + 1
+            skip
+        end
+
+        /// Ordered lists: "1. " / "23. "
+        /// (no regex) – detect leading digits, then ". "
+        di = 0
+        while di < line_trim.len and is_digit(line_trim[di:di+1])
+            di = di + 1
+        end
+        is_ol_candidate = (di > 0 and di + 2 <= line_trim.len and line_trim[di:di+1] == "." and line_trim[di+1:di+2] == " ")
+        if is_ol_candidate
+            item = line_trim[di+2:line_trim.len]
+
+            if in_ol == false and in_ul == false
+                in_ol = true
+                list_buf = []
+            end
+            if in_ul
+                flush_list()
+                in_ol = true
+                list_buf = []
+            end
+
+            put_last!(list_buf, item)
+            i = i + 1
+            skip
+        else
+            /// leaving list if we hit a non-list line
+            if in_ul or in_ol
+                flush_list()
+            end
+        end
+
+        /// 6) Blank line → separate paragraphs / close quote/list already handled
+        if line_trim == ""
+            i = i + 1
+            skip
+        end
+
+        /// 7) Paragraph
+        html_out = html_out + "<p>" + render_inline(line_trim) + "</p>\n"
+        i = i + 1
+    end
+
+    /// flush any trailing open blocks
+    flush_all()
+
+    return html_out
+end
+
+/// ------------------------------
+/// Path helpers (string-based)
+/// ------------------------------
+act path_dirname(path_text)
+    p = path_text
+    slash_positions = find_all(p, "/")
+    if slash_positions.len == 0
+        return ""
+    end
+    last_idx = slash_positions[slash_positions.len - 1]
+    if last_idx == 0
+        return ""
+    end
+    return p[0:last_idx]
+end
+
+act path_basename(path_text)
+    p = path_text
+    slash_positions = find_all(p, "/")
+    if slash_positions.len == 0
+        return p
+    end
+    last_idx = slash_positions[slash_positions.len - 1]
+    return p[last_idx + 1:p.len]
+end
+
+/// Ensure a directory tree exists (split on '/'; create each segment)
+act ensure_dir_tree(dir_path)
+    say "[dbg] ensure_dir_tree: " ++ dir_path
+    if dir_path == "" or dir_path == nil
+        skip
+    end
+    parts = split(dir_path, "/")
+    acc_dir = ""
+    idx = 0
+    while idx < parts.len
+        part = parts[idx].trim
+        if part !== ""
+            if acc_dir === ""
+                acc_dir = part
+            else
+                acc_dir = path_join(acc_dir, part)
+            end
+            say "[dbg] mkdir: " ++ acc_dir
+            create_dir!(acc_dir)
+        end
+        idx = idx + 1
+    end
+end
+
+/// ------------------------------
+/// UUID sidecars under .sheriff/ids/…
+/// — returns stable UUID for a given content path
+/// ------------------------------
+act read_or_create_uuid_for(rel_content_path)
+    ids_root_dir = ".sheriff/ids"
+    after_content = rel_content_path["content/".len:rel_content_path.len]   /// drop "content/" prefix
+    sidecar_rel   = path_join(ids_root_dir, after_content) + ".id"
+
+    sidecar_dir = path_dirname(sidecar_rel)
+    ensure_dir_tree(sidecar_dir)
+
+    if file_exists(sidecar_rel)
+        existing = read_text(sidecar_rel).trim
+        if existing != ""
+            return existing
+        end
+    end
+
+    /// stable UUID sidecar
+    new_id_value = uuid_v7()
+    write_text!(sidecar_rel, new_id_value)
+    return new_id_value
+end
+
+
+/// ------------------------------
+/// Title extraction (front-matter title → first H1 → fallback)
+/// ------------------------------
+act extract_title(fm_map, body_text)
+    if fm_map !== nil
+        if fm_map["title"] !== nil
+            title_candidate = fm_map["title"]
+            if title_candidate.trim !== ""
+                return title_candidate.trim
+            end
+        end
+    end
+
+    normalized = body_text
+    update_where!(normalized, "\r\n", "\n")
+    update_where!(normalized, "\r", "\n")
+    lines_arr = lines(normalized)
+
+    scan_index = 0
+    while scan_index < lines_arr.len
+        ln = lines_arr[scan_index].trim_lead
+        if ln !== ""
+            toks = split(ln, " ")
+            tok0 = ""
+            if toks.len > 0
+                tok0 = toks[0]
+            end
+            if (tok0 == "#" or tok0 == "##" or tok0 == "###") and toks.len > 1
+                txt = ""
+                ti = 1
+                while ti < toks.len
+                    if txt == ""
+                        txt = toks[ti]
+                    else
+                        txt = txt ++ toks[ti]
+                    end
+                    ti = ti + 1
+                end
+                return txt.trim
+            end
+        end
+        scan_index = scan_index + 1
+    end
+
+    return "Untitled"
+end
+
+
+/// ------------------------------
+/// Output paths/href under dist/, preserving subdirs under content/
+/// ------------------------------
+act compute_output_paths(rel_content_path, final_slug)
+    content_prefix_len = "content/".len
+    after_content = rel_content_path[content_prefix_len:rel_content_path.len]
+    dir_part = path_dirname(after_content)
+
+    out_dir = "dist"
+    if dir_part !== ""
+        out_dir = path_join(out_dir, dir_part)
+    end
+
+    out_file = path_join(out_dir, final_slug + ".html")
+
+    href = "/"
+    if dir_part !== ""
+        href = href + dir_part + "/"
+    end
+    href = href + final_slug + ".html"
+
+    return { "out_dir": out_dir, "out_file": out_file, "href": href }
+end
+
+
+/// ------------------------------
+/// Enumerate markdown files under content/
+/// ------------------------------
+act list_markdown_files()
+    all = walk("content", "**/*.md")
+    only_content = []
+    i = 0
+    while i < all.len
+        p = all[i]
+        if has(p, "content/") and find(p, "content/") == 0
+            put_last!(only_content, p)     /// append one path
+        end
+        i = i + 1
+    end
+    return only_content
+end
+
+/// ------------------------------
+/// Build a single page and return its manifest record (Map)
+/// ------------------------------
+act build_single_page(rel_content_path)
+    say "[dbg] page: read " ++ rel_content_path
+    src_text = read_text(rel_content_path)
+
+    fm_text, body_text = split_frontmatter(src_text)
+    say "[dbg] page: split_frontmatter len(fm)= " ++ ("" + fm_text.len) ++ "  len(body)= " ++ ("" + body_text.len)
+
+    fm_map = nil
+    if fm_text !== ""
+        fm_map = yaml_parse(fm_text)
+        say "[dbg] page: yaml count " ++ ("" + count(fm_map))
+    end
+
+    title_guess = extract_title(fm_map, body_text)
+    say "[dbg] page: title= " ++ title_guess
+
+    base_name = path_basename(rel_content_path)
+    name_no_ext = base_name
+    dot_pos = find(base_name, ".md")
+    if dot_pos !== nil
+        name_no_ext = base_name[0:dot_pos]
+    end
+
+    final_slug = ""
+    if fm_map !== nil and fm_map["slug"] !== nil and fm_map["slug"].trim !== ""
+        final_slug = fm_map["slug"].trim
+    else
+        if title_guess !== "Untitled"
+            final_slug = slug(title_guess)
+        else
+            final_slug = slug(name_no_ext)
+        end
+    end
+    if final_slug === "" or final_slug === nil
+        final_slug = "index"
+    end
+    say "[dbg] page: slug= " ++ final_slug
+
+    page_uuid = read_or_create_uuid_for(rel_content_path)
+    say "[dbg] page: uuid= " ++ page_uuid
+
+    /// ------ ADD THESE THREE LINES ------
+    say "[dbg] page: BEFORE render"
+    html_body = render_enhanced_markdown(body_text)
+    say "[dbg] page: AFTER  render"
+    /// -----------------------------------
+
+    say "[dbg] page: BEFORE paths"
+    paths = compute_output_paths(rel_content_path, final_slug)
+    say "[dbg] page: AFTER  paths (dir=" ++ paths["out_dir"] ++ ", file=" ++ paths["out_file"] ++ ")"
+
+    say "[dbg] page: BEFORE ensure out_dir"
+    ensure_dir_tree(paths["out_dir"])
+    say "[dbg] page: AFTER  ensure out_dir"
+
+    /// --- build HTML with join to avoid deep '+' chains ---
+        say "[dbg] page: BEFORE html build (join)"
+        html_pieces = [
+            "<!doctype html>\n",
+            "<html lang=\"en\">\n",
+            "<head>\n",
+            "  <meta charset=\"utf-8\"/>\n",
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n",
+            "  <title>",  escape_html(title_guess), "</title>\n",
+            "  <link rel=\"stylesheet\" href=\"/style.css\"/>\n",
+            "</head>\n",
+            "<body>\n",
+            "<main>\n",
+            html_body,
+            "\n</main>\n",
+            "</body>\n",
+            "</html>\n"
+        ]
+
+        html_document = join(html_pieces, "")
+        say "[dbg] page: AFTER  html build (join)"
+
+        say "[dbg] page: BEFORE write"
+        write_text!(paths["out_file"], html_document)
+        say "[dbg] page: AFTER  write"
+
+    return {
+        "uuid":  page_uuid,
+        "rel":   rel_content_path["content/".len:rel_content_path.len],
+        "slug":  final_slug,
+        "title": title_guess,
+        "href":  paths["href"],
+        "links_to": [],   /// will use put_last! when wiki engine fills these
+        "missing":  []
+    }
+end
+
+/// ------------------------------
+/// Build entire site: all pages, public assets, manifest
+/// ------------------------------
+act build_site()
+    say "[dbg] build_site: start"
     create_dir!("dist")
 
-    markdown_path = "content/index.md"
-    has_markdown = file_exists(markdown_path)
+    records = []
+    md_files = list_markdown_files()
+    say "[dbg] build_site: files " ++ ("" + md_files.len)
 
-    markdown_body = ""
-    if has_markdown == true
-        markdown_body = read_text(markdown_path)
-    else
-        markdown_body = "# Welcome\n\nThis site was built by Sheriff."
+    file_index = 0
+    while file_index < md_files.len
+        current_rel = md_files[file_index]
+        say "[dbg] build_site: -> build " ++ current_rel
+
+        record_map = build_single_page(current_rel)
+
+        say "[dbg] build_site: <- built " ++ current_rel
+        put_last!(records, record_map)    /// append one record
+
+        file_index = file_index + 1
     end
 
-    /// keep meta for later, render only the body
-    meta_text, body_only = split_frontmatter(markdown_body)
-    html_body = render_basic_markdown(body_only)
+    /// Copy public/** → dist/**
+    if file_exists("public")
+        say "[dbg] assets: scan public"
+        public_files = walk("public", "**/*")
+        pf_i = 0
+        while pf_i < public_files.len
+            src_path = public_files[pf_i]
 
-    html_document =
-        "<!doctype html>\n" ++
-        "<html lang=\"en\">\n" ++
-        "<head>\n" ++
-        "  <meta charset=\"utf-8\"/>\n" ++
-        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" ++
-        "  <title>Home</title>\n" ++
-        "  <link rel=\"stylesheet\" href=\"/style.css\"/>\n" ++
-        "</head>\n" ++
-        "<body>\n" ++
-        "<main>\n" ++
-        html_body ++
-        "\n</main>\n" ++
-        "</body>\n" ++
-        "</html>\n"
+            prefix = "public/"
+            rel_path = src_path
+            if has(src_path, prefix) and find(src_path, prefix) == 0
+                rel_path = src_path[prefix.len:src_path.len]
+            end
 
-    write_text!("dist/index.html", html_document)
+            dst_path = path_join("dist", rel_path)
+            dst_dir  = path_dirname(dst_path)
+            ensure_dir_tree(dst_dir)
 
-    if file_exists("public/style.css")
-        copy_file!("public/style.css", "dist/style.css")
+            say "[dbg] assets: copy " ++ src_path ++ " -> " ++ dst_path
+            copy_file!(src_path, dst_path)
+
+            pf_i = pf_i + 1
+        end
     end
 
-    say "BUILD: wrote dist/index.html"
+    manifest_obj = { "pages": records }
+    write_json!("dist/manifest.json", manifest_obj)
+
+    say "BUILD: wrote " ++ ("" + records.len) ++ " page(s)"
 end
 
+/// ------------------------------
+/// CLI
+/// ------------------------------
+act help
+    say "sheriff:" ++ "build | serve | help"
+end
+
+act build
+    build_site()
+end
 
 act serve
     say "SERVE (stub)"
 end
 
+/// one-shot CLI dispatch
+cli_command = ""
+cli_ran = false
 
-/// --- one-shot CLI dispatch (if args present) ---
-command = ""
-ran_command = false
-
-if args != nil and args.len > 0
-    command = args[0].lower.trim
-    judge using command
+if args !== nil and args.len > 0
+    cli_command = args[0].lower.trim
+    judge using cli_command
         == "build":
             build()
-            ran_command = true
+            cli_ran = true
         == "serve":
             serve()
-            ran_command = true
+            cli_ran = true
         == "help":
             help()
-            ran_command = true
+            cli_ran = true
         else:
-            say "unknown command:" ++ command
-            ran_command = true
+            say "unknown command:" ++ cli_command
+            cli_ran = true
     end
 end
 
-if ran_command == false
+if cli_ran == false
     help()
 end
