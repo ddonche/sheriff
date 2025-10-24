@@ -83,7 +83,7 @@ act render_nav_header(config, current_url)
                     nav_group_html = nav_group_html + item_html(nav_child_key, nav_child_val)
                 end
             end
-            return "<li><details><summary>" + escape_html(entry_label) + "</summary><ul role=\"list\">" + nav_group_html + "</ul></details></li>"
+            return "<li><details><summary>" + escape_html(entry_label) + "</summary><ul>" + nav_group_html + "</ul></details></li>"
         else
             href_value = target_or_list
             is_external = (
@@ -102,8 +102,8 @@ act render_nav_header(config, current_url)
         end
     end
 
-    left_brand_html  = "<ul role=\"list\"><li><a class=\"contrast\" href=\"/index.html\"><strong>Site</strong></a></li></ul>"
-    right_links_html = "<ul role=\"list\">"
+    left_brand_html  = "<ul><li><a class=\"contrast\" href=\"/index.html\"><strong>Site</strong></a></li></ul>"
+    right_links_html = "<ul>"
 
     /// declare once at function scope; reassign inside loop
     nav_entry_label  [= ""
