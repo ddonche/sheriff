@@ -5,6 +5,7 @@ a.wikilink.missing { color: #c43; text-decoration: underline dotted; }
 /* Dropdown navigation support */
 nav details {
   position: relative;
+  display: inline-block;
 }
 
 nav summary {
