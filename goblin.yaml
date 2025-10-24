@@ -2,17 +2,35 @@ name: sheriff
 version: 0.1.0
 entry: main.gbln
 
-# Define module paths for your project
-# Format: alias: ./path/to/folder
-module_paths:
-  # game: ./game
-  # data: ./data
-  # utils: ./utils
+module_paths: {}
 
 ssg:
-  out_dir: "dist"
+  # Directories
+  content_dir: "content"     # Markdown sources
+  public_dir: "public"       # Static assets (copied to out_dir)
+  out_dir: "dist"            # Build output
   dev_port: 4343
+
   build:
     strict: true
     allow_raw_html: false
     emit_manifest: false
+    copy_public: true        # Mirror /public → /dist
+
+  # User-editable template (must exist for best results)
+  partials:
+    dir: "templates"
+    base: "base.html"        # Should contain [[[TITLE]]], [[[NAV.HEADER]]], [[[CONTENT]]]
+                             # (Optional) [[[SIDEBAR]]], [[[HEAD_EXTRA]]]
+
+  # mkdocs-style nav (placeholder links to common starter pages)
+  nav:
+    - Home: index.md
+    - Docs:
+      - Overview: docs/index.md
+      - Getting Started:
+        - Introduction: docs/getting-started/index.md
+        - Installation: docs/getting-started/installation.md
+        - Basics: docs/getting-started/basics.md
+    - Blog: blog.md
+    - Changelog: changelog.md

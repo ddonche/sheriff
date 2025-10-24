@@ -1,4 +1,3 @@
-:root { color-scheme: light dark; }
-body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 70ch; line-height: 1.6; }
-pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-a { text-decoration: underline; }
+/* Optional tweaks layered after Pico */
+main { max-width: 80ch; }
+a.wikilink.missing { color: #c43; text-decoration: underline dotted; }
