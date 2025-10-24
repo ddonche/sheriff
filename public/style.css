@@ -1,3 +1,75 @@
 /* Optional tweaks layered after Pico */
 main { max-width: 80ch; }
 a.wikilink.missing { color: #c43; text-decoration: underline dotted; }
+
+/* Navigation improvements */
+header nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+header nav ul {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+header nav ul li {
+  margin: 0;
+}
+
+/* Dropdown menu styling */
+header nav details {
+  position: relative;
+}
+
+header nav details summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+header nav details summary::-webkit-details-marker {
+  display: none;
+}
+
+header nav details[open] > ul {
+  display: block;
+}
+
+header nav details > ul {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card-background-color);
+  border: 1px solid var(--card-border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-box-shadow);
+  z-index: 99;
+}
+
+header nav details > ul li {
+  display: block;
+  width: 100%;
+}
+
+header nav details > ul a {
+  display: block;
+  padding: 0.5rem 1rem;
+  white-space: nowrap;
+}
+
+/* Nested dropdown styling */
+header nav details details > ul {
+  position: relative;
+  margin-top: 0.25rem;
+  margin-left: 1rem;
+  border-left: 2px solid var(--primary);
+}

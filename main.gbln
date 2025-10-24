@@ -118,7 +118,7 @@ act render_nav_header(config, current_url)
     end
     right_links_html = right_links_html + "</ul>"
 
-    return "<nav class=\"container-fluid\">" + left_brand_html + right_links_html + "</nav>"
+    return "<nav>" + left_brand_html + right_links_html + "</nav>"
 end
 
 /// Render full page by replacing tokens in base.html.
