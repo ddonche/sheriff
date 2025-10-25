@@ -31,21 +31,61 @@ end
 
 /// Build a URL from a content path using existing slug rules.
 /// Accepts "index.md", "index.html", "docs/x.md", "docs/x.html".
-act content_path_to_url(content_root, relative_md_path)
-    name = relative_md_path
+/// Build a URL by preserving subdirectories and mapping name → slug(name).html.
+/// Accepts "index.md", "docs/index.md", "docs/getting-started/installation.md".
+act content_path_to_url(_content_root, relative_md_path)
+    p = relative_md_path
+    update_where!(p, "\\", "/")
 
-    /// strip known extensions
-    if name.len >= 3 and name[name.len - 3:name.len] == ".md"
-        name = name[0:name.len - 3]
-    end
-    if name.len >= 5 and name[name.len - 5:name.len] == ".html"
-        name = name[0:name.len - 5]
+    if has(p, "content/") and find(p, "content/") == 0
+        p = p["content/".len:p.len]
     end
 
-    parts = split(name, "/")
-    leaf  = parts[parts.len - 1]
-    link_url = "/" + slug(leaf) + ".html"
-    return link_url
+    ctu_dir  = path_dirname(p)
+    ctu_base = path_basename(p)
+
+    ends_md = false
+    if ctu_base.len >= 3
+        tail3 = ctu_base[ctu_base.len - 3:ctu_base.len].lower
+        if tail3 == ".md"
+            ends_md = true
+        end
+    end
+
+    ends_html = false
+    if ctu_base.len >= 5
+        tail5 = ctu_base[ctu_base.len - 5:ctu_base.len].lower
+        if tail5 == ".html"
+            ends_html = true
+        end
+    end
+
+    ctu_stem = ctu_base
+    if ends_md
+        ctu_stem = ctu_base[0:ctu_base.len - 3]
+    elif ends_html
+        ctu_stem = ctu_base[0:ctu_base.len - 5]
+    end
+
+    if ctu_stem == "" or ctu_stem == nil
+        return "/index.html"
+    end
+
+    if ctu_stem == "index"
+        if ctu_dir == "" or ctu_dir == nil
+            return "/index.html"
+        else
+            return "/" + ctu_dir + "/index.html"
+        end
+    end
+
+    slugged = slug(ctu_stem)
+
+    if ctu_dir == "" or ctu_dir == nil
+        return "/" + slugged + ".html"
+    else
+        return "/" + ctu_dir + "/" + slugged + ".html"
+    end
 end
 
 /// Render mkdocs-style nav (header) as HTML using <nav> with nested <details>.
@@ -86,18 +126,24 @@ act render_nav_header(config, current_url)
             return "<li><details class=\"dropdown\"><summary>" + escape_html(entry_label) + "</summary><ul>" + nav_group_html + "</ul></details></li>"
         else
             href_value = target_or_list
-            is_external = (
-                (has(href_value, "http://")  and find(href_value, "http://")  == 0) or
-                (has(href_value, "https://") and find(href_value, "https://") == 0)
-            )
-            resolved_url = href_value
-            if not is_external
-                resolved_url = content_path_to_url(content_dir, href_value)
+            href_text = "" + (href_value ?? "")
+
+            if href_text.trim == ""
+                resolved_url = "#"
+            else
+                is_external = (find(href_text, "http://") == 0) or (find(href_text, "https://") == 0)
+                if is_external
+                    resolved_url = href_text
+                else
+                    resolved_url = content_path_to_url(content_dir, href_text)
+                end
             end
+
             class_attr = ""
             if resolved_url == current_url
                 class_attr = " class=\"active\""
             end
+
             return "<li><a" + class_attr + " href=\"" + resolved_url + "\">" + escape_html(entry_label) + "</a></li>"
         end
     end
