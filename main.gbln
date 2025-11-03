@@ -133,29 +133,34 @@ act build_site()
 
             /// Output-only filtering (safe no-op if not present)
             work_body = body_content
-            html_content =
-                "<!doctype html>" +
-                "<html lang=\"en\">" +
-                "<head>" +
-                  "<meta charset=\"utf-8\"/>" +
-                  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>" +
-                  "<title>" + page_title + "</title>" +
-                  "{{{BRINDLE::CSS}}}" +
-                "</head>" +
-                "<body>" +
-                  "<header class=\"container\">" +
-                    "<nav id=\"site-nav\">" +
-                      "{{{SCOUT::DOCS}}}" +
-                    "</nav>" +
-                  "</header>" +
-                  "<main class=\"container\">" +
-                    md_to_html(work_body) +
-                  "</main>" +
-                  "<footer id=\"site-footer\">" +
-                    "{{{SCOUT::FOOTER}}}" +
-                  "</footer>" +
-                "</body>" +
-                "</html>"
+            /// Convert markdown first
+            html_body = md_to_html(work_body)
+
+            /// Then use it in the template
+            html_content = """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8"/>
+              <meta name="viewport" content="width=device-width, initial-scale=1"/>
+              <title>{page_title}</title>
+              {{{BRINDLE::CSS}}}
+            </head>
+            <body>
+              <header class="container">
+                <nav id="site-nav">
+                  {{{SCOUT::DOCS}}}
+                </nav>
+              </header>
+              <main class="container">
+                {html_body}
+              </main>
+              <footer id="site-footer">
+                {{{SCOUT::FOOTER}}}
+              </footer>
+            </body>
+            </html>
+            """
 
             say "Writing to: " + output_path
             write_text!(output_path, html_content)
