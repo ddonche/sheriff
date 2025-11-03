@@ -1,0 +1,129 @@
+/// Brindle — auto-discover themes, register tokens, no building
+act basename(p)
+    parts = split(p, "/")
+    if parts.len == 0
+        return p
+    end
+    return parts[parts.len - 1]
+end
+
+act strip_css_ext(filename)
+    if filename.len >= 4
+        tail = filename[filename.len - 4:filename.len].lower
+        if tail == ".css"
+            return filename[0:filename.len - 4]
+        end
+    end
+    return filename
+end
+
+/// Read desired theme name from goblin.yaml (or return nil if none)
+act selected_theme_from_config()
+    if file_exists("goblin.yaml") == false
+        return nil
+    end
+    cfg_text = read_text("goblin.yaml")
+    sanitized = yaml_sanitize(cfg_text)
+    cfg = yaml_parse(sanitized)
+    
+    if cfg == nil
+        return nil
+    end
+    br = cfg >> "brindle"
+    if br == nil
+        return nil
+    end
+    t = br >> "theme"
+    if t == nil
+        return nil
+    end
+    trimmed = ("" + t).trim
+    if trimmed == ""
+        return nil
+    end
+    return trimmed
+end
+
+act build_css_files()
+    /// Create the directories
+    create_dir!("dist/modules/brindle/themes")
+    
+    /// Copy baseline
+    if file_exists("modules/brindle/baseline.css")
+        baseline_content = read_text("modules/brindle/baseline.css")
+        write_text!("dist/modules/brindle/baseline.css", baseline_content)
+        say "Brindle: copied baseline.css"
+    end
+    
+    /// Copy all theme files
+    theme_files = walk("modules/brindle/themes", "**/*.css")
+    for theme_file in theme_files
+        /// Read from source
+        theme_content = read_text(theme_file)
+        
+        /// Get just the filename
+        path_parts = split(theme_file, "/")
+        filename = path_parts[path_parts.len - 1]
+        
+        /// Write to dist
+        output_path = "dist/modules/brindle/themes/" + filename
+        write_text!(output_path, theme_content)
+        say "Brindle: copied " + filename
+    end
+end
+
+/// Register BRINDLE::<THEME> for every file in modules/brindle/themes/*.css
+act publish_theme_tokens()
+    theme_dir = "modules/brindle/themes"
+    if file_exists(theme_dir) == false
+        return 0
+    end
+
+    files = walk(theme_dir, "**/*.css")
+    file_count = 0
+
+    for f in files
+        base = basename(f)               /// e.g., "obsidian.css"
+        stem = strip_css_ext(base)       /// e.g., "obsidian"
+        if ("" + stem).trim == ""
+            skip
+        end
+        token = upper(stem)              /// "OBSIDIAN"
+        href  = "/modules/brindle/themes/" + stem + ".css"
+        register_token("BRINDLE", token, href)
+        file_count = file_count + 1
+    end
+
+    return file_count
+end
+
+/// Publish static tokens (BASELINE + all themes) and wire BRINDLE::CSS
+act publish_tokens()
+    baseline_href = "/modules/brindle/baseline.css"
+    
+    if file_exists("modules/brindle/baseline.css") == false
+        register_token("BRINDLE", "CSS", "<!-- ERROR: baseline.css not found -->")
+    else
+        publish_theme_tokens()
+        
+        chosen = selected_theme_from_config()
+        
+        if chosen !== nil
+            chosen_lo = lower(chosen.trim)
+            chosen_fs = "modules/brindle/themes/" + chosen_lo + ".css"
+            
+            if file_exists(chosen_fs)
+                theme_href = "/modules/brindle/themes/" + chosen_lo + ".css"
+                /// Register the ACTUAL <link> tags as content
+                css_links = "<link rel=\"stylesheet\" href=\"" + theme_href + "\">\n    <link rel=\"stylesheet\" href=\"" + baseline_href + "\">"
+                register_token("BRINDLE", "CSS", css_links)
+            else
+                css_links = "<link rel=\"stylesheet\" href=\"" + baseline_href + "\">"
+                register_token("BRINDLE", "CSS", css_links)
+            end
+        else
+            css_links = "<link rel=\"stylesheet\" href=\"" + baseline_href + "\">"
+            register_token("BRINDLE", "CSS", css_links)
+        end
+    end
+end

@@ -5,7 +5,7 @@ aliases: []
 hidden: false
 ---
 
-# **Goblin Decision Constructs — Canonical Spec (v1)**
+# Goblin Decision Constructs
 
 *(Exclusive & Inclusive Decision Logic)*
 

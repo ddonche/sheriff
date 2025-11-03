@@ -1,8 +1,15 @@
 name: sheriff
-version: 0.1.0
+version: 0.5.0
 entry: main.gbln
 
-module_paths: {}
+module_paths:
+  brindle: ./modules/brindle
+  scout: ./modules/scout 
+
+# theme setting
+brindle:
+  theme: "OBSIDIAN"      # or "BONE", "MIDNIGHT"
+  overrides: {}          # optional: { primary: "#66e3ff", radius-lg: "16px" }
 
 ssg:
   # Directories

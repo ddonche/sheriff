@@ -1,650 +1,175 @@
-/// Sheriff — Goblin SSG + Wiki (v0.5, uses md_to_html builtin)
+/// Sheriff — Complete solution with frontmatter handling and proper file extension conversion
+import modules/scout/scout as scout
+import modules/brindle/brindle as br 
 
-/// Load base template (templates/base.html) or return "" if missing
-act load_base_template(config)
-    /// defaults
-    template_dir  = "templates"
-    template_file = "base.html"
+scout::publish_tokens()
+br::build_css_files()
+br::publish_tokens()
 
-    ssg_section = config >> "ssg"
-    if ssg_section !== nil
-        partials_section = ssg_section >> "partials"
-        if partials_section !== nil
-            dir_candidate = partials_section >> "dir"
-            if dir_candidate !== nil and dir_candidate.trim !== ""
-                template_dir = dir_candidate.trim
+/// Get just the frontmatter text (inner YAML only, no fences)
+act get_frontmatter(content)
+    /// Accept leading blanks, require fence at BOL, allow EOF-close, EXCLUDE delims
+    opts = {
+        "include_delims": false,
+        "allow_eof_close": true,
+        "leading_blanks_ok": true,
+        "require_bol": true
+    }
+    fm = keep_between(content, "---\n", "\n---\n", opts)
+    if fm == ""
+        fm = keep_between(content, "---\n", "\n---", opts)
+    end
+    return fm.trim
+end
+
+/// Get body text by removing frontmatter (non-mutating, uses IGNORE)
+act extract_body_content(content)
+    opts = {
+        "include_delims": true,
+        "allow_eof_close": true,
+        "leading_blanks_ok": true,
+        "require_bol": true
+    }
+    body = ignore_between(content, "---\n", "\n---\n", opts)
+    if body == content
+        /// no primary match; try EOF-close
+        body = ignore_between(content, "---\n", "\n---", opts)
+    end
+    return body
+end
+
+/// Extract the 'title:' line from frontmatter text using the builtins we added.
+act extract_title(frontmatter_text)
+    if frontmatter_text == nil or frontmatter_text == ""
+        return ""
+    end
+
+    fm_lines = lines(frontmatter_text)
+    for line_text in fm_lines
+        lowered = lower(line_text)
+        if starts_with(lowered, "title:")
+            raw_after = after(line_text, "title:")
+
+            /// remove at most one leading space or tab after the colon
+            cleaned = raw_after
+            if cleaned.len >= 1 and (cleaned[0:1] == " " or cleaned[0:1] == "\t")
+                cleaned = cleaned[1:cleaned.len]
             end
 
-            base_candidate = partials_section >> "base"
-            if base_candidate !== nil and base_candidate.trim !== ""
-                template_file = base_candidate.trim
+            if cleaned !== ""
+                return cleaned
             end
         end
     end
 
-    template_path = path_join(template_dir, template_file)
-    if file_exists(template_path)
-        return read_text(template_path)
+    return ""
+end
+
+/// Return the first ATX H1 ("# Title") from the body
+act h1_from_body(body_text)
+    for line_text in lines(body_text)
+        trimmed = line_text.trim
+        if trimmed.len >= 2 and trimmed[0:1] == "#" and trimmed[1:2] !== "#"
+            return after(trimmed, "#").trim
+        end
     end
     return ""
 end
 
-/// Build a URL from a content path using existing slug rules.
-/// Accepts "index.md", "index.html", "docs/x.md", "docs/x.html".
-/// Build a URL by preserving subdirectories and mapping name → slug(name).html.
-/// Accepts "index.md", "docs/index.md", "docs/getting-started/installation.md".
-act content_path_to_url(_content_root, relative_md_path)
-    p = relative_md_path
-    update_where!(p, "\\", "/")
+act create_all_dirs(path)
+    /// Ensure all directories in the path exist
+    slash_positions = find_all(path, "/")
 
-    if has(p, "content/") and find(p, "content/") == 0
-        p = p["content/".len:p.len]
-    end
-
-    ctu_dir  = path_dirname(p)
-    ctu_base = path_basename(p)
-
-    ends_md = false
-    if ctu_base.len >= 3
-        tail3 = ctu_base[ctu_base.len - 3:ctu_base.len].lower
-        if tail3 == ".md"
-            ends_md = true
+    for slash_pos in slash_positions
+        dir_part = path[0:slash_pos]
+        if dir_part !== "" and file_exists(dir_part) == false
+            create_dir!(dir_part)
         end
-    end
-
-    ends_html = false
-    if ctu_base.len >= 5
-        tail5 = ctu_base[ctu_base.len - 5:ctu_base.len].lower
-        if tail5 == ".html"
-            ends_html = true
-        end
-    end
-
-    ctu_stem = ctu_base
-    if ends_md
-        ctu_stem = ctu_base[0:ctu_base.len - 3]
-    elif ends_html
-        ctu_stem = ctu_base[0:ctu_base.len - 5]
-    end
-
-    if ctu_stem == "" or ctu_stem == nil
-        return "/index.html"
-    end
-
-    if ctu_stem == "index"
-        if ctu_dir == "" or ctu_dir == nil
-            return "/index.html"
-        else
-            return "/" + ctu_dir + "/index.html"
-        end
-    end
-
-    slugged = slug(ctu_stem)
-
-    if ctu_dir == "" or ctu_dir == nil
-        return "/" + slugged + ".html"
-    else
-        return "/" + ctu_dir + "/" + slugged + ".html"
     end
 end
 
-/// Render mkdocs-style nav (header) as HTML using <nav> with nested <details>.
-act render_nav_header(config, current_url)
-    navigation_tree = []
-    content_dir = "content"
-
-    ssg_section = config >> "ssg"
-    if ssg_section !== nil
-        nav_candidate = ssg_section >> "nav"
-        if nav_candidate !== nil
-            navigation_tree = nav_candidate
-        end
-
-        content_dir_candidate = ssg_section >> "content_dir"
-        if content_dir_candidate !== nil and content_dir_candidate.trim !== ""
-            content_dir = content_dir_candidate.trim
-        end
-    end
-
-    act item_html(entry_label, target_or_list)
-        nav_item_kind [= valtype(target_or_list)
-
-        /// declare once per call
-        nav_group_html [= ""      /// <— this was missing
-        nav_child_key  [= nil
-        nav_child_val  [= nil
-
-        if nav_item_kind == "array" or nav_item_kind == "seq"
-            /// Group
-            for subentry in target_or_list
-                for nav_child_pair in subentry
-                    nav_child_key = nav_child_pair[0]
-                    nav_child_val = nav_child_pair[1]
-                    nav_group_html = nav_group_html + item_html(nav_child_key, nav_child_val)
-                end
-            end
-            return "<li><details class=\"dropdown\"><summary>" + escape_html(entry_label) + "</summary><ul>" + nav_group_html + "</ul></details></li>"
-        else
-            href_value = target_or_list
-            href_text = "" + (href_value ?? "")
-
-            if href_text.trim == ""
-                resolved_url = "#"
-            else
-                is_external = (find(href_text, "http://") == 0) or (find(href_text, "https://") == 0)
-                if is_external
-                    resolved_url = href_text
-                else
-                    resolved_url = content_path_to_url(content_dir, href_text)
-                end
-            end
-
-            class_attr = ""
-            if resolved_url == current_url
-                class_attr = " class=\"active\""
-            end
-
-            return "<li><a" + class_attr + " href=\"" + resolved_url + "\">" + escape_html(entry_label) + "</a></li>"
-        end
-    end
-
-    left_brand_html  = "<ul><li><a class=\"contrast\" href=\"/index.html\"><strong>Site</strong></a></li></ul>"
-    right_links_html = "<ul>"
-
-    /// declare once at function scope; reassign inside loop
-    nav_entry_label  [= ""
-    nav_entry_target [= nil
-
-    for nav_entry in navigation_tree
-        for top_pair in nav_entry
-            nav_entry_label  = top_pair[0]
-            nav_entry_target = top_pair[1]
-            right_links_html = right_links_html + item_html(nav_entry_label, nav_entry_target)
-        end
-    end
-    right_links_html = right_links_html + "</ul>"
-
-    return "<nav>" + left_brand_html + right_links_html + "</nav>"
-end
-
-/// Render full page by replacing tokens in base.html.
-/// If template missing, fall back to your existing body wrapper.
-act render_page_with_template(base_html, page_title, head_extra, nav_html, sidebar_html, content_html)
-    if base_html == ""
-        return "<!doctype html>\n<html><head><meta charset=\"utf-8\"/>" +
-               "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>" +
-               "<title>" + escape_html(page_title) + "</title>" +
-               "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css\"/>" +
-               "<link rel=\"stylesheet\" href=\"/style.css\"/>" +
-               "</head><body><main>\n" + content_html + "\n</main></body></html>\n"
-    end
-
-    rendered = base_html
-
-    /// replace [[[TITLE]]]
-    token = "[[[TITLE]]]"
-    while find(rendered, token) !== nil
-        idx = find(rendered, token)
-        before = rendered[0:idx]
-        after = rendered[idx + token.len:rendered.len]
-        rendered = before + escape_html(page_title) + after
-    end
-
-    /// replace [[[HEAD_EXTRA]]]
-    token = "[[[HEAD_EXTRA]]]"
-    while find(rendered, token) !== nil
-        idx = find(rendered, token)
-        before = rendered[0:idx]
-        after = rendered[idx + token.len:rendered.len]
-        rendered = before + (head_extra ?? "") + after
-    end
-
-    /// replace [[[NAV.HEADER]]]
-    token = "[[[NAV.HEADER]]]"
-    while find(rendered, token) !== nil
-        idx = find(rendered, token)
-        before = rendered[0:idx]
-        after = rendered[idx + token.len:rendered.len]
-        rendered = before + (nav_html ?? "") + after
-    end
-
-    /// replace [[[SIDEBAR]]]
-    token = "[[[SIDEBAR]]]"
-    while find(rendered, token) !== nil
-        idx = find(rendered, token)
-        before = rendered[0:idx]
-        after = rendered[idx + token.len:rendered.len]
-        rendered = before + (sidebar_html ?? "") + after
-    end
-
-    /// replace [[[CONTENT]]]
-    token = "[[[CONTENT]]]"
-    while find(rendered, token) !== nil
-        idx = find(rendered, token)
-        before = rendered[0:idx]
-        after = rendered[idx + token.len:rendered.len]
-        rendered = before + (content_html ?? "") + after
-    end
-
-    return rendered
-end
-
-
-/// ------------------------------
-/// Front-matter split
-/// ------------------------------
-/// Split optional YAML front-matter fenced by lines of exactly '---'.
-/// Returns (meta_text, body_text). If no fences, meta_text="", body_text=original.
-act split_frontmatter(markdown_text)
-    all_lines = lines(markdown_text)
-
-    if all_lines.len == 0
-        return "", markdown_text
-    end
-
-    if all_lines[0].trim !== "---"
-        return "", markdown_text
-    end
-
-    fence_close_index = nil
-    scan_index = 1
-    while scan_index < all_lines.len
-        if all_lines[scan_index].trim == "---"
-            fence_close_index = scan_index
-            scan_index = all_lines.len      /// break the loop without 'stop'
-            skip
-        end
-        scan_index = scan_index + 1
-    end
-
-    if fence_close_index == nil
-        /// no closing fence found; treat as no front-matter
-        return "", markdown_text
-    end
-
-    meta_lines_slice = all_lines[1:fence_close_index]
-    body_lines_slice = all_lines[fence_close_index + 1:all_lines.len]
-
-    return join(meta_lines_slice, "\n").trim, join(body_lines_slice, "\n").trim
-end
-
-/// ------------------------------
-/// HTML escaping (for <title>, etc.)
-/// ------------------------------
-act escape_html(input_text)
-    output_text = input_text
-    update_where!(output_text, "&", "&amp;")
-    update_where!(output_text, "<", "&lt;")
-    update_where!(output_text, ">", "&gt;")
-    update_where!(output_text, "\"", "&quot;")
-    update_where!(output_text, "'", "&#39;")
-    return output_text
-end
-
-/// ------------------------------
-/// Title extraction (front-matter title → first ATX header → fallback)
-/// ------------------------------
-act extract_title(frontmatter_map, body_text)
-    if frontmatter_map !== nil
-        for fm_pair in frontmatter_map
-            if fm_pair[0] == "title"
-                title_value = fm_pair[1]
-                if valtype(title_value) == "string" and title_value.trim !== ""
-                    return title_value.trim
-                end
-            end
-        end
-    end
-
-    normalized_body = body_text
-    update_where!(normalized_body, "\r\n", "\n")
-    update_where!(normalized_body, "\r", "\n")
-    body_lines = lines(normalized_body)
-
-    line_index = 0
-    while line_index < body_lines.len
-        trimmed_line = body_lines[line_index].trim_lead
-        if trimmed_line !== ""
-            tokens = split(trimmed_line, " ")
-            first_token = ""
-            if tokens.len > 0
-                first_token = tokens[0]
-            end
-            if (first_token == "#" or first_token == "##" or first_token == "###") and tokens.len > 1
-                header_text = ""
-                token_index = 1
-                while token_index < tokens.len
-                    if header_text == ""
-                        header_text = tokens[token_index]
-                    else
-                        header_text = header_text ++ tokens[token_index]
-                    end
-                    token_index = token_index + 1
-                end
-                return header_text.trim
-            end
-        end
-        line_index = line_index + 1
-    end
-
-    return "Untitled"
-end
-
-/// ------------------------------
-/// Path helpers (string-based)
-/// ------------------------------
-act path_dirname(path_text)
-    local_path = path_text
-    slash_positions = find_all(local_path, "/")
-    if slash_positions.len == 0
-        return ""
-    end
-    last_slash_index = slash_positions[slash_positions.len - 1]
-    if last_slash_index == 0
-        return ""
-    end
-    return local_path[0:last_slash_index]
-end
-
-act path_basename(path_text)
-    local_path = path_text
-    slash_positions = find_all(local_path, "/")
-    if slash_positions.len == 0
-        return local_path
-    end
-    last_slash_index = slash_positions[slash_positions.len - 1]
-    return local_path[last_slash_index + 1:local_path.len]
-end
-
-/// Ensure a directory tree exists (split on '/'; create each segment)
-act ensure_dir_tree(dir_path)
-    if dir_path == "" or dir_path == nil
-        skip
-    end
-    path_segments = split(dir_path, "/")
-    accumulated_dir = ""
-    segment_index = 0
-    while segment_index < path_segments.len
-        segment = path_segments[segment_index].trim
-        if segment !== ""
-            if accumulated_dir === ""
-                accumulated_dir = segment
-            else
-                accumulated_dir = path_join(accumulated_dir, segment)
-            end
-            create_dir!(accumulated_dir)
-        end
-        segment_index = segment_index + 1
-    end
-end
-
-/// ------------------------------
-/// UUID sidecars under .sheriff/ids/…  (stable per content path)
-/// ------------------------------
-act read_or_create_uuid_for(relative_content_path)
-    ids_root_dir = ".sheriff/ids"
-    path_after_content = relative_content_path["content/".len:relative_content_path.len]   /// drop "content/" prefix
-    sidecar_rel_path   = path_join(ids_root_dir, path_after_content) + ".id"
-
-    sidecar_dir = path_dirname(sidecar_rel_path)
-    ensure_dir_tree(sidecar_dir)
-
-    if file_exists(sidecar_rel_path)
-        existing_uuid = read_text(sidecar_rel_path).trim
-        if existing_uuid !== ""
-            return existing_uuid
-        end
-    end
-
-    new_uuid = uuid_v7()
-    write_text!(sidecar_rel_path, new_uuid)
-    return new_uuid
-end
-
-/// ------------------------------
-/// Output paths/href under dist/, preserving subdirs under content/
-/// ------------------------------
-act compute_output_paths(relative_content_path, final_slug)
-    content_prefix_len = "content/".len
-    path_after_content = relative_content_path[content_prefix_len:relative_content_path.len]
-    dir_part = path_dirname(path_after_content)
-
-    output_dir = "dist"
-    if dir_part !== ""
-        output_dir = path_join(output_dir, dir_part)
-    end
-
-    output_file = path_join(output_dir, final_slug + ".html")
-
-    href_value = "/"
-    if dir_part !== ""
-        href_value = href_value + dir_part + "/"
-    end
-    href_value = href_value + final_slug + ".html"
-
-    return { "out_dir": output_dir, "out_file": output_file, "href": href_value }
-end
-
-/// ------------------------------
-/// Enumerate markdown files under content/
-/// ------------------------------
-act list_markdown_files()
-    all_paths = walk("content", "**/*.md")
-    only_content_paths = []
-    path_index = 0
-    while path_index < all_paths.len
-        candidate_path = all_paths[path_index]
-        if has(candidate_path, "content/") and find(candidate_path, "content/") == 0
-            put_last!(only_content_paths, candidate_path)     /// append one path
-        end
-        path_index = path_index + 1
-    end
-    return only_content_paths
-end
-
-/// ------------------------------
-/// Build a single page and return its manifest record (Map)
-/// ------------------------------
-act build_single_page(relative_content_path, config, base_html)
-    source_text = read_text(relative_content_path)
-
-    frontmatter_text, markdown_body = split_frontmatter(source_text)
-
-    frontmatter_map = nil
-    if frontmatter_text !== ""
-        frontmatter_map = yaml_parse(frontmatter_text)
-    end
-
-    inferred_title = extract_title(frontmatter_map, markdown_body)
-
-    base_filename = path_basename(relative_content_path)
-    name_without_ext = base_filename
-    ext_pos = find(base_filename, ".md")
-    if ext_pos !== nil
-        name_without_ext = base_filename[0:ext_pos]
-    end
-
-    final_slug = ""
-
-    /// slug
-    slug_candidate_value = nil
-    if frontmatter_map !== nil
-        for fm_pair in frontmatter_map
-            field_key = fm_pair[0]
-            if field_key == "slug"
-                field_value = fm_pair[1]
-                field_type  = valtype(field_value)
-
-                if field_type == "string"
-                    trimmed_value = field_value.trim
-                    if trimmed_value !== ""
-                        slug_candidate_value = trimmed_value
-                    end
-
-                else
-                    if field_type == "array" or field_type == "seq"
-                        joined_slug_text = ""
-                        value_index = 0
-                        while value_index < field_value.len
-                            value_item = field_value[value_index]
-                            if valtype(value_item) == "string"
-                                if joined_slug_text == ""
-                                    joined_slug_text = value_item
-                                else
-                                    joined_slug_text = joined_slug_text + " " + value_item
-                                end
-                            end
-                            value_index = value_index + 1
-                        end
-                        joined_slug_text = joined_slug_text.trim
-                        if joined_slug_text !== ""
-                            slug_candidate_value = joined_slug_text
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    /// fallback chain identical to your intent
-    if slug_candidate_value !== nil and slug_candidate_value !== ""
-        final_slug = slug_candidate_value
-    else
-        if inferred_title !== "Untitled"
-            final_slug = slug(inferred_title)
-        else
-            final_slug = slug(name_without_ext)
-        end
-    end
-
-    if final_slug === "" or final_slug === nil
-        final_slug = "index"
-    end
-
-
-    page_uuid = read_or_create_uuid_for(relative_content_path)
-    html_body = md_to_html(markdown_body)
-    output_paths = compute_output_paths(relative_content_path, final_slug)
-
-    ensure_dir_tree(output_paths["out_dir"])
-
-    current_url = output_paths["href"]
-    nav_html = render_nav_header(config, current_url)
-    sidebar_html = ""
-    head_extra = ""
-
-    html_document = render_page_with_template(
-        base_html,
-        inferred_title,
-        head_extra,
-        nav_html,
-        sidebar_html,
-        html_body
-    )
-
-    write_text!(output_paths["out_file"], html_document)
-
-    return {
-        "uuid":  page_uuid,
-        "rel":   relative_content_path["content/".len:relative_content_path.len],
-        "slug":  final_slug,
-        "title": inferred_title,
-        "href":  output_paths["href"],
-        "links_to": [],
-        "missing":  []
-    }
-end
-
-/// ------------------------------
-/// Build entire site: all pages, public assets, manifest
-/// ------------------------------
+/// Sheriff build: read → clean → split → parse fm → render body only.
 act build_site()
-
-    config_text = read_text("goblin.yaml")
-    config_map = yaml_parse(config_text)
-    base_html = load_base_template(config_map)
+    say "Starting build process"
 
     create_dir!("dist")
 
-    page_records = []
-    markdown_files = list_markdown_files()
+    say "Finding markdown files"
+    md_files = walk("content", "**/*.md")
+    say "Found " + string(md_files.len) + " files"
 
-    file_index = 0
-    while file_index < markdown_files.len
-        current_rel_path = markdown_files[file_index]
+    for file_path in md_files
+        say "Processing: " + file_path
 
-        record_map = build_single_page(current_rel_path, config_map, base_html)
+        content_path = file_path["content/".len:file_path.len]
+        md_suffix_position = content_path.len - 3
 
-        put_last!(page_records, record_map)
+        if md_suffix_position > 0
+            content_stem = content_path[0:md_suffix_position]
+            output_path = "dist/" + content_stem + ".html"
+            say "Output path: " + output_path
 
-        file_index = file_index + 1
-    end
+            create_all_dirs(output_path)
 
-    /// Copy public/** → dist/**
-    if file_exists("public")
-        public_files = walk("public", "**/*")
-        public_index = 0
-        while public_index < public_files.len
-            src_path = public_files[public_index]
+            raw = read_text(file_path)
+            clean = sanitize_bom(raw)
+            content = normalize_newlines(clean)
 
-            public_prefix = "public/"
-            relative_asset = src_path
-            if has(src_path, public_prefix) and find(src_path, public_prefix) == 0
-                relative_asset = src_path[public_prefix.len:src_path.len]
-            end
+            frontmatter = get_frontmatter(content)
+            body_content = extract_body_content(content)
 
-            dst_path = path_join("dist", relative_asset)
-            dst_dir  = path_dirname(dst_path)
-            ensure_dir_tree(dst_dir)
+            /// Title = basename of the file we actually write (no directories)
+            normalized_out = output_path
+            update_where!(normalized_out, "\\", "/")
 
-            copy_file!(src_path, dst_path)
+            path_parts = split(normalized_out, "/")
+            out_file   = path_parts[path_parts.len - 1]
 
-            public_index = public_index + 1
+            /// strip ".html", then underscores → spaces (no loops, no replace), then Title Case
+            base_no_ext     = ignore_where(out_file, ".html")
+            underscore_parts = split(base_no_ext, "_")
+            spaced_title     = join(underscore_parts, " ")
+            page_title       = title(spaced_title)
+
+            /// Output-only filtering (safe no-op if not present)
+            work_body = body_content
+            html_content =
+                "<!doctype html>" +
+                "<html lang=\"en\">" +
+                "<head>" +
+                  "<meta charset=\"utf-8\"/>" +
+                  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>" +
+                  "<title>" + page_title + "</title>" +
+                  "{{{BRINDLE::CSS}}}" +
+                "</head>" +
+                "<body>" +
+                  "<header class=\"container\">" +
+                    "<nav id=\"site-nav\">" +
+                      "{{{SCOUT::DOCS}}}" +
+                    "</nav>" +
+                  "</header>" +
+                  "<main class=\"container\">" +
+                    md_to_html(work_body) +
+                  "</main>" +
+                  "<footer id=\"site-footer\">" +
+                    "{{{SCOUT::FOOTER}}}" +
+                  "</footer>" +
+                "</body>" +
+                "</html>"
+
+            say "Writing to: " + output_path
+            write_text!(output_path, html_content)
+        else
+            say "Invalid file path: " + file_path
         end
     end
 
-    manifest_obj = { "pages": page_records }
-    write_json!("dist/manifest.json", manifest_obj)
-
+    say "Build completed successfully!"
 end
 
-/// ------------------------------
-/// CLI
-/// ------------------------------
-act help
-    say "sheriff:" ++ "build | serve | help"
-end
-
-act build
+/// CLI entry point
+if args !== nil and args.len > 0 and args[0].lower.trim == "build"
     build_site()
-end
-
-act serve
-    say "SERVE (stub)"
-end
-
-/// one-shot CLI dispatch
-cli_command = ""
-cli_ran = false
-
-if args !== nil and args.len > 0
-    cli_command = args[0].lower.trim
-    judge using cli_command
-        == "build":
-            build()
-            cli_ran = true
-        == "serve":
-            serve()
-            cli_ran = true
-        == "help":
-            help()
-            cli_ran = true
-        else:
-            say "unknown command:" ++ cli_command
-            cli_ran = true
-    end
-end
-
-if cli_ran == false
-    help()
+else
+    say "Usage: goblin run main.gbln build"
 end

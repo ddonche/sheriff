@@ -4,26 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>[[[TITLE]]]</title>
-
-  <!-- Base styles (user can swap CDN or self-host later) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.0.6/css/pico.min.css" />
-  <!-- Optional local overrides -->
-  <link rel="stylesheet" href="/style.css" />
-
+  <link rel="stylesheet" href="{{{BRINDLE::CSS}}}">
   [[[HEAD_EXTRA]]]
 </head>
 <body>
   <header class="container">
     <!-- top navbar generated from ssg.nav -->
-    [[[NAV.HEADER]]]
+    <nav id="site-nav">
+      {{{SCOUT::DOCS}}}
+    </nav>
   </header>
 
   <main class="container">
     [[[CONTENT]]]
   </main>
 
-  <footer class="container">
-    <small>© 2025</small>
+  <footer id="site-footer">
+    {{{SCOUT::FOOTER}}}
   </footer>
 </body>
 </html>

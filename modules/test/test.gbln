@@ -1,0 +1,16 @@
+act test_map_extraction()
+    say "=== Testing map extraction in module ==="
+    
+    /// Create a simple map
+    my_map = {name: "Alice", age: "30", city: "NYC"}
+    
+    /// DON'T call string(my_map) - it mutates it!
+    say "Map created"
+    say "Valtype: " ++ valtype(my_map)
+    
+    /// Now try to access
+    name_val = my_map >> "name"
+    say "Name: " ++ name_val
+    
+    return name_val
+end

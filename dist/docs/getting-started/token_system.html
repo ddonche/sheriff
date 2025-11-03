@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Token System</title><link rel="stylesheet" href="/modules/brindle/themes/obsidian.css">
+    <link rel="stylesheet" href="/modules/brindle/baseline.css"></head><body><header class="container"><nav id="site-nav"><ul role="list"><li><a href="blog.md">Blog</a></li><li><a href="changelog.md">Changelog</a></li><li><details class="dropdown"><summary>Docs</summary><ul role="list"><li><details class="dropdown"><summary>Getting Started</summary><ul role="list"><li><a href="docs/getting-started/basics.md">Basics</a></li><li><a href="docs/getting-started/installation.md">Installation</a></li><li><a href="docs/getting-started/index.md">Introduction</a></li></ul></details></li><li><a href="docs/index.md">Overview</a></li></ul></details></li><li><a href="index.md">Home</a></li></ul></nav></header><main class="container"><h1>Goblin Token System</h1>
+<p>A concise, copy‑paste‑ready spec for Goblin’s triple‑brace token mechanism. This is the version that matches our current parser/AST/interpreter wiring.</p>
+<h2>How It Works (Pipeline)</h2>
+<ol>
+<li>
+<p><strong>Lexer</strong> produces dedicated tokens: <code>TripleBraceOpen</code> <code>Ident</code> <code>::</code> <code>Ident</code> <code>TripleBraceClose</code> (or two <code>:</code> ops if <code>::</code> isn’t a fused token).</p>
+</li>
+<li>
+<p><strong>Parser</strong> recognizes the sequence and emits <code>PExpr::LiteralToken { module, ident, span }</code>.</p>
+</li>
+<li>
+<p><strong>Lowering → AST</strong> yields <code>Expr::LiteralToken { module: String, ident: String, span: Span }</code>.</p>
+</li>
+<li>
+<p><strong>Interpreter</strong> resolves in this order:</p>
+<ul>
+<li><strong>(1) Registered value</strong> in <code>Session</code> via <code>register_token</code>.</li>
+<li><strong>(2) Module resolver</strong>: calls <code>MODULE::resolve_token(name)</code> if no registration.</li>
+<li><strong>(3) Error</strong>: emits <strong>R0101 unknown-token</strong> with span, help, link.</li>
+</ul>
+</li>
+</ol>
+<p>This allows <strong>eager</strong> (registered) and <strong>lazy</strong> (resolver) strategies to coexist.</p>
+<h2>Module Authoring Convention (Plugin Hook)</h2>
+<p>Each module that exposes tokens should define an <strong>init</strong> action that registers its static tokens, and (optionally) a resolver for dynamic ones.</p>
+<pre lang="gbln"><code>act BRINDLE::init()
+    register_token(&quot;BRINDLE&quot;,&quot;OBSIDIAN&quot;,&quot;obsidian.css&quot;)
+    register_token(&quot;BRINDLE&quot;,&quot;THEME&quot;, { name: &quot;Obsidian&quot;, css: &quot;obsidian.css&quot; })
+end
+
+act BRINDLE::resolve_token(name)
+    judge
+        name == &quot;BUILD_TIME&quot;: return now()
+        name == &quot;CSS_PATH&quot;:   return &quot;themes/obsidian.css&quot;
+        else:                  return nil  # no value → interpreter raises R0101
+    end
+end
+</code></pre>
+<blockquote>
+<p><strong>When does Goblin read these?</strong>
+When the actions run. Call <code>BRINDLE::init()</code> once during startup (module load, build entrypoint, or bootstrapping script). After that, any <code>{{{BRINDLE::IDENT}}}</code> usage will first check the registered store, then (if missing) call <code>BRINDLE::resolve_token(IDENT)</code>.</p>
+</blockquote>
+<h2>Error Diagnostics (Contracts)</h2>
+<p>These are the <strong>exact</strong> diagnostics emitted today.</p>
+<h3>Parse‑time shape errors</h3>
+<ul>
+<li>
+<p><strong>P0710 bad-token-shape</strong> (e.g., missing MODULE/IDENT/<code>::</code>)</p>
+<ul>
+<li><em>help:</em> <code>Write tokens like: {{{BRINDLE::OBSIDIAN}}}</code></li>
+</ul>
+</li>
+<li>
+<p><strong>P0711 unclosed-triple-brace</strong> — missing <code>}}}</code></p>
+<ul>
+<li><em>help:</em> <code>Close tokens like: {{{MODULE::IDENT}}}</code></li>
+</ul>
+</li>
+</ul>
+<h3>Runtime resolution error</h3>
+<ul>
+<li>
+<p><strong>R0101 unknown-token</strong></p>
+<ul>
+<li><em>message:</em> <code>unknown token ‘MODULE::IDENT’</code></li>
+<li><em>help:</em> <code>Register the token, provide a module resolver, or implement ‘MODULE::resolve_token(name)’.</code></li>
+<li><em>link:</em> <code>https://goblinlang.org/docs/errors#R0101</code></li>
+</ul>
+</li>
+</ul>
+<p>All errors carry <code>Span</code> for pointing into source.</p>
+<h2>Best Practices</h2>
+<ul>
+<li><strong>Namespacing</strong>: each module registers only within <em>its own</em> namespace (<code>BRINDLE::…</code>).</li>
+<li><strong>Idempotent init</strong>: make <code>MODULE::init()</code> safe to call more than once.</li>
+<li><strong>Determinism</strong>: prefer register for constants; reserve resolver for IO/computation/env.</li>
+<li><strong>Documentation</strong>: publish a table of tokens your module provides (name → type → purpose).</li>
+<li><strong>No cycles</strong>: avoid <code>resolve_token</code> calling other tokens recursively in ways that can loop.</li>
+</ul>
+<h2>Minimal Integration Checklist (for a new module)</h2>
+<ol>
+<li>Create <code>MODULE::init()</code> and register static tokens.</li>
+<li>(Optional) Add <code>MODULE::resolve_token(name)</code> for dynamic values.</li>
+<li>Call <code>MODULE::init()</code> during app startup/build entrypoint.</li>
+<li>Use tokens anywhere in code/templates with <code>{{{MODULE::IDENT}}}</code>.</li>
+<li>Document tokens in your module README.</li>
+</ol>
+<h2>Reference (Signatures)</h2>
+<p><strong>Triple‑brace literal</strong> → <code>Expr::LiteralToken { module: String, ident: String, span: Span }</code></p>
+<p><strong>Built‑in actions</strong></p>
+<pre lang="gbln"><code># Store a value in Session
+act register_token(module, ident, value)
+
+# Resolve immediately (same path interpreter uses for triple braces)
+act resolve_token(module, ident) -&gt; value
+</code></pre>
+<p><strong>Resolver contract</strong></p>
+<pre lang="gbln"><code># Called by interpreter when no registered value exists.
+# Return nil to indicate “not found”.
+act MODULE::resolve_token(name) -&gt; value|nil
+</code></pre>
+</main><footer id="site-footer"><ul role="list"><li><a href="blog.md">Blog</a></li><li><a href="changelog.md">Changelog</a></li><li><a href="docs/index.md">Docs</a></li></ul></footer></body></html>

@@ -1,0 +1,163 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Chapter1</title><link rel="stylesheet" href="/modules/brindle/themes/obsidian.css">
+    <link rel="stylesheet" href="/modules/brindle/baseline.css"></head><body><header class="container"><nav id="site-nav"><ul role="list"><li><a href="blog.md">Blog</a></li><li><a href="changelog.md">Changelog</a></li><li><details class="dropdown"><summary>Docs</summary><ul role="list"><li><details class="dropdown"><summary>Getting Started</summary><ul role="list"><li><a href="docs/getting-started/basics.md">Basics</a></li><li><a href="docs/getting-started/installation.md">Installation</a></li><li><a href="docs/getting-started/index.md">Introduction</a></li></ul></details></li><li><a href="docs/index.md">Overview</a></li></ul></details></li><li><a href="index.md">Home</a></li></ul></nav></header><main class="container"><h1>Chapter 1: Your First Hero</h1>
+<blockquote>
+<p>Generate a hero with a name, class, and stats using dice roll notation, then print them to the screen.</p>
+</blockquote>
+<h2>Learning Objectives</h2>
+<ul>
+<li>Use maps to model structured data (hero, stats, items)</li>
+<li>Roll simulated dice with <code>roll 3d6+6</code> notation</li>
+<li>Produce class-based starter gear with item properties</li>
+<li>Print a clean “hero card” to the console</li>
+<li>Understand Goblin’s module system and imports</li>
+</ul>
+<h2>Prerequisites</h2>
+<ul>
+<li>
+<p>Goblin interpreter installed</p>
+</li>
+<li>
+<p>Project directory structure created:</p>
+<pre><code>echo-of-legends/
+├── goblin.yaml
+├── main.gbln
+├── data/
+│   └── names.gbln
+└── game/
+    └── hero.gbln
+</code></pre>
+</li>
+<li>
+<p><code>goblin.yaml</code> includes:</p>
+<pre lang="yaml"><code>module_paths:
+  game: ./game
+  data: ./data
+</code></pre>
+</li>
+</ul>
+<h2>Step 1 — Create Name and Class Data</h2>
+<p><strong>File:</strong> <code>data/names.gbln</code></p>
+<pre lang="goblin"><code>/// data/names module
+
+act get_name
+  first_names = [&quot;Gareth&quot;, &quot;Mira&quot;, &quot;Lysa&quot;, &quot;Corin&quot;, &quot;Rook&quot;, &quot;Arin&quot;, &quot;Nyx&quot;]
+  last_names  = [&quot;the Bold&quot;, &quot;Shadowstep&quot;, &quot;Ironleaf&quot;, &quot;Stormborn&quot;, &quot;Ashvale&quot;, &quot;Thorne&quot;]
+  
+  first = pick 1 from first_names
+  last  = pick 1 from last_names
+  first ++ last
+end
+
+act get_class
+  classes = [&quot;Warrior&quot;, &quot;Mage&quot;, &quot;Rogue&quot;, &quot;Peasant&quot;]
+  pick 1 from classes
+end
+</code></pre>
+<p><strong>Key concepts:</strong></p>
+<ul>
+<li><strong><code>pick 1 from array</code>:</strong> Randomly selects one element</li>
+<li><strong><code>++</code> operator:</strong> String concatenation with automatic spacing</li>
+<li><strong><code>act</code> keyword:</strong> Defines a reusable action (like a function)</li>
+<li><strong>Final expression as return:</strong> <code>first ++ last</code> is automatically returned</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> We’ll expand these lists later. For now, keep them simple and readable.</p>
+</blockquote>
+<h2>Step 3 — Hook into Main</h2>
+<p><strong>File:</strong> <code>main.gbln</code></p>
+<pre lang="goblin"><code>import game/hero as h
+
+say &quot;===================================&quot;
+say &quot;   ECHO OF LEGENDS&quot;
+say &quot;===================================&quot;
+say &quot;&quot;
+
+h::show_hero()
+</code></pre>
+<p><strong>Key concepts:</strong></p>
+<ul>
+<li><strong><code>import ... as</code>:</strong> Imports a module with an alias</li>
+<li><strong><code>h::</code>:</strong> Calls actions from the imported module</li>
+<li><strong>Why the alias?</strong> We use <code>as h</code> so the module namespace <code>h</code> doesn’t conflict with the <code>hero</code> variable inside the module</li>
+</ul>
+<h2>Step 5 — Understanding the Dice</h2>
+<p>The <code>roll</code> expression is central to roguelikes. Here’s how it works:</p>
+<pre lang="goblin"><code>roll 3d6      /// Roll 3 six-sided dice, sum them (3-18)
+roll 3d6+6    /// Roll 3d6 and add 6 (9-24)
+roll 1d20     /// Single twenty-sided die (1-20)
+roll 2d4+2    /// Roll 2 four-sided dice, add 2 (4-10)
+</code></pre>
+<p><strong>Why <code>3d6+6</code> for health?</strong></p>
+<ul>
+<li>Minimum: 9 (three 1s + 6)</li>
+<li>Maximum: 24 (three 6s + 6)</li>
+<li>Average: ~16.5 (balanced starting health)</li>
+</ul>
+<p><strong>Why <code>3d6</code> for other stats?</strong></p>
+<ul>
+<li>Creates a bell curve (10-11 most common, 3 and 18 rare)</li>
+<li>Feels more balanced than pure random (1d18)</li>
+<li>Classic D&amp;D-inspired stat generation</li>
+</ul>
+<h2>Language Features Introduced</h2>
+<h3>The <code>judge</code> Expression</h3>
+<pre lang="goblin"><code>judge
+  condition1: value1
+  condition2: value2
+  else: default_value
+end
+</code></pre>
+<p>Pattern matching for clean conditionals. Each branch returns a value.</p>
+<h3>Dice Rolling</h3>
+<pre lang="goblin"><code>roll 3d6+6  /// Roll dice notation
+</code></pre>
+<p>Built-in support for tabletop RPG dice notation.</p>
+<h3>Maps and Property Access</h3>
+<pre lang="goblin"><code>hero = { name: &quot;Gareth&quot;, stats: { health: 16 } }
+hero &gt;&gt; name         /// &quot;Gareth&quot;
+hero &gt;&gt; stats &gt;&gt; health  /// 16
+</code></pre>
+<p>The <code>&gt;&gt;</code> operator drills into nested maps.</p>
+<h3>String Concatenation</h3>
+<pre lang="goblin"><code>&quot;Hello&quot; ++ &quot;World&quot;  /// &quot;Hello World&quot; (auto-spaces)
+&quot;Hello&quot; + &quot;World&quot;   /// &quot;HelloWorld&quot; (no spaces)
+</code></pre>
+<p>Use <code>++</code> for natural text, <code>+</code> for precise control.</p>
+<h2>Looking Ahead: Why No Save Yet?</h2>
+<p>You might be thinking: “Wait, I just rolled an amazing hero! Can I save them?”</p>
+<p><strong>Not yet!</strong> Here’s why:</p>
+<p>Right now, your hero is just stats and starter gear. But in <strong>Chapter 4: Save/Load and Past Lives</strong>, your hero will have:</p>
+<ul>
+<li>A <strong>location</strong> in the world</li>
+<li>A <strong>changing inventory</strong> (found items, dropped weapons)</li>
+<li><strong>Items on the ground</strong> where you left them</li>
+<li>A <strong>persistent world</strong> that remembers your actions</li>
+</ul>
+<p>When we add save/load in Chapter 4, we’ll do it <em>properly</em>—saving your hero, the world state, and all items as a complete system.</p>
+<p>For now? <strong>Embrace the randomness.</strong> Run the generator a few times. See what combinations you get. Get a feel for the procedural generation.</p>
+<p><strong>Pro tip:</strong> If you really love a hero, just don’t close the terminal yet. They’ll stick around until you do. 😉</p>
+<h2>What’s Next</h2>
+<p>In <strong>Chapter 2: A World of One Room</strong>, we’ll:</p>
+<ul>
+<li>Create procedurally generated settlements</li>
+<li>Add modular weapon generation (rusty sword, iron axe, etc.)</li>
+<li>Implement a full inventory system</li>
+<li>Build a command parser for player interaction</li>
+<li>Let your hero actually <em>do</em> something</li>
+</ul>
+<p>Your hero is ready. Now let’s give them a world to explore.</p>
+<p><strong>Next Chapter Preview:</strong></p>
+<pre><code>&gt; look
+
+=== The Forge &amp; Hammer ===
+A hot, smoky workshop filled with the ring of hammer on metal.
+
+You see:
+  - steel axe
+  - iron sword
+
+&gt; take steel axe
+You picked up: steel axe
+</code></pre>
+<p>See you in Chapter 2! ⚔️</p>
+</main><footer id="site-footer"><ul role="list"><li><a href="blog.md">Blog</a></li><li><a href="changelog.md">Changelog</a></li><li><a href="docs/index.md">Docs</a></li></ul></footer></body></html>

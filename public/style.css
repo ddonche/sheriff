@@ -1,3 +1,0 @@
-/* Optional tweaks layered after Pico */
-main { max-width: 80ch; }
-a.wikilink.missing { color: #c43; text-decoration: underline dotted; }

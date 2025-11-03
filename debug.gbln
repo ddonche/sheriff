@@ -1,0 +1,78 @@
+/// Sheriff — Debug version with logging
+
+act help
+    say "sheriff_debug: debug | help"
+end
+
+act debug
+    say "DEBUG: Starting debug mode..."
+    
+    /// Test directory existence
+    say "DEBUG: Testing if content directory exists..."
+    if file_exists("content")
+        say "DEBUG: content directory exists."
+    else
+        say "ERROR: content directory does not exist!"
+        return
+    end
+    
+    /// Test walking directory
+    say "DEBUG: Attempting to walk content directory..."
+    walk_result = walk("content", "**/*.md")
+    say "DEBUG: Walk result type: " ++ valtype(walk_result)
+    say "DEBUG: Found files: " ++ string(walk_result.len)
+    
+    /// List files found - fixed indexing issue
+    for file_path in walk_result
+        say "DEBUG: Found file: " ++ file_path
+    end
+    
+    /// Test reading a file (if any found)
+    if walk_result.len > 0
+        test_file = walk_result[0]
+        say "DEBUG: Attempting to read first file: " ++ test_file
+        first_content = read_text(test_file)
+        say "DEBUG: First file length: " ++ string(first_content.len) ++ " characters"
+        first_lines = lines(first_content)
+        say "DEBUG: First file has " ++ string(first_lines.len) ++ " lines"
+        if first_lines.len > 0
+            say "DEBUG: First line: " ++ first_lines[0]
+        end
+    end
+    
+    say "DEBUG: Debug completed."
+end
+
+/// one-shot CLI dispatch
+cli_command = ""
+cli_ran = false
+
+say "DEBUG: Starting CLI dispatch..."
+say "DEBUG: args type: " ++ valtype(args)
+
+if args !== nil and args.len > 0
+    cli_command = args[0].lower.trim
+    say "DEBUG: Command: " ++ cli_command
+    
+    judge using cli_command
+        == "debug":
+            say "DEBUG: Running debug command..."
+            debug()
+            cli_ran = true
+        == "help":
+            help()
+            cli_ran = true
+        else:
+            say "DEBUG: Unknown command: " ++ cli_command
+            cli_ran = true
+    end
+else
+    say "DEBUG: No arguments or empty arguments"
+end
+
+if cli_ran == false
+    say "DEBUG: No command ran, showing help..."
+    help()
+end
+
+say "DEBUG: CLI dispatch completed."

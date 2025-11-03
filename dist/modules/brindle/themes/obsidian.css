@@ -1,0 +1,75 @@
+/* Brindle — Obsidian theme (variables only) */
+:root {
+  --bg: #0b0d10;
+  --fg: #e8eef2;
+  --surface: #12161b;
+  --surface-2: #161b22;
+  --border: #2b3440;
+  --muted: #94a3b8;
+
+  --primary: #7dd3fc;
+  --secondary: #a78bfa;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
+
+  --link: #7dd3fc;
+  --link-hover: #bae6fd;
+
+  --code-bg: #0e141a;
+  --code-fg: #d1e0ee;
+
+  --selection: #1e293b;
+  --focus-ring: #60a5fa;
+
+  --nav-bg: #12161b;
+  --nav-fg: #e8eef2;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-size: 16px;
+  --line: 1.6;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --h1: 2.25rem;
+  --h2: 1.875rem;
+  --h3: 1.5rem;
+  --h4: 1.25rem;
+  --h5: 1.125rem;
+  --h6: 1.0rem;
+
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-max: 72ch;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.35);
+
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 320ms;
+  --t-ease: cubic-bezier(.2,.6,.2,1);
+
+  --space-0: 0rem;
+  --space-1: 0.125rem;
+  --space-2: 0.25rem;
+  --space-3: 0.5rem;
+  --space-4: 0.75rem;
+  --space-5: 1rem;
+  --space-6: 1.5rem;
+  --space-7: 2rem;
+  --space-8: 3rem;
+}
