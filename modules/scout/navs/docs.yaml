@@ -1,9 +1,9 @@
-Home: index.md
+Home: index.html
 Docs:
-  Overview: docs/index.md
+  Overview: docs/index.html
   Getting Started:
-    Introduction: docs/getting-started/index.md
-    Installation: docs/getting-started/installation.md
-    Basics: docs/getting-started/basics.md
-Blog: blog.md
-Changelog: changelog.md
+    Introduction: docs/getting-started/index.html
+    Installation: docs/getting-started/installation.html
+    Basics: docs/getting-started/basics.html
+Blog: blog.html
+Changelog: changelog.html

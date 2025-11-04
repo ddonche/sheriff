@@ -1,23 +1,26 @@
 /// modules/scout/scout.gbln — Scout: read YAML → canon → render HTML → write partials → register tokens
 
 /// ---- filesystem + string helpers -----------------------------------------
-
-act scout_normalize_slashes(input_path)
-    if input_path == nil
-        return ""
+act scout_to_html_href(path)
+    clean_path = trim(string(path))  /// Use trim() function, not .trim method
+    
+    md_suffix_position = clean_path.len - 3
+    
+    if md_suffix_position > 0
+        path_stem = clean_path[0:md_suffix_position]
+        return path_stem + ".html"
     end
-    output_path = input_path
-    update_where!(output_path, "\\", "/")
-    return output_path
+    
+    return clean_path
 end
 
-/// Ensure all directories in the given path exist (Sheriff-compatible)
+/// Ensure all directories in the given path exist
 act scout_create_all_dirs(path)
     slash_positions = find_all(path, "/")
 
     for slash_pos in slash_positions
         dir_part = path[0:slash_pos]
-        if dir_part !== "" && file_exists(dir_part) == false
+        if dir_part !== "" and file_exists(dir_part) == false
             create_dir!(dir_part)
         end
     end
@@ -77,13 +80,13 @@ act scout_canon_entry(raw_entry)
             end
         end
 
-        if label_text == "" && href_text == "" && kids_list.len == 0
+        if label_text == "" and href_text == "" and kids_list.len == 0
             return nil
         end
 
         return {
             "label": label_text,
-            "href":  href_text,
+            "href":  href_text.trim,
             "children": kids_list
         }
     end
@@ -107,7 +110,7 @@ act scout_canon_map(raw_map)
     end
 
     if map_type == "map" <> map_type == "object"
-        if has(raw_map, "entries") && (valtype(raw_map >> "entries") == "array")
+        if has(raw_map, "entries") and (valtype(raw_map >> "entries") == "array")
             for raw_entry in raw_map >> "entries"
                 normalized_entry = scout_canon_entry(raw_entry)
                 if normalized_entry != nil
@@ -194,39 +197,35 @@ act scout_render_list(entries_list, depth_level)
             skip
         end
         
+        local label = item_any >> "label"
+        local href = (item_any >> "href").trim
+        local children = item_any >> "children"
+        
         judge using item_any
             /// Map with children (nested dropdown)
-            has(item_any, "children") and (item_any >> "children").len > 0:
-                put_last!(html_parts, "<li><details class=\"dropdown\"><summary>")
-                put_last!(html_parts, item_any >> "label")
-                put_last!(html_parts, "</summary>")
-                local nested_html = scout_render_list(item_any >> "children", depth_level + 1)
-                put_last!(html_parts, nested_html)
-                put_last!(html_parts, "</details></li>")
+            has(item_any, "children") and children.len > 0:
+                local nested_html = scout_render_list(children, depth_level + 1)
+                put_last!(html_parts, """
+<li><details class="dropdown"><summary>{label}</summary>
+{nested_html}
+</details></li>
+""")
             
             /// Map with href (leaf link)
-            has(item_any, "href") and (item_any >> "href") !== "":
-                put_last!(html_parts, "<li><a href=\"")
-                put_last!(html_parts, item_any >> "href")
-                put_last!(html_parts, "\">")
-                put_last!(html_parts, item_any >> "label")
-                put_last!(html_parts, "</a></li>")
+            has(item_any, "href") and href !== "":
+                local html_href = scout_to_html_href(href)
+                put_last!(html_parts, """<li><a href="{html_href}">{label}</a></li>""")
             
             /// Map without href (leaf span)
             has(item_any, "label"):
-                put_last!(html_parts, "<li><span>")
-                put_last!(html_parts, item_any >> "label")
-                put_last!(html_parts, "</span></li>")
+                put_last!(html_parts, """<li><span>{label}</span></li>""")
             
             /// Array pair [label, href]
             valtype(item_any) == "array" and item_any.len >= 2:
                 local label_text = scout_as_str(item_any[0])
                 local href_text = scout_as_str(item_any[1])
-                put_last!(html_parts, "<li><a href=\"")
-                put_last!(html_parts, href_text)
-                put_last!(html_parts, "\">")
-                put_last!(html_parts, label_text)
-                put_last!(html_parts, "</a></li>")
+                local html_href = scout_to_html_href(href_text)
+                put_last!(html_parts, """<li><a href="{html_href}">{label_text}</a></li>""")
             
             else:
                 /// Skip unknown types
@@ -237,86 +236,45 @@ act scout_render_list(entries_list, depth_level)
     return pack(html_parts)
 end
 
-/// ---- 4) build HTML partial files from YAML (no injection here) ------------
-act build_partials()
-    nav_root_dir = "modules/scout/navs"
-
-    yaml_paths = []
-    for discovered_yaml_path in walk(nav_root_dir, "**/*.yaml")
-        put_last!(yaml_paths, discovered_yaml_path)
-    end
-
-    say "Scout: root = " ++ nav_root_dir
-    temp_len = yaml_paths.len
-    say "Scout: found " ++ string(temp_len) ++ " nav file(s)"
-
-    scout_create_all_dirs("dist/modules/scout/partials/index.html")
-
-    for source_path in yaml_paths
-        normalized_source_path = scout_normalize_slashes(source_path)
-        path_parts = split(normalized_source_path, "/")
-        file_name = path_parts[path_parts.len - 1]
-
-        file_stem = ignore_where(file_name, ".yaml")
-        token_key = upper(file_stem)
-
-        say "Scout: parsing " ++ normalized_source_path
-        yaml_text  = read_text(normalized_source_path)
-        parsed_map = yaml_parse(yaml_text)
-
-        canonical_map = scout_canon_map(parsed_map)
-        entries_array = canonical_map >> "entries"
-        
-        temp_entries_len = entries_array.len
-        say "Scout: canon ok ->  " ++ token_key ++ " (entries=" ++ string(temp_entries_len) ++ ")"
-
-        html_menu = scout_render_list(entries_array, 0)
-        temp_html_len = html_menu.len
-        say "Scout: render ok ->  " ++ token_key ++ " (chars=" ++ string(temp_html_len) ++ ")"
-
-        partial_output_path = scout_partial_path(token_key)
-        scout_create_all_dirs(partial_output_path)
-
-        write_text!(partial_output_path, html_menu)
-        say "Scout: wrote partial ->  " ++ partial_output_path
-    end
-
-    return Unit
-end
-
-/// ---- 5) publish tokens (HTML already rendered; also register as token) ----
+/// ---- 4) publish tokens (HTML already rendered; also register as token) ----
 act publish_tokens()
     nav_root_dir = "modules/scout/navs"
     yaml_paths = []
+    
     for discovered_yaml_path in walk(nav_root_dir, "**/*.yaml")
         put_last!(yaml_paths, discovered_yaml_path)
     end
+    
     say "Scout: root = " ++ nav_root_dir
-    temp_len = yaml_paths.len
-    say "Scout: found " ++ string(temp_len) ++ " nav file(s)"
+    say "Scout: found " ++ string(yaml_paths.len) ++ " nav file(s)"
+    
     for source_path in yaml_paths
-        normalized_source_path = scout_normalize_slashes(source_path)
-        path_parts = split(normalized_source_path, "/")
-        file_name = path_parts[path_parts.len - 1]
-        file_stem = ignore_where(file_name, ".yaml")
+        /// Use new path utilities
+        file_name = basename(source_path)
+        file_stem = stem(file_name)
         token_key = upper(file_stem)
-        yaml_text    = read_text(normalized_source_path)
-        parsed_map   = yaml_parse(yaml_text)
+        
+        say "Scout: parsing " ++ source_path
+        yaml_text = read_text(source_path)
+        parsed_map = yaml_parse(yaml_text)
+        
         canonical_map = scout_canon_map(parsed_map)
         entries_array = canonical_map >> "entries"
         
-        temp_entries_len = entries_array.len
-        say "Scout: canon ok ->  " ++ token_key ++ " (entries=" ++ string(temp_entries_len) ++ ")"
+        say "Scout: canon ok ->  " ++ token_key ++ " (entries=" ++ string(entries_array.len) ++ ")"
+        
         html_menu = scout_render_list(entries_array, 0)
-        temp_html_len = html_menu.len
-        say "Scout: render ok ->  " ++ token_key ++ " (chars=" ++ string(temp_html_len) ++ ")"
+        
+        say "Scout: render ok ->  " ++ token_key ++ " (chars=" ++ string(html_menu.len) ++ ")"
+        
         partial_output_path = scout_partial_path(token_key)
         scout_create_all_dirs(partial_output_path)
         write_text!(partial_output_path, html_menu)
         
-        register_token("SCOUT", token_key, html_menu)  /// ← Back to HTML content
+        register_token("SCOUT", token_key, html_menu)
         
         say "Scout: registered SCOUT:: " ++ token_key
     end
+    
     return Unit
 end

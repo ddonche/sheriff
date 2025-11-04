@@ -29,11 +29,11 @@ act selected_theme_from_config()
     if cfg == nil
         return nil
     end
-    br = cfg >> "brindle"
+    br = cfg["brindle"]
     if br == nil
         return nil
     end
-    t = br >> "theme"
+    t = br["theme"]
     if t == nil
         return nil
     end

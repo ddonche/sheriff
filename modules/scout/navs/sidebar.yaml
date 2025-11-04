@@ -1,10 +1,10 @@
-Overview: docs/index.md
+Overview: docs/index.html
 Getting Started:
-  Introduction: docs/getting-started/index.md
-  Installation: docs/getting-started/installation.md
-  Basics: docs/getting-started/basics.md
+  Introduction: docs/getting-started/index.html
+  Installation: docs/getting-started/installation.html
+  Basics: docs/getting-started/basics.html
 Tutorials:
   Echo of Legends:
-    Chapter One: docs/tutorials/echo-of-legends/chapter1.md
+    Chapter One: docs/tutorials/echo-of-legends/chapter1.html
 Recipes:
-  Password Generator: docs/tutorials/recipes/password_generator_recipe.md
+  Password Generator: docs/tutorials/recipes/password_generator_recipe.html
