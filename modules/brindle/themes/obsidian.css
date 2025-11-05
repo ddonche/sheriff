@@ -72,4 +72,9 @@
   --space-6: 1.5rem;
   --space-7: 2rem;
   --space-8: 3rem;
+
+  --panel: var(--surface);
+  --hover: rgba(255,255,255,.06);
+  --muted-fg: color-mix(in oklab, var(--fg) 72%, black);
+  --link-visited: color-mix(in oklab, var(--link) 82%, #8ab4f8);
 }

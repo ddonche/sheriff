@@ -1,6 +1,6 @@
 /// Sheriff — Complete solution with frontmatter handling and proper file extension conversion
-import modules/scout/scout as scout
-import modules/brindle/brindle as br 
+import modules/scout/scout    as scout
+import modules/brindle/brindle as br
 
 scout::publish_tokens()
 br::build_css_files()
@@ -38,7 +38,7 @@ act extract_body_content(content)
     return body
 end
 
-/// Extract the 'title:' line from frontmatter text using the builtins we added.
+/// Extract the 'title:' line from frontmatter text (kept for future use)
 act extract_title(frontmatter_text)
     if frontmatter_text == nil or frontmatter_text == ""
         return ""
@@ -49,13 +49,11 @@ act extract_title(frontmatter_text)
         lowered = lower(line_text)
         if starts_with(lowered, "title:")
             raw_after = after(line_text, "title:")
-
             /// remove at most one leading space or tab after the colon
             cleaned = raw_after
             if cleaned.len >= 1 and (cleaned[0:1] == " " or cleaned[0:1] == "\t")
                 cleaned = cleaned[1:cleaned.len]
             end
-
             if cleaned !== ""
                 return cleaned
             end
@@ -65,7 +63,7 @@ act extract_title(frontmatter_text)
     return ""
 end
 
-/// Return the first ATX H1 ("# Title") from the body
+/// Return the first ATX H1 ("# Title") from the body (kept for future use)
 act h1_from_body(body_text)
     for line_text in lines(body_text)
         trimmed = line_text.trim
@@ -88,11 +86,47 @@ act create_all_dirs(path)
     end
 end
 
-/// Sheriff build: read → clean → split → parse fm → render body only.
+/// Mirror entire /public tree into /dist/public (binary-safe via copy_file!)
+act mirror_public_tree()
+    if file_exists("public") == false
+        return 0
+    end
+
+    create_dir!("dist/public")
+
+    copied = 0
+    for src in walk("public", "**/*.*")
+        norm_src = src
+        update_where!(norm_src, "\\", "/")
+
+        rel = norm_src["public/".len:norm_src.len]
+        if rel === ""
+            skip
+        end
+
+        dest = "dist/public/" + rel
+
+        slash_positions = find_all(dest, "/")
+        for pos in slash_positions
+            dir_path = dest[0:pos]
+            if dir_path !== "" and file_exists(dir_path) == false
+                create_dir!(dir_path)
+            end
+        end
+
+        copy_file!(norm_src, dest)
+        copied = copied + 1
+    end
+    return copied
+end
+
+/// Sheriff build: read → clean → split → parse fm → render body only (manual HTML)
 act build_site()
     say "Starting build process"
 
     create_dir!("dist")
+    public_count = mirror_public_tree()
+    say "Public files mirrored: " + string(public_count)
 
     say "Finding markdown files"
     md_files = walk("content", "**/*.md")
@@ -104,75 +138,84 @@ act build_site()
         content_path = file_path["content/".len:file_path.len]
         md_suffix_position = content_path.len - 3
 
-        if md_suffix_position > 0
-            content_stem = content_path[0:md_suffix_position]
-            output_path = "dist/" + content_stem + ".html"
-            say "Output path: " + output_path
-
-            create_all_dirs(output_path)
-
-            raw = read_text(file_path)
-            clean = sanitize_bom(raw)
-            content = normalize_newlines(clean)
-
-            frontmatter = get_frontmatter(content)
-            body_content = extract_body_content(content)
-
-            /// Title = basename of the file we actually write (no directories)
-            normalized_out = output_path
-            update_where!(normalized_out, "\\", "/")
-
-            path_parts = split(normalized_out, "/")
-            out_file   = path_parts[path_parts.len - 1]
-
-            /// strip ".html", then underscores → spaces (no loops, no replace), then Title Case
-            base_no_ext     = ignore_where(out_file, ".html")
-            underscore_parts = split(base_no_ext, "_")
-            spaced_title     = join(underscore_parts, " ")
-            page_title       = title(spaced_title)
-
-            /// Output-only filtering (safe no-op if not present)
-            work_body = body_content
-            /// Convert markdown first
-            html_body = md_to_html(work_body)
-
-            /// Then use it in the template
-            html_content = """
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8"/>
-              <meta name="viewport" content="width=device-width, initial-scale=1"/>
-              <title>{page_title}</title>
-              {{{BRINDLE::CSS}}}
-            </head>
-            <body>
-              <header class="container">
-                <nav id="site-nav">
-                  {{{SCOUT::DOCS}}}
-                </nav>
-              </header>
-              <main class="container">
-                {html_body}
-              </main>
-              <footer id="site-footer">
-                {{{SCOUT::FOOTER}}}
-              </footer>
-            </body>
-            </html>
-            """
-
-            say "Writing to: " + output_path
-            write_text!(output_path, html_content)
-        else
+        if md_suffix_position <= 0
             say "Invalid file path: " + file_path
+            skip
         end
+
+        content_stem = content_path[0:md_suffix_position]
+        output_path = "dist/" + content_stem + ".html"
+        say "Output path: " + output_path
+
+        create_all_dirs(output_path)
+
+        raw     = read_text(file_path)
+        clean   = sanitize_bom(raw)
+        content = normalize_newlines(clean)
+
+        frontmatter  = get_frontmatter(content)
+        body_content = extract_body_content(content)
+
+        /// Title = basename of the file we actually write (no directories)
+        normalized_out = output_path
+        update_where!(normalized_out, "\\", "/")
+
+        path_parts = split(normalized_out, "/")
+        out_file   = path_parts[path_parts.len - 1]
+
+        /// strip ".html", then underscores → spaces (no loops), then Title Case
+        base_no_ext       = ignore_where(out_file, ".html")
+        underscore_parts  = split(base_no_ext, "_")
+        spaced_title      = join(underscore_parts, " ")
+        page_title        = title(spaced_title)
+
+        /// Convert markdown first
+        html_body = md_to_html(body_content)
+
+        /// Manually compose HTML (tokens inline)
+        html_content = """
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" href="{{{BRINDLE::FAVICON}}}">
+          <title>{page_title}</title>
+          {{{BRINDLE::CSS}}}          
+        </head>
+        <body>
+          <header class="site-header">
+            <div class="container header-inner">
+              <a class="brand" href="/index.html">
+                {{{BRINDLE::LOGO_IMG}}}
+                <span class="brand-name">{{{BRINDLE::BRAND_NAME}}}</span>
+              </a>
+
+              <nav id="site-nav" class="nav">
+                {{{SCOUT::DOCS}}}
+              </nav>
+            </div>
+          </header>
+
+          <main class="container">
+            {html_body}
+          </main>
+
+          <footer id="site-footer">
+            {{{SCOUT::FOOTER}}}
+          </footer>
+        </body>
+        </html>
+        """
+
+        say "Writing to: " + output_path
+        write_text!(output_path, html_content)
     end
 
     say "Build completed successfully!"
 end
 
-/// CLI entry point
+/// CLI entry point — original one-liner
 if args !== nil and args.len > 0 and args[0].lower.trim == "build"
     build_site()
 else

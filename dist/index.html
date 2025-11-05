@@ -1,17 +1,24 @@
 
-            <!doctype html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8"/>
-              <meta name="viewport" content="width=device-width, initial-scale=1"/>
-              <title>Index</title>
-              <link rel="stylesheet" href="/modules/brindle/themes/obsidian.css">
-    <link rel="stylesheet" href="/modules/brindle/baseline.css">
-            </head>
-            <body>
-              <header class="container">
-                <nav id="site-nav">
-                  <ul role="list"><li><a href="index.html">Home</a></li>
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" href="public/favicon.ico">
+          <title>Index</title>
+          <link rel="stylesheet" href="/modules/brindle/themes/obsidian.css">
+    <link rel="stylesheet" href="/modules/brindle/baseline.css">          
+        </head>
+        <body>
+          <header class="site-header">
+            <div class="container header-inner">
+              <a class="brand" href="/index.html">
+                <img class="brand-logo" src="public/logo.svg" alt="Goblin Lang" style="height:32px; width:auto; display:inline-block;" />
+                <span class="brand-name">Goblin Lang</span>
+              </a>
+
+              <nav id="site-nav" class="nav">
+                <ul role="list"><li><a href="index.html">Home</a></li>
 <li><details class="dropdown"><summary>Docs</summary>
 <ul role="list"><li><a href="docs/index.html">Overview</a></li>
 <li><details class="dropdown"><summary>Getting Started</summary>
@@ -20,10 +27,12 @@
 </ul>
 </details></li>
 <li><a href="blog.html">Blog</a></li><li><a href="changelog.html">Changelog</a></li></ul>
-                </nav>
-              </header>
-              <main class="container">
-                <h1>Welcome to Sheriff</h1>
+              </nav>
+            </div>
+          </header>
+
+          <main class="container">
+            <h1>Welcome to Sheriff</h1>
 <p>This is a test page with various Markdown features.</p>
 <h2>Code Blocks</h2>
 <p>Here’s a code block in JavaScript:</p>
@@ -86,10 +95,11 @@ It can span multiple lines.</p>
 </table>
 <h2>Horizontal Rule</h2>
 
-              </main>
-              <footer id="site-footer">
-                <ul role="list"><li><a href="docs/index.html">Docs</a></li><li><a href="blog.html">Blog</a></li><li><a href="changelog.html">Changelog</a></li></ul>
-              </footer>
-            </body>
-            </html>
-            
+          </main>
+
+          <footer id="site-footer">
+            <ul role="list"><li><a href="docs/index.html">Docs</a></li><li><a href="blog.html">Blog</a></li><li><a href="changelog.html">Changelog</a></li></ul>
+          </footer>
+        </body>
+        </html>
+        

@@ -44,29 +44,27 @@ act selected_theme_from_config()
     return trimmed
 end
 
+/// Brindle — build_css_files (no safety rails, assumes required files exist)
 act build_css_files()
-    /// Create the directories
+    /// Always ensure destination directories exist
     create_dir!("dist/modules/brindle/themes")
-    
-    /// Copy baseline
-    if file_exists("modules/brindle/baseline.css")
-        baseline_content = read_text("modules/brindle/baseline.css")
-        write_text!("dist/modules/brindle/baseline.css", baseline_content)
-        say "Brindle: copied baseline.css"
-    end
-    
-    /// Copy all theme files
+
+    /// Copy baseline.css unconditionally
+    baseline_src  = "modules/brindle/baseline.css"
+    baseline_dest = "dist/modules/brindle/baseline.css"
+    baseline_content = read_text(baseline_src)
+    write_text!(baseline_dest, baseline_content)
+    say "Brindle: copied baseline.css"
+
+    /// Copy all theme files from /modules/brindle/themes → /dist/modules/brindle/themes
     theme_files = walk("modules/brindle/themes", "**/*.css")
     for theme_file in theme_files
-        /// Read from source
+        normalized   = path_normalize(theme_file)
+        parts        = split(normalized, "/")
+        filename     = parts[parts.len - 1]
+        output_path  = "dist/modules/brindle/themes/" + filename
+
         theme_content = read_text(theme_file)
-        
-        /// Get just the filename
-        path_parts = split(theme_file, "/")
-        filename = path_parts[path_parts.len - 1]
-        
-        /// Write to dist
-        output_path = "dist/modules/brindle/themes/" + filename
         write_text!(output_path, theme_content)
         say "Brindle: copied " + filename
     end
@@ -105,6 +103,7 @@ act publish_tokens()
         register_token("BRINDLE", "CSS", "<!-- ERROR: baseline.css not found -->")
     else
         publish_theme_tokens()
+        publish_brand_tokens()
         
         chosen = selected_theme_from_config()
         
@@ -126,4 +125,61 @@ act publish_tokens()
             register_token("BRINDLE", "CSS", css_links)
         end
     end
+end
+
+/// --- helpers to read config safely ----------------------------------------
+act brindle_cfg()
+    if file_exists("goblin.yaml") == false
+        return {}
+    end
+
+    config_text     = read_text("goblin.yaml")
+    sanitized_text  = yaml_sanitize(config_text)
+    parsed_config   = yaml_parse(sanitized_text)
+    if parsed_config == nil
+        return {}
+    end
+    return parsed_config
+end
+
+act cfg_str(map_value, key_name, default_value)
+    if map_value == nil or valtype(map_value) !== "map"
+        return default_value
+    end
+
+    raw_value = map_value[key_name]
+    if raw_value == nil
+        return default_value
+    end
+
+    string_value = ("" + raw_value).trim
+    if string_value == ""
+        return default_value
+    end
+    return string_value
+end
+
+/// --- publish brand tokens --------------------------------------------------
+/// goblin.yaml:
+/// brindle:
+///   brand_name: "Goblin"
+///   logo: "/logo.svg"   # optional; if absent, we'll try to guess from /public
+act publish_brand_tokens()
+    config_map      = brindle_cfg()
+    brindle_section = config_map["brindle"]
+
+    brand_name = cfg_str(brindle_section, "brand_name", "Site")
+
+    /// hard paths, no conditionals, no guessing
+    register_token("BRINDLE", "FAVICON",   "public/favicon.ico")
+    register_token("BRINDLE", "BRAND_NAME", brand_name)
+    register_token("BRINDLE", "LOGO_SRC",  "public/logo.svg")
+    register_token("BRINDLE", "BRAND_ALT", brand_name)
+    register_token(
+        "BRINDLE",
+        "LOGO_IMG",
+        "<img class=\"brand-logo\" src=\"public/logo.svg\" alt=\"" + brand_name + "\" style=\"height:32px; width:auto; display:inline-block;\" />"
+    )
+
+    return Unit
 end
