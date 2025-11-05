@@ -2,16 +2,21 @@
 
 /// ---- filesystem + string helpers -----------------------------------------
 act scout_to_html_href(path)
-    clean_path = trim(string(path))  /// Use trim() function, not .trim method
-    
-    md_suffix_position = clean_path.len - 3
-    
-    if md_suffix_position > 0
-        path_stem = clean_path[0:md_suffix_position]
-        return path_stem + ".html"
+    clean_path = trim(string(path))
+    if clean_path == ""
+        return ""
     end
-    
-    return clean_path
+
+    lower_path = lower(clean_path)
+    if starts_with(lower_path, "http://") or starts_with(lower_path, "https://") or starts_with(lower_path, "mailto:") or starts_with(clean_path, "#")
+        return clean_path
+    end
+
+    norm = clean_path
+    if norm[0:1] == "/"
+        return norm
+    end
+    return "/" + norm
 end
 
 /// Ensure all directories in the given path exist

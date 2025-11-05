@@ -172,6 +172,13 @@ act build_site()
         /// Convert markdown first
         html_body = md_to_html(body_content)
 
+        /// get the proper directory
+        root_prefix = ""
+        slash_positions = find_all(content_stem, "/")
+        for pos in slash_positions
+            root_prefix = root_prefix + "../"
+        end
+
         /// Manually compose HTML (tokens inline)
         html_content = """
         <!doctype html>
@@ -181,13 +188,13 @@ act build_site()
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href="{{{BRINDLE::FAVICON}}}">
           <title>{page_title}</title>
-          {{{BRINDLE::CSS}}}          
+          {{{BRINDLE::CSS}}}
         </head>
         <body>
           <header class="site-header">
             <div class="container header-inner">
               <a class="brand" href="/index.html">
-                {{{BRINDLE::LOGO_IMG}}}
+                <img class="brand-logo" src="{{{BRINDLE::LOGO_SRC}}}" alt="{{{BRINDLE::BRAND_NAME}}}" />
                 <span class="brand-name">{{{BRINDLE::BRAND_NAME}}}</span>
               </a>
 
@@ -208,7 +215,7 @@ act build_site()
         </html>
         """
 
-        say "Writing to: " + output_path
+        update_where!(html_content, "{ROOT}", root_prefix)
         write_text!(output_path, html_content)
     end
 

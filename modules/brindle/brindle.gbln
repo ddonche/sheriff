@@ -159,26 +159,29 @@ act cfg_str(map_value, key_name, default_value)
     return string_value
 end
 
-/// --- publish brand tokens --------------------------------------------------
+/// --- publish brand tokens (root-absolute paths) ---------------------------
 /// goblin.yaml:
 /// brindle:
 ///   brand_name: "Goblin"
-///   logo: "/logo.svg"   # optional; if absent, we'll try to guess from /public
+///   logo: "/public/logo.svg"     # optional override
+///   favicon: "/public/favicon.ico"
 act publish_brand_tokens()
     config_map      = brindle_cfg()
     brindle_section = config_map["brindle"]
 
     brand_name = cfg_str(brindle_section, "brand_name", "Site")
 
-    /// hard paths, no conditionals, no guessing
-    register_token("BRINDLE", "FAVICON",   "public/favicon.ico")
+    /// Hard paths, root-absolute so they work from any depth
+    register_token("BRINDLE", "FAVICON",   "/public/favicon.ico")
     register_token("BRINDLE", "BRAND_NAME", brand_name)
-    register_token("BRINDLE", "LOGO_SRC",  "public/logo.svg")
+    register_token("BRINDLE", "LOGO_SRC",  "/public/logo.svg")
     register_token("BRINDLE", "BRAND_ALT", brand_name)
+
+    /// Composite <img> tag (root-absolute src)
     register_token(
         "BRINDLE",
         "LOGO_IMG",
-        "<img class=\"brand-logo\" src=\"public/logo.svg\" alt=\"" + brand_name + "\" style=\"height:32px; width:auto; display:inline-block;\" />"
+        "<img class=\"brand-logo\" src=\"/public/logo.svg\" alt=\"" + brand_name + "\" />"
     )
 
     return Unit
