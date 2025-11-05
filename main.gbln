@@ -209,7 +209,9 @@ act build_site()
           </main>
 
           <footer id="site-footer">
-            {{{SCOUT::FOOTER}}}
+            <div class="container">
+              {{{SCOUT::FOOTER}}}
+            </div>
           </footer>
         </body>
         </html>

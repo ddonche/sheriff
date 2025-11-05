@@ -85,6 +85,7 @@ act scout_canon_entry(raw_entry)
             end
         end
 
+        /// ignore maps with no label/href/children
         if label_text == "" and href_text == "" and kids_list.len == 0
             return nil
         end
@@ -101,9 +102,10 @@ end
 
 /// ---- 2) canonicalize whole nav map ---------------------------------------
 act scout_canon_map(raw_map)
-    out_map = { "entries": [] }
+    out_map  = { "entries": [] }
     map_type = valtype(raw_map)
 
+    /// top-level: array/seq → each item is an entry
     if map_type == "array" <> map_type == "seq"
         for raw_entry in raw_map
             normalized_entry = scout_canon_entry(raw_entry)
@@ -114,69 +116,159 @@ act scout_canon_map(raw_map)
         return out_map
     end
 
+    /// top-level: map/object
     if map_type == "map" <> map_type == "object"
-        if has(raw_map, "entries") and (valtype(raw_map >> "entries") == "array")
-            for raw_entry in raw_map >> "entries"
-                normalized_entry = scout_canon_entry(raw_entry)
-                if normalized_entry != nil
-                    put_last!(out_map >> "entries", normalized_entry)
+        /// if an explicit 'entries' array exists, use it
+        if has(raw_map, "entries")
+            ent_any  = raw_map >> "entries"
+            ent_type = valtype(ent_any)
+            if ent_type == "array" <> ent_type == "seq"
+                for raw_entry in ent_any
+                    normalized_entry = scout_canon_entry(raw_entry)
+                    if normalized_entry != nil
+                        put_last!(out_map >> "entries", normalized_entry)
+                    end
                 end
+                return out_map
             end
-            return out_map
         end
 
+        /// implicit object form: keys become items (skip meta keys like 'class'/'entries')
         top_keys = keys(raw_map)
-
         for top_key in top_keys
-            top_value = raw_map[top_key]
+            if top_key == "class" or top_key == "entries"
+                skip
+            end
 
-            if valtype(top_value) == "str"
+            top_value = raw_map[top_key]
+            tv_type   = valtype(top_value)
+
+            /// (A) Simple "Label: href" pair
+            if tv_type == "str"
                 put_last!(out_map >> "entries", {
                     "label": scout_as_str(top_key),
                     "href":  scout_as_str(top_value),
                     "children": []
                 })
+                skip
+            end
 
-            elif valtype(top_value) == "map" <> valtype(top_value) == "object"
+            /// (B) Label-only item: value is nil (YAML null)
+            if top_value == nil
+                put_last!(out_map >> "entries", {
+                    "label": scout_as_str(top_key),
+                    "href":  "",
+                    "children": []
+                })
+                skip
+            end
+
+            /// (C) Object item or group
+            if tv_type == "map" <> tv_type == "object"
+                direct_label = scout_as_str(top_key)
+                if has(top_value, "label")
+                    tmp = top_value >> "label"
+                    if tmp != nil
+                        direct_label = scout_as_str(tmp)
+                    end
+                end
+
+                direct_href = ""
+                if has(top_value, "href")
+                    tmp = top_value >> "href"
+                    if tmp != nil
+                        direct_href = scout_as_str(tmp).trim
+                    end
+                end
+
                 child_entries = []
-                child_keys = keys(top_value)
-
-                for child_key in child_keys
-                    child_value = top_value[child_key]
-
-                    if valtype(child_value) == "str"
-                        put_last!(child_entries, {
-                            "label": scout_as_str(child_key),
-                            "href":  scout_as_str(child_value),
-                            "children": []
-                        })
-
-                    elif valtype(child_value) == "map" <> valtype(child_value) == "object"
-                        grand_entries = []
-                        grand_keys = keys(child_value)
-
-                        for grand_key in grand_keys
-                            grand_value = child_value[grand_key]
-                            if valtype(grand_value) == "str"
-                                put_last!(grand_entries, {
-                                    "label": scout_as_str(grand_key),
-                                    "href":  scout_as_str(grand_value),
-                                    "children": []
-                                })
+                if has(top_value, "children")
+                    kids_any  = top_value >> "children"
+                    kids_type = valtype(kids_any)
+                    if kids_type == "array" <> kids_type == "seq"
+                        for child_raw in kids_any
+                            child_norm = scout_canon_entry(child_raw)
+                            if child_norm != nil
+                                put_last!(child_entries, child_norm)
                             end
                         end
+                    end
+                else
+                    /// Treat remaining keys as children/groups, EXCLUDING meta keys
+                    child_keys = keys(top_value)
+                    for child_key in child_keys
+                        if child_key == "label" or child_key == "href" or child_key == "children" or child_key == "class"
+                            skip
+                        end
 
-                        put_last!(child_entries, {
-                            "label": scout_as_str(child_key),
-                            "href":  "",
-                            "children": grand_entries
-                        })
+                        child_value = top_value[child_key]
+                        cv_type     = valtype(child_value)
+
+                        /// child "Label: href"
+                        if cv_type == "str"
+                            put_last!(child_entries, {
+                                "label": scout_as_str(child_key),
+                                "href":  scout_as_str(child_value),
+                                "children": []
+                            })
+                            skip
+                        end
+
+                        /// child label-only (nil)
+                        if child_value == nil
+                            put_last!(child_entries, {
+                                "label": scout_as_str(child_key),
+                                "href":  "",
+                                "children": []
+                            })
+                            skip
+                        end
+
+                        /// child group → grandchildren
+                        if cv_type == "map" <> cv_type == "object"
+                            grand_entries = []
+                            grand_keys = keys(child_value)
+                            for grand_key in grand_keys
+                                if grand_key == "label" or grand_key == "href" or grand_key == "children" or grand_key == "class"
+                                    skip
+                                end
+
+                                grand_value = child_value[grand_key]
+                                gv_type = valtype(grand_value)
+
+                                /// grand "Label: href"
+                                if gv_type == "str"
+                                    put_last!(grand_entries, {
+                                        "label": scout_as_str(grand_key),
+                                        "href":  scout_as_str(grand_value),
+                                        "children": []
+                                    })
+                                    skip
+                                end
+
+                                /// grand label-only (nil)
+                                if grand_value == nil
+                                    put_last!(grand_entries, {
+                                        "label": scout_as_str(grand_key),
+                                        "href":  "",
+                                        "children": []
+                                    })
+                                    skip
+                                end
+                            end
+
+                            put_last!(child_entries, {
+                                "label": scout_as_str(child_key),
+                                "href":  "",
+                                "children": grand_entries
+                            })
+                        end
                     end
                 end
 
                 put_last!(out_map >> "entries", {
-                    "label": scout_as_str(top_key),
-                    "href":  "",
+                    "label": direct_label,
+                    "href":  direct_href,
                     "children": child_entries
                 })
             end
@@ -185,10 +277,11 @@ act scout_canon_map(raw_map)
         return out_map
     end
 
+    /// Any other root shape → empty
     return out_map
 end
 
-/// ---- 3) render entries → HTML --------------------------------------------
+/// ---- 3) render entries → HTML (no classes anywhere) ----------------------
 act scout_render_list(entries_list, depth_level)
     if depth_level > 6
         return ""
@@ -196,18 +289,17 @@ act scout_render_list(entries_list, depth_level)
     
     local html_parts = []
     put_last!(html_parts, "<ul role=\"list\">")
-    
+
     for item_any in entries_list
         if item_any == nil
             skip
         end
-        
-        local label = item_any >> "label"
-        local href = (item_any >> "href").trim
+
+        local label    = item_any >> "label"
+        local href     = (item_any >> "href").trim
         local children = item_any >> "children"
-        
+
         judge using item_any
-            /// Map with children (nested dropdown)
             has(item_any, "children") and children.len > 0:
                 local nested_html = scout_render_list(children, depth_level + 1)
                 put_last!(html_parts, """
@@ -215,28 +307,27 @@ act scout_render_list(entries_list, depth_level)
 {nested_html}
 </details></li>
 """)
-            
-            /// Map with href (leaf link)
+
             has(item_any, "href") and href !== "":
                 local html_href = scout_to_html_href(href)
                 put_last!(html_parts, """<li><a href="{html_href}">{label}</a></li>""")
-            
-            /// Map without href (leaf span)
+
             has(item_any, "label"):
                 put_last!(html_parts, """<li><span>{label}</span></li>""")
-            
-            /// Array pair [label, href]
+
             valtype(item_any) == "array" and item_any.len >= 2:
                 local label_text = scout_as_str(item_any[0])
-                local href_text = scout_as_str(item_any[1])
-                local html_href = scout_to_html_href(href_text)
-                put_last!(html_parts, """<li><a href="{html_href}">{label_text}</a></li>""")
-            
+                local href_text  = scout_as_str(item_any[1])
+                if label_text !== ""
+                    local html_href = scout_to_html_href(href_text)
+                    put_last!(html_parts, """<li><a href="{html_href}">{label_text}</a></li>""")
+                end
+
             else:
-                /// Skip unknown types
+                skip
         end
     end
-    
+
     put_last!(html_parts, "</ul>")
     return pack(html_parts)
 end
@@ -245,41 +336,42 @@ end
 act publish_tokens()
     nav_root_dir = "modules/scout/navs"
     yaml_paths = []
-    
+
     for discovered_yaml_path in walk(nav_root_dir, "**/*.yaml")
         put_last!(yaml_paths, discovered_yaml_path)
     end
-    
+    for discovered_yml_path in walk(nav_root_dir, "**/*.yml")
+        put_last!(yaml_paths, discovered_yml_path)
+    end
+
     say "Scout: root = " ++ nav_root_dir
     say "Scout: found " ++ string(yaml_paths.len) ++ " nav file(s)"
-    
+
     for source_path in yaml_paths
-        /// Use new path utilities
         file_name = basename(source_path)
         file_stem = stem(file_name)
         token_key = upper(file_stem)
-        
+
         say "Scout: parsing " ++ source_path
-        yaml_text = read_text(source_path)
-        parsed_map = yaml_parse(yaml_text)
-        
+        yaml_text   = read_text(source_path)
+        parsed_map  = yaml_parse(yaml_text)
+
         canonical_map = scout_canon_map(parsed_map)
         entries_array = canonical_map >> "entries"
-        
+
         say "Scout: canon ok ->  " ++ token_key ++ " (entries=" ++ string(entries_array.len) ++ ")"
-        
+
         html_menu = scout_render_list(entries_array, 0)
-        
+
         say "Scout: render ok ->  " ++ token_key ++ " (chars=" ++ string(html_menu.len) ++ ")"
-        
+
         partial_output_path = scout_partial_path(token_key)
         scout_create_all_dirs(partial_output_path)
         write_text!(partial_output_path, html_menu)
-        
+
         register_token("SCOUT", token_key, html_menu)
-        
         say "Scout: registered SCOUT:: " ++ token_key
     end
-    
+
     return Unit
 end

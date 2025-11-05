@@ -32,20 +32,3 @@ ssg:
     dir: "templates"
     base: "base.html"        # Should contain [[[TITLE]]], [[[NAV.HEADER]]], [[[CONTENT]]]
                              # (Optional) [[[SIDEBAR]]], [[[HEAD_EXTRA]]]
-
-  # mkdocs-style nav (placeholder links to common starter pages)
-  nav:
-    - Home: index.md
-    - Docs:
-      - Overview: docs/index.md
-      - Getting Started:
-        - Introduction: docs/getting-started/index.md
-        - Installation: docs/getting-started/installation.md
-        - Basics: docs/getting-started/basics.md
-      - Tutorials:
-        - Echo of Legends:
-          - Chapter One: docs/tutorials/echo-of-legends/chapter1.md
-        - Recipes:
-          - Password Generator: docs/tutorials/recipes/password_generator_recipe.md 
-    - Blog: blog.md
-    - Changelog: changelog.md

@@ -163,3 +163,37 @@ label { display:inline-block; margin-bottom: var(--space-2); font-weight: 500; }
   .header-inner { flex-wrap: wrap; gap: .75rem; }
   #site-nav ul { flex-wrap: wrap; }
 }
+
+/* ---- Footer -------------------------------------------------------------- */
+#site-footer {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-7);
+}
+
+#site-footer .container {
+  max-width: var(--container-lg);
+  margin-inline: auto;
+  padding: var(--space-4) var(--space-4);
+}
+
+#site-footer ul[role="list"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#site-footer a {
+  color: var(--fg);
+  text-decoration: none;
+  padding: .35rem .5rem;
+  border-radius: var(--radius-sm);
+}
+#site-footer a:hover { background: var(--hover); }
+
+/* push an item to the right end */
+#site-footer li.right { margin-left: auto; color: var(--muted); }
+#site-footer li.right span { color: var(--muted); }
