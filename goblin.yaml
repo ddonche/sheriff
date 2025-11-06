@@ -8,10 +8,10 @@ module_paths:
 
 # theme setting
 brindle:
-  theme: "OBSIDIAN"
-  brand_name: "Goblin Lang"     # shows in header
-  logo: "/logo.svg"        # optional; if omitted we auto-guess from /public/*
-  favicon: "/favicon.ico"    # optional; autoguess from /public/* if missing
+  theme: "DAYBREAK"
+  brand_name: "SHERIFF"     # shows in header
+  logo: "/logo.png"         # optional; if omitted we auto-guess from /public/*
+  favicon: "/favicon.ico"   # optional; autoguess from /public/* if missing
   overrides: {}
 
 ssg:

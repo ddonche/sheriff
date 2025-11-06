@@ -1,0 +1,319 @@
+/* Brindle — Daybreak v3 (full theme)
+   Softer light mode, modern typography, top-nav hover = footer style,
+   and primary hue ~ #5090a0.
+   Load AFTER baseline.css.
+*/
+
+/* -------------------- Variables -------------------- */
+:root {
+  /* Base — soft light to reduce glare */
+  --bg: #f7f8fb;
+  --fg: #0c1324;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --border: #e3e6ee;
+  --muted: #6b7280;
+
+  /* Brand — teal-leaning blue */
+  --primary: #5090a0;        /* requested */
+  --secondary: #68b3c1;      /* harmonious accent */
+  --danger: #e11d48;
+  --warning: #f59e0b;
+  --success: #16a34a;
+
+  /* Links — coordinated with primary (not default blue) */
+  --link: #3a7280;           /* darker cousin of primary */
+  --link-hover: #5aa7b8;
+
+  /* Code */
+  --code-bg: #f2f4f8;
+  --code-fg: #0c1324;
+
+  /* UI states */
+  --selection: #d7ecf3;      /* light teal wash */
+  --focus-ring: #5aa7b8;
+
+  /* Header/Nav */
+  --nav-bg: #27292a;   /* requested dark navbar */
+  --nav-fg: #e8eef2;   /* light text for contrast */
+
+  /* Blockquote */
+  --quote-accent: #7fb7c4;
+  --quote-bg: color-mix(in oklab, var(--quote-accent) 10%, white);
+
+  /* Typography — Pico-style system stack */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell,
+               "Noto Sans", "Helvetica Neue", Arial,
+               "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", "Courier New", monospace;
+  --font-size: 17px;
+  --line: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 520;
+  --weight-semibold: 620;
+  --weight-bold: 720;
+
+  /* Scale */
+  --h1: 2.25rem;
+  --h2: 1.875rem;
+  --h3: 1.5rem;
+  --h4: 1.25rem;
+  --h5: 1.125rem;
+  --h6: 1.0rem;
+
+  /* Layout */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1080px;
+  --container-xl: 1280px;
+  --container-max: 72ch;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(8,12,20,0.06);
+  --shadow-md: 0 6px 14px rgba(8,12,20,0.08);
+  --shadow-lg: 0 14px 36px rgba(8,12,20,0.10);
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 320ms;
+  --t-ease: cubic-bezier(.2,.6,.2,1);
+
+  /* Spacing */
+  --space-0: 0rem;
+  --space-1: 0.125rem;
+  --space-2: 0.25rem;
+  --space-3: 0.5rem;
+  --space-4: 0.75rem;
+  --space-5: 1rem;
+  --space-6: 1.5rem;
+  --space-7: 2rem;
+  --space-8: 3rem;
+
+  /* Derived */
+  --panel: var(--surface);
+  --hover: rgba(8,12,20,.06);     /* used for top & footer nav hover */
+  --muted-fg: color-mix(in oklab, var(--fg) 62%, white);
+  --link-visited: color-mix(in oklab, var(--link) 80%, #6d28d9);
+
+  color-scheme: light;
+}
+
+/* -------------------- Base -------------------- */
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--font-size);
+  line-height: var(--line);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background: var(--selection); }
+
+.container {
+  max-width: var(--container-lg);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}
+
+/* Headings */
+h1,h2,h3 { line-height: 1.18; margin: 0 0 .55em; letter-spacing: -0.01em; }
+h1 { font-size: var(--h1); font-weight: var(--weight-bold); }
+h2 { font-size: var(--h2); font-weight: var(--weight-semibold); }
+h3 { font-size: var(--h3); font-weight: var(--weight-semibold); }
+
+p { margin: 0 0 1em; max-width: var(--container-max); }
+
+/* -------------------- Header / Nav -------------------- */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--nav-bg);
+  color: var(--nav-fg);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  box-shadow: var(--shadow-sm);
+}
+
+.site-header .container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: .6rem; /* adjust height */
+}
+
+.site-header .brand,
+.site-header .brand-name {
+  color: var(--nav-fg);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+}
+
+#site-nav {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  box-shadow: none;
+}
+
+#site-nav ul[role="list"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* TOP NAV HOVER = FOOTER HOVER: pill bg using --hover, no underline */
+#site-nav a {
+  color: var(--nav-fg);
+  text-decoration: none;
+  padding: .42rem .6rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--t-fast) var(--t-ease), color var(--t-fast) var(--t-ease);
+}
+#site-nav a:hover {
+  background: rgba(255,255,255,.08);  /* soft pill on dark */
+}
+
+/* Right item stays right */
+#site-nav li.right { margin-left: auto; color: var(--muted); }
+#site-nav li.right span { color: var(--muted); }
+
+/* -------------------- Content -------------------- */
+main { padding-block: var(--space-6); }
+
+main a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: .22em;
+}
+main a:hover { color: var(--link-hover); }
+
+.panel, .card, main > section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  margin-block: var(--space-6);
+}
+
+/* Blockquotes */
+blockquote {
+  margin: 1.2em 0;
+  padding: 1rem 1.25rem 1rem 1.1rem;
+  border-left: 4px solid var(--quote-accent);
+  background: var(--quote-bg);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: color-mix(in oklab, var(--fg) 85%, black);
+}
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+/* Lists */
+ul, ol { padding-inline-start: 1.2rem; }
+li { margin: .25rem 0; }
+
+/* -------------------- Buttons -------------------- */
+button, .btn {
+  appearance: none;
+  background: var(--primary);
+  color: white;
+  border: 1px solid color-mix(in oklab, var(--primary) 85%, black);
+  border-radius: var(--radius-pill);
+  padding: .55rem 1rem;
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--t-ease), box-shadow var(--t-fast) var(--t-ease), filter var(--t-fast) var(--t-ease);
+}
+button:hover, .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+button:active, .btn:active { transform: translateY(0); filter: brightness(.96); }
+button:focus-visible, .btn:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+/* -------------------- Code -------------------- */
+pre, code, kbd, samp { font-family: var(--font-mono); }
+pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  overflow: auto;
+  box-shadow: var(--shadow-sm);
+}
+code { background: color-mix(in oklab, var(--code-bg) 92%, white); padding: .12em .35em; border-radius: var(--radius-sm); }
+
+/* -------------------- Tables -------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+th, td {
+  padding: .65rem .8rem;
+  border-bottom: 1px solid var(--border);
+}
+thead th {
+  background: color-mix(in oklab, var(--surface-2) 80%, white);
+  text-align: left;
+  font-weight: var(--weight-semibold);
+}
+
+/* -------------------- Forms -------------------- */
+input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: .55rem .7rem;
+  box-shadow: var(--shadow-sm) inset;
+  transition: border-color var(--t-fast) var(--t-ease), box-shadow var(--t-fast) var(--t-ease);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 25%, transparent);
+}
+
+/* -------------------- Footer -------------------- */
+#site-footer {
+  background: var(--nav-bg);
+  color: var(--nav-fg);
+  border-top: 1px solid rgba(255,255,255,.06);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.15);
+}
+#site-footer a {
+  color: var(--nav-fg);
+  text-decoration: none;
+  padding: .35rem .5rem;
+  border-radius: var(--radius-sm);
+}
+#site-footer a:hover {
+  background: rgba(255,255,255,.08);  /* same hover feel as top nav */
+}
+
+/* -------------------- Utilities -------------------- */
+.muted { color: var(--muted); }
+.hr {
+  height: 1px;
+  background: var(--border);
+  border: 0;
+  margin: var(--space-6) 0;
+}

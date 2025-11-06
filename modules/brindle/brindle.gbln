@@ -113,8 +113,8 @@ act publish_tokens()
             
             if file_exists(chosen_fs)
                 theme_href = "/modules/brindle/themes/" + chosen_lo + ".css"
-                /// Register the ACTUAL <link> tags as content
-                css_links = "<link rel=\"stylesheet\" href=\"" + theme_href + "\">\n    <link rel=\"stylesheet\" href=\"" + baseline_href + "\">"
+                /// baseline FIRST, theme LAST so theme wins
+                css_links = "<link rel=\"stylesheet\" href=\"" + baseline_href + "\">\n    <link rel=\"stylesheet\" href=\"" + theme_href + "\">"
                 register_token("BRINDLE", "CSS", css_links)
             else
                 css_links = "<link rel=\"stylesheet\" href=\"" + baseline_href + "\">"
@@ -170,18 +170,20 @@ act publish_brand_tokens()
     brindle_section = config_map["brindle"]
 
     brand_name = cfg_str(brindle_section, "brand_name", "Site")
+    brand_logo = cfg_str(brindle_section, "logo", "Logo")
+    brand_favicon = cfg_str(brindle_section, "favicon", "Favicon")
 
     /// Hard paths, root-absolute so they work from any depth
-    register_token("BRINDLE", "FAVICON",   "/public/favicon.ico")
+    register_token("BRINDLE", "FAVICON",   "/public/{brand_favicon}")
     register_token("BRINDLE", "BRAND_NAME", brand_name)
-    register_token("BRINDLE", "LOGO_SRC",  "/public/logo.svg")
+    register_token("BRINDLE", "LOGO_SRC",  "/public/{brand_logo}")
     register_token("BRINDLE", "BRAND_ALT", brand_name)
 
     /// Composite <img> tag (root-absolute src)
     register_token(
         "BRINDLE",
         "LOGO_IMG",
-        "<img class=\"brand-logo\" src=\"/public/logo.svg\" alt=\"" + brand_name + "\" />"
+        "<img class=\"brand-logo\" src=\"/public/{brand_logo}\" alt=\"" + brand_name + "\" />"
     )
 
     return Unit
