@@ -56,6 +56,83 @@ act scout_as_array(any_value)
     return boxed
 end
 
+/// ---- Scout: Breadcrumbs --------------------------------------------------
+
+act title_from_slug(slug)
+    s = string(slug)
+    s = ignore_where(s, ".html")
+    words = split(s, "_")
+    label = join(words, " ")
+    return title(label)
+end
+
+/// Build breadcrumb HTML from an output path like "dist/docs/guide/getting_started.html"
+act breadcrumbs(out_path, root_label)
+    if root_label == nil
+        root_label = "Home"
+    end
+
+    /// Normalize slashes and collapse segments
+    p = path_normalize(string(out_path))
+
+    /// Strip build prefix and any leading slash
+    p = ignore_where(p, "dist/")
+    if p != "" and p[0:1] == "/"
+        p = p[1:]
+    end
+
+    /// Split into segments
+    segs = []
+    for s in split(p, "/")
+        if s != ""
+            put_last!(segs, s)
+        end
+    end
+
+    /// If trailing is index.html, drop it (root index will become empty)
+    if segs.len > 0
+        last = lower(segs[segs.len - 1])
+        if last == "index.html"
+            segs = segs[0:segs.len - 1]
+        end
+    end
+
+    /// Root page? No breadcrumbs.
+    if segs.len == 0
+        return ""
+    end
+
+    html = "<nav class=\"breadcrumbs\" aria-label=\"Breadcrumb\"><ol>"
+    html = html + "<li><a href=\"/\">" + escape_html(root_label) + "</a></li>"
+
+    i = 0
+    for seg in segs
+        is_last = (i == segs.len - 1)
+
+        stem  = ignore_where(seg, ".html")
+        label = title_from_slug(stem)
+
+        href = "/" + join(segs[0:i+1], "/")
+
+        /// Directory segment? add trailing slash (contains-free)
+        html_hits = find_all(href, ".html")
+        if html_hits.len == 0
+            href = href + "/"
+        end
+
+        if is_last
+            html = html + "<li aria-current=\"page\"><span>" + escape_html(label) + "</span></li>"
+        else
+            html = html + "<li><a href=\"" + href + "\">" + escape_html(label) + "</a></li>"
+        end
+
+        i = i + 1
+    end
+
+    html = html + "</ol></nav>"
+    return html
+end
+
 /// ---- 1) canonicalize one entry -------------------------------------------
 act scout_canon_entry(raw_entry)
     entry_type = valtype(raw_entry)
@@ -177,7 +254,7 @@ act scout_canon_map(raw_map)
                 if has(top_value, "href")
                     tmp = top_value >> "href"
                     if tmp != nil
-                        direct_href = scout_as_str(tmp).trim
+                        direct_href = scout_as_str(tmp)
                     end
                 end
 
@@ -224,36 +301,74 @@ act scout_canon_map(raw_map)
                             skip
                         end
 
-                        /// child group → grandchildren
+                        /// child group → grandchildren (uses [] indexing only)
                         if cv_type == "map" <> cv_type == "object"
                             grand_entries = []
+
                             grand_keys = keys(child_value)
                             for grand_key in grand_keys
                                 if grand_key == "label" or grand_key == "href" or grand_key == "children" or grand_key == "class"
                                     skip
                                 end
 
-                                grand_value = child_value[grand_key]
-                                gv_type = valtype(grand_value)
+                                grand_val  = child_value[grand_key]
+                                grand_type = valtype(grand_val)
 
-                                /// grand "Label: href"
-                                if gv_type == "str"
+                                /// Case: "Label: href"
+                                if grand_type == "str"
                                     put_last!(grand_entries, {
                                         "label": scout_as_str(grand_key),
-                                        "href":  scout_as_str(grand_value),
+                                        "href":  scout_as_str(grand_val),
                                         "children": []
                                     })
                                     skip
                                 end
 
-                                /// grand label-only (nil)
-                                if grand_value == nil
+                                /// Case: nested group (e.g., Echo of Legends: { Chapter 1: ... })
+                                if grand_type == "map" <> grand_type == "object"
+                                    inner_entries = []
+                                    inner_keys = keys(grand_val)
+                                    for inner_key in inner_keys
+                                        if inner_key == "label" or inner_key == "href" or inner_key == "children" or inner_key == "class"
+                                            skip
+                                        end
+                                        inner_val  = grand_val[inner_key]
+                                        inner_type = valtype(inner_val)
+
+                                        if inner_type == "str"
+                                            put_last!(inner_entries, {
+                                                "label": scout_as_str(inner_key),
+                                                "href":  scout_as_str(inner_val),
+                                                "children": []
+                                            })
+                                            skip
+                                        end
+
+                                        if inner_val == nil
+                                            put_last!(inner_entries, {
+                                                "label": scout_as_str(inner_key),
+                                                "href":  "",
+                                                "children": []
+                                            })
+                                            skip
+                                        end
+                                    end
+
+                                    put_last!(grand_entries, {
+                                        "label": scout_as_str(grand_key),
+                                        "href":  "",
+                                        "children": inner_entries
+                                    })
+                                    skip
+                                end
+
+                                /// Case: label-only (nil)
+                                if grand_val == nil
                                     put_last!(grand_entries, {
                                         "label": scout_as_str(grand_key),
                                         "href":  "",
                                         "children": []
                                     })
-                                    skip
                                 end
                             end
 
@@ -296,7 +411,7 @@ act scout_render_list(entries_list, depth_level)
         end
 
         local label    = item_any >> "label"
-        local href     = (item_any >> "href").trim
+        local href     = item_any >> "href"
         local children = item_any >> "children"
 
         judge using item_any

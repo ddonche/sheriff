@@ -161,6 +161,44 @@ label { display:inline-block; margin-bottom: var(--space-2); font-weight: 500; }
   #site-nav ul { flex-wrap: wrap; }
 }
 
+/* Breadcrumbs */
+.breadcrumbs {
+  margin: var(--space-5) 0 var(--space-4);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.breadcrumbs li + li::before {
+  content: "›";
+  opacity: .6;
+}
+.breadcrumbs a {
+  color: var(--link);
+  text-decoration: none;
+  padding: .2rem .35rem;
+  border-radius: var(--radius-sm);
+}
+.breadcrumbs a:hover {
+  background: var(--hover);
+  color: var(--link-hover);
+}
+.breadcrumbs [aria-current="page"] > span {
+  color: var(--fg);
+  font-weight: var(--weight-medium);
+}
+
 /* ---- Footer -------------------------------------------------------------- */
 #site-footer {
   background: var(--surface);

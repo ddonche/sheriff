@@ -5,5 +5,10 @@ Docs:
     Introduction: docs/getting-started/index.html
     Installation: docs/getting-started/installation.html
     Basics: docs/getting-started/basics.html
+  Tutorials:
+    Echo of Legends:
+      Chapter 1: docs/tutorials/echo-of-legends/chapter1.html
+    Recipes:
+      Password Generator: docs/tutorials/recipes/password_generator_recipe.html
 Blog: blog.html
 Changelog: changelog.html

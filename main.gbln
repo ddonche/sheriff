@@ -156,30 +156,33 @@ act build_site()
         frontmatter  = get_frontmatter(content)
         body_content = extract_body_content(content)
 
-        /// Title = basename of the file we actually write (no directories)
         normalized_out = output_path
         update_where!(normalized_out, "\\", "/")
 
         path_parts = split(normalized_out, "/")
         out_file   = path_parts[path_parts.len - 1]
 
-        /// strip ".html", then underscores → spaces (no loops), then Title Case
         base_no_ext       = ignore_where(out_file, ".html")
         underscore_parts  = split(base_no_ext, "_")
         spaced_title      = join(underscore_parts, " ")
         page_title        = title(spaced_title)
 
-        /// Convert markdown first
         html_body = md_to_html(body_content)
 
-        /// get the proper directory
+        /// ---- breadcrumbs (skip home) --------------------------------------------
+        crumbs_html = ""
+        page_stem = stem(output_path)      /// e.g., "index" from ".../index.html"
+        if page_stem !== "index"
+            crumbs_html = scout::breadcrumbs(output_path, "Home")
+        end
+        /// -------------------------------------------------------------------------
+
         root_prefix = ""
         slash_positions = find_all(content_stem, "/")
         for pos in slash_positions
             root_prefix = root_prefix + "../"
         end
 
-        /// Manually compose HTML (tokens inline)
         html_content = """
         <!doctype html>
         <html lang="en">
@@ -205,6 +208,7 @@ act build_site()
           </header>
 
           <main class="container">
+            {crumbs_html}
             {html_body}
           </main>
 

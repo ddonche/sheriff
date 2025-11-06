@@ -1,7 +1,9 @@
-/* Brindle — Daybreak v3 (full theme)
-   Softer light mode, modern typography, top-nav hover = footer style,
-   and primary hue ~ #5090a0.
+/* Brindle — Daybreak v3.2 (full theme)
+   Softer light mode, modern typography, dark nav bars, dark dropdowns (all depths),
+   breadcrumbs styling, primary ≈ #5090a0.
    Load AFTER baseline.css.
+
+   IMPORTANT: Include dropdown-handler.js on your page to ensure proper dropdown behavior
 */
 
 /* -------------------- Variables -------------------- */
@@ -15,27 +17,33 @@
   --muted: #6b7280;
 
   /* Brand — teal-leaning blue */
-  --primary: #5090a0;        /* requested */
-  --secondary: #68b3c1;      /* harmonious accent */
+  --primary: #5090a0;
+  --secondary: #68b3c1;
   --danger: #e11d48;
   --warning: #f59e0b;
   --success: #16a34a;
 
-  /* Links — coordinated with primary (not default blue) */
-  --link: #3a7280;           /* darker cousin of primary */
+  /* Links — coordinated with primary */
+  --link: #3a7280;
   --link-hover: #5aa7b8;
 
-  /* Code */
+  /* Code - simplified to single background color */
   --code-bg: #f2f4f8;
   --code-fg: #0c1324;
 
   /* UI states */
-  --selection: #d7ecf3;      /* light teal wash */
+  --selection: #d7ecf3;
   --focus-ring: #5aa7b8;
 
-  /* Header/Nav */
-  --nav-bg: #27292a;   /* requested dark navbar */
-  --nav-fg: #e8eef2;   /* light text for contrast */
+  /* Header/Nav (dark bars) */
+  --nav-bg: #27292a;
+  --nav-fg: #e8eef2;
+
+  /* Dropdowns (dark panels) */
+  --nav-sub-bg: #1f2122;
+  --nav-sub-fg: #e8eef2;
+  --nav-sub-border: rgba(255,255,255,.08);
+  --nav-sub-hover: rgba(255,255,255,.10);
 
   /* Blockquote */
   --quote-accent: #7fb7c4;
@@ -101,7 +109,7 @@
 
   /* Derived */
   --panel: var(--surface);
-  --hover: rgba(8,12,20,.06);     /* used for top & footer nav hover */
+  --hover: rgba(8,12,20,.06);  /* general hover on light surfaces */
   --muted-fg: color-mix(in oklab, var(--fg) 62%, white);
   --link-visited: color-mix(in oklab, var(--link) 80%, #6d28d9);
 
@@ -119,7 +127,6 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 ::selection { background: var(--selection); }
 
 .container {
@@ -144,14 +151,12 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   border-bottom: 1px solid rgba(255,255,255,.06);
   box-shadow: var(--shadow-sm);
 }
-
-.site-header .container {
+.header-inner {
   display: flex;
   align-items: center;
   gap: var(--space-5);
   padding-block: .6rem; /* adjust height */
 }
-
 .site-header .brand,
 .site-header .brand-name {
   color: var(--nav-fg);
@@ -159,13 +164,7 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   font-weight: var(--weight-semibold);
 }
 
-#site-nav {
-  background: transparent;
-  color: inherit;
-  border: 0;
-  box-shadow: none;
-}
-
+#site-nav { background: transparent; color: inherit; border: 0; box-shadow: none; }
 #site-nav ul[role="list"] {
   display: flex;
   align-items: center;
@@ -175,21 +174,198 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   padding: 0;
 }
 
-/* TOP NAV HOVER = FOOTER HOVER: pill bg using --hover, no underline */
-#site-nav a {
+/* ---- Unified nav link styles (top-level + ALL dropdown levels) -------- */
+#site-nav a, 
+#site-nav summary {
+  display: inline-block;
   color: var(--nav-fg);
   text-decoration: none;
-  padding: .42rem .6rem;
+  padding: .42rem .6rem;           /* same capsule padding as header items */
   border-radius: var(--radius-sm);
+  font-weight: var(--weight-medium);
   transition: background var(--t-fast) var(--t-ease), color var(--t-fast) var(--t-ease);
-}
-#site-nav a:hover {
-  background: rgba(255,255,255,.08);  /* soft pill on dark */
+  cursor: pointer;
 }
 
-/* Right item stays right */
-#site-nav li.right { margin-left: auto; color: var(--muted); }
-#site-nav li.right span { color: var(--muted); }
+/* same hover "pill" everywhere */
+#site-nav a:hover,
+#site-nav summary:hover,
+#site-nav li:hover > a,
+#site-nav li:focus-within > a,
+#site-nav details.dropdown:hover > summary,
+#site-nav details.dropdown:focus-within > summary {
+  background: rgba(255,255,255,.08);
+  color: var(--nav-fg);
+}
+
+/* ---- DROPDOWN STYLING (for nested ul structure) -------------------- */
+/* dropdown panels */
+#site-nav ul ul {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 12rem;
+  margin: 0;
+  padding: .35rem;
+  list-style: none;
+  background: var(--nav-sub-bg);
+  color: var(--nav-sub-fg);
+  border: 1px solid var(--nav-sub-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  display: none;
+  z-index: 60;
+}
+
+/* show dropdown */
+#site-nav li:hover > ul,
+#site-nav li:focus-within > ul { display: block; }
+
+/* links inside dropdowns */
+#site-nav ul ul a,
+#site-nav ul ul li > a {
+  display: block;  
+  width: 100%;     
+  color: var(--nav-sub-fg);
+  padding: .42rem .6rem;          
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* hover inside dropdowns */
+#site-nav ul ul a:hover,
+#site-nav ul ul li:hover > a,
+#site-nav ul ul li:focus-within > a {
+  background: rgba(255,255,255,.08);
+  color: var(--nav-fg);
+}
+
+/* flyout for deeper levels */
+#site-nav ul ul li { position: relative; }
+#site-nav ul ul li > ul {
+  top: 0;
+  left: 100%;
+  margin-left: .25rem;
+}
+
+/* Fix for off-screen dropdowns - reverse direction of last few items */
+@media (min-width: 992px) {
+  #site-nav ul ul li:last-child > ul,
+  #site-nav ul ul li:nth-last-child(2) > ul,
+  #site-nav ul ul li:nth-last-child(3) > ul {
+    right: 100%;
+    left: auto;
+    margin-right: .25rem;
+    margin-left: 0;
+  }
+}
+
+/* dropdown items styling */
+#site-nav ul ul li {
+  padding: 0;
+  margin: 0;
+}
+
+/* optional divider tone inside dropdowns */
+#site-nav ul ul li + li { border-top: 1px solid var(--nav-sub-border); }
+
+/* ---- DROPDOWN STYLING (for details/summary structure) -------------------- */
+/* Dropdown container */
+#site-nav details.dropdown { position: relative; }
+#site-nav details.dropdown > summary { 
+  list-style: none; 
+  display: inline-flex; 
+  align-items: center; 
+  gap: .35rem;
+}
+
+/* Remove default details marker */
+#site-nav details.dropdown > summary::-webkit-details-marker { display: none; }
+#site-nav details.dropdown > summary::after { 
+  content:"▾"; 
+  font-size:.8em; 
+  opacity:.7; 
+  transform: translateY(-1px);
+  margin-left: 2px;
+}
+
+/* Change arrow when open */
+#site-nav details.dropdown[open] > summary::after {
+  content: "▴";
+  transform: translateY(1px);
+}
+
+/* Dropdown panel */
+#site-nav details.dropdown > ul[role="list"] {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 14rem;
+  margin-top: .3rem;
+  padding: .35rem;
+  list-style: none;
+  background: var(--nav-sub-bg);
+  color: var(--nav-sub-fg);
+  border: 1px solid var(--nav-sub-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  z-index: 60;
+}
+
+/* Links inside dropdown */
+#site-nav details.dropdown > ul[role="list"] > li > a,
+#site-nav details.dropdown > ul[role="list"] > li > span,
+#site-nav details.dropdown > ul[role="list"] > li > summary {
+  display: block;
+  width: 100%;
+  color: var(--nav-sub-fg);
+  padding: .42rem .6rem;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Hover state for dropdown items */
+#site-nav details.dropdown > ul[role="list"] > li > a:hover,
+#site-nav details.dropdown > ul[role="list"] > li > summary:hover,
+#site-nav details.dropdown > ul[role="list"] > li > details.dropdown:hover > summary {
+  background: rgba(255,255,255,.08);
+  color: var(--nav-fg);
+}
+
+/* Nested flyout positioning */
+#site-nav details.dropdown > ul[role="list"] details.dropdown { position: relative; }
+#site-nav details.dropdown > ul[role="list"] details.dropdown > ul[role="list"] {
+  top: -.35rem;
+  left: 100%;
+  margin-left: .3rem;
+}
+
+/* Fix for off-screen dropdowns in details/summary structure */
+@media (min-width: 992px) {
+  #site-nav details.dropdown > ul[role="list"] > li:last-child details.dropdown > ul[role="list"],
+  #site-nav details.dropdown > ul[role="list"] > li:nth-last-child(2) details.dropdown > ul[role="list"],
+  #site-nav details.dropdown > ul[role="list"] > li:nth-last-child(3) details.dropdown > ul[role="list"] {
+    right: 100%;
+    left: auto;
+    margin-right: .3rem;
+    margin-left: 0;
+  }
+}
+
+/* Dividers between dropdown items */
+#site-nav details.dropdown > ul[role="list"] > li + li {
+  border-top: 1px solid var(--nav-sub-border);
+}
+
+/* Dropdown items styling */
+#site-nav details.dropdown > ul[role="list"] > li {
+  padding: 0;
+  margin: 0;
+}
 
 /* -------------------- Content -------------------- */
 main { padding-block: var(--space-6); }
@@ -226,6 +402,31 @@ blockquote > :last-child { margin-bottom: 0; }
 ul, ol { padding-inline-start: 1.2rem; }
 li { margin: .25rem 0; }
 
+/* -------------------- Breadcrumbs -------------------- */
+.breadcrumbs {
+  margin: var(--space-5) 0 var(--space-4);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.breadcrumbs li { display: inline-flex; align-items: center; gap: .5rem; }
+.breadcrumbs li + li::before { content: "›"; opacity: .6; }
+.breadcrumbs a {
+  color: var(--link);
+  text-decoration: none;
+  padding: .2rem .35rem;
+  border-radius: var(--radius-sm);
+}
+.breadcrumbs a:hover { background: var(--hover); color: var(--link-hover); }
+.breadcrumbs [aria-current="page"] > span { color: var(--fg); font-weight: var(--weight-medium); }
+
 /* -------------------- Buttons -------------------- */
 button, .btn {
   appearance: none;
@@ -245,16 +446,25 @@ button:focus-visible, .btn:focus-visible { outline: 3px solid var(--focus-ring);
 
 /* -------------------- Code -------------------- */
 pre, code, kbd, samp { font-family: var(--font-mono); }
+
+/* Simplified pre blocks - no border radius */
 pre {
   background: var(--code-bg);
   color: var(--code-fg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;  /* Removed rounded corners */
   padding: var(--space-5);
   overflow: auto;
   box-shadow: var(--shadow-sm);
 }
-code { background: color-mix(in oklab, var(--code-bg) 92%, white); padding: .12em .35em; border-radius: var(--radius-sm); }
+
+/* Simplified inline code */
+code {
+  background: var(--code-bg); /* Same background for consistency */
+  color: var(--code-fg);
+  padding: .12em .35em;
+  border-radius: var(--radius-sm);
+}
 
 /* -------------------- Tables -------------------- */
 table {
@@ -265,10 +475,7 @@ table {
   overflow: hidden;
   background: var(--surface);
 }
-th, td {
-  padding: .65rem .8rem;
-  border-bottom: 1px solid var(--border);
-}
+th, td { padding: .65rem .8rem; border-bottom: 1px solid var(--border); }
 thead th {
   background: color-mix(in oklab, var(--surface-2) 80%, white);
   text-align: left;
@@ -298,15 +505,32 @@ input:focus, select:focus, textarea:focus {
   color: var(--nav-fg);
   border-top: 1px solid rgba(255,255,255,.06);
   box-shadow: inset 0 1px 0 rgba(0,0,0,.15);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;               /* center text */
 }
+
+#site-footer .container {
+  display: flex;
+  justify-content: center;          /* center horizontally */
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem .6rem;
+  padding: var(--space-5);
+}
+
 #site-footer a {
+  display: inline-block;            /* keeps hover "pill" tight to text */
   color: var(--nav-fg);
   text-decoration: none;
-  padding: .35rem .5rem;
+  padding: .35rem .5rem;            /* same capsule feel as top nav */
   border-radius: var(--radius-sm);
+  line-height: inherit;
+  vertical-align: baseline;
 }
+
 #site-footer a:hover {
-  background: rgba(255,255,255,.08);  /* same hover feel as top nav */
+  background: rgba(255,255,255,.08);/* match top nav hover */
 }
 
 /* -------------------- Utilities -------------------- */
