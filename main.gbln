@@ -192,6 +192,7 @@ act build_site()
           <link rel="icon" href="{{{BRINDLE::FAVICON}}}">
           <title>{page_title}</title>
           {{{BRINDLE::CSS}}}
+          {{{BRINDLE::HIGHLIGHT_HEAD}}}
         </head>
         <body>
           <header class="site-header">
@@ -217,6 +218,7 @@ act build_site()
               {{{SCOUT::FOOTER}}}
             </div>
           </footer>
+          {{{BRINDLE::HIGHLIGHT_FOOT}}}
         </body>
         </html>
         """

@@ -70,6 +70,28 @@ act build_css_files()
     end
 end
 
+/// Publish Prism CDN tags as tokens (minimal)
+act publish_prism_tokens()
+    head_html = """
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+"""
+
+    foot_html = """
+    <script>
+      document.addEventListener('DOMContentLoaded', (event) => {
+        document.querySelectorAll('pre code').forEach((el) => {
+          hljs.highlightElement(el);
+        });
+      });
+    </script>
+"""
+
+    register_token("BRINDLE", "HIGHLIGHT_HEAD", head_html)
+    register_token("BRINDLE", "HIGHLIGHT_FOOT", foot_html)
+    return Unit
+end
+
 /// Register BRINDLE::<THEME> for every file in modules/brindle/themes/*.css
 act publish_theme_tokens()
     theme_dir = "modules/brindle/themes"
@@ -104,6 +126,7 @@ act publish_tokens()
     else
         publish_theme_tokens()
         publish_brand_tokens()
+        publish_prism_tokens()
         
         chosen = selected_theme_from_config()
         
