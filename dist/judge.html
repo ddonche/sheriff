@@ -9,8 +9,8 @@
           <link rel="stylesheet" href="/modules/brindle/baseline.css">
     <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
           
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
         </head>
         <body>
@@ -48,11 +48,11 @@
           </header>
 
           <main class="container">
-            
-            <h1>Goblin Decision Constructs</h1>
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li aria-current="page"><span>Judge</span></li></ol></nav>
+            <h1><a href="#goblin-decision-constructs" aria-hidden="true" class="anchor" id="goblin-decision-constructs"></a>Goblin Decision Constructs</h1>
 <p><em>(Exclusive &amp; Inclusive Decision Logic)</em></p>
-<h2>2) Core Syntax</h2>
-<h3>2.1 <code>judge</code> — Exclusive</h3>
+<h2><a href="#2-core-syntax" aria-hidden="true" class="anchor" id="2-core-syntax"></a>2) Core Syntax</h2>
+<h3><a href="#21-judge--exclusive" aria-hidden="true" class="anchor" id="21-judge--exclusive"></a>2.1 <code>judge</code> — Exclusive</h3>
 <pre lang="goblin"><code>score = 95
 
 grade =
@@ -66,7 +66,7 @@ grade =
 <ul>
 <li>Evaluates top-to-bottom, stops on first truthy condition.</li>
 </ul>
-<h3>2.2 <code>judge_all</code> — Inclusive</h3>
+<h3><a href="#22-judge_all--inclusive" aria-hidden="true" class="anchor" id="22-judge_all--inclusive"></a>2.2 <code>judge_all</code> — Inclusive</h3>
 <pre lang="goblin"><code>balance = 45
 trial_days = 5
 has_new_features = true
@@ -86,7 +86,7 @@ say notifications
 <ul>
 <li>All truthy arms run; expression-form returns an array of results in arm order.</li>
 </ul>
-<h2>4) Enum Matching with <code>using</code></h2>
+<h2><a href="#4-enum-matching-with-using" aria-hidden="true" class="anchor" id="4-enum-matching-with-using"></a>4) Enum Matching with <code>using</code></h2>
 <p>Enums in Goblin can be matched by name using <code>using &lt;EnumName&gt;</code>.</p>
 <pre lang="goblin"><code>/// Enum definition and matching tests
 enum Status
@@ -121,7 +121,7 @@ judge priority using Priority
 end
 </code></pre>
 <p><em>(Future: tagged-union payload destructuring &amp; guards — planned, see §12.4.)</em></p>
-<h2>6) Header Return: <code>judge return &lt;expr&gt;</code></h2>
+<h2><a href="#6-header-return-judge-return-expr" aria-hidden="true" class="anchor" id="6-header-return-judge-return-expr"></a>6) Header Return: <code>judge return &lt;expr&gt;</code></h2>
 <p>A shared return value for <strong>empty</strong> matching arms.</p>
 <pre lang="goblin"><code>judge return &quot;ERR&quot;
     a &lt; 0:
@@ -131,7 +131,7 @@ end
 </code></pre>
 <p>Equivalent to inlining <code>return &quot;ERR&quot;</code> in each empty arm. Works with both <code>judge</code> and <code>judge_all</code>.</p>
 <p><em>(Header <strong>do</strong> default for non-return actions is planned; see §11.)</em></p>
-<h2>8) Rich Condition Syntax (as in Goblin expressions)</h2>
+<h2><a href="#8-rich-condition-syntax-as-in-goblin-expressions" aria-hidden="true" class="anchor" id="8-rich-condition-syntax-as-in-goblin-expressions"></a>8) Rich Condition Syntax (as in Goblin expressions)</h2>
 <ul>
 <li>
 <p>Logical ops: <code>and</code>, <code>or</code>, <code>not</code> (with <code>()</code> precedence) — <strong>reuse normal expression grammar</strong>.</p>
@@ -165,7 +165,7 @@ end
 </code></pre>
 </li>
 </ul>
-<h2>10) Weighted <code>judge_all</code> — <strong>Planned (kept from blog post)</strong></h2>
+<h2><a href="#10-weighted-judge_all--planned-kept-from-blog-post" aria-hidden="true" class="anchor" id="10-weighted-judge_all--planned-kept-from-blog-post"></a>10) Weighted <code>judge_all</code> — <strong>Planned (kept from blog post)</strong></h2>
 <p>Weights prioritize inclusive actions (e.g., async engines/processors). Syntax per blog post:</p>
 <pre lang="goblin"><code>actions =
     judge_all
@@ -193,8 +193,8 @@ end
 <blockquote>
 <p><strong>Status:</strong> Parsing &amp; runtime scheduling <strong>planned</strong> for post–v1.0; syntax reserved.</p>
 </blockquote>
-<h2>12) Additional Roadmap (Post–v1.0)</h2>
-<h3>12.1 Stateful vs Snapshot (for <code>judge_all</code>)</h3>
+<h2><a href="#12-additional-roadmap-postv10" aria-hidden="true" class="anchor" id="12-additional-roadmap-postv10"></a>12) Additional Roadmap (Post–v1.0)</h2>
+<h3><a href="#121-stateful-vs-snapshot-for-judge_all" aria-hidden="true" class="anchor" id="121-stateful-vs-snapshot-for-judge_all"></a>12.1 Stateful vs Snapshot (for <code>judge_all</code>)</h3>
 <ul>
 <li><strong>Snapshot (default):</strong> evaluate all conditions once, then run matches.</li>
 <li><strong>Stateful:</strong> reevaluate each arm after previous arm’s effects.</li>
@@ -208,7 +208,7 @@ judge_all stateful
         say &quot;now warm&quot;   /// runs only in stateful
 end
 </code></pre>
-<h3>12.2 Structured Results (expr-form)</h3>
+<h3><a href="#122-structured-results-expr-form" aria-hidden="true" class="anchor" id="122-structured-results-expr-form"></a>12.2 Structured Results (expr-form)</h3>
 <p>Return a record instead of a raw array:</p>
 <pre lang="goblin"><code>res =
     judge_all structured
@@ -221,7 +221,7 @@ end
 /// res.results   → [&quot;even&quot;]
 /// res.else_hit  → false
 </code></pre>
-<h3>12.3 Hot-Reloadable Arms</h3>
+<h3><a href="#123-hot-reloadable-arms" aria-hidden="true" class="anchor" id="123-hot-reloadable-arms"></a>12.3 Hot-Reloadable Arms</h3>
 <p>Load rule arms from data, compile to AST, cache, and evaluate safely.</p>
 <pre lang="goblin"><code>rules = load_json(&quot;rules.json&quot;)
 
@@ -231,7 +231,7 @@ act apply_dynamic_rules(obj)
     end
 end
 </code></pre>
-<h3>12.4 Enum Payloads (Tagged Unions)</h3>
+<h3><a href="#124-enum-payloads-tagged-unions" aria-hidden="true" class="anchor" id="124-enum-payloads-tagged-unions"></a>12.4 Enum Payloads (Tagged Unions)</h3>
 <p>Future: destructuring patterns with optional guards.</p>
 <pre lang="goblin"><code>ev = Event::Click(10, 20)
 judge ev using Event
@@ -241,7 +241,7 @@ judge ev using Event
     Idle:                           say &quot;idle&quot;
 end
 </code></pre>
-<h2>14) Implementation Status Summary</h2>
+<h2><a href="#14-implementation-status-summary" aria-hidden="true" class="anchor" id="14-implementation-status-summary"></a>14) Implementation Status Summary</h2>
 <table>
 <thead>
 <tr>
@@ -309,13 +309,111 @@ end
             </div>
           </footer>
           
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        document.querySelectorAll('pre code').forEach((el) => {
-          hljs.highlightElement(el);
-        });
-      });
-    </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.hljs) return;
+
+    // 1) Register Goblin language
+    function goblin(hljs) {
+      const LINE   = hljs.COMMENT('///', '$');
+      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
+      const INLINE = { className: 'comment', begin: /<----.*$/ };
+
+      const LITERALS = { literal: 'true false nil Unit' };
+
+      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
+      const STRING = {
+        className: 'string',
+        variants: [
+          { begin: /"/, end: /"/, contains: [INTERP] },
+          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
+          { begin: /"""/, end: /"""/, contains: [INTERP] }
+        ]
+      };
+
+      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
+      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
+      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
+      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
+
+      const OPERATORS = {
+        className: 'operator',
+        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
+      };
+      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
+
+      const ACTION_DEF = {
+        className: 'function',
+        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
+        returnBegin: true,
+        contains: [
+          { className: 'keyword', begin: /\b(?:act|action)\b/ },
+          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
+        ]
+      };
+      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
+      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
+      const PROPERTY    = { className: 'operator', begin: />>/ };
+      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
+
+      const KEYWORDS = {
+        keyword:
+          'if elif else for in while repeat unless ' +
+          'attempt rescue ensure raise say warn error ' +
+          'return skip jump until stop assert ' +
+          'act action enum use import export via test ' +
+          'contract prefer ' +
+          'judge judge_all using morph vault banish unbanish expose ' +
+          'pick roll roll_detail reap map ' +
+          'nc self set burn show_ids as of ' +
+          'end blob',
+        literal: LITERALS.literal
+      };
+
+      return {
+        name: 'Goblin',
+        aliases: ['gbln','gob'],
+        keywords: KEYWORDS,
+        contains: [
+          MULTI, LINE, INLINE,
+          ACTION_DEF, MODULE_CALL, BANG_CALL,
+          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
+          STRING, HEX, BIN, DICE, SCI
+        ]
+      };
+    }
+
+    window.hljs.registerLanguage('goblin', goblin);
+
+    // Optional sanity check
+    if (window.hljs.getLanguage('goblin')) {
+      console.log('Goblin language registered.');
+    } else {
+      console.warn('Failed to register Goblin language.');
+    }
+
+    // 2) Map <pre lang="xyz"> → language-xyz
+    var pres = document.querySelectorAll('pre[lang]');
+    for (var i = 0; i < pres.length; i++) {
+      var pre  = pres[i];
+      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
+      if (!lang) continue;
+
+      var code = pre.querySelector('code');
+      if (!code) {
+        code = document.createElement('code');
+        code.textContent = pre.textContent;
+        pre.textContent  = '';
+        pre.appendChild(code);
+      }
+      pre.classList.add('language-' + lang);
+      code.classList.add('language-' + lang);
+    }
+
+    // 3) Highlight everything
+    window.hljs.highlightAll();
+  });
+</script>
 
         </body>
         </html>

@@ -9,8 +9,8 @@
           <link rel="stylesheet" href="/modules/brindle/baseline.css">
     <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
           
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
         </head>
         <body>
@@ -48,12 +48,12 @@
           </header>
 
           <main class="container">
-            
-            <h1>Chapter 1: Your First Hero</h1>
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/tutorials">Tutorials</a></li><li><a href="/echo-of-legends">Echo-of-legends</a></li><li><a href="/chapter1.html">Chapter1</a></li></ol></nav>
+            <h1><a href="#chapter-1-your-first-hero" aria-hidden="true" class="anchor" id="chapter-1-your-first-hero"></a>Chapter 1: Your First Hero</h1>
 <blockquote>
 <p>Generate a hero with a name, class, and stats using dice roll notation, then print them to the screen.</p>
 </blockquote>
-<h2>Learning Objectives</h2>
+<h2><a href="#learning-objectives" aria-hidden="true" class="anchor" id="learning-objectives"></a>Learning Objectives</h2>
 <ul>
 <li>Use maps to model structured data (hero, stats, items)</li>
 <li>Roll simulated dice with <code>roll 3d6+6</code> notation</li>
@@ -61,7 +61,7 @@
 <li>Print a clean “hero card” to the console</li>
 <li>Understand Goblin’s module system and imports</li>
 </ul>
-<h2>Prerequisites</h2>
+<h2><a href="#prerequisites" aria-hidden="true" class="anchor" id="prerequisites"></a>Prerequisites</h2>
 <ul>
 <li>
 <p>Goblin interpreter installed</p>
@@ -85,7 +85,7 @@
 </code></pre>
 </li>
 </ul>
-<h2>Step 1 — Create Name and Class Data</h2>
+<h2><a href="#step-1--create-name-and-class-data" aria-hidden="true" class="anchor" id="step-1--create-name-and-class-data"></a>Step 1 — Create Name and Class Data</h2>
 <p><strong>File:</strong> <code>data/names.gbln</code></p>
 <pre lang="goblin"><code>/// data/names module
 
@@ -113,7 +113,7 @@ end
 <blockquote>
 <p><strong>Note:</strong> We’ll expand these lists later. For now, keep them simple and readable.</p>
 </blockquote>
-<h2>Step 3 — Hook into Main</h2>
+<h2><a href="#step-3--hook-into-main" aria-hidden="true" class="anchor" id="step-3--hook-into-main"></a>Step 3 — Hook into Main</h2>
 <p><strong>File:</strong> <code>main.gbln</code></p>
 <pre lang="goblin"><code>import game/hero as h
 
@@ -130,7 +130,7 @@ h::show_hero()
 <li><strong><code>h::</code>:</strong> Calls actions from the imported module</li>
 <li><strong>Why the alias?</strong> We use <code>as h</code> so the module namespace <code>h</code> doesn’t conflict with the <code>hero</code> variable inside the module</li>
 </ul>
-<h2>Step 5 — Understanding the Dice</h2>
+<h2><a href="#step-5--understanding-the-dice" aria-hidden="true" class="anchor" id="step-5--understanding-the-dice"></a>Step 5 — Understanding the Dice</h2>
 <p>The <code>roll</code> expression is central to roguelikes. Here’s how it works:</p>
 <pre lang="goblin"><code>roll 3d6      /// Roll 3 six-sided dice, sum them (3-18)
 roll 3d6+6    /// Roll 3d6 and add 6 (9-24)
@@ -149,8 +149,8 @@ roll 2d4+2    /// Roll 2 four-sided dice, add 2 (4-10)
 <li>Feels more balanced than pure random (1d18)</li>
 <li>Classic D&amp;D-inspired stat generation</li>
 </ul>
-<h2>Language Features Introduced</h2>
-<h3>The <code>judge</code> Expression</h3>
+<h2><a href="#language-features-introduced" aria-hidden="true" class="anchor" id="language-features-introduced"></a>Language Features Introduced</h2>
+<h3><a href="#the-judge-expression" aria-hidden="true" class="anchor" id="the-judge-expression"></a>The <code>judge</code> Expression</h3>
 <pre lang="goblin"><code>judge
   condition1: value1
   condition2: value2
@@ -158,22 +158,22 @@ roll 2d4+2    /// Roll 2 four-sided dice, add 2 (4-10)
 end
 </code></pre>
 <p>Pattern matching for clean conditionals. Each branch returns a value.</p>
-<h3>Dice Rolling</h3>
+<h3><a href="#dice-rolling" aria-hidden="true" class="anchor" id="dice-rolling"></a>Dice Rolling</h3>
 <pre lang="goblin"><code>roll 3d6+6  /// Roll dice notation
 </code></pre>
 <p>Built-in support for tabletop RPG dice notation.</p>
-<h3>Maps and Property Access</h3>
+<h3><a href="#maps-and-property-access" aria-hidden="true" class="anchor" id="maps-and-property-access"></a>Maps and Property Access</h3>
 <pre lang="goblin"><code>hero = { name: &quot;Gareth&quot;, stats: { health: 16 } }
 hero &gt;&gt; name         /// &quot;Gareth&quot;
 hero &gt;&gt; stats &gt;&gt; health  /// 16
 </code></pre>
 <p>The <code>&gt;&gt;</code> operator drills into nested maps.</p>
-<h3>String Concatenation</h3>
+<h3><a href="#string-concatenation" aria-hidden="true" class="anchor" id="string-concatenation"></a>String Concatenation</h3>
 <pre lang="goblin"><code>&quot;Hello&quot; ++ &quot;World&quot;  /// &quot;Hello World&quot; (auto-spaces)
 &quot;Hello&quot; + &quot;World&quot;   /// &quot;HelloWorld&quot; (no spaces)
 </code></pre>
 <p>Use <code>++</code> for natural text, <code>+</code> for precise control.</p>
-<h2>Looking Ahead: Why No Save Yet?</h2>
+<h2><a href="#looking-ahead-why-no-save-yet" aria-hidden="true" class="anchor" id="looking-ahead-why-no-save-yet"></a>Looking Ahead: Why No Save Yet?</h2>
 <p>You might be thinking: “Wait, I just rolled an amazing hero! Can I save them?”</p>
 <p><strong>Not yet!</strong> Here’s why:</p>
 <p>Right now, your hero is just stats and starter gear. But in <strong>Chapter 4: Save/Load and Past Lives</strong>, your hero will have:</p>
@@ -186,7 +186,7 @@ hero &gt;&gt; stats &gt;&gt; health  /// 16
 <p>When we add save/load in Chapter 4, we’ll do it <em>properly</em>—saving your hero, the world state, and all items as a complete system.</p>
 <p>For now? <strong>Embrace the randomness.</strong> Run the generator a few times. See what combinations you get. Get a feel for the procedural generation.</p>
 <p><strong>Pro tip:</strong> If you really love a hero, just don’t close the terminal yet. They’ll stick around until you do. 😉</p>
-<h2>What’s Next</h2>
+<h2><a href="#whats-next" aria-hidden="true" class="anchor" id="whats-next"></a>What’s Next</h2>
 <p>In <strong>Chapter 2: A World of One Room</strong>, we’ll:</p>
 <ul>
 <li>Create procedurally generated settlements</li>
@@ -219,13 +219,111 @@ You picked up: steel axe
             </div>
           </footer>
           
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        document.querySelectorAll('pre code').forEach((el) => {
-          hljs.highlightElement(el);
-        });
-      });
-    </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.hljs) return;
+
+    // 1) Register Goblin language
+    function goblin(hljs) {
+      const LINE   = hljs.COMMENT('///', '$');
+      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
+      const INLINE = { className: 'comment', begin: /<----.*$/ };
+
+      const LITERALS = { literal: 'true false nil Unit' };
+
+      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
+      const STRING = {
+        className: 'string',
+        variants: [
+          { begin: /"/, end: /"/, contains: [INTERP] },
+          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
+          { begin: /"""/, end: /"""/, contains: [INTERP] }
+        ]
+      };
+
+      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
+      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
+      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
+      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
+
+      const OPERATORS = {
+        className: 'operator',
+        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
+      };
+      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
+
+      const ACTION_DEF = {
+        className: 'function',
+        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
+        returnBegin: true,
+        contains: [
+          { className: 'keyword', begin: /\b(?:act|action)\b/ },
+          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
+        ]
+      };
+      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
+      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
+      const PROPERTY    = { className: 'operator', begin: />>/ };
+      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
+
+      const KEYWORDS = {
+        keyword:
+          'if elif else for in while repeat unless ' +
+          'attempt rescue ensure raise say warn error ' +
+          'return skip jump until stop assert ' +
+          'act action enum use import export via test ' +
+          'contract prefer ' +
+          'judge judge_all using morph vault banish unbanish expose ' +
+          'pick roll roll_detail reap map ' +
+          'nc self set burn show_ids as of ' +
+          'end blob',
+        literal: LITERALS.literal
+      };
+
+      return {
+        name: 'Goblin',
+        aliases: ['gbln','gob'],
+        keywords: KEYWORDS,
+        contains: [
+          MULTI, LINE, INLINE,
+          ACTION_DEF, MODULE_CALL, BANG_CALL,
+          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
+          STRING, HEX, BIN, DICE, SCI
+        ]
+      };
+    }
+
+    window.hljs.registerLanguage('goblin', goblin);
+
+    // Optional sanity check
+    if (window.hljs.getLanguage('goblin')) {
+      console.log('Goblin language registered.');
+    } else {
+      console.warn('Failed to register Goblin language.');
+    }
+
+    // 2) Map <pre lang="xyz"> → language-xyz
+    var pres = document.querySelectorAll('pre[lang]');
+    for (var i = 0; i < pres.length; i++) {
+      var pre  = pres[i];
+      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
+      if (!lang) continue;
+
+      var code = pre.querySelector('code');
+      if (!code) {
+        code = document.createElement('code');
+        code.textContent = pre.textContent;
+        pre.textContent  = '';
+        pre.appendChild(code);
+      }
+      pre.classList.add('language-' + lang);
+      code.classList.add('language-' + lang);
+    }
+
+    // 3) Highlight everything
+    window.hljs.highlightAll();
+  });
+</script>
 
         </body>
         </html>

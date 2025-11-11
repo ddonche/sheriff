@@ -9,8 +9,8 @@
           <link rel="stylesheet" href="/modules/brindle/baseline.css">
     <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
           
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
         </head>
         <body>
@@ -48,8 +48,8 @@
           </header>
 
           <main class="container">
-            
-            <h1>Introduction</h1>
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/getting-started">Getting-started</a></li><li><a href="/index.html">Index</a></li></ol></nav>
+            <h1><a href="#introduction" aria-hidden="true" class="anchor" id="introduction"></a>Introduction</h1>
 <p>What your project is and how to think about it.</p>
 
           </main>
@@ -60,13 +60,111 @@
             </div>
           </footer>
           
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        document.querySelectorAll('pre code').forEach((el) => {
-          hljs.highlightElement(el);
-        });
-      });
-    </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.hljs) return;
+
+    // 1) Register Goblin language
+    function goblin(hljs) {
+      const LINE   = hljs.COMMENT('///', '$');
+      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
+      const INLINE = { className: 'comment', begin: /<----.*$/ };
+
+      const LITERALS = { literal: 'true false nil Unit' };
+
+      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
+      const STRING = {
+        className: 'string',
+        variants: [
+          { begin: /"/, end: /"/, contains: [INTERP] },
+          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
+          { begin: /"""/, end: /"""/, contains: [INTERP] }
+        ]
+      };
+
+      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
+      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
+      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
+      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
+
+      const OPERATORS = {
+        className: 'operator',
+        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
+      };
+      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
+
+      const ACTION_DEF = {
+        className: 'function',
+        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
+        returnBegin: true,
+        contains: [
+          { className: 'keyword', begin: /\b(?:act|action)\b/ },
+          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
+        ]
+      };
+      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
+      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
+      const PROPERTY    = { className: 'operator', begin: />>/ };
+      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
+
+      const KEYWORDS = {
+        keyword:
+          'if elif else for in while repeat unless ' +
+          'attempt rescue ensure raise say warn error ' +
+          'return skip jump until stop assert ' +
+          'act action enum use import export via test ' +
+          'contract prefer ' +
+          'judge judge_all using morph vault banish unbanish expose ' +
+          'pick roll roll_detail reap map ' +
+          'nc self set burn show_ids as of ' +
+          'end blob',
+        literal: LITERALS.literal
+      };
+
+      return {
+        name: 'Goblin',
+        aliases: ['gbln','gob'],
+        keywords: KEYWORDS,
+        contains: [
+          MULTI, LINE, INLINE,
+          ACTION_DEF, MODULE_CALL, BANG_CALL,
+          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
+          STRING, HEX, BIN, DICE, SCI
+        ]
+      };
+    }
+
+    window.hljs.registerLanguage('goblin', goblin);
+
+    // Optional sanity check
+    if (window.hljs.getLanguage('goblin')) {
+      console.log('Goblin language registered.');
+    } else {
+      console.warn('Failed to register Goblin language.');
+    }
+
+    // 2) Map <pre lang="xyz"> → language-xyz
+    var pres = document.querySelectorAll('pre[lang]');
+    for (var i = 0; i < pres.length; i++) {
+      var pre  = pres[i];
+      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
+      if (!lang) continue;
+
+      var code = pre.querySelector('code');
+      if (!code) {
+        code = document.createElement('code');
+        code.textContent = pre.textContent;
+        pre.textContent  = '';
+        pre.appendChild(code);
+      }
+      pre.classList.add('language-' + lang);
+      code.classList.add('language-' + lang);
+    }
+
+    // 3) Highlight everything
+    window.hljs.highlightAll();
+  });
+</script>
 
         </body>
         </html>

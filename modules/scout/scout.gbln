@@ -72,65 +72,80 @@ act breadcrumbs(out_path, root_label)
         root_label = "Home"
     end
 
-    /// Normalize slashes and collapse segments
-    p = path_normalize(string(out_path))
-
-    /// Strip build prefix and any leading slash
+    /// Normalize input
+    local p = string(out_path)
     p = ignore_where(p, "dist/")
-    if p != "" and p[0:1] == "/"
+    if p !== "" and p[0:1] == "/"
         p = p[1:]
     end
 
     /// Split into segments
-    segs = []
+    local segs = []
     for s in split(p, "/")
-        if s != ""
+        if s !== ""
             put_last!(segs, s)
         end
     end
 
-    /// If trailing is index.html, drop it (root index will become empty)
+    /// Drop trailing index.html
     if segs.len > 0
-        last = lower(segs[segs.len - 1])
-        if last == "index.html"
+        local last_seg = lower(segs[segs.len - 1])
+        if last_seg == "index.html"
             segs = segs[0:segs.len - 1]
         end
     end
 
     /// Root page? No breadcrumbs.
     if segs.len == 0
+        register_token("SCOUT", "BREADCRUMBS", "")
         return ""
     end
 
-    html = "<nav class=\"breadcrumbs\" aria-label=\"Breadcrumb\"><ol>"
-    html = html + "<li><a href=\"/\">" + escape_html(root_label) + "</a></li>"
+    /// Build HTML using put_last! + pack() — LIKE scout_render_list()
+    local html_parts = []
 
-    i = 0
+    /// Opening
+    put_last!(html_parts, "<nav class=\"breadcrumbs\" aria-label=\"Breadcrumb\"><ol>")
+
+    /// Home link
+    put_last!(html_parts, "<li><a href=\"/\">" + escape_html(root_label) + "</a></li>")
+
+    /// Build each segment
+    local current_href = ""
+    local i = 0
     for seg in segs
-        is_last = (i == segs.len - 1)
+        local is_last = (i == segs.len - 1)
+        local stem = ignore_where(seg, ".html")
+        local label = title_from_slug(stem)
 
-        stem  = ignore_where(seg, ".html")
-        label = title_from_slug(stem)
+        current_href = current_href + "/" + seg
+        local href = current_href
 
-        href = "/" + join(segs[0:i+1], "/")
-
-        /// Directory segment? add trailing slash (contains-free)
-        html_hits = find_all(href, ".html")
+        /// Add trailing slash if no .html
+        local html_hits = find_all(href, ".html")
         if html_hits.len == 0
             href = href + "/"
         end
 
         if is_last
-            html = html + "<li aria-current=\"page\"><span>" + escape_html(label) + "</span></li>"
+            put_last!(html_parts, "<li aria-current=\"page\"><span>" + escape_html(label) + "</span></li>")
         else
-            html = html + "<li><a href=\"" + href + "\">" + escape_html(label) + "</a></li>"
+            put_last!(html_parts, "<li><a href=\"" + escape_html(href) + "\">" + escape_html(label) + "</a></li>")
         end
 
         i = i + 1
     end
 
-    html = html + "</ol></nav>"
-    return html
+    /// Closing
+    put_last!(html_parts, "</ol></nav>")
+
+    /// Pack and return
+    local breadcrumbs_html = pack(html_parts)
+    
+    /// Register the breadcrumbs as a token
+    register_token("SCOUT", "BREADCRUMBS", breadcrumbs_html)
+    
+    return breadcrumbs_html
 end
 
 /// ---- 1) canonicalize one entry -------------------------------------------

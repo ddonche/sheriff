@@ -19,7 +19,7 @@ This recipe shows how to generate secure, randomized passwords using Goblin's po
 ## Step 1: Prepare Your Symbol Collection
 
 First, create a collection of special characters to use in your passwords:
-```
+```goblin
 symbols = raw "!@#$%^&*()-_=+[];:<>?"
 ```
 
@@ -28,7 +28,7 @@ We use the raw keyword here so we don't get any weird escaping errors later.
 ## Step 2: Set Up Your Password Factory
 
 Create an action that will generate 10 password options:
-```
+```goblin
 act generate_password
     symbols = raw "!@#$%^&*()-_=+[];:<>?"
     repeat 10
@@ -40,7 +40,7 @@ xx
 ## Step 3: Determine Random Quantities
 
 For each password, decide how many of each character type to use:
-```
+```goblin
 n, l, s = [ pick 1 from 3..8, pick 1 from 5..12, pick 1 from 2..5 ]
 ```
 For this we are using exclusive ranges with `..` but you can use inclusive `...` instead if you like.
@@ -53,7 +53,7 @@ This gives you:
 
 Notice here that we also use the tuple assignment with an array on the right side so we can keep it all on one line. Otherwise you'd have to do:
 
-```
+```goblin
 n = pick 1 from 3..8
 l = pick 1 from 5..12
 s = pick 1 from 2..5
@@ -62,7 +62,7 @@ s = pick 1 from 2..5
 ## Step 4: Generate Character Arrays
 
 Create arrays of each character type:
-```
+```goblin
 nums_arr    = pick {n} from 0...9 with dups
 letters_arr = pick {l} from "a"..."z" with dups
 sym_arr     = pick {s} from symbols with dups
@@ -75,7 +75,7 @@ Here you also see that we can also pick a range of letters `from "a"..."z"` (not
 ## Step 5: Pack Arrays Into Strings
 
 Transform your arrays into usable string components:
-```
+```goblin
 numbers = pack(nums_arr).str
 letters = pack(letters_arr).mixed
 syms    = raw pack(sym_arr)
@@ -92,7 +92,7 @@ Note:
 ## Step 6: Combine Components
 
 Merge your components into a single string:
-```
+```goblin
 password = (numbers + letters + syms)
 ```
 
@@ -103,7 +103,7 @@ Also note that we used `+` here for the concatenation, which means we don't want
 ## Step 7: Check Password Length & Finalize
 
 Ensure the password meets minimum security requirements and shuffle for extra security:
-```
+```goblin
 if password.len >= 16
     say raw shuffle(password)
 xx
@@ -114,14 +114,14 @@ Lastly, if the generated result is greater than or equal to our minimum password
 ## Step 8: Call Your Recipe
 
 Finally, run your password generator:
-```
+```goblin
 generate_password()
 ```
 
 ## Sample Output
 Here you can see some of the passwords you can generate using this exact script:
 
-```
+```goblin
 3FbA460egzm^&C<B]
 bX4Ssn7H6!39ekP9$JL
 V95d7n!_&x93j)23
@@ -143,7 +143,7 @@ Why not ten passwords? Why only seven? Remember, we set the minimum password len
 
 ## Full Script
 
-```
+```goblin
 act generate_password
     symbols = raw "!@#$%^&*()-_=+[];:<>?"                                           <---- here is the list of symbols we will use
     repeat 10   

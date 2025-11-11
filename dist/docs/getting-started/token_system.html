@@ -9,8 +9,8 @@
           <link rel="stylesheet" href="/modules/brindle/baseline.css">
     <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
           
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
         </head>
         <body>
@@ -48,10 +48,10 @@
           </header>
 
           <main class="container">
-            
-            <h1>Goblin Token System</h1>
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/getting-started">Getting-started</a></li><li><a href="/token_system.html">Token System</a></li></ol></nav>
+            <h1><a href="#goblin-token-system" aria-hidden="true" class="anchor" id="goblin-token-system"></a>Goblin Token System</h1>
 <p>A concise, copy‑paste‑ready spec for Goblin’s triple‑brace token mechanism. This is the version that matches our current parser/AST/interpreter wiring.</p>
-<h2>How It Works (Pipeline)</h2>
+<h2><a href="#how-it-works-pipeline" aria-hidden="true" class="anchor" id="how-it-works-pipeline"></a>How It Works (Pipeline)</h2>
 <ol>
 <li>
 <p><strong>Lexer</strong> produces dedicated tokens: <code>TripleBraceOpen</code> <code>Ident</code> <code>::</code> <code>Ident</code> <code>TripleBraceClose</code> (or two <code>:</code> ops if <code>::</code> isn’t a fused token).</p>
@@ -72,7 +72,7 @@
 </li>
 </ol>
 <p>This allows <strong>eager</strong> (registered) and <strong>lazy</strong> (resolver) strategies to coexist.</p>
-<h2>Module Authoring Convention (Plugin Hook)</h2>
+<h2><a href="#module-authoring-convention-plugin-hook" aria-hidden="true" class="anchor" id="module-authoring-convention-plugin-hook"></a>Module Authoring Convention (Plugin Hook)</h2>
 <p>Each module that exposes tokens should define an <strong>init</strong> action that registers its static tokens, and (optionally) a resolver for dynamic ones.</p>
 <pre lang="gbln"><code>act BRINDLE::init()
     register_token(&quot;BRINDLE&quot;,&quot;OBSIDIAN&quot;,&quot;obsidian.css&quot;)
@@ -91,9 +91,9 @@ end
 <p><strong>When does Goblin read these?</strong>
 When the actions run. Call <code>BRINDLE::init()</code> once during startup (module load, build entrypoint, or bootstrapping script). After that, any <code>{{{BRINDLE::IDENT}}}</code> usage will first check the registered store, then (if missing) call <code>BRINDLE::resolve_token(IDENT)</code>.</p>
 </blockquote>
-<h2>Error Diagnostics (Contracts)</h2>
+<h2><a href="#error-diagnostics-contracts" aria-hidden="true" class="anchor" id="error-diagnostics-contracts"></a>Error Diagnostics (Contracts)</h2>
 <p>These are the <strong>exact</strong> diagnostics emitted today.</p>
-<h3>Parse‑time shape errors</h3>
+<h3><a href="#parsetime-shape-errors" aria-hidden="true" class="anchor" id="parsetime-shape-errors"></a>Parse‑time shape errors</h3>
 <ul>
 <li>
 <p><strong>P0710 bad-token-shape</strong> (e.g., missing MODULE/IDENT/<code>::</code>)</p>
@@ -108,7 +108,7 @@ When the actions run. Call <code>BRINDLE::init()</code> once during startup (mod
 </ul>
 </li>
 </ul>
-<h3>Runtime resolution error</h3>
+<h3><a href="#runtime-resolution-error" aria-hidden="true" class="anchor" id="runtime-resolution-error"></a>Runtime resolution error</h3>
 <ul>
 <li>
 <p><strong>R0101 unknown-token</strong></p>
@@ -120,7 +120,7 @@ When the actions run. Call <code>BRINDLE::init()</code> once during startup (mod
 </li>
 </ul>
 <p>All errors carry <code>Span</code> for pointing into source.</p>
-<h2>Best Practices</h2>
+<h2><a href="#best-practices" aria-hidden="true" class="anchor" id="best-practices"></a>Best Practices</h2>
 <ul>
 <li><strong>Namespacing</strong>: each module registers only within <em>its own</em> namespace (<code>BRINDLE::…</code>).</li>
 <li><strong>Idempotent init</strong>: make <code>MODULE::init()</code> safe to call more than once.</li>
@@ -128,7 +128,7 @@ When the actions run. Call <code>BRINDLE::init()</code> once during startup (mod
 <li><strong>Documentation</strong>: publish a table of tokens your module provides (name → type → purpose).</li>
 <li><strong>No cycles</strong>: avoid <code>resolve_token</code> calling other tokens recursively in ways that can loop.</li>
 </ul>
-<h2>Minimal Integration Checklist (for a new module)</h2>
+<h2><a href="#minimal-integration-checklist-for-a-new-module" aria-hidden="true" class="anchor" id="minimal-integration-checklist-for-a-new-module"></a>Minimal Integration Checklist (for a new module)</h2>
 <ol>
 <li>Create <code>MODULE::init()</code> and register static tokens.</li>
 <li>(Optional) Add <code>MODULE::resolve_token(name)</code> for dynamic values.</li>
@@ -136,7 +136,7 @@ When the actions run. Call <code>BRINDLE::init()</code> once during startup (mod
 <li>Use tokens anywhere in code/templates with <code>{{{MODULE::IDENT}}}</code>.</li>
 <li>Document tokens in your module README.</li>
 </ol>
-<h2>Reference (Signatures)</h2>
+<h2><a href="#reference-signatures" aria-hidden="true" class="anchor" id="reference-signatures"></a>Reference (Signatures)</h2>
 <p><strong>Triple‑brace literal</strong> → <code>Expr::LiteralToken { module: String, ident: String, span: Span }</code></p>
 <p><strong>Built‑in actions</strong></p>
 <pre lang="gbln"><code># Store a value in Session
@@ -159,13 +159,111 @@ act MODULE::resolve_token(name) -&gt; value|nil
             </div>
           </footer>
           
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        document.querySelectorAll('pre code').forEach((el) => {
-          hljs.highlightElement(el);
-        });
-      });
-    </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.hljs) return;
+
+    // 1) Register Goblin language
+    function goblin(hljs) {
+      const LINE   = hljs.COMMENT('///', '$');
+      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
+      const INLINE = { className: 'comment', begin: /<----.*$/ };
+
+      const LITERALS = { literal: 'true false nil Unit' };
+
+      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
+      const STRING = {
+        className: 'string',
+        variants: [
+          { begin: /"/, end: /"/, contains: [INTERP] },
+          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
+          { begin: /"""/, end: /"""/, contains: [INTERP] }
+        ]
+      };
+
+      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
+      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
+      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
+      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
+
+      const OPERATORS = {
+        className: 'operator',
+        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
+      };
+      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
+
+      const ACTION_DEF = {
+        className: 'function',
+        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
+        returnBegin: true,
+        contains: [
+          { className: 'keyword', begin: /\b(?:act|action)\b/ },
+          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
+        ]
+      };
+      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
+      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
+      const PROPERTY    = { className: 'operator', begin: />>/ };
+      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
+
+      const KEYWORDS = {
+        keyword:
+          'if elif else for in while repeat unless ' +
+          'attempt rescue ensure raise say warn error ' +
+          'return skip jump until stop assert ' +
+          'act action enum use import export via test ' +
+          'contract prefer ' +
+          'judge judge_all using morph vault banish unbanish expose ' +
+          'pick roll roll_detail reap map ' +
+          'nc self set burn show_ids as of ' +
+          'end blob',
+        literal: LITERALS.literal
+      };
+
+      return {
+        name: 'Goblin',
+        aliases: ['gbln','gob'],
+        keywords: KEYWORDS,
+        contains: [
+          MULTI, LINE, INLINE,
+          ACTION_DEF, MODULE_CALL, BANG_CALL,
+          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
+          STRING, HEX, BIN, DICE, SCI
+        ]
+      };
+    }
+
+    window.hljs.registerLanguage('goblin', goblin);
+
+    // Optional sanity check
+    if (window.hljs.getLanguage('goblin')) {
+      console.log('Goblin language registered.');
+    } else {
+      console.warn('Failed to register Goblin language.');
+    }
+
+    // 2) Map <pre lang="xyz"> → language-xyz
+    var pres = document.querySelectorAll('pre[lang]');
+    for (var i = 0; i < pres.length; i++) {
+      var pre  = pres[i];
+      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
+      if (!lang) continue;
+
+      var code = pre.querySelector('code');
+      if (!code) {
+        code = document.createElement('code');
+        code.textContent = pre.textContent;
+        pre.textContent  = '';
+        pre.appendChild(code);
+      }
+      pre.classList.add('language-' + lang);
+      code.classList.add('language-' + lang);
+    }
+
+    // 3) Highlight everything
+    window.hljs.highlightAll();
+  });
+</script>
 
         </body>
         </html>

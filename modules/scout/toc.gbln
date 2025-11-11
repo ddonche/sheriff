@@ -1,0 +1,211 @@
+/// modules/scout/toc.gbln — TOC: Table of contents generator (H1–H3 only)
+
+/// --- Helpers ---------------------------------------------------------------
+
+act normalize_depth(max_depth)
+  /// normalize max_depth to an Int in [1..3], default 3
+  depth_value =
+    judge
+      max_depth == 1: 1
+      max_depth == 2: 2
+      max_depth == 3: 3
+      max_depth == "1": 1
+      max_depth == "2": 2
+      max_depth == "3": 3
+      max_depth == nil: 3
+      else: 3
+    end
+
+  if depth_value < 1
+    depth_value = 1
+  end
+  if depth_value > 3
+    depth_value = 3
+  end
+
+  return depth_value
+end
+
+/// Decide if a line has an H1, H2, or H3 opening tag (exact match).
+/// Returns 1, 2, 3, or nil.
+act heading_level_from_line(html_line)
+  if html_line == nil or valtype(html_line) !== "str" or html_line == ""
+    return nil
+  end
+
+  /// Headers are on their own lines in Sheriff output, so no need to hunt earliest.
+  if find(html_line, "<h1>") !== -1
+    return 1
+  end
+  if find(html_line, "<h2>") !== -1
+    return 2
+  end
+  if find(html_line, "<h3>") !== -1
+    return 3
+  end
+
+  return nil
+end
+
+/// Extract anchor id from href="#...".
+act extract_anchor_id(html_line)
+  start_pos = find(html_line, "href=\"#")
+  if start_pos === -1
+    return nil
+  end
+  start_pos = start_pos + 7    /// skip 'href="#'
+
+  tail_slice = html_line[start_pos:]
+  if tail_slice == nil
+    return nil
+  end
+
+  quote_pos = find(tail_slice, "\"")
+  if quote_pos === -1
+    return nil
+  end
+
+  return html_line[start_pos:start_pos + quote_pos]
+end
+
+/// After </a>, capture visible header text up to </h
+act extract_header_text(html_line)
+  anchor_end = find(html_line, "</a>")
+  if anchor_end === -1
+    return nil
+  end
+
+  after_anchor = html_line[anchor_end + 4:]
+  if after_anchor == nil
+    return nil
+  end
+
+  closing_pos = find(after_anchor, "</h")
+  if closing_pos === -1
+    return nil
+  end
+
+  return trim(after_anchor[0:closing_pos])
+end
+
+/// --- Public API ------------------------------------------------------------
+
+/// Generate TOC from HTML using existing h1–h3 anchors
+act generate_toc(html_content, max_depth)
+  depth_limit = normalize_depth(max_depth)
+
+  collected_headers = []
+  html_lines = lines(string(html_content))
+
+  /// Extract headers (H1–H3 only, exact tag match)
+  for html_line in html_lines
+    heading_level = heading_level_from_line(html_line)
+    if heading_level !== nil and heading_level <= depth_limit
+      anchor_id = extract_anchor_id(html_line)
+      if anchor_id !== nil
+        header_text = extract_header_text(html_line)
+        if header_text !== nil
+          put_last!(collected_headers, {
+            "level": heading_level,
+            "id": anchor_id,
+            "text": header_text
+          })
+        end
+      end
+    end
+  end
+
+  /// No headers found
+  if collected_headers.len == 0
+    return ""
+  end
+
+  /// Build TOC HTML
+  toc_html = "<div class=\"toc\">\n"
+  toc_html = toc_html + "<div class=\"toc-header\">Contents</div>\n"
+  toc_html = toc_html + "<ul class=\"toc-list\">\n"
+
+  current_level = 1
+
+  for header_info in collected_headers
+    heading_level = header_info >> "level"
+    anchor_id     = header_info >> "id"
+    header_text   = header_info >> "text"
+
+    /// Increase nesting
+    while heading_level > current_level
+      toc_html = toc_html + "<ul class=\"toc-list\">\n"
+      current_level = current_level + 1
+    end
+
+    /// Decrease nesting
+    while heading_level < current_level
+      toc_html = toc_html + "</ul>\n"
+      current_level = current_level - 1
+    end
+
+    /// Item
+    toc_html = toc_html + "  <li class=\"toc-item toc-level-" + string(heading_level) + "\">"
+    toc_html = toc_html + "<a href=\"#" + anchor_id + "\">" + header_text + "</a></li>\n"
+  end
+
+  /// Close any open lists
+  while current_level > 1
+    toc_html = toc_html + "</ul>\n"
+    current_level = current_level - 1
+  end
+
+  toc_html = toc_html + "</ul>\n</div>\n"
+  return toc_html
+end
+
+/// Check frontmatter for TOC setting (toc: true/yes/1)
+act should_generate_toc(frontmatter)
+  if frontmatter == nil or frontmatter == ""
+    return false
+  end
+
+  fm_lines = lines(frontmatter)
+  for line_text in fm_lines
+    low = lower(line_text)
+    if starts_with(low, "toc:")
+      value = lower(trim(after(line_text, "toc:")))
+      if value == "true" or value == "yes" or value == "1"
+        return true
+      end
+      return false
+    end
+  end
+
+  return false
+end
+
+/// Get TOC depth from frontmatter (toc_depth: N) — capped at 3
+act get_toc_depth(frontmatter)
+  if frontmatter == nil or frontmatter == ""
+    return 3
+  end
+
+  fm_lines = lines(frontmatter)
+  for line_text in fm_lines
+    low = lower(line_text)
+    if starts_with(low, "toc_depth:")
+      raw_value = trim(after(line_text, "toc_depth:"))
+      parsed = int(raw_value)
+      if parsed > 0
+        if parsed > 3
+          return 3
+        end
+        return parsed
+      end
+    end
+  end
+
+  return 3
+end
+
+act process_toc(page_path, html_content, frontmatter)
+  /// Always generate; ignore frontmatter switch
+  toc_html = generate_toc(html_content, 3)  /// H1–H3 capped
+  register_token("SCOUT", "TOC", toc_html)
+end

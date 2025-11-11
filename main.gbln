@@ -170,10 +170,16 @@ act build_site()
         html_body = md_to_html(body_content)
 
         /// ---- breadcrumbs (skip home) --------------------------------------------
-        crumbs_html = ""
-        page_stem = stem(output_path)      /// e.g., "index" from ".../index.html"
+        page_stem = stem(output_path)
+        say "DEBUG: output_path = " + output_path
+        say "DEBUG: page_stem = " + page_stem
         if page_stem !== "index"
-            crumbs_html = scout::breadcrumbs(output_path, "Home")
+            say "DEBUG: Calling breadcrumbs for " + output_path
+            scout::breadcrumbs(output_path, "Home")  /// Just call — it registers token
+            say "DEBUG: BREADCRUMBS token registered"
+        else
+            say "DEBUG: Skipping breadcrumbs (index page)"
+            scout::breadcrumbs(output_path, "Home")  /// Still call — registers empty
         end
         /// -------------------------------------------------------------------------
 
@@ -209,7 +215,7 @@ act build_site()
           </header>
 
           <main class="container">
-            {crumbs_html}
+            {{{SCOUT::BREADCRUMBS}}}
             {html_body}
           </main>
 
@@ -222,8 +228,6 @@ act build_site()
         </body>
         </html>
         """
-
-        update_where!(html_content, "{ROOT}", root_prefix)
         write_text!(output_path, html_content)
     end
 
