@@ -2,10 +2,8 @@
    Softer light mode, modern typography, dark nav bars, dark dropdowns (all depths),
    breadcrumbs styling, primary ≈ #5090a0.
    Load AFTER baseline.css.
-
    IMPORTANT: Include dropdown-handler.js on your page to ensure proper dropdown behavior
 */
-
 /* -------------------- Variables -------------------- */
 :root {
   /* Base — soft light to reduce glare */
@@ -15,40 +13,32 @@
   --surface-2: #eef1f6;
   --border: #e3e6ee;
   --muted: #6b7280;
-
   /* Brand — teal-leaning blue */
   --primary: #5090a0;
   --secondary: #68b3c1;
   --danger: #e11d48;
   --warning: #f59e0b;
   --success: #16a34a;
-
   /* Links — coordinated with primary */
   --link: #3a7280;
   --link-hover: #5aa7b8;
-
   /* Code - simplified to single background color */
   --code-bg: #f2f4f8;
   --code-fg: #0c1324;
-
   /* UI states */
   --selection: #d7ecf3;
   --focus-ring: #5aa7b8;
-
   /* Header/Nav (dark bars) */
   --nav-bg: #27292a;
   --nav-fg: #e8eef2;
-
   /* Dropdowns (dark panels) */
   --nav-sub-bg: #1f2122;
   --nav-sub-fg: #e8eef2;
   --nav-sub-border: rgba(255,255,255,.08);
   --nav-sub-hover: rgba(255,255,255,.10);
-
   /* Blockquote */
   --quote-accent: #7fb7c4;
   --quote-bg: color-mix(in oklab, var(--quote-accent) 10%, white);
-
   /* Typography — Pico-style system stack */
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell,
                "Noto Sans", "Helvetica Neue", Arial,
@@ -57,12 +47,10 @@
                "Liberation Mono", "Courier New", monospace;
   --font-size: 17px;
   --line: 1.65;
-
   --weight-regular: 400;
   --weight-medium: 520;
   --weight-semibold: 620;
   --weight-bold: 720;
-
   /* Scale */
   --h1: 2.25rem;
   --h2: 1.875rem;
@@ -70,32 +58,27 @@
   --h4: 1.25rem;
   --h5: 1.125rem;
   --h6: 1.0rem;
-
   /* Layout */
-  --container-sm: 640px;
-  --container-md: 768px;
-  --container-lg: 1080px;
-  --container-xl: 1280px;
-  --container-max: 72ch;
-
+  --container-sm: 720px;     /* was 640 */
+  --container-md: 880px;     /* was 768 */
+  --container-lg: 1180px;    /* was 1080 */
+  --container-xl: 1400px;    /* was 1280 */
+  --container-max: 80ch;     /* was 72ch — slight bump for prose */
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-pill: 999px;
-
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(8,12,20,0.06);
   --shadow-md: 0 6px 14px rgba(8,12,20,0.08);
   --shadow-lg: 0 14px 36px rgba(8,12,20,0.10);
-
   /* Motion */
   --t-fast: 120ms;
   --t-base: 200ms;
   --t-slow: 320ms;
   --t-ease: cubic-bezier(.2,.6,.2,1);
-
   /* Spacing */
   --space-0: 0rem;
   --space-1: 0.125rem;
@@ -106,17 +89,15 @@
   --space-6: 1.5rem;
   --space-7: 2rem;
   --space-8: 3rem;
-
   /* Derived */
   --panel: var(--surface);
-  --hover: rgba(8,12,20,.06);  /* general hover on light surfaces */
+  --hover: rgba(8,12,20,.06); /* general hover on light surfaces */
   --muted-fg: color-mix(in oklab, var(--fg) 62%, white);
   --link-visited: color-mix(in oklab, var(--link) 80%, #6d28d9);
-
   color-scheme: light;
 }
-
 /* -------------------- Base -------------------- */
+
 html, body {
   background: var(--bg);
   color: var(--fg);
@@ -128,21 +109,17 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 ::selection { background: var(--selection); }
-
 .container {
   max-width: var(--container-lg);
   margin-inline: auto;
   padding-inline: var(--space-5);
 }
-
 /* Headings */
 h1,h2,h3 { line-height: 1.18; margin: 0 0 .55em; letter-spacing: -0.01em; }
 h1 { font-size: var(--h1); font-weight: var(--weight-bold); }
 h2 { font-size: var(--h2); font-weight: var(--weight-semibold); }
 h3 { font-size: var(--h3); font-weight: var(--weight-semibold); }
-
 p { margin: 0 0 1em; max-width: var(--container-max); }
-
 /* -------------------- Header / Nav -------------------- */
 .site-header {
   position: sticky; top: 0; z-index: 50;
@@ -163,7 +140,17 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   text-decoration: none;
   font-weight: var(--weight-semibold);
 }
-
+/* Kill the “start lower” effect: remove top margin on first content block */
+.doc-body > :first-child,
+.doc-body > :first-child > :first-child {
+  margin-top: 0 !important;
+  padding-top: 0;
+}
+.doc-body h1:first-of-type,
+.doc-body h2:first-of-type,
+.doc-body h3:first-of-type {
+  margin-top: 0;
+}
 #site-nav { background: transparent; color: inherit; border: 0; box-shadow: none; }
 #site-nav ul[role="list"] {
   display: flex;
@@ -173,20 +160,18 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   margin: 0;
   padding: 0;
 }
-
 /* ---- Unified nav link styles (top-level + ALL dropdown levels) -------- */
-#site-nav a, 
+#site-nav a,
 #site-nav summary {
   display: inline-block;
   color: var(--nav-fg);
   text-decoration: none;
-  padding: .42rem .6rem;           /* same capsule padding as header items */
+  padding: .42rem .6rem; /* same capsule padding as header items */
   border-radius: var(--radius-sm);
   font-weight: var(--weight-medium);
   transition: background var(--t-fast) var(--t-ease), color var(--t-fast) var(--t-ease);
   cursor: pointer;
 }
-
 /* same hover "pill" everywhere */
 #site-nav a:hover,
 #site-nav summary:hover,
@@ -197,7 +182,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   background: rgba(255,255,255,.08);
   color: var(--nav-fg);
 }
-
 /* ---- DROPDOWN STYLING (for nested ul structure) -------------------- */
 /* dropdown panels */
 #site-nav ul ul {
@@ -216,24 +200,21 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   display: none;
   z-index: 60;
 }
-
 /* show dropdown */
 #site-nav li:hover > ul,
 #site-nav li:focus-within > ul { display: block; }
-
 /* links inside dropdowns */
 #site-nav ul ul a,
 #site-nav ul ul li > a {
-  display: block;  
-  width: 100%;     
+  display: block;
+  width: 100%;
   color: var(--nav-sub-fg);
-  padding: .42rem .6rem;          
+  padding: .42rem .6rem;
   border-radius: var(--radius-sm);
   font-weight: var(--weight-medium);
   white-space: nowrap;
   box-sizing: border-box;
 }
-
 /* hover inside dropdowns */
 #site-nav ul ul a:hover,
 #site-nav ul ul li:hover > a,
@@ -241,7 +222,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   background: rgba(255,255,255,.08);
   color: var(--nav-fg);
 }
-
 /* flyout for deeper levels */
 #site-nav ul ul li { position: relative; }
 #site-nav ul ul li > ul {
@@ -249,7 +229,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   left: 100%;
   margin-left: .25rem;
 }
-
 /* Fix for off-screen dropdowns - reverse direction of last few items */
 @media (min-width: 992px) {
   #site-nav ul ul li:last-child > ul,
@@ -261,42 +240,37 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
     margin-left: 0;
   }
 }
-
 /* dropdown items styling */
 #site-nav ul ul li {
   padding: 0;
   margin: 0;
 }
-
 /* optional divider tone inside dropdowns */
 #site-nav ul ul li + li { border-top: 1px solid var(--nav-sub-border); }
-
 /* ---- DROPDOWN STYLING (for details/summary structure) -------------------- */
 /* Dropdown container */
 #site-nav details.dropdown { position: relative; }
-#site-nav details.dropdown > summary { 
-  list-style: none; 
-  display: inline-flex; 
-  align-items: center; 
+#site-nav details.dropdown > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
   gap: .35rem;
 }
-
 /* Remove default details marker */
 #site-nav details.dropdown > summary::-webkit-details-marker { display: none; }
-#site-nav details.dropdown > summary::after { 
-  content:"▾"; 
-  font-size:.8em; 
-  opacity:.7; 
+#site-nav details.dropdown > summary::after {
+  content: "▾";          /* ▼ or ˅ also works */
+  font-size: .8em;
+  opacity: .7;
   transform: translateY(-1px);
   margin-left: 2px;
 }
 
 /* Change arrow when open */
 #site-nav details.dropdown[open] > summary::after {
-  content: "▴";
+  content: "▴";          /* ▲ or ˄ for a sharper look */
   transform: translateY(1px);
 }
-
 /* Dropdown panel */
 #site-nav details.dropdown > ul[role="list"] {
   position: absolute;
@@ -313,7 +287,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   box-shadow: 0 10px 24px rgba(0,0,0,.25);
   z-index: 60;
 }
-
 /* Links inside dropdown */
 #site-nav details.dropdown > ul[role="list"] > li > a,
 #site-nav details.dropdown > ul[role="list"] > li > span,
@@ -327,7 +300,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   white-space: nowrap;
   box-sizing: border-box;
 }
-
 /* Hover state for dropdown items */
 #site-nav details.dropdown > ul[role="list"] > li > a:hover,
 #site-nav details.dropdown > ul[role="list"] > li > summary:hover,
@@ -335,7 +307,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   background: rgba(255,255,255,.08);
   color: var(--nav-fg);
 }
-
 /* Nested flyout positioning */
 #site-nav details.dropdown > ul[role="list"] details.dropdown { position: relative; }
 #site-nav details.dropdown > ul[role="list"] details.dropdown > ul[role="list"] {
@@ -343,7 +314,6 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   left: 100%;
   margin-left: .3rem;
 }
-
 /* Fix for off-screen dropdowns in details/summary structure */
 @media (min-width: 992px) {
   #site-nav details.dropdown > ul[role="list"] > li:last-child details.dropdown > ul[role="list"],
@@ -355,89 +325,99 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
     margin-left: 0;
   }
 }
-
 /* Dividers between dropdown items */
 #site-nav details.dropdown > ul[role="list"] > li + li {
   border-top: 1px solid var(--nav-sub-border);
 }
-
 /* Dropdown items styling */
 #site-nav details.dropdown > ul[role="list"] > li {
   padding: 0;
   margin: 0;
 }
 
-/* TOC styles */
-.toc {
-  margin: 2rem 0;
-  padding: 1.5rem;
-  border-radius: 6px;
-  background-color: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
+/* -------------------- TOC Sidebar Layout -------------------- */
+main.container {
+  max-width: 1200px;
+  padding-block: var(--space-6);
 }
 
-.toc-header {
-  font-weight: bold;
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  color: var(--color-heading);
+/* Breadcrumbs — full width */
+main.container > .breadcrumbs {
+  margin-bottom: var(--space-4);
 }
 
-.toc-list {
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-  list-style-type: none;
+/* Two-column grid — inside the wrapper */
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;   /* left: content, right: TOC */
+  grid-template-areas: "doc toc";                /* <— NEW: content left, TOC right */
+  gap: var(--space-7);
+  align-items: start;
 }
 
-.toc-item {
-  margin: 0.4rem 0;
+/* TOC — first child in DOM, but placed in right column */
+.content-grid > .toc {
+  grid-area: toc;                                /* <— NEW */
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  font-size: .95rem;
 }
 
+/* Content — second child in DOM, but placed in left column */
+.content-grid > .doc-body {
+  grid-area: doc;                                /* <— NEW */
+  margin: 0;
+}
+
+/* Kill top margin on first heading */
+.doc-body > :first-child { margin-top: 0 !important; }
+
+/* Mobile */
+@media (max-width: 960px) {
+  .content-grid { display: block; }
+  .content-grid > .toc {
+    position: static;
+    max-height: none;
+    margin: var(--space-5) 0;
+  }
+}
+
+/* TOC inner styles */
+.toc-list { list-style:none; margin:0; padding:0; }
+.toc-item { margin:.15rem 0; }
 .toc-item a {
-  text-decoration: none;
-  color: var(--color-primary);
-  opacity: 0.9;
-  transition: opacity 0.2s;
+  display:block; color:var(--link); text-decoration:none;
+  padding:.18rem 0; border-radius:var(--radius-sm);
+  text-underline-offset:.18em;
 }
-
-.toc-item a:hover {
-  opacity: 1;
-  text-decoration: underline;
+toc-item a:hover {
+  background:var(--hover); color:var(--link-hover);
+  text-decoration:underline;
 }
-
-/* Indentation based on heading level */
-.toc-level-1 { font-weight: bold; }
-.toc-level-2 { padding-left: 0.5rem; }
-.toc-level-3 { padding-left: 1rem; }
-.toc-level-4 { padding-left: 1.5rem; }
-.toc-level-5 { padding-left: 2rem; }
-.toc-level-6 { padding-left: 2.5rem; }
-
-@media (prefers-color-scheme: dark) {
-  .toc {
-    background-color: var(--color-bg-subtle-dark, rgba(255, 255, 255, 0.05));
-    border-color: var(--color-border-dark, rgba(255, 255, 255, 0.1));
-  }
-  
-  .toc-header {
-    color: var(--color-heading-dark, #fff);
-  }
-  
-  .toc-item a {
-    color: var(--color-primary-dark, #8ab4f8);
-  }
-}
+.toc-level-1 { font-weight:var(--weight-semibold); padding-left:0; margin-top:.25rem; }
+.toc-level-2 { padding-left:.75rem; }
+.toc-level-3 { padding-left:1.4rem; font-size:.92em; }
+.toc-level-4 { padding-left:1.9rem; font-size:.9em; }
+.toc-level-5 { padding-left:2.3rem; font-size:.88em; }
+.toc-level-6 { padding-left:2.6rem; font-size:.86em; }
 
 /* -------------------- Content -------------------- */
 main { padding-block: var(--space-6); }
-
 main a {
   color: var(--link);
   text-decoration: underline;
   text-underline-offset: .22em;
 }
 main a:hover { color: var(--link-hover); }
-
 .panel, .card, main > section {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -446,7 +426,6 @@ main a:hover { color: var(--link-hover); }
   padding: var(--space-6);
   margin-block: var(--space-6);
 }
-
 /* Blockquotes */
 blockquote {
   margin: 1.2em 0;
@@ -458,11 +437,9 @@ blockquote {
 }
 blockquote > :first-child { margin-top: 0; }
 blockquote > :last-child { margin-bottom: 0; }
-
 /* Lists */
 ul, ol { padding-inline-start: 1.2rem; }
 li { margin: .25rem 0; }
-
 /* -------------------- Breadcrumbs -------------------- */
 .breadcrumbs {
   margin: var(--space-5) 0 var(--space-4);
@@ -487,7 +464,6 @@ li { margin: .25rem 0; }
 }
 .breadcrumbs a:hover { background: var(--hover); color: var(--link-hover); }
 .breadcrumbs [aria-current="page"] > span { color: var(--fg); font-weight: var(--weight-medium); }
-
 /* -------------------- Buttons -------------------- */
 button, .btn {
   appearance: none;
@@ -504,21 +480,18 @@ button, .btn {
 button:hover, .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 button:active, .btn:active { transform: translateY(0); filter: brightness(.96); }
 button:focus-visible, .btn:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-
 /* -------------------- Code -------------------- */
 pre, code, kbd, samp { font-family: var(--font-mono); }
-
 /* Simplified pre blocks - no border radius */
 pre {
   background: var(--code-bg);
   color: var(--code-fg);
   border: 1px solid var(--border);
-  border-radius: 0;  /* Removed rounded corners */
+  border-radius: 0; /* Removed rounded corners */
   padding: var(--space-5);
   overflow: auto;
   box-shadow: var(--shadow-sm);
 }
-
 /* Simplified inline code */
 code {
   background: var(--code-bg); /* Same background for consistency */
@@ -526,7 +499,6 @@ code {
   padding: .12em .35em;
   border-radius: var(--radius-sm);
 }
-
 /* -------------------- Tables -------------------- */
 table {
   width: 100%;
@@ -542,7 +514,6 @@ thead th {
   text-align: left;
   font-weight: var(--weight-semibold);
 }
-
 /* -------------------- Forms -------------------- */
 input, select, textarea {
   font: inherit;
@@ -559,7 +530,6 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--focus-ring);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 25%, transparent);
 }
-
 /* -------------------- Footer -------------------- */
 #site-footer {
   background: var(--nav-bg);
@@ -568,32 +538,28 @@ input:focus, select:focus, textarea:focus {
   box-shadow: inset 0 1px 0 rgba(0,0,0,.15);
   font-size: 0.9rem;
   line-height: 1.4;
-  text-align: center;               /* center text */
+  text-align: center; /* center text */
 }
-
 #site-footer .container {
   display: flex;
-  justify-content: center;          /* center horizontally */
+  justify-content: center; /* center horizontally */
   align-items: center;
   flex-wrap: wrap;
   gap: .4rem .6rem;
   padding: var(--space-5);
 }
-
 #site-footer a {
-  display: inline-block;            /* keeps hover "pill" tight to text */
+  display: inline-block; /* keeps hover "pill" tight to text */
   color: var(--nav-fg);
   text-decoration: none;
-  padding: .35rem .5rem;            /* same capsule feel as top nav */
+  padding: .35rem .5rem; /* same capsule feel as top nav */
   border-radius: var(--radius-sm);
   line-height: inherit;
   vertical-align: baseline;
 }
-
 #site-footer a:hover {
   background: rgba(255,255,255,.08);/* match top nav hover */
 }
-
 /* -------------------- Utilities -------------------- */
 .muted { color: var(--muted); }
 .hr {

@@ -49,7 +49,22 @@
 
           <main class="container">
             <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/getting-started">Getting-started</a></li><li><a href="/token_system.html">Token System</a></li></ol></nav>
-            <h1><a href="#goblin-token-system" aria-hidden="true" class="anchor" id="goblin-token-system"></a>Goblin Token System</h1>
+
+            <div class="content-grid">
+              <div class="toc"><ul class="toc-list">
+<li class="toc-item toc-level-1"><a href="#goblin-token-system">Goblin Token System</a></li>
+<li class="toc-item toc-level-2"><a href="#how-it-works-pipeline">How It Works (Pipeline)</a></li>
+<li class="toc-item toc-level-2"><a href="#module-authoring-convention-plugin-hook">Module Authoring Convention (Plugin Hook)</a></li>
+<li class="toc-item toc-level-2"><a href="#error-diagnostics-contracts">Error Diagnostics (Contracts)</a></li>
+<li class="toc-item toc-level-2"><a href="#best-practices">Best Practices</a></li>
+<li class="toc-item toc-level-2"><a href="#minimal-integration-checklist-for-a-new-module">Minimal Integration Checklist (for a new module)</a></li>
+<li class="toc-item toc-level-2"><a href="#reference-signatures">Reference (Signatures)</a></li>
+<li class="toc-item toc-level-3"><a href="#parsetime-shape-errors">Parse‑time shape errors</a></li>
+<li class="toc-item toc-level-3"><a href="#runtime-resolution-error">Runtime resolution error</a></li>
+</ul></div>
+
+              <div class="doc-body">
+                <h1><a href="#goblin-token-system" aria-hidden="true" class="anchor" id="goblin-token-system"></a>Goblin Token System</h1>
 <p>A concise, copy‑paste‑ready spec for Goblin’s triple‑brace token mechanism. This is the version that matches our current parser/AST/interpreter wiring.</p>
 <h2><a href="#how-it-works-pipeline" aria-hidden="true" class="anchor" id="how-it-works-pipeline"></a>How It Works (Pipeline)</h2>
 <ol>
@@ -151,6 +166,8 @@ act resolve_token(module, ident) -&gt; value
 act MODULE::resolve_token(name) -&gt; value|nil
 </code></pre>
 
+              </div>
+            </div>
           </main>
 
           <footer id="site-footer">

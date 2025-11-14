@@ -1,5 +1,6 @@
 /// Sheriff — Complete solution with frontmatter handling and proper file extension conversion
 import modules/scout/scout    as scout
+import modules/scout/toc as toc
 import modules/brindle/brindle as br
 
 scout::publish_tokens()
@@ -169,13 +170,18 @@ act build_site()
 
         html_body = md_to_html(body_content)
 
-        /// ---- breadcrumbs (skip home) --------------------------------------------
+        /// ---- breadcrumbs and TOC (skip home) --------------------------------------------
         page_stem = stem(output_path)
         say "DEBUG: output_path = " + output_path
         say "DEBUG: page_stem = " + page_stem
+
+        /// ALWAYS reset TOC for this page
+        toc::clear_toc()
+
         if page_stem !== "index"
             say "DEBUG: Calling breadcrumbs for " + output_path
             scout::breadcrumbs(output_path, "Home")  /// Just call — it registers token
+            toc::process_toc(html_body)
             say "DEBUG: BREADCRUMBS token registered"
         else
             say "DEBUG: Skipping breadcrumbs (index page)"
@@ -216,7 +222,13 @@ act build_site()
 
           <main class="container">
             {{{SCOUT::BREADCRUMBS}}}
-            {html_body}
+
+            <div class="content-grid">
+              {{{SCOUT::TOC}}}
+              <div class="doc-body">
+                {html_body}
+              </div>
+            </div>
           </main>
 
           <footer id="site-footer">

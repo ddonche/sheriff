@@ -49,7 +49,27 @@
 
           <main class="container">
             <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li aria-current="page"><span>Judge</span></li></ol></nav>
-            <h1><a href="#goblin-decision-constructs" aria-hidden="true" class="anchor" id="goblin-decision-constructs"></a>Goblin Decision Constructs</h1>
+
+            <div class="content-grid">
+              <div class="toc"><ul class="toc-list">
+<li class="toc-item toc-level-1"><a href="#goblin-decision-constructs">Goblin Decision Constructs</a></li>
+<li class="toc-item toc-level-2"><a href="#2-core-syntax">2) Core Syntax</a></li>
+<li class="toc-item toc-level-2"><a href="#4-enum-matching-with-using">4) Enum Matching with</a></li>
+<li class="toc-item toc-level-2"><a href="#6-header-return-judge-return-expr">6) Header Return:</a></li>
+<li class="toc-item toc-level-2"><a href="#8-rich-condition-syntax-as-in-goblin-expressions">8) Rich Condition Syntax (as in Goblin expressions)</a></li>
+<li class="toc-item toc-level-2"><a href="#10-weighted-judge_all--planned-kept-from-blog-post">10) Weighted</a></li>
+<li class="toc-item toc-level-2"><a href="#12-additional-roadmap-postv10">12) Additional Roadmap (Post–v1.0)</a></li>
+<li class="toc-item toc-level-2"><a href="#14-implementation-status-summary">14) Implementation Status Summary</a></li>
+<li class="toc-item toc-level-3"><a href="#21-judge--exclusive">2.1</a></li>
+<li class="toc-item toc-level-3"><a href="#22-judge_all--inclusive">2.2</a></li>
+<li class="toc-item toc-level-3"><a href="#121-stateful-vs-snapshot-for-judge_all">12.1 Stateful vs Snapshot (for</a></li>
+<li class="toc-item toc-level-3"><a href="#122-structured-results-expr-form">12.2 Structured Results (expr-form)</a></li>
+<li class="toc-item toc-level-3"><a href="#123-hot-reloadable-arms">12.3 Hot-Reloadable Arms</a></li>
+<li class="toc-item toc-level-3"><a href="#124-enum-payloads-tagged-unions">12.4 Enum Payloads (Tagged Unions)</a></li>
+</ul></div>
+
+              <div class="doc-body">
+                <h1><a href="#goblin-decision-constructs" aria-hidden="true" class="anchor" id="goblin-decision-constructs"></a>Goblin Decision Constructs</h1>
 <p><em>(Exclusive &amp; Inclusive Decision Logic)</em></p>
 <h2><a href="#2-core-syntax" aria-hidden="true" class="anchor" id="2-core-syntax"></a>2) Core Syntax</h2>
 <h3><a href="#21-judge--exclusive" aria-hidden="true" class="anchor" id="21-judge--exclusive"></a>2.1 <code>judge</code> — Exclusive</h3>
@@ -301,6 +321,8 @@ end
 </tbody>
 </table>
 
+              </div>
+            </div>
           </main>
 
           <footer id="site-footer">
