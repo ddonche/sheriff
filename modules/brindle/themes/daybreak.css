@@ -16,6 +16,7 @@
   /* Brand — teal-leaning blue */
   --primary: #5090a0;
   --secondary: #68b3c1;
+  --tertiary: #c14141;
   --danger: #e11d48;
   --warning: #f59e0b;
   --success: #16a34a;
@@ -357,19 +358,17 @@ main.container > .breadcrumbs {
 
 /* TOC — first child in DOM, but placed in right column */
 .content-grid > .toc {
-  grid-area: toc;                                /* <— NEW */
-  position: sticky;
-  top: 1.5rem;
-  align-self: start;
-  margin: 0;
-  padding: 1.1rem 1.25rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  box-shadow: var(--shadow-sm);
-  max-height: calc(100vh - 4rem);
-  overflow-y: auto;
-  font-size: .95rem;
+   grid-area: toc;
+   position: sticky;
+   top: 4.5rem;
+   align-self: start;
+   margin: 0;
+   padding: 1.1rem 1.25rem;
+   background: var(--surface-2);
+   border: 1px solid var(--border);
+   border-radius: 0;
+   box-shadow: var(--shadow-sm);
+   font-size: .95rem;
 }
 
 /* Content — second child in DOM, but placed in left column */
@@ -396,19 +395,63 @@ main.container > .breadcrumbs {
 .toc-item { margin:.15rem 0; }
 .toc-item a {
   display:block; color:var(--link); text-decoration:none;
-  padding:.18rem 0; border-radius:var(--radius-sm);
+  padding:.10rem 0; border-radius:var(--radius-sm);
   text-underline-offset:.18em;
 }
-toc-item a:hover {
+.toc-item a:hover {
   background:var(--hover); color:var(--link-hover);
   text-decoration:underline;
 }
-.toc-level-1 { font-weight:var(--weight-semibold); padding-left:0; margin-top:.25rem; }
-.toc-level-2 { padding-left:.75rem; }
-.toc-level-3 { padding-left:1.4rem; font-size:.92em; }
-.toc-level-4 { padding-left:1.9rem; font-size:.9em; }
-.toc-level-5 { padding-left:2.3rem; font-size:.88em; }
-.toc-level-6 { padding-left:2.6rem; font-size:.86em; }
+.toc-level-1 { padding-left:0; margin-top:.25rem; font-size:.9em; }
+.toc-level-2 { padding-left:1.25rem; font-size:.87em}
+.toc-level-3 { padding-left:2.5rem; font-size:.84em; }
+.toc-level-4 { padding-left:3rem; font-size:.81em; }
+.toc-level-5 { padding-left:3.5rem; font-size:.78em; }
+.toc-level-6 { padding-left:4rem; font-size:.75em; }
+
+/* TOC details wrapper */
+.toc-details {
+  padding: 1.1rem 1.25rem;
+  border: 0;
+}
+
+/* Clickable header row: "On this page  ▾/▴" */
+.toc-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-size: 0.75rem;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Kill default marker */
+.toc-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Arrow icon — larger + primary color */
+.toc-summary::after {
+  content: "▾";
+  font-size: 1.1rem;          /* bump size */
+  color: var(--tertiary);      /* use your primary */
+  opacity: 1;
+}
+
+/* When open, flip the arrow */
+.toc-details[open] > .toc-summary::after {
+  content: "▴";
+}
+
+/* Optional: subtle hover effect on the whole header */
+.toc-summary:hover::after {
+  filter: brightness(1.1);
+}
 
 /* -------------------- Content -------------------- */
 main { padding-block: var(--space-6); }

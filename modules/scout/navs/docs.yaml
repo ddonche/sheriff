@@ -1,10 +1,12 @@
 Home: index.html
 Docs:
   Overview: docs/index.html
+  Judge: docs/judge.html
   Getting Started:
     Introduction: docs/getting-started/index.html
     Installation: docs/getting-started/installation.html
     Basics: docs/getting-started/basics.html
+    Tokens: docs/getting-started/token_system.html
   Tutorials:
     Echo of Legends:
       Chapter 1: docs/tutorials/echo-of-legends/chapter1.html

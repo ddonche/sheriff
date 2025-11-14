@@ -9,9 +9,7 @@ hidden: false
 
 *(Exclusive & Inclusive Decision Logic)*
 
----
-
-## 1) Overview
+## Overview
 
 `judge` and `judge_all` express decision tables directly in code.
 
@@ -20,11 +18,9 @@ hidden: false
 
 This spec reflects the current implementation **plus** clearly marked planned extensions (kept compatible with your blog post semantics, including **weights**).
 
----
+## Core Syntax
 
-## 2) Core Syntax
-
-### 2.1 `judge` — Exclusive
+### Judge - Exclusive
 
 ```goblin
 score = 95
@@ -40,7 +36,7 @@ grade =
 
 * Evaluates top-to-bottom, stops on first truthy condition.
 
-### 2.2 `judge_all` — Inclusive
+### Judge All - Inclusive
 
 ```goblin
 balance = 45
@@ -62,9 +58,7 @@ say notifications
 
 * All truthy arms run; expression-form returns an array of results in arm order.
 
----
-
-## 3) Subject Shorthand: `judge using <expr>`
+## Subject Shorthand: Judge Using
 
 Avoid repeating the same subject on every arm.
 
@@ -91,9 +85,7 @@ judge_all using x
 end
 ```
 
----
-
-## 4) Enum Matching with `using`
+## Enum Matching
 
 Enums in Goblin can be matched by name using `using <EnumName>`.
 
@@ -133,9 +125,7 @@ end
 
 *(Future: tagged-union payload destructuring & guards — planned, see §12.4.)*
 
----
-
-## 5) Arm Bodies: Expression, Statement, or Block
+## Arm Bodies: Expression, Statement, or Block
 
 ```goblin
 x = 42
@@ -158,9 +148,7 @@ end
 
 Control flow (`return`, `break`, `continue`) propagates as expected; in `judge_all`, a `return` short-circuits remaining arms.
 
----
-
-## 6) Header Return: `judge return <expr>`
+## Header Return
 
 A shared return value for **empty** matching arms.
 
@@ -176,9 +164,7 @@ Equivalent to inlining `return "ERR"` in each empty arm. Works with both `judge`
 
 *(Header **do** default for non-return actions is planned; see §11.)*
 
----
-
-## 7) Evaluation Semantics
+## Evaluation Semantics
 
 | Construct   | Matching Policy       | Execution                | Expression Result       |
 | ----------- | --------------------- | ------------------------ | ----------------------- |
@@ -188,9 +174,7 @@ Equivalent to inlining `return "ERR"` in each empty arm. Works with both `judge`
 * Truthiness uses standard Goblin rules (`false`/`nil` falsey; everything else truthy).
 * `else` matches when no prior arm matched.
 
----
-
-## 8) Rich Condition Syntax (as in Goblin expressions)
+## Rich Condition Syntax (as in Goblin expressions)
 
 * Logical ops: `and`, `or`, `not` (with `()` precedence) — **reuse normal expression grammar**.
 * Chaining sugar `<>` works the same within judge conditions.
@@ -218,9 +202,7 @@ Equivalent to inlining `return "ERR"` in each empty arm. Works with both `judge`
       end
   ```
 
----
-
-## 9) Method-Chaining with Judge
+## Method-Chaining with Judge
 
 Judge meshes with fluent chains for business rules:
 
@@ -251,9 +233,7 @@ result =
     end
 ```
 
----
-
-## 10) Weighted `judge_all` — **Planned (kept from blog post)**
+## Future: Weighted Judge All
 
 Weights prioritize inclusive actions (e.g., async engines/processors). Syntax per blog post:
 
@@ -286,9 +266,7 @@ status_changes =
 
 > **Status:** Parsing & runtime scheduling **planned** for post–v1.0; syntax reserved.
 
----
-
-## 11) Planned: Header `do <stmt>` Default
+## Future: Header Do Stmt Default
 
 Shared non-return action for **empty** matching arms.
 
@@ -302,11 +280,9 @@ judge do err_count = err_count + 1
 end
 ```
 
----
+## Additional Roadmap (Post–v1.0)
 
-## 12) Additional Roadmap (Post–v1.0)
-
-### 12.1 Stateful vs Snapshot (for `judge_all`)
+### Stateful vs Snapshot 
 
 * **Snapshot (default):** evaluate all conditions once, then run matches.
 * **Stateful:** reevaluate each arm after previous arm’s effects.
@@ -322,7 +298,7 @@ judge_all stateful
 end
 ```
 
-### 12.2 Structured Results (expr-form)
+### Structured Results (expr-form)
 
 Return a record instead of a raw array:
 
@@ -339,7 +315,7 @@ res =
 /// res.else_hit  → false
 ```
 
-### 12.3 Hot-Reloadable Arms
+### Hot-Reloadable Arms
 
 Load rule arms from data, compile to AST, cache, and evaluate safely.
 
@@ -353,7 +329,7 @@ act apply_dynamic_rules(obj)
 end
 ```
 
-### 12.4 Enum Payloads (Tagged Unions)
+### Enum Payloads (Tagged Unions)
 
 Future: destructuring patterns with optional guards.
 
@@ -367,9 +343,7 @@ judge ev using Event
 end
 ```
 
----
-
-## 13) Composition
+## Composition
 
 Treat each judge as a reusable rule set by wrapping in an `act`.
 
@@ -389,9 +363,7 @@ act checkout(cart)
 end
 ```
 
----
-
-## 14) Implementation Status Summary
+## Implementation Status Summary
 
 | Feature                        | Status                 |
 | ------------------------------ | ---------------------- |
@@ -407,7 +379,5 @@ end
 | Structured results (expr-form) | 🔜 planned             |
 | Hot-reloadable arms            | 🔜 planned             |
 | Enum payload destructuring     | 🔜 planned             |
-
----
 
 **Design principle:** *Other languages evaluate; Goblin judges.*

@@ -1,0 +1,576 @@
+
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" href="/public//favicon.ico">
+          <title>Judge</title>
+          <link rel="stylesheet" href="/modules/brindle/baseline.css">
+    <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
+          
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+        </head>
+        <body>
+          <header class="site-header">
+            <div class="container header-inner">
+              <a class="brand" href="/index.html">
+                <img class="brand-logo" src="/public//logo.png" alt="SHERIFF" />
+                <span class="brand-name">SHERIFF</span>
+              </a>
+
+              <nav id="site-nav" class="nav">
+                <ul role="list"><li><a href="/index.html">Home</a></li>
+<li><details class="dropdown"><summary>Docs</summary>
+<ul role="list"><li><a href="/docs/index.html">Overview</a></li><li><a href="/docs/judge.html">Judge</a></li>
+<li><details class="dropdown"><summary>Getting Started</summary>
+<ul role="list"><li><a href="/docs/getting-started/index.html">Introduction</a></li><li><a href="/docs/getting-started/installation.html">Installation</a></li><li><a href="/docs/getting-started/basics.html">Basics</a></li><li><a href="/docs/getting-started/token_system.html">Tokens</a></li></ul>
+</details></li>
+
+<li><details class="dropdown"><summary>Tutorials</summary>
+<ul role="list">
+<li><details class="dropdown"><summary>Echo of Legends</summary>
+<ul role="list"><li><a href="/docs/tutorials/echo-of-legends/chapter1.html">Chapter 1</a></li></ul>
+</details></li>
+
+<li><details class="dropdown"><summary>Recipes</summary>
+<ul role="list"><li><a href="/docs/tutorials/recipes/password_generator_recipe.html">Password Generator</a></li></ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li><a href="/blog.html">Blog</a></li><li><a href="/changelog.html">Changelog</a></li></ul>
+              </nav>
+            </div>
+          </header>
+
+          <main class="container">
+            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/judge.html">Judge</a></li></ol></nav>
+
+            <div class="content-grid">
+              <aside class="toc" aria-label="On this page"><details class="toc-details" open><summary class="toc-summary">On this page</summary><ul class="toc-list">
+<li class="toc-item toc-level-1"><a href="#goblin-decision-constructs">Goblin Decision Constructs</a></li>
+<li class="toc-item toc-level-2"><a href="#overview">Overview</a></li>
+<li class="toc-item toc-level-2"><a href="#core-syntax">Core Syntax</a></li>
+<li class="toc-item toc-level-2"><a href="#subject-shorthand-judge-using">Subject Shorthand: Judge Using</a></li>
+<li class="toc-item toc-level-2"><a href="#enum-matching">Enum Matching</a></li>
+<li class="toc-item toc-level-2"><a href="#arm-bodies-expression-statement-or-block">Arm Bodies: Expression, Statement, or Block</a></li>
+<li class="toc-item toc-level-2"><a href="#header-return">Header Return</a></li>
+<li class="toc-item toc-level-2"><a href="#evaluation-semantics">Evaluation Semantics</a></li>
+<li class="toc-item toc-level-2"><a href="#rich-condition-syntax-as-in-goblin-expressions">Rich Condition Syntax (as in Goblin expressions)</a></li>
+<li class="toc-item toc-level-2"><a href="#method-chaining-with-judge">Method-Chaining with Judge</a></li>
+<li class="toc-item toc-level-2"><a href="#future-weighted-judge-all">Future: Weighted Judge All</a></li>
+<li class="toc-item toc-level-2"><a href="#future-header-do-stmt-default">Future: Header Do Stmt Default</a></li>
+<li class="toc-item toc-level-2"><a href="#additional-roadmap-postv10">Additional Roadmap (Post–v1.0)</a></li>
+<li class="toc-item toc-level-2"><a href="#composition">Composition</a></li>
+<li class="toc-item toc-level-2"><a href="#implementation-status-summary">Implementation Status Summary</a></li>
+<li class="toc-item toc-level-3"><a href="#judge---exclusive">Judge - Exclusive</a></li>
+<li class="toc-item toc-level-3"><a href="#judge-all---inclusive">Judge All - Inclusive</a></li>
+<li class="toc-item toc-level-3"><a href="#stateful-vs-snapshot">Stateful vs Snapshot</a></li>
+<li class="toc-item toc-level-3"><a href="#structured-results-expr-form">Structured Results (expr-form)</a></li>
+<li class="toc-item toc-level-3"><a href="#hot-reloadable-arms">Hot-Reloadable Arms</a></li>
+<li class="toc-item toc-level-3"><a href="#enum-payloads-tagged-unions">Enum Payloads (Tagged Unions)</a></li>
+</ul></details></aside>
+
+              <div class="doc-body">
+                <h1><a href="#goblin-decision-constructs" aria-hidden="true" class="anchor" id="goblin-decision-constructs"></a>Goblin Decision Constructs</h1>
+<p><em>(Exclusive &amp; Inclusive Decision Logic)</em></p>
+<h2><a href="#overview" aria-hidden="true" class="anchor" id="overview"></a>Overview</h2>
+<p><code>judge</code> and <code>judge_all</code> express decision tables directly in code.</p>
+<ul>
+<li><strong><code>judge</code></strong>: <em>exclusive</em> — first matching arm wins.</li>
+<li><strong><code>judge_all</code></strong>: <em>inclusive</em> — all matching arms that evaluate truthy run (in source order) and, in expr-form, their results are collected.</li>
+</ul>
+<p>This spec reflects the current implementation <strong>plus</strong> clearly marked planned extensions (kept compatible with your blog post semantics, including <strong>weights</strong>).</p>
+<h2><a href="#core-syntax" aria-hidden="true" class="anchor" id="core-syntax"></a>Core Syntax</h2>
+<h3><a href="#judge---exclusive" aria-hidden="true" class="anchor" id="judge---exclusive"></a>Judge - Exclusive</h3>
+<pre lang="goblin"><code>score = 95
+
+grade =
+    judge
+        score &gt;= 90: &quot;A&quot;
+        score &gt;= 80: &quot;B&quot;
+        score &gt;= 70: &quot;C&quot;
+        else:         &quot;F&quot;
+    end
+</code></pre>
+<ul>
+<li>Evaluates top-to-bottom, stops on first truthy condition.</li>
+</ul>
+<h3><a href="#judge-all---inclusive" aria-hidden="true" class="anchor" id="judge-all---inclusive"></a>Judge All - Inclusive</h3>
+<pre lang="goblin"><code>balance = 45
+trial_days = 5
+has_new_features = true
+maintenance_scheduled = false
+
+notifications =
+    judge_all
+        balance &lt; 50:          &quot;Low balance warning&quot;
+        trial_days &lt; 7:        &quot;Trial expiring soon&quot;
+        has_new_features:      &quot;Check out new tools&quot;
+        maintenance_scheduled: &quot;Maintenance tonight&quot;
+        else:                  &quot;All systems normal&quot;
+    end
+
+say notifications
+</code></pre>
+<ul>
+<li>All truthy arms run; expression-form returns an array of results in arm order.</li>
+</ul>
+<h2><a href="#subject-shorthand-judge-using" aria-hidden="true" class="anchor" id="subject-shorthand-judge-using"></a>Subject Shorthand: Judge Using</h2>
+<p>Avoid repeating the same subject on every arm.</p>
+<pre lang="goblin"><code>score = 95
+
+judge using score
+    &gt;= 90: say &quot;A&quot;
+    &gt;= 80: say &quot;B&quot;
+    &gt;= 70: say &quot;C&quot;
+    else:  say &quot;F&quot;
+end
+</code></pre>
+<p>Also works with <code>judge_all</code>:</p>
+<pre lang="goblin"><code>x = -3
+
+judge_all using x
+    &gt; 0:  say &quot;positive&quot;
+    &lt; 0:  say &quot;negative&quot;
+    else: say &quot;zero&quot;
+end
+</code></pre>
+<h2><a href="#enum-matching" aria-hidden="true" class="anchor" id="enum-matching"></a>Enum Matching</h2>
+<p>Enums in Goblin can be matched by name using <code>using &lt;EnumName&gt;</code>.</p>
+<pre lang="goblin"><code>/// Enum definition and matching tests
+enum Status
+    idle
+    loading
+    ready
+    error
+end
+
+enum Priority
+    low
+    medium
+    high
+    critical
+end
+
+say &quot;=== testing judge with enum ===&quot;
+status = Status::idle
+judge status using Status
+    idle:    say &quot;System is idle&quot;
+    loading: say &quot;Processing...&quot;
+    ready:   say &quot;Ready to proceed&quot;
+    error:   say &quot;Error occurred&quot;
+end
+
+priority = Priority::high
+judge priority using Priority
+    low:      say &quot;Low priority&quot;
+    medium:   say &quot;Medium priority&quot;
+    high:     say &quot;High priority alert&quot;
+    critical: say &quot;CRITICAL - Immediate action required&quot;
+end
+</code></pre>
+<p><em>(Future: tagged-union payload destructuring &amp; guards — planned, see §12.4.)</em></p>
+<h2><a href="#arm-bodies-expression-statement-or-block" aria-hidden="true" class="anchor" id="arm-bodies-expression-statement-or-block"></a>Arm Bodies: Expression, Statement, or Block</h2>
+<pre lang="goblin"><code>x = 42
+hit = &quot;none&quot;
+
+judge
+    x &gt; 100: hit = &quot;gt100&quot;         /// inline statement
+    x &gt; 40:  &quot;compile-only-expr&quot;    /// inline expression (no side effect)
+    x &gt; 0:
+        say &quot;block ok&quot;              /// block
+        hit = &quot;gt0&quot;
+    else:
+        hit = &quot;else&quot;
+end
+</code></pre>
+<ul>
+<li>Inline <strong>expression</strong> result is used only in expr-form.</li>
+<li>Inline <strong>statement</strong> executes immediately.</li>
+<li><strong>Block</strong> runs all contained statements.</li>
+</ul>
+<p>Control flow (<code>return</code>, <code>break</code>, <code>continue</code>) propagates as expected; in <code>judge_all</code>, a <code>return</code> short-circuits remaining arms.</p>
+<h2><a href="#header-return" aria-hidden="true" class="anchor" id="header-return"></a>Header Return</h2>
+<p>A shared return value for <strong>empty</strong> matching arms.</p>
+<pre lang="goblin"><code>judge return &quot;ERR&quot;
+    a &lt; 0:
+    b &lt; 0:
+    c &lt; 0:
+end
+</code></pre>
+<p>Equivalent to inlining <code>return &quot;ERR&quot;</code> in each empty arm. Works with both <code>judge</code> and <code>judge_all</code>.</p>
+<p><em>(Header <strong>do</strong> default for non-return actions is planned; see §11.)</em></p>
+<h2><a href="#evaluation-semantics" aria-hidden="true" class="anchor" id="evaluation-semantics"></a>Evaluation Semantics</h2>
+<table>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Matching Policy</th>
+<th>Execution</th>
+<th>Expression Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>judge</code></td>
+<td>First truthy arm wins</td>
+<td>Stops after first match</td>
+<td>Value of arm (or <code>nil</code>)</td>
+</tr>
+<tr>
+<td><code>judge_all</code></td>
+<td>All truthy arms</td>
+<td>Runs all in source order</td>
+<td>Array of arm results</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Truthiness uses standard Goblin rules (<code>false</code>/<code>nil</code> falsey; everything else truthy).</li>
+<li><code>else</code> matches when no prior arm matched.</li>
+</ul>
+<h2><a href="#rich-condition-syntax-as-in-goblin-expressions" aria-hidden="true" class="anchor" id="rich-condition-syntax-as-in-goblin-expressions"></a>Rich Condition Syntax (as in Goblin expressions)</h2>
+<ul>
+<li>
+<p>Logical ops: <code>and</code>, <code>or</code>, <code>not</code> (with <code>()</code> precedence) — <strong>reuse normal expression grammar</strong>.</p>
+</li>
+<li>
+<p>Chaining sugar <code>&lt;&gt;</code> works the same within judge conditions.</p>
+</li>
+<li>
+<p>Ranges / filters if supported elsewhere:</p>
+<pre lang="goblin"><code>shipping_cost =
+    judge
+        weight between 0..1:   $5.00
+        weight between 1..5:   $8.00
+        weight between 5..20:  $12.00
+        else:                  $25.00
+    end
+</code></pre>
+</li>
+<li>
+<p><code>where</code>/field-DLS examples align with existing Goblin semantics.</p>
+</li>
+<li>
+<p>Field access operator <code>&gt;&gt;</code> used exactly as outside judge:</p>
+<pre lang="goblin"><code>user_status =
+    judge
+        user &gt;&gt; &quot;is_premium&quot;:     &quot;premium&quot;
+        user &gt;&gt; &quot;trial_expired&quot;:  &quot;expired&quot;
+        user &gt;&gt; &quot;score&quot; &lt; 50:     &quot;basic&quot;
+        else:                      &quot;standard&quot;
+    end
+</code></pre>
+</li>
+</ul>
+<h2><a href="#method-chaining-with-judge" aria-hidden="true" class="anchor" id="method-chaining-with-judge"></a>Method-Chaining with Judge</h2>
+<p>Judge meshes with fluent chains for business rules:</p>
+<pre lang="goblin"><code>order =
+    judge
+        fraud_check(order):           order.hold.send_alert
+        order &gt;&gt; &quot;priority&quot; &gt;= 9:     order.expedite.notify_team
+        payment_failed(order):        order.retry_payment.log_attempt
+        inventory_check(order):       order.fulfill.notify_customer
+        else:                         order.schedule_standard
+    end
+</code></pre>
+<p>Nested decisions remain readable:</p>
+<pre lang="goblin"><code>result =
+    judge
+        user &gt;&gt; is_premium: data.enrich.prioritize.cache
+        user &gt;&gt; is_trial:   data.basic_clean.rate_limit
+        user &gt;&gt; score &lt; 50:
+            judge
+                data.size &gt; 1000: data.throttle
+                else:             data.process_normally
+            end
+        else:               data.standard_process
+    end
+</code></pre>
+<h2><a href="#future-weighted-judge-all" aria-hidden="true" class="anchor" id="future-weighted-judge-all"></a>Future: Weighted Judge All</h2>
+<p>Weights prioritize inclusive actions (e.g., async engines/processors). Syntax per blog post:</p>
+<pre lang="goblin"><code>actions =
+    judge_all
+        [10] balance &gt;&gt; amount &lt; $10:     fraud_alert(transaction)
+        [5]  user &gt;&gt; new_signup:          welcome_email(user)
+        [1]  analytics &gt;&gt; needed:         log_event(transaction)
+        else:                             standard_processing
+    end
+</code></pre>
+<ul>
+<li>Sort by descending weight; equal weights keep source order.</li>
+<li>Encourages priority <em>tiers</em> (e.g., <code>[10]</code> security, <code>[5]</code> UX setup, <code>[1]</code> analytics).</li>
+<li>Runtime integration: immediate/next-tick/deferred scheduling is an engine concern, not syntax.</li>
+</ul>
+<p>Another real-world example (stacking status effects):</p>
+<pre lang="goblin"><code>status_changes =
+    judge_all
+        [10] spell_cast &gt;&gt; type == &quot;fire&quot; and environment &gt;&gt; is_cold: player.warm_up.boost_fire_damage
+        [7]  potion_used &gt;&gt; type == &quot;strength&quot;:                       player.double_strength.show_muscles
+        [3]  area &gt;&gt; has_magic_field:                                   player.regenerate_mana.glow
+        [1]  time &gt;&gt; is_night and player &gt;&gt; class == &quot;vampire&quot;:       player.night_vision.bonus_stealth
+        else: &quot;No special effects&quot;
+    end
+</code></pre>
+<blockquote>
+<p><strong>Status:</strong> Parsing &amp; runtime scheduling <strong>planned</strong> for post–v1.0; syntax reserved.</p>
+</blockquote>
+<h2><a href="#future-header-do-stmt-default" aria-hidden="true" class="anchor" id="future-header-do-stmt-default"></a>Future: Header Do Stmt Default</h2>
+<p>Shared non-return action for <strong>empty</strong> matching arms.</p>
+<pre lang="goblin"><code>err_count = 0
+
+judge do err_count = err_count + 1
+    bad_input():
+    timed_out():
+    else: say &quot;ok&quot;   /// else has its own body, so default doesn't apply here
+end
+</code></pre>
+<h2><a href="#additional-roadmap-postv10" aria-hidden="true" class="anchor" id="additional-roadmap-postv10"></a>Additional Roadmap (Post–v1.0)</h2>
+<h3><a href="#stateful-vs-snapshot" aria-hidden="true" class="anchor" id="stateful-vs-snapshot"></a>Stateful vs Snapshot</h3>
+<ul>
+<li><strong>Snapshot (default):</strong> evaluate all conditions once, then run matches.</li>
+<li><strong>Stateful:</strong> reevaluate each arm after previous arm’s effects.</li>
+</ul>
+<pre lang="goblin"><code>mode = &quot;cold&quot;
+judge_all stateful
+    mode == &quot;cold&quot;:
+        say &quot;warming&quot;
+        mode = &quot;warm&quot;
+    mode == &quot;warm&quot;:
+        say &quot;now warm&quot;   /// runs only in stateful
+end
+</code></pre>
+<h3><a href="#structured-results-expr-form" aria-hidden="true" class="anchor" id="structured-results-expr-form"></a>Structured Results (expr-form)</h3>
+<p>Return a record instead of a raw array:</p>
+<pre lang="goblin"><code>res =
+    judge_all structured
+        x % 2 == 0: &quot;even&quot;
+        x % 3 == 0: &quot;div3&quot;
+        else:       &quot;other&quot;
+    end
+
+/// res.matched   → [&quot;even&quot;]
+/// res.results   → [&quot;even&quot;]
+/// res.else_hit  → false
+</code></pre>
+<h3><a href="#hot-reloadable-arms" aria-hidden="true" class="anchor" id="hot-reloadable-arms"></a>Hot-Reloadable Arms</h3>
+<p>Load rule arms from data, compile to AST, cache, and evaluate safely.</p>
+<pre lang="goblin"><code>rules = load_json(&quot;rules.json&quot;)
+
+act apply_dynamic_rules(obj)
+    judge_all from rules using obj
+        else: say &quot;no rules&quot;
+    end
+end
+</code></pre>
+<h3><a href="#enum-payloads-tagged-unions" aria-hidden="true" class="anchor" id="enum-payloads-tagged-unions"></a>Enum Payloads (Tagged Unions)</h3>
+<p>Future: destructuring patterns with optional guards.</p>
+<pre lang="goblin"><code>ev = Event::Click(10, 20)
+judge ev using Event
+    Click(x, y) if x &gt; 0 and y &gt; 0: say (&quot;clicked @ &quot; + x + &quot;,&quot; + y)
+    Resize(w, h) if w*h &gt; 10000:    say &quot;big resize&quot;
+    Key(code) if code == &quot;Enter&quot;:  say &quot;enter pressed&quot;
+    Idle:                           say &quot;idle&quot;
+end
+</code></pre>
+<h2><a href="#composition" aria-hidden="true" class="anchor" id="composition"></a>Composition</h2>
+<p>Treat each judge as a reusable rule set by wrapping in an <code>act</code>.</p>
+<pre lang="goblin"><code>act pricing_rules(cart)
+    judge_all
+        cart &gt;&gt; total &gt;= $200: cart.apply_discount(15%)
+        cart &gt;&gt; vip:           cart.apply_discount(10%)
+        cart &gt;&gt; items &gt; 5:     cart.free_shipping
+        else:                  cart.add_shipping($5)
+    end
+end
+
+act checkout(cart)
+    pricing_rules(cart)
+    cart.charge
+end
+</code></pre>
+<h2><a href="#implementation-status-summary" aria-hidden="true" class="anchor" id="implementation-status-summary"></a>Implementation Status Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>judge</code> / <code>judge_all</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>judge using</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Enum name matching</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Mixed expr/stmt/block bodies</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Header <code>return &lt;expr&gt;</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Control-flow propagation</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Weighted arms <code>[n]</code></td>
+<td>🔜 planned (post–v1.0)</td>
+</tr>
+<tr>
+<td>Header <code>do &lt;stmt&gt;</code> default</td>
+<td>🔜 planned</td>
+</tr>
+<tr>
+<td><code>judge_all stateful</code> mode</td>
+<td>🔜 planned</td>
+</tr>
+<tr>
+<td>Structured results (expr-form)</td>
+<td>🔜 planned</td>
+</tr>
+<tr>
+<td>Hot-reloadable arms</td>
+<td>🔜 planned</td>
+</tr>
+<tr>
+<td>Enum payload destructuring</td>
+<td>🔜 planned</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Design principle:</strong> <em>Other languages evaluate; Goblin judges.</em></p>
+
+              </div>
+            </div>
+          </main>
+
+          <footer id="site-footer">
+            <div class="container">
+              <ul role="list"><li><a href="/docs/index.html">Docs</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/changelog.html">Changelog</a></li><li><span><a href='https://github.com/ddonche/sheriff'>Github</a></span></li><li><span>© 2025 Sheriff Docs - built with <a href='https://goblinlang.org'>Goblin</a></span></li></ul>
+            </div>
+          </footer>
+          
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.hljs) return;
+
+    // 1) Register Goblin language
+    function goblin(hljs) {
+      const LINE   = hljs.COMMENT('///', '$');
+      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
+      const INLINE = { className: 'comment', begin: /<----.*$/ };
+
+      const LITERALS = { literal: 'true false nil Unit' };
+
+      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
+      const STRING = {
+        className: 'string',
+        variants: [
+          { begin: /"/, end: /"/, contains: [INTERP] },
+          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
+          { begin: /"""/, end: /"""/, contains: [INTERP] }
+        ]
+      };
+
+      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
+      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
+      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
+      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
+
+      const OPERATORS = {
+        className: 'operator',
+        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
+      };
+      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
+
+      const ACTION_DEF = {
+        className: 'function',
+        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
+        returnBegin: true,
+        contains: [
+          { className: 'keyword', begin: /\b(?:act|action)\b/ },
+          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
+        ]
+      };
+      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
+      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
+      const PROPERTY    = { className: 'operator', begin: />>/ };
+      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
+
+      const KEYWORDS = {
+        keyword:
+          'if elif else for in while repeat unless ' +
+          'attempt rescue ensure raise say warn error ' +
+          'return skip jump until stop assert ' +
+          'act action enum use import export via test ' +
+          'contract prefer ' +
+          'judge judge_all using morph vault banish unbanish expose ' +
+          'pick roll roll_detail reap map ' +
+          'nc self set burn show_ids as of ' +
+          'end blob',
+        literal: LITERALS.literal
+      };
+
+      return {
+        name: 'Goblin',
+        aliases: ['gbln','gob'],
+        keywords: KEYWORDS,
+        contains: [
+          MULTI, LINE, INLINE,
+          ACTION_DEF, MODULE_CALL, BANG_CALL,
+          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
+          STRING, HEX, BIN, DICE, SCI
+        ]
+      };
+    }
+
+    window.hljs.registerLanguage('goblin', goblin);
+
+    // Optional sanity check
+    if (window.hljs.getLanguage('goblin')) {
+      console.log('Goblin language registered.');
+    } else {
+      console.warn('Failed to register Goblin language.');
+    }
+
+    // 2) Map <pre lang="xyz"> → language-xyz
+    var pres = document.querySelectorAll('pre[lang]');
+    for (var i = 0; i < pres.length; i++) {
+      var pre  = pres[i];
+      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
+      if (!lang) continue;
+
+      var code = pre.querySelector('code');
+      if (!code) {
+        code = document.createElement('code');
+        code.textContent = pre.textContent;
+        pre.textContent  = '';
+        pre.appendChild(code);
+      }
+      pre.classList.add('language-' + lang);
+      code.classList.add('language-' + lang);
+    }
+
+    // 3) Highlight everything
+    window.hljs.highlightAll();
+  });
+</script>
+
+        </body>
+        </html>
+        
