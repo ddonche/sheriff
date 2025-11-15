@@ -1,5 +1,5 @@
 name: sheriff
-version: 0.6.1
+version: 0.6.3
 entry: main.gbln
 
 module_paths:
@@ -8,7 +8,7 @@ module_paths:
 
 # theme setting
 brindle:
-  theme: "DAYBREAK"
+  theme: "OBSIDIAN"
   brand_name: "SHERIFF"     # shows in header
   logo: "/logo.png"         # optional; if omitted we auto-guess from /public/*
   favicon: "/favicon.ico"   # optional; autoguess from /public/* if missing
@@ -26,9 +26,3 @@ ssg:
     allow_raw_html: false
     emit_manifest: false
     copy_public: true        # Mirror /public → /dist
-
-  # User-editable template (must exist for best results)
-  partials:
-    dir: "templates"
-    base: "base.html"        # Should contain [[[TITLE]]], [[[NAV.HEADER]]], [[[CONTENT]]]
-                             # (Optional) [[[SIDEBAR]]], [[[HEAD_EXTRA]]]

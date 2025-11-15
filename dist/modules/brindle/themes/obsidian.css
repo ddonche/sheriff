@@ -1,40 +1,66 @@
-/* Brindle — Obsidian theme (variables only) */
+/* Brindle — Obsidian v1.0 (dark theme)
+   Sleek dark docs theme, tuned for Goblin + Monokai
+   Load AFTER baseline.css.
+*/
+
+/* -------------------- Variables -------------------- */
 :root {
-  --bg: #0b0d10;
-  --fg: #e8eef2;
-  --surface: #12161b;
-  --surface-2: #161b22;
-  --border: #2b3440;
-  --muted: #94a3b8;
+  /* Base — deep charcoal */
+  --bg: #05070b;          /* page background */
+  --fg: #f4f5fb;          /* primary text */
+  --surface: #10131a;     /* panels/cards */
+  --surface-2: #151925;   /* slightly raised panels (TOC, etc.) */
+  --border: #272b3a;
+  --muted: #9ca3af;
 
-  --primary: #7dd3fc;
-  --secondary: #a78bfa;
-  --danger: #f87171;
-  --warning: #fbbf24;
-  --success: #4ade80;
+  /* Brand — teal / cyan accent */
+  --primary: #4fd1c5;
+  --secondary: #38bdf8;
+  --tertiary: #f97316;    /* warm accent (used for TOC chevron) */
+  --danger: #fb7185;
+  --warning: #facc15;
+  --success: #22c55e;
 
-  --link: #7dd3fc;
+  /* Links */
+  --link: #7dd3fc;        /* bright cyan */
   --link-hover: #bae6fd;
 
-  --code-bg: #0e141a;
-  --code-fg: #d1e0ee;
+  /* Code */
+  --code-bg: #0b1120;     /* dark slate (for non-HLJS code) */
+  --code-fg: #e5e7eb;
 
-  --selection: #1e293b;
-  --focus-ring: #60a5fa;
+  /* UI states */
+  --selection: rgba(125,211,252,0.25);  /* soft cyan */
+  --focus-ring: #38bdf8;
 
-  --nav-bg: #12161b;
-  --nav-fg: #e8eef2;
+  /* Header/Nav (dark bars) */
+  --nav-bg: #050814;
+  --nav-fg: #e5e7eb;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-size: 16px;
-  --line: 1.6;
+  /* Dropdowns (dark panels) */
+  --nav-sub-bg: #0b1020;
+  --nav-sub-fg: #e5e7eb;
+  --nav-sub-border: rgba(148,163,184,.35);
+  --nav-sub-hover: rgba(148,163,184,.18);
 
+  /* Blockquote */
+  --quote-accent: #38bdf8;
+  --quote-bg: color-mix(in oklab, var(--quote-accent) 20%, black);
+
+  /* Typography — system stack */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell,
+               "Noto Sans", "Helvetica Neue", Arial,
+               "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", "Courier New", monospace;
+  --font-size: 17px;
+  --line: 1.65;
   --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  --weight-medium: 520;
+  --weight-semibold: 620;
+  --weight-bold: 720;
 
+  /* Scale */
   --h1: 2.25rem;
   --h2: 1.875rem;
   --h3: 1.5rem;
@@ -42,27 +68,32 @@
   --h5: 1.125rem;
   --h6: 1.0rem;
 
-  --container-sm: 640px;
-  --container-md: 768px;
-  --container-lg: 1024px;
-  --container-xl: 1280px;
-  --container-max: 72ch;
+  /* Layout */
+  --container-sm: 768px;
+  --container-md: 960px;
+  --container-lg: 1280px;
+  --container-xl: 1440px;
+  --container-max: 90ch;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.25);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.35);
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
+  --shadow-md: 0 8px 20px rgba(0,0,0,0.65);
+  --shadow-lg: 0 18px 45px rgba(0,0,0,0.7);
 
+  /* Motion */
   --t-fast: 120ms;
   --t-base: 200ms;
   --t-slow: 320ms;
   --t-ease: cubic-bezier(.2,.6,.2,1);
 
+  /* Spacing */
   --space-0: 0rem;
   --space-1: 0.125rem;
   --space-2: 0.25rem;
@@ -73,8 +104,745 @@
   --space-7: 2rem;
   --space-8: 3rem;
 
+  /* Derived */
   --panel: var(--surface);
-  --hover: rgba(255,255,255,.06);
-  --muted-fg: color-mix(in oklab, var(--fg) 72%, black);
-  --link-visited: color-mix(in oklab, var(--link) 82%, #8ab4f8);
+  --hover: rgba(148,163,184,.14); /* general hover on dark surfaces */
+  --muted-fg: color-mix(in oklab, var(--fg) 60%, #9ca3af);
+  --link-visited: color-mix(in oklab, var(--link) 80%, #a855f7);
+
+  color-scheme: dark;
+}
+
+/* -------------------- Base -------------------- */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--font-size);
+  line-height: var(--line);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+::selection { background: var(--selection); }
+
+.container {
+  max-width: var(--container-lg);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}
+
+/* Headings */
+h1,h2,h3 {
+  line-height: 1.18;
+  margin: 0 0 .55em;
+  letter-spacing: -0.01em;
+}
+h1 { font-size: var(--h1); font-weight: var(--weight-bold); }
+h2 { font-size: var(--h2); font-weight: var(--weight-semibold); }
+h3 { font-size: var(--h3); font-weight: var(--weight-semibold); }
+
+p {
+  margin: 0 0 1em;
+  max-width: var(--container-max);
+}
+
+/* -------------------- Header / Nav -------------------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--nav-bg);
+  color: var(--nav-fg);
+  border-bottom: 1px solid rgba(15,23,42,.85);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: .6rem;
+}
+
+.site-header .brand,
+.site-header .brand-name {
+  color: var(--nav-fg);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+}
+
+/* Kill the “start lower” effect */
+.doc-body > :first-child,
+.doc-body > :first-child > :first-child {
+  margin-top: 0 !important;
+  padding-top: 0;
+}
+.doc-body h1:first-of-type,
+.doc-body h2:first-of-type,
+.doc-body h3:first-of-type {
+  margin-top: 0;
+}
+
+#site-nav {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  box-shadow: none;
+}
+
+#site-nav ul[role="list"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- Unified nav link styles ---------------------- */
+#site-nav a,
+#site-nav summary {
+  display: inline-block;
+  color: var(--nav-fg);
+  text-decoration: none;
+  padding: .42rem .6rem;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-regular);
+  font-size: 0.95rem;
+  transition: background var(--t-fast) var(--t-ease),
+              color var(--t-fast) var(--t-ease);
+  cursor: pointer;
+}
+
+/* same hover "pill" everywhere */
+#site-nav a:hover,
+#site-nav summary:hover,
+#site-nav li:hover > a,
+#site-nav li:focus-within > a,
+#site-nav details.dropdown:hover > summary,
+#site-nav details.dropdown:focus-within > summary {
+  background: rgba(148,163,184,.25);
+  color: var(--nav-fg);
+}
+
+/* ---- DROPDOWN STYLING (nested ul) ----------------- */
+
+#site-nav ul ul {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 12rem;
+  margin: 0;
+  padding: .35rem;
+  list-style: none;
+  background: var(--nav-sub-bg);
+  color: var(--nav-sub-fg);
+  border: 1px solid var(--nav-sub-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 24px rgba(0,0,0,.75);
+  display: none;
+  z-index: 60;
+}
+
+/* show dropdown */
+#site-nav li:hover > ul,
+#site-nav li:focus-within > ul {
+  display: block;
+}
+
+/* links inside dropdowns */
+#site-nav ul ul a,
+#site-nav ul ul li > a {
+  display: block;
+  width: 100%;
+  color: var(--nav-sub-fg);
+  padding: .42rem .6rem;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-regular);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* hover inside dropdowns */
+#site-nav ul ul a:hover,
+#site-nav ul ul li:hover > a,
+#site-nav ul ul li:focus-within > a {
+  background: var(--nav-sub-hover);
+  color: var(--nav-fg);
+}
+
+/* flyout for deeper levels */
+#site-nav ul ul li { position: relative; }
+#site-nav ul ul li > ul {
+  top: 0;
+  left: 100%;
+  margin-left: .25rem;
+}
+
+/* Fix for off-screen dropdowns */
+@media (min-width: 992px) {
+  #site-nav ul ul li:last-child > ul,
+  #site-nav ul ul li:nth-last-child(2) > ul,
+  #site-nav ul ul li:nth-last-child(3) > ul {
+    right: 100%;
+    left: auto;
+    margin-right: .25rem;
+    margin-left: 0;
+  }
+}
+
+#site-nav ul ul li {
+  padding: 0;
+  margin: 0;
+}
+
+#site-nav ul ul li + li {
+  border-top: 1px solid var(--nav-sub-border);
+}
+
+/* ---- DROPDOWN STYLING (details/summary) ---------- */
+
+#site-nav details.dropdown { position: relative; }
+
+#site-nav details.dropdown > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+/* Remove default marker */
+#site-nav details.dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+#site-nav details.dropdown > summary::after {
+  content: "▾";
+  font-size: .8em;
+  opacity: .8;
+  transform: translateY(-1px);
+  margin-left: 2px;
+}
+
+#site-nav details.dropdown[open] > summary::after {
+  content: "▴";
+  transform: translateY(1px);
+}
+
+/* Dropdown panel */
+#site-nav details.dropdown > ul[role="list"] {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 14rem;
+  margin-top: .3rem;
+  padding: .35rem;
+  list-style: none;
+  background: var(--nav-sub-bg);
+  color: var(--nav-sub-fg);
+  border: 1px solid var(--nav-sub-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 24px rgba(0,0,0,.75);
+  z-index: 60;
+}
+
+/* Links inside dropdown */
+#site-nav details.dropdown > ul[role="list"] > li > a,
+#site-nav details.dropdown > ul[role="list"] > li > span,
+#site-nav details.dropdown > ul[role="list"] > li > summary {
+  display: block;
+  width: 100%;
+  color: var(--nav-sub-fg);
+  padding: .42rem .6rem;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-regular);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* Hover state for dropdown items */
+#site-nav details.dropdown > ul[role="list"] > li > a:hover,
+#site-nav details.dropdown > ul[role="list"] > li > summary:hover,
+#site-nav details.dropdown > ul[role="list"] > li > details.dropdown:hover > summary {
+  background: var(--nav-sub-hover);
+  color: var(--nav-fg);
+}
+
+/* Nested flyout positioning */
+#site-nav details.dropdown > ul[role="list"] details.dropdown { position: relative; }
+
+#site-nav details.dropdown > ul[role="list"] details.dropdown > ul[role="list"] {
+  top: -.35rem;
+  left: 100%;
+  margin-left: .3rem;
+}
+
+/* Fix for off-screen dropdowns in details/summary structure */
+@media (min-width: 992px) {
+  #site-nav details.dropdown > ul[role="list"] > li:last-child details.dropdown > ul[role="list"],
+  #site-nav details.dropdown > ul[role="list"] > li:nth-last-child(2) details.dropdown > ul[role="list"],
+  #site-nav details.dropdown > ul[role="list"] > li:nth-last-child(3) details.dropdown > ul[role="list"] {
+    right: 100%;
+    left: auto;
+    margin-right: .3rem;
+    margin-left: 0;
+  }
+}
+
+#site-nav details.dropdown > ul[role="list"] > li + li {
+  border-top: 1px solid var(--nav-sub-border);
+}
+
+#site-nav details.dropdown > ul[role="list"] > li {
+  padding: 0;
+  margin: 0;
+}
+
+/* ---- Header search -------------------------------------- */
+
+.site-header .site-search {
+  margin-left: var(--space-5);
+  display: flex;
+  align-items: center;
+}
+
+.site-header .site-search input[type="search"] {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--nav-fg);
+  background: #0b1020;
+  border: 1px solid rgba(148,163,184,.45);
+  border-radius: 0;
+  padding: .35rem .75rem;
+  min-width: 11rem;
+  outline: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.site-header .site-search input[type="search"]::placeholder {
+  color: rgba(148,163,184,.85);
+}
+
+.site-header .site-search input[type="search"]:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px rgba(56,189,248,.55);
+}
+
+@media (max-width: 768px) {
+  .site-header .site-search {
+    display: none;
+  }
+}
+
+/* ---- Theme toggle: modern ghost pill ----------------------------------- */
+
+.site-header .theme-toggle {
+  margin-left: var(--space-3);
+  display: flex;
+  align-items: center;
+}
+
+/* base button */
+#theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.20); /* soft outline on dark nav */
+  background: transparent;
+  color: var(--nav-fg);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    background var(--t-fast) var(--t-ease),
+    border-color var(--t-fast) var(--t-ease),
+    opacity var(--t-fast) var(--t-ease),
+    transform var(--t-fast) var(--t-ease);
+}
+
+/* icons (if you’re using ☀ / ☾ or similar) */
+#theme-toggle .theme-icon {
+  font-size: 0.9rem;
+}
+
+/* hover / active */
+#theme-toggle:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.32);
+  opacity: 1;
+  transform: translateY(-0.5px);
+}
+
+#theme-toggle:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+/* focus */
+#theme-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* -------------------- TOC Sidebar Layout -------------------- */
+
+main.container {
+  max-width: var(--container-lg);
+}
+
+/* Breadcrumbs — full width */
+main.container > .breadcrumbs {
+  margin-bottom: var(--space-4);
+}
+
+/* Two-column grid — inside the wrapper */
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;   /* left: content, right: TOC */
+  grid-template-areas: "doc toc";
+  gap: var(--space-7);
+  align-items: start;
+}
+
+/* TOC — first child in DOM, but placed in right column */
+.content-grid > .toc {
+  grid-area: toc;
+  position: sticky;
+  top: 4.5rem;
+  align-self: start;
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: var(--shadow-sm);
+  font-size: .95rem;
+}
+
+/* Content — second child in DOM, but placed in left column */
+.content-grid > .doc-body {
+  grid-area: doc;
+  margin: 0;
+}
+
+/* Kill top margin on first heading */
+.doc-body > :first-child { margin-top: 0 !important; }
+
+/* Mobile */
+@media (max-width: 960px) {
+  .content-grid { display: block; }
+  .content-grid > .toc {
+    position: static;
+    max-height: none;
+    margin: var(--space-5) 0;
+  }
+}
+
+/* TOC inner styles */
+.toc-list { list-style:none; margin:0; padding:0; }
+.toc-item { margin:.15rem 0; }
+.toc-item a {
+  display:block;
+  color:var(--link);
+  text-decoration:none;
+  padding:.10rem 0;
+  border-radius:var(--radius-sm);
+  text-underline-offset:.18em;
+}
+.toc-item a:hover {
+  background:var(--hover);
+  color:var(--link-hover);
+  text-decoration:underline;
+}
+.toc-level-1 { padding-left:0; margin-top:.25rem; font-size:.9em; }
+.toc-level-2 { padding-left:1.25rem; font-size:.87em}
+.toc-level-3 { padding-left:2.5rem; font-size:.84em; }
+.toc-level-4 { padding-left:3rem; font-size:.81em; }
+.toc-level-5 { padding-left:3.5rem; font-size:.78em; }
+.toc-level-6 { padding-left:4rem; font-size:.75em; }
+
+/* TOC details wrapper */
+.toc-details {
+  padding: 1.1rem 1.25rem;
+  border: 0;
+}
+
+/* "On this page" row */
+.toc-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  font-size: 0.75rem;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.toc-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Arrow icon — larger + accent color */
+.toc-summary::after {
+  content: "▾";
+  font-size: 1.1rem;
+  color: var(--tertiary);
+  opacity: 1;
+}
+
+.toc-details[open] > .toc-summary::after {
+  content: "▴";
+}
+
+.toc-summary:hover::after {
+  filter: brightness(1.1);
+}
+
+/* -------------------- Content -------------------- */
+
+main {
+  padding-block: var(--space-6);
+}
+
+main a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: .22em;
+}
+main a:hover { color: var(--link-hover); }
+
+.panel, .card, main > section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  margin-block: var(--space-6);
+}
+
+/* Blockquotes */
+blockquote {
+  margin: 1.2em 0;
+  padding: 1rem 1.25rem 1rem 1.1rem;
+  border-left: 4px solid var(--quote-accent);
+  background: var(--quote-bg);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: color-mix(in oklab, var(--fg) 85%, white);
+}
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+/* Lists */
+ul, ol { padding-inline-start: 1.2rem; }
+li { margin: .25rem 0; }
+
+/* ---- Highlight.js overrides (Monokai) ---------------------- */
+
+/* Make the highlighted area blend with our pre wrapper */
+pre code.hljs,
+pre .hljs,
+code.hljs {
+  background: transparent;   /* kill Monokai's baked-in bg */
+}
+
+/* If Monokai adds its own padding/radius, normalize it */
+code.hljs {
+  padding: 0;
+  border-radius: 0;
+  display: block;
+}
+
+/* Optional: tighten colors slightly for dark theme */
+.hljs {
+  color: #f4f4f5;            /* base text slightly brighter */
+}
+/* -------------------- Breadcrumbs -------------------- */
+
+.breadcrumbs {
+  margin: var(--space-5) 0 var(--space-4);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.breadcrumbs li + li::before {
+  content: "›";
+  opacity: .6;
+}
+.breadcrumbs a {
+  color: var(--link);
+  text-decoration: none;
+  padding: .2rem .35rem;
+  border-radius: var(--radius-sm);
+}
+.breadcrumbs a:hover {
+  background: var(--hover);
+  color: var(--link-hover);
+}
+.breadcrumbs [aria-current="page"] > span {
+  color: var(--fg);
+  font-weight: var(--weight-medium);
+}
+
+/* -------------------- Buttons -------------------- */
+
+button, .btn {
+  appearance: none;
+  background: var(--primary);
+  color: white;
+  border: 1px solid color-mix(in oklab, var(--primary) 70%, black);
+  border-radius: var(--radius-pill);
+  padding: .55rem 1rem;
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--t-ease),
+              box-shadow var(--t-fast) var(--t-ease),
+              filter var(--t-fast) var(--t-ease);
+}
+button:hover, .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+button:active, .btn:active {
+  transform: translateY(0);
+  filter: brightness(.96);
+}
+button:focus-visible, .btn:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* -------------------- Code -------------------- */
+
+pre, code, kbd, samp {
+  font-family: var(--font-mono);
+}
+
+/* Outer pre wrapper; Monokai will style .hljs inside it */
+pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: var(--space-5);
+  overflow: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Inline code */
+code {
+  background: rgba(15,23,42,.9);
+  color: #e5e7eb;
+  padding: .12em .35em;
+  border-radius: var(--radius-sm);
+}
+
+/* -------------------- Tables -------------------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+th, td {
+  padding: .65rem .8rem;
+  border-bottom: 1px solid var(--border);
+}
+thead th {
+  background: color-mix(in oklab, var(--surface-2) 85%, black);
+  text-align: left;
+  font-weight: var(--weight-semibold);
+}
+
+/* -------------------- Forms -------------------- */
+
+input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: #020617;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: .55rem .7rem;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transition: border-color var(--t-fast) var(--t-ease),
+              box-shadow var(--t-fast) var(--t-ease);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus-ring) 35%, transparent);
+}
+
+/* -------------------- Footer -------------------- */
+
+#site-footer {
+  background: var(--nav-bg);
+  color: var(--nav-fg);
+  border-top: 1px solid rgba(15,23,42,.9);
+  box-shadow: inset 0 1px 0 rgba(0,0,0,.7);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+#site-footer .container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem .6rem;
+  padding: var(--space-5);
+}
+
+#site-footer a {
+  display: inline-block;
+  color: var(--nav-fg);
+  text-decoration: none;
+  padding: .35rem .5rem;
+  border-radius: var(--radius-sm);
+  line-height: inherit;
+  vertical-align: baseline;
+}
+#site-footer a:hover {
+  background: rgba(148,163,184,.22);
+}
+
+/* -------------------- Utilities -------------------- */
+
+.muted { color: var(--muted); }
+
+.hr {
+  height: 1px;
+  background: var(--border);
+  border: 0;
+  margin: var(--space-6) 0;
 }

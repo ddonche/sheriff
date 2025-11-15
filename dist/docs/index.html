@@ -2,31 +2,33 @@
         <!doctype html>
         <html lang="en">
         <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="icon" href="/public//favicon.ico">
-          <title>Index</title>
-          <link rel="stylesheet" href="/modules/brindle/baseline.css">
-    <link rel="stylesheet" href="/modules/brindle/themes/daybreak.css">
-          
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <link rel="icon" href="/public//favicon.ico">
+            <title>Index</title>
+            <link rel="stylesheet" href="/modules/brindle/baseline.css">
+    <link id="brindle-theme" rel="stylesheet" href="/modules/brindle/themes/obsidian.css" data-default-theme="light">
+            
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
         </head>
         <body>
-          <header class="site-header">
-            <div class="container header-inner">
-              <a class="brand" href="/index.html">
-                <img class="brand-logo" src="/public//logo.png" alt="SHERIFF" />
-                <span class="brand-name">SHERIFF</span>
-              </a>
+            <header class="site-header">
+                <div class="container header-inner">
+                    <a class="brand" href="/index.html">
+                        <img class="brand-logo" src="/public//logo.png" alt="SHERIFF" />
+                        <span class="brand-name">SHERIFF</span>
+                    </a>
 
-              <nav id="site-nav" class="nav">
-                <ul role="list"><li><a href="/index.html">Home</a></li>
+                    <nav id="site-nav" class="nav">
+                        <ul role="list">
 <li><details class="dropdown"><summary>Docs</summary>
 <ul role="list"><li><a href="/docs/index.html">Overview</a></li><li><a href="/docs/judge.html">Judge</a></li>
 <li><details class="dropdown"><summary>Getting Started</summary>
 <ul role="list"><li><a href="/docs/getting-started/index.html">Introduction</a></li><li><a href="/docs/getting-started/installation.html">Installation</a></li><li><a href="/docs/getting-started/basics.html">Basics</a></li><li><a href="/docs/getting-started/token_system.html">Tokens</a></li></ul>
+</details></li>
+</ul>
 </details></li>
 
 <li><details class="dropdown"><summary>Tutorials</summary>
@@ -40,136 +42,89 @@
 </details></li>
 </ul>
 </details></li>
-</ul>
-</details></li>
 <li><a href="/blog.html">Blog</a></li><li><a href="/changelog.html">Changelog</a></li></ul>
-              </nav>
-            </div>
-          </header>
+                    </nav>
 
-          <main class="container">
-            <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/index.html">Index</a></li></ol></nav>
+                    <button id="theme-toggle" class="btn theme-toggle" type="button" aria-label="Toggle theme">Dark mode</button>
 
-            <div class="content-grid">
-              
-              <div class="doc-body">
-                <h1><a href="#docs-overview" aria-hidden="true" class="anchor" id="docs-overview"></a>Docs Overview</h1>
+                    <form class="site-search" role="search" action="#" method="get">
+                        <input
+                            type="search"
+                            name="q"
+                            placeholder="Search..."
+                            aria-label="Search docs"
+                        />
+                    </form>
+                </div>
+            </header>
+
+            <main class="container">
+                <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/docs">Docs</a></li><li><a href="/index.html">Index</a></li></ol></nav>
+
+                <div class="content-grid">
+                    
+                    <div class="doc-body">
+                        <h1><a href="#docs-overview" aria-hidden="true" class="anchor" id="docs-overview"></a>Docs Overview</h1>
 <p>Start your documentation here.</p>
 
-              </div>
-            </div>
-          </main>
+                    </div>
+                </div>
+            </main>
 
-          <footer id="site-footer">
-            <div class="container">
-              <ul role="list"><li><a href="/docs/index.html">Docs</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/changelog.html">Changelog</a></li><li><span><a href='https://github.com/ddonche/sheriff'>Github</a></span></li><li><span>© 2025 Sheriff Docs - built with <a href='https://goblinlang.org'>Goblin</a></span></li></ul>
-            </div>
-          </footer>
-          
+            <footer id="site-footer">
+                <div class="container">
+                    <ul role="list"><li><span>© 2025 Sheriff Docs - built with <a href='https://goblinlang.org'>Goblin</a></span></li><li><a href="/docs/index.html">Docs</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/changelog.html">Changelog</a></li><li><span><a href='https://github.com/ddonche/sheriff'>Github</a></span></li></ul>
+                </div>
+            </footer>
+                
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (!window.hljs) return;
-
-    // 1) Register Goblin language
-    function goblin(hljs) {
-      const LINE   = hljs.COMMENT('///', '$');
-      const MULTI  = { className: 'comment', begin: /\/\/\/\//, end: /\/\/\/\//, dotAll: true, greedy: true };
-      const INLINE = { className: 'comment', begin: /<----.*$/ };
-
-      const LITERALS = { literal: 'true false nil Unit' };
-
-      const INTERP = { className: 'subst', begin: /\{[A-Za-z_][A-Za-z0-9_]*\}/ };
-      const STRING = {
-        className: 'string',
-        variants: [
-          { begin: /"/, end: /"/, contains: [INTERP] },
-          { begin: /raw\s+"/, end: /"/, contains: [INTERP] },
-          { begin: /"""/, end: /"""/, contains: [INTERP] }
-        ]
-      };
-
-      const HEX  = { className: 'number', begin: /\b0x[0-9A-Fa-f_]+\b/ };
-      const BIN  = { className: 'number', begin: /\b0b[01_]+\b/ };
-      const SCI  = { className: 'number', begin: /\b\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d+)?\b/ };
-      const DICE = { className: 'number', begin: /\b\d+d\d+(?:[+-]\d+)?\b/ };
-
-      const OPERATORS = {
-        className: 'operator',
-        begin: /(>>>|>>|::|===|!===|!==|==|<=|>=|\.{3}|\.{2}|%s|%o|\+\+|--|\*\*=?|\/\/|=>|\+=|-=?|\*=|\/=|%=|<>\b|\?>|&&|\?\?|[+\-*\/%_^@#=<!>&|><])/
-      };
-      const RANGE = { className: 'operator', begin: /\.{2,3}/ };
-
-      const ACTION_DEF = {
-        className: 'function',
-        begin: /\b(?:act|action)\s+[A-Za-z_][A-Za-z0-9_]*/,
-        returnBegin: true,
-        contains: [
-          { className: 'keyword', begin: /\b(?:act|action)\b/ },
-          { className: 'title',   begin: /[A-Za-z_][A-Za-z0-9_]*/ }
-        ]
-      };
-      const MODULE_CALL = { className: 'title',    begin: /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*/ };
-      const BANG_CALL   = { className: 'built_in', begin: /\b[A-Za-z_][A-Za-z0-9_]*!/ };
-      const PROPERTY    = { className: 'operator', begin: />>/ };
-      const TRIPLE_BRACE= { className: 'subst',    begin: /\{\{\{/, end: /\}\}\}/ };
-
-      const KEYWORDS = {
-        keyword:
-          'if elif else for in while repeat unless ' +
-          'attempt rescue ensure raise say warn error ' +
-          'return skip jump until stop assert ' +
-          'act action enum use import export via test ' +
-          'contract prefer ' +
-          'judge judge_all using morph vault banish unbanish expose ' +
-          'pick roll roll_detail reap map ' +
-          'nc self set burn show_ids as of ' +
-          'end blob',
-        literal: LITERALS.literal
-      };
-
-      return {
-        name: 'Goblin',
-        aliases: ['gbln','gob'],
-        keywords: KEYWORDS,
-        contains: [
-          MULTI, LINE, INLINE,
-          ACTION_DEF, MODULE_CALL, BANG_CALL,
-          TRIPLE_BRACE, PROPERTY, OPERATORS, RANGE,
-          STRING, HEX, BIN, DICE, SCI
-        ]
-      };
-    }
-
-    window.hljs.registerLanguage('goblin', goblin);
-
-    // Optional sanity check
-    if (window.hljs.getLanguage('goblin')) {
-      console.log('Goblin language registered.');
-    } else {
-      console.warn('Failed to register Goblin language.');
-    }
-
-    // 2) Map <pre lang="xyz"> → language-xyz
-    var pres = document.querySelectorAll('pre[lang]');
-    for (var i = 0; i < pres.length; i++) {
-      var pre  = pres[i];
-      var lang = (pre.getAttribute('lang') || '').trim().toLowerCase();
-      if (!lang) continue;
-
-      var code = pre.querySelector('code');
-      if (!code) {
-        code = document.createElement('code');
-        code.textContent = pre.textContent;
-        pre.textContent  = '';
-        pre.appendChild(code);
-      }
-      pre.classList.add('language-' + lang);
-      code.classList.add('language-' + lang);
-    }
-
-    // 3) Highlight everything
+    // Let Highlight.js auto-detect all <pre><code> / <code> blocks
     window.hljs.highlightAll();
   });
+</script>
+
+                
+<script>
+  (function () {
+    var THEME_KEY = 'goblin-theme';
+    var LIGHT = '/modules/brindle/themes/daybreak.css';
+    var DARK  = '/modules/brindle/themes/obsidian.css';
+
+    var link   = document.getElementById('brindle-theme');
+    var button = document.getElementById('theme-toggle');
+    if (!link || !button) return;
+
+    function applyTheme(theme) {
+      var href = (theme === 'dark') ? DARK : LIGHT;
+      link.setAttribute('href', href);
+      document.documentElement.setAttribute('data-theme', theme);
+      button.setAttribute('data-theme', theme);
+      button.textContent = (theme === 'dark') ? 'Light mode' : 'Dark mode';
+    }
+
+    var stored = null;
+    try {
+      stored = window.localStorage.getItem(THEME_KEY);
+    } catch (e) {}
+
+    var defaultTheme = link.getAttribute('data-default-theme') || 'light';
+    var initial = (stored === 'dark' || stored === 'light') ? stored : defaultTheme;
+
+    applyTheme(initial);
+
+    button.addEventListener('click', function () {
+      var current = button.getAttribute('data-theme') || initial;
+      var next = (current === 'dark') ? 'light' : 'dark';
+
+      try {
+        window.localStorage.setItem(THEME_KEY, next);
+      } catch (e) {}
+
+      applyTheme(next);
+    });
+  })();
 </script>
 
         </body>

@@ -30,7 +30,7 @@
   --selection: #d7ecf3;
   --focus-ring: #5aa7b8;
   /* Header/Nav (dark bars) */
-  --nav-bg: #27292a;
+  --nav-bg: #1c2123;
   --nav-fg: #e8eef2;
   /* Dropdowns (dark panels) */
   --nav-sub-bg: #1f2122;
@@ -60,11 +60,11 @@
   --h5: 1.125rem;
   --h6: 1.0rem;
   /* Layout */
-  --container-sm: 720px;     /* was 640 */
-  --container-md: 880px;     /* was 768 */
-  --container-lg: 1180px;    /* was 1080 */
-  --container-xl: 1400px;    /* was 1280 */
-  --container-max: 80ch;     /* was 72ch — slight bump for prose */
+  --container-sm: 768px;
+  --container-md: 960px;
+  --container-lg: 1280px;
+  --container-xl: 1440px;
+  --container-max: 90ch;   /* let prose breathe a bit more */
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -111,7 +111,7 @@ html, body {
 }
 ::selection { background: var(--selection); }
 .container {
-  max-width: var(--container-lg);
+  max-width: var(--container-lg);   /* now 1280px */
   margin-inline: auto;
   padding-inline: var(--space-5);
 }
@@ -167,9 +167,10 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   display: inline-block;
   color: var(--nav-fg);
   text-decoration: none;
-  padding: .42rem .6rem; /* same capsule padding as header items */
+  padding: .42rem .6rem;
   border-radius: var(--radius-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);  /* was medium */
+  font-size: 0.95rem;                  /* slightly smaller than body */
   transition: background var(--t-fast) var(--t-ease), color var(--t-fast) var(--t-ease);
   cursor: pointer;
 }
@@ -212,7 +213,8 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   color: var(--nav-sub-fg);
   padding: .42rem .6rem;
   border-radius: var(--radius-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);  /* was medium */
+  font-size: 0.95rem;                  /* match top-nav size */
   white-space: nowrap;
   box-sizing: border-box;
 }
@@ -297,7 +299,8 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   color: var(--nav-sub-fg);
   padding: .42rem .6rem;
   border-radius: var(--radius-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);  /* was medium */
+  font-size: 0.95rem;                  /* consistent with rest */
   white-space: nowrap;
   box-sizing: border-box;
 }
@@ -336,10 +339,99 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   margin: 0;
 }
 
+/* ---- Header search -------------------------------------- */
+.site-header .site-search {
+  margin-left: var(--space-5);
+  display: flex;
+  align-items: center;
+}
+
+.site-header .site-search input[type="search"] {
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--nav-fg);
+  background: #1f2122;             /* slightly lighter than nav-bg */
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 0;
+  padding: .35rem .75rem;
+  min-width: 11rem;
+  outline: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.site-header .site-search input[type="search"]::placeholder {
+  color: rgba(232,238,242,.7);     /* faded nav-fg */
+}
+
+.site-header .site-search input[type="search"]:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px rgba(90,167,184,.35);
+}
+
+@media (max-width: 768px) {
+  .site-header .site-search {
+    display: none;
+  }
+}
+
+/* ---- Theme toggle: modern ghost pill ----------------------------------- */
+
+.site-header .theme-toggle {
+  margin-left: var(--space-3);
+  display: flex;
+  align-items: center;
+}
+
+/* base button */
+#theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.20); /* soft outline on dark nav */
+  background: transparent;
+  color: var(--nav-fg);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    background var(--t-fast) var(--t-ease),
+    border-color var(--t-fast) var(--t-ease),
+    opacity var(--t-fast) var(--t-ease),
+    transform var(--t-fast) var(--t-ease);
+}
+
+/* icons (if you’re using ☀ / ☾ or similar) */
+#theme-toggle .theme-icon {
+  font-size: 0.9rem;
+}
+
+/* hover / active */
+#theme-toggle:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.32);
+  opacity: 1;
+  transform: translateY(-0.5px);
+}
+
+#theme-toggle:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+/* focus */
+#theme-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* -------------------- TOC Sidebar Layout -------------------- */
 main.container {
-  max-width: 1200px;
-  padding-block: var(--space-6);
+  max-width: var(--container-lg);   /* or var(--container-xl) if you want even wider */
 }
 
 /* Breadcrumbs — full width */

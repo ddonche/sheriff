@@ -199,44 +199,56 @@ act build_site()
         <!doctype html>
         <html lang="en">
         <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="icon" href="{{{BRINDLE::FAVICON}}}">
-          <title>{page_title}</title>
-          {{{BRINDLE::CSS}}}
-          {{{BRINDLE::HIGHLIGHT_HEAD}}}
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <link rel="icon" href="{{{BRINDLE::FAVICON}}}">
+            <title>{page_title}</title>
+            {{{BRINDLE::CSS}}}
+            {{{BRINDLE::HIGHLIGHT_HEAD}}}
         </head>
         <body>
-          <header class="site-header">
-            <div class="container header-inner">
-              <a class="brand" href="/index.html">
-                <img class="brand-logo" src="{{{BRINDLE::LOGO_SRC}}}" alt="{{{BRINDLE::BRAND_NAME}}}" />
-                <span class="brand-name">{{{BRINDLE::BRAND_NAME}}}</span>
-              </a>
+            <header class="site-header">
+                <div class="container header-inner">
+                    <a class="brand" href="/index.html">
+                        <img class="brand-logo" src="{{{BRINDLE::LOGO_SRC}}}" alt="{{{BRINDLE::BRAND_NAME}}}" />
+                        <span class="brand-name">{{{BRINDLE::BRAND_NAME}}}</span>
+                    </a>
 
-              <nav id="site-nav" class="nav">
-                {{{SCOUT::DOCS}}}
-              </nav>
-            </div>
-          </header>
+                    <nav id="site-nav" class="nav">
+                        {{{SCOUT::DOCS}}}
+                    </nav>
 
-          <main class="container">
-            {{{SCOUT::BREADCRUMBS}}}
+                    {{{BRINDLE::THEME_TOGGLE}}}
 
-            <div class="content-grid">
-              {{{SCOUT::TOC}}}
-              <div class="doc-body">
-                {html_body}
-              </div>
-            </div>
-          </main>
+                    <form class="site-search" role="search" action="#" method="get">
+                        <input
+                            type="search"
+                            name="q"
+                            placeholder="Search..."
+                            aria-label="Search docs"
+                        />
+                    </form>
+                </div>
+            </header>
 
-          <footer id="site-footer">
-            <div class="container">
-              {{{SCOUT::FOOTER}}}
-            </div>
-          </footer>
-          {{{BRINDLE::HIGHLIGHT_FOOT}}}
+            <main class="container">
+                {{{SCOUT::BREADCRUMBS}}}
+
+                <div class="content-grid">
+                    {{{SCOUT::TOC}}}
+                    <div class="doc-body">
+                        {html_body}
+                    </div>
+                </div>
+            </main>
+
+            <footer id="site-footer">
+                <div class="container">
+                    {{{SCOUT::FOOTER}}}
+                </div>
+            </footer>
+                {{{BRINDLE::HIGHLIGHT_FOOT}}}
+                {{{BRINDLE::THEME_SCRIPT}}}
         </body>
         </html>
         """
