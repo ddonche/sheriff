@@ -1,0 +1,41 @@
+/// modules/badge/badge.gbln
+/// Badge module — publishes BADGE::VERSION from goblin.yaml
+
+/// Read Sheriff version from goblin.yaml (top-level `version` key)
+act sheriff_version_from_config()
+    if file_exists("goblin.yaml") == false
+        return "dev"
+    end
+
+    cfg_text   = read_text("goblin.yaml")
+    sanitized  = yaml_sanitize(cfg_text)
+    cfg        = yaml_parse(sanitized)
+
+    if cfg == nil
+        return "dev"
+    end
+
+    v = cfg["version"]
+    if v == nil
+        return "dev"
+    end
+
+    trimmed = ("" + v).trim
+    if trimmed == ""
+        return "dev"
+    end
+
+    return trimmed
+end
+
+/// Publish BADGE::VERSION as a small HTML span
+act publish_tokens()
+    version_str = sheriff_version_from_config()
+
+    /// e.g. "v0.6.4"
+    badge_html = "<span class=\"site-version\">" + version_str + "</span>"
+
+    register_token("BADGE", "VERSION", badge_html)
+
+    return Unit
+end

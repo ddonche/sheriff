@@ -2,10 +2,12 @@
 import modules/scout/scout    as scout
 import modules/scout/toc as toc
 import modules/brindle/brindle as br
+import modules/badge/badge as badge
 
 scout::publish_tokens()
 br::build_css_files()
 br::publish_tokens()
+badge::publish_tokens()
 
 /// Get just the frontmatter text (inner YAML only, no fences)
 act get_frontmatter(content)
@@ -212,6 +214,7 @@ act build_site()
                     <a class="brand" href="/index.html">
                         <img class="brand-logo" src="{{{BRINDLE::LOGO_SRC}}}" alt="{{{BRINDLE::BRAND_NAME}}}" />
                         <span class="brand-name">{{{BRINDLE::BRAND_NAME}}}</span>
+                        {{{BADGE::VERSION}}}
                     </a>
 
                     <nav id="site-nav" class="nav">

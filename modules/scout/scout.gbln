@@ -259,17 +259,33 @@ act scout_canon_map(raw_map)
             if tv_type == "map" <> tv_type == "object"
                 direct_label = scout_as_str(top_key)
                 if has(top_value, "label")
-                    tmp = top_value >> "label"
-                    if tmp != nil
-                        direct_label = scout_as_str(tmp)
+                    tmp_label = top_value >> "label"
+                    if tmp_label != nil
+                        direct_label = scout_as_str(tmp_label)
                     end
                 end
 
+                say "DEBUG: top_value type = " ++ valtype(top_value)
+                say "DEBUG: top_value keys = " ++ string(keys(top_value))
+                say "DEBUG: has href? = " ++ string(has(top_value, "href"))
+
                 direct_href = ""
                 if has(top_value, "href")
-                    tmp = top_value >> "href"
-                    if tmp != nil
-                        direct_href = scout_as_str(tmp)
+                    tmp_href = top_value["href"]
+                    if tmp_href != nil
+                        direct_href = scout_as_str(tmp_href)
+                        say "DEBUG: after scout_as_str, direct_href = " ++ direct_href
+                    else
+                        say "DEBUG: tmp was nil!"
+                    end
+                end
+                say "DEBUG canon: top_key=" ++ top_key ++ " direct_href=" ++ direct_href
+
+                direct_class = ""
+                if has(top_value, "class")
+                    tmp_class = top_value["class"]
+                    if tmp_class != nil
+                        direct_class = scout_as_str(tmp_class)
                     end
                 end
 
