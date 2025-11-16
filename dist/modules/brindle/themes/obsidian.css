@@ -415,6 +415,12 @@ p {
   margin: 0;
 }
 
+/* ---- Wikilinks ---- */
+.external-link-icon::after {
+  content: " ↗";
+  font-size: 0.85em;
+}
+
 /* ---- Header search -------------------------------------- */
 
 .site-header .site-search {

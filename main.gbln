@@ -3,6 +3,7 @@ import modules/scout/scout    as scout
 import modules/scout/toc as toc
 import modules/brindle/brindle as br
 import modules/badge/badge as badge
+import modules/wikilinks/wikilinks as wiki
 
 scout::publish_tokens()
 br::build_css_files()
@@ -170,7 +171,17 @@ act build_site()
         spaced_title      = join(underscore_parts, " ")
         page_title        = title(spaced_title)
 
+        /// 1) Markdown → HTML
         html_body = md_to_html(body_content)
+
+        /// --- WIKILINKS: post-process HTML -----------------------------------
+        say "WIKILINKS: rewriting for {file_path}"
+        say "WIKILINKS: html len =" ++ string(html_body.len)
+
+        html_body = wiki::rewrite_wikilinks(html_body)
+
+        say "WIKILINKS: rewrite done, new len =" ++ string(html_body.len)
+        /// --------------------------------------------------------------------
 
         /// ---- breadcrumbs and TOC (skip home) --------------------------------------------
         page_stem = stem(output_path)

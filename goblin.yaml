@@ -1,5 +1,5 @@
 name: sheriff
-version: v0.6.5
+version: v0.7.0
 entry: main.gbln
 
 module_paths:

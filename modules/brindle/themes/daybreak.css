@@ -352,6 +352,12 @@ p { margin: 0 0 1em; max-width: var(--container-max); }
   margin: 0;
 }
 
+/* ---- Wikilinks ---- */
+.external-link-icon::after {
+  content: " ↗";
+  font-size: 0.85em;
+}
+
 /* ---- Header search -------------------------------------- */
 .site-header .site-search {
   margin-left: var(--space-5);

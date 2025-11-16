@@ -1,0 +1,125 @@
+/// modules/wikilinks/wikilinks.gbln
+/// HTML post-processor for Sheriff wikilinks.
+///
+/// Supported patterns in rendered HTML:
+///   [[Badge]]
+///   [[Badge|Badge Module]]
+///   [[Some Page#Section]]
+///   [[https://goblinlang.org|Goblin]]
+
+/// Turn [[...]] inner text into an HTML <a>...</a> tag.
+act resolve_wikilink(inner)
+    if inner == nil
+        return ""
+    end
+
+    raw = inner.trim
+    if raw == ""
+        return ""
+    end
+
+    /// Goblin sweep is giving us the FULL match (including [[ ]]).
+    /// Safest: try to grab the inside between [[ and ]]. If that fails,
+    /// just use the raw text.
+    core = keep_between(raw, "[[", "]]")
+    if core == ""
+        core = raw
+    end
+
+    inner_text = core.trim
+    if inner_text == ""
+        return ""
+    end
+
+    /// Extract link and label parts
+    link_part  = keep_before(inner_text, "|").trim
+    label_part = keep_after(inner_text, "|").trim
+
+    /// If no pipe, keep_after returns empty
+    if link_part == ""
+        link_part = inner_text
+    end
+
+    /// Default label to link_part if not specified
+    display_label = label_part
+    if display_label == ""
+        display_label = link_part
+    end
+
+    /// External link?
+    lower_link  = lower(link_part)
+    is_external = starts_with(lower_link, "http://") or starts_with(lower_link, "https://")
+
+    judge
+        is_external:
+            html_parts = []
+            put_last!(html_parts, "<a href=\"")
+            put_last!(html_parts, link_part)
+            put_last!(html_parts, "\">")
+            put_last!(html_parts, display_label)
+            /// External link icon span; style this in CSS.
+            put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+            put_last!(html_parts, "</a>")
+            return pack(html_parts)
+
+        else:
+            /// Internal docs link
+            page   = keep_before(link_part, "#").trim
+            anchor = keep_after(link_part, "#").trim
+
+            if page == ""
+                page = link_part
+            end
+
+            slug = lower(page)
+            update_where!(slug, " ", "-")
+            update_where!(slug, "_", "-")
+
+            href = "/docs/{slug}.html"
+            if anchor !== ""
+                href = "{href}#{anchor}"
+            end
+
+            final_label = display_label
+            /// If the label is just the raw link, prefer the page name
+            if display_label == link_part or display_label == ""
+                final_label = page
+            end
+
+            html_parts = []
+            put_last!(html_parts, "<a href=\"")
+            put_last!(html_parts, href)
+            put_last!(html_parts, "\">")
+            put_last!(html_parts, final_label)
+            put_last!(html_parts, "</a>")
+            return pack(html_parts)
+    end
+end
+
+act rewrite_wikilinks(html)
+    if html == nil
+        return ""
+    end
+
+    result = html
+
+    sweep html
+        "[[" ... "]]" :
+            say "DEBUG: Found wikilink, self =" ++ self
+
+            if self == nil or self == ""
+                skip
+            end
+
+            /// IMPORTANT: self is the ENTIRE matched substring, including [[ ]].
+            repl = resolve_wikilink(self)
+            say "DEBUG: repl =" ++ repl
+
+            if repl != ""
+                /// Replace EXACTLY what sweep matched.
+                update_where!(result, self, repl)
+            end
+    end
+
+    return result
+end

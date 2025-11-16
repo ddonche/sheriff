@@ -52,7 +52,6 @@ act generate_toc(html_content)
   end
 
   toc_html = pack(toc_parts)
-  say "DEBUG: Final toc_html length = " + string(toc_html.len)
 
   /// Wrap in a sticky TOC aside with <details>/<summary> toggle
   local prefix = "<aside class=\"toc\" aria-label=\"On this page\">" +
