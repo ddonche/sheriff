@@ -1,6 +1,7 @@
 Docs:
   Overview: docs/index.html
   Judge: docs/judge.html
+  Changelog: changelog.html
   Getting Started:
     Introduction: docs/getting-started/index.html
     Installation: docs/getting-started/installation.html
@@ -12,5 +13,4 @@ Tutorials:
   Recipes:
     Password Generator: docs/tutorials/recipes/password_generator_recipe.html
 Downloads: downloads.html
-Blog: blog.html
-Changelog: changelog.html
+Blog: blog/index.html

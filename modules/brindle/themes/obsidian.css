@@ -162,6 +162,54 @@ p {
   white-space: nowrap;    /* don't wrap the version */
 }
 
+.repo-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.repo-info:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.repo-icon {
+    flex-shrink: 0;
+    fill: currentColor;
+}
+
+.repo-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0;  /* No gap at all */
+    min-width: 0;
+}
+
+.repo-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.repo-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.repo-tag,
+.repo-stars,
+.repo-forks {
+    white-space: nowrap;
+}
+
 .site-header {
   position: sticky;
   top: 0;

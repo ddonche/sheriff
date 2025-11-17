@@ -3,7 +3,8 @@ import modules/scout/scout    as scout
 import modules/scout/toc as toc
 import modules/brindle/brindle as br
 import modules/badge/badge as badge
-import modules/wikilinks/wikilinks as wiki
+import modules/trailboss/trailboss as tb
+import modules/campfire/campfire as cf
 
 scout::publish_tokens()
 br::build_css_files()
@@ -136,6 +137,9 @@ act build_site()
     md_files = walk("content", "**/*.md")
     say "Found " + string(md_files.len) + " files"
 
+    /// Build Campfire index so CAMPFIRE::INDEX is ready
+    cf::campfire_build_index()
+
     for file_path in md_files
         say "Processing: " + file_path
 
@@ -178,10 +182,9 @@ act build_site()
         say "WIKILINKS: rewriting for {file_path}"
         say "WIKILINKS: html len =" ++ string(html_body.len)
 
-        html_body = wiki::rewrite_wikilinks(html_body)
+        html_body = tb::rewrite_wikilinks(html_body)
 
         say "WIKILINKS: rewrite done, new len =" ++ string(html_body.len)
-        /// --------------------------------------------------------------------
 
         /// ---- breadcrumbs and TOC (skip home) --------------------------------------------
         page_stem = stem(output_path)
@@ -207,6 +210,20 @@ act build_site()
         for pos in slash_positions
             root_prefix = root_prefix + "../"
         end
+
+        /// -------------------------------
+        /// OVERRIDE::BODY selection
+        /// -------------------------------
+        override_map = {
+            default: html_body,
+            "dist/blog/index.html": """
+                <h1>Blog</h1>
+                {{{CAMPFIRE::INDEX}}}
+            """
+        }
+
+        /// Register OVERRIDE::BODY as a normal token (string)
+        register_token("OVERRIDE", "BODY", override_map)
 
         html_content = """
         <!doctype html>
@@ -242,6 +259,7 @@ act build_site()
                             aria-label="Search docs"
                         />
                     </form>
+                    {{{BADGE::REPO}}}
                 </div>
             </header>
 
@@ -251,7 +269,7 @@ act build_site()
                 <div class="content-grid">
                     {{{SCOUT::TOC}}}
                     <div class="doc-body">
-                        {html_body}
+                        {{{OVERRIDE::BODY}}}
                     </div>
                 </div>
             </main>

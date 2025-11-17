@@ -1,0 +1,76 @@
+/// campfire.gbln - SIMPLIFIED
+
+import modules/frontier/frontier as front
+
+/// Build the blog post index HTML and register CAMPFIRE::INDEX token
+act campfire_build_index()
+    blog_root  = "content/blog"
+    post_paths = []
+
+    /// Collect all blog posts (skip index.md)
+    for source_path in walk(blog_root, "**/*.md")
+        if ends_with(source_path, "/index.md") == false
+            put_last!(post_paths, source_path)
+        end
+    end
+
+    say "Campfire: found " ++ string(post_paths.len) ++ " post(s)"
+
+    local items = []
+
+    for source_path in post_paths
+        md_text = read_text(source_path)
+        front   = front::frontier_extract_frontmatter(md_text)
+
+        if front == nil
+            skip
+        end
+
+        post_title  = front["title"]
+        post_date   = front["date"]
+        description = front["description"]
+        author      = front["author"]
+        author_slug = front["author_slug"]
+
+        /// Build URL: content/blog/foo.md -> /blog/foo.html
+        rel  = keep_after(source_path, "content")
+        href = rel
+        if ends_with(rel, ".md")
+            base = rel[0:rel.len - 3]
+            href = "{base}.html"
+        end
+
+        /// Build list item
+        local item = "<li class=\"campfire-post\">"
+        
+        if post_title !== nil and post_title !== ""
+            item = "{item}<a href=\"{href}\">{post_title}</a>"
+        else
+            item = "{item}<a href=\"{href}\">{href}</a>"
+        end
+
+        if post_date !== nil and post_date !== ""
+            item = "{item}<span class=\"campfire-date\">{post_date}</span>"
+        end
+
+        if author !== nil and author !== ""
+            if author_slug !== nil and author_slug !== ""
+                item = "{item}<span class=\"campfire-author\"> · <a href=\"/blog/authors/{author_slug}.html\">{author}</a></span>"
+            else
+                item = "{item}<span class=\"campfire-author\"> · {author}</span>"
+            end
+        end
+
+        if description !== nil and description !== ""
+            item = "{item}<div class=\"campfire-desc\">{description}</div>"
+        end
+
+        item = "{item}</li>\n"
+        put_last!(items, item)
+    end
+
+    index_html = "<ul class=\"campfire-list\">\n" + pack(items) + "</ul>"
+
+    register_token("CAMPFIRE", "INDEX", index_html)
+    say "Campfire: registered CAMPFIRE::INDEX with " ++ string(items.len) ++ " posts"
+end

@@ -1,4 +1,4 @@
-/// modules/wikilinks/wikilinks.gbln
+/// modules/trailboss/trailboss.gbln
 /// HTML post-processor for Sheriff wikilinks.
 ///
 /// Supported patterns in rendered HTML:

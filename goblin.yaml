@@ -1,10 +1,17 @@
 name: sheriff
-version: v0.7.0
+version: 0.8.2
 entry: main.gbln
 
 module_paths:
   brindle: ./modules/brindle
   scout: ./modules/scout 
+
+# NEW: Repository info for badge display
+repo:
+  url: "https://github.com/ddonche/sheriff"
+  name: "ddonche/sheriff"
+  stars: "1"
+  forks: "0"
 
 # theme setting
 brindle:

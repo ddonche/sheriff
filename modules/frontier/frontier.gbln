@@ -1,0 +1,54 @@
+/// modules/frontier/frontier.gbln
+/// Frontier: shared frontmatter handling for Sheriff.
+/// Extract YAML front matter from a markdown file.
+/// Returns a map (from yaml_parse) or nil if missing.
+act frontier_extract_frontmatter(md_text)
+    if md_text == nil
+        return nil
+    end
+
+    trimmed = md_text.trim
+    if trimmed == ""
+        return nil
+    end
+
+    /// Only treat as frontmatter if the file (after trimming) starts with '---'
+    if not starts_with(trimmed, "---")
+        return nil
+    end
+
+    yaml_raw = ""
+    found    = false
+
+    /// Grab the FIRST block between '---' and '---'
+    sweep md_text
+      "---" ... "---" :
+        yaml_raw = self
+        found    = true
+        stop
+    end
+
+    if found == false or yaml_raw == ""
+        /// No opening/closing pair detected at all.
+        return nil
+    end
+
+    /// Strip off the first '---' and the last '---'.
+    after_first = keep_after(yaml_raw, "---")
+    if after_first == nil or after_first == ""
+        return nil
+    end
+
+    before_last = keep_before(after_first, "---")
+    if before_last == nil or before_last == ""
+        return nil
+    end
+
+    yaml_block = before_last.trim
+    if yaml_block == ""
+        return nil
+    end
+
+    front = yaml_parse(yaml_block)
+    return front
+end

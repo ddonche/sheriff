@@ -3,8 +3,19 @@ title: "Changelog"
 ---
 
 # Changelog
+## v0.8.2
+- Changed dark/light from text to icons
+- Added repo badge, right now just pulls manually from yaml (later we'll dynamically embed this)
+- Implemented new goblin Override token system. 
+
+## v0.8.1
+- [[Frontier (module)|Frontier]] module now handles all frontmatter processing. This is used inside Campfire and other modules.
+
+## v0.8.0
+- added blog feature with the [[Campfire (module)|Campfire]] module
+
 ## v0.7.0
-- added wikilink capability
+- added wikilink capability with the [[Trailboss (module)|Trailboss]] module
 
 ## v0.6.5
 - added new [[Badge (module)|Badge]] module that currently pulls the version
