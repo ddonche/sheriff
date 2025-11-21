@@ -2,7 +2,7 @@
 
 id: default
 name: "Sheriff"
-version: "0.8.4"
+version: "0.9.4"
 
 repo:
   url: "https://github.com/ddonche/sheriff"
@@ -26,6 +26,7 @@ modules:
   - "campfire-blog"
   - "brindle-themes"
   - "badge-labels"
+  - "tumbleweed-glossary"
 
 routing:
   dist_root: "default"       # -> dist/default/...
