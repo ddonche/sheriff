@@ -1,0 +1,33 @@
+# site/portals/default/config.yaml
+
+id: default
+name: "Sheriff"
+version: "0.8.4"
+
+repo:
+  url: "https://github.com/ddonche/sheriff"
+  name: "ddonche/sheriff"
+  stars: "1"
+  forks: "0"
+
+theme:
+  engine: "brindle-themes"   # which module handles theming
+  name: "OBSIDIAN"
+  brand_name: "SHERIFF"
+  logo: "/logo.png"
+  favicon: "/favicon.ico"
+  overrides: {}
+
+modules:
+  # Modules this portal intends to use
+  - "markdown-core"
+  - "trailboss-wiki"
+  - "scout-nav"
+  - "campfire-blog"
+  - "brindle-themes"
+  - "badge-labels"
+
+routing:
+  dist_root: "default"       # -> dist/default/...
+  content_dir: "content"     # relative to site/portals/default/
+  public_dir: "public"       # relative to site/portals/default/

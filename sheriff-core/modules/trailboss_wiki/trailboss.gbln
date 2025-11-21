@@ -1,0 +1,142 @@
+/// modules/trailboss_wiki/trailboss.gbln
+/// HTML post-processor for Sheriff wikilinks.
+///
+/// Supported patterns in rendered HTML:
+///   [[Badge]]
+///   [[Badge|Badge Module]]
+///   [[Some Page#Section]]
+///   [[https://goblinlang.org|Goblin]]
+/// Turn [[...]] inner text into an HTML <a>...</a> tag.
+act resolve_wikilink(inner, portal)
+    if inner == nil
+        return ""
+    end
+    
+    text = inner.trim
+    if text == ""
+        return ""
+    end
+    
+    /// Extract content between [[ and ]]
+    core = keep_between(text, "[[", "]]")
+    if core == ""
+        core = text
+    end
+    
+    inner_text = core.trim
+    if inner_text == ""
+        return ""
+    end
+    
+    /// Classify the link type
+    lower_text = lower(inner_text)
+    is_external = starts_with(lower_text, "http://") or starts_with(lower_text, "https://")
+    has_pipe = keep_after(inner_text, "|") !== ""
+    
+    judge
+        is_external:
+            /// External link: [[https://example.com|Label]] or [[https://example.com]]
+            link_part = keep_before(inner_text, "|").trim
+            label_part = keep_after(inner_text, "|").trim
+            
+            if link_part == ""
+                link_part = inner_text
+            end
+            if label_part == ""
+                label_part = link_part
+            end
+            
+            html_parts = []
+            put_last!(html_parts, "<a href=\"")
+            put_last!(html_parts, link_part)
+            put_last!(html_parts, "\">")
+            put_last!(html_parts, label_part)
+            put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+            put_last!(html_parts, "</a>")
+            return pack(html_parts)
+            
+        has_pipe:
+            /// Internal with label: [[Page Name|Display Label]]
+            link_part = keep_before(inner_text, "|").trim
+            label_part = keep_after(inner_text, "|").trim
+            
+            /// Extract page and anchor
+            page = keep_before(link_part, "#").trim
+            anchor = keep_after(link_part, "#").trim
+            
+            if page == ""
+                page = link_part
+            end
+            
+            slug = lower(page)
+            update_where!(slug, " ", "-")
+            update_where!(slug, "_", "-")
+            
+            href = "/{portal}/{slug}.html"
+            if anchor !== ""
+                href = "{href}#{anchor}"
+            end
+            
+            html_parts = []
+            put_last!(html_parts, "<a href=\"")
+            put_last!(html_parts, href)
+            put_last!(html_parts, "\">")
+            put_last!(html_parts, label_part)
+            put_last!(html_parts, "</a>")
+            return pack(html_parts)
+            
+        else:
+            /// Plain internal link: [[Page Name]]
+            page = keep_before(inner_text, "#").trim
+            anchor = keep_after(inner_text, "#").trim
+            
+            if page == ""
+                page = inner_text
+            end
+            
+            slug = lower(page)
+            update_where!(slug, " ", "-")
+            update_where!(slug, "_", "-")
+            
+            href = "/{portal}/{slug}.html"
+            if anchor !== ""
+                href = "{href}#{anchor}"
+            end
+            
+            /// Use the original text as the label
+            html_parts = []
+            put_last!(html_parts, "<a href=\"")
+            put_last!(html_parts, href)
+            put_last!(html_parts, "\">")
+            put_last!(html_parts, page)
+            put_last!(html_parts, "</a>")
+            return pack(html_parts)
+    end
+end
+
+/// Process all wikilinks in ctx["body"], returns updated ctx
+act process_wikilinks(ctx)
+    body = ctx["body"]
+    portal = ctx["portal"]
+    
+    if body == nil or body == ""
+        return ctx
+    end
+    
+    result = body
+    
+    sweep body
+        "[[" ... "]]":
+            if self == nil or self == ""
+                skip
+            end
+            
+            repl = resolve_wikilink(self, portal)
+            if repl !== ""
+                update_where!(result, self, repl)
+            end
+    end
+    
+    update!(ctx["body"], result)
+    return ctx
+end

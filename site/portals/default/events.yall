@@ -1,0 +1,6 @@
+schedule:
+  - "frontier::strip_frontmatter"
+  - "markdown_core::render"
+  - "trailboss::process_wikilinks"
+
+tokens: []

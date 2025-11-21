@@ -1,0 +1,57 @@
+/// sheriff-core/main.gbln
+import "../site/portals/default/manifest.imports"
+
+/// Load events.yall into a map via Y'all
+act load_events(portal)
+    path = "../site/portals/" + portal + "/events.yall"
+    return yall_parse_file(path)
+end
+
+/// MAIN BUILD FUNCTION
+act build(portal)
+    say "Building portal: " + portal
+    
+    cfg  = load_events(portal)
+    schedule = cfg["schedule"]   /// Array of action names
+    
+    content_root = "../site/portals/" + portal + "/content"
+    md_files     = []
+    
+    for f in walk(content_root, "**/*.md")
+        put_last!(md_files, f)
+    end
+    
+    for md_path in md_files
+        raw = read_text(md_path)
+        
+        /// INITIAL CTX
+        ctx = {
+            "body": raw,
+            "frontmatter": nil,
+            "tokens": {},
+            "path": md_path,
+            "portal": portal
+        }
+                
+        /// PROVOKE: Thread ctx through the schedule
+        ctx = provoke(ctx, schedule)
+        
+        stem     = stem(md_path)
+        out_dir  = "../dist/" + portal
+        out_file = out_dir + "/" + stem + ".html"
+        
+        write_text!(
+            out_file,
+            "<!doctype html>\n<html><head>" +
+            "<meta charset=\"utf-8\" />" +
+            "<title>" + stem + "</title>" +
+            "</head><body>\n" +
+            ctx["body"] + "\n</body></html>"
+        )
+        
+    end
+    
+    say "Portal build finished: " + portal
+end
+
+build("default")

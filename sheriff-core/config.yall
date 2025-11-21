@@ -1,0 +1,18 @@
+name: sheriff
+version: 0.9.4
+entry: main.gbln
+
+# NEW: Repository info for badge display
+repo:
+  url: "https://github.com/ddonche/sheriff"
+  name: "ddonche/sheriff"
+  stars: "1"
+  forks: "0"
+
+# theme setting
+brindle:
+  theme: "OBSIDIAN"
+  brand_name: "SHERIFF"     # shows in header
+  logo: "/logo.png"         # optional; if omitted we auto-guess from /public/*
+  favicon: "/favicon.ico"   # optional; autoguess from /public/* if missing
+  overrides: {}
