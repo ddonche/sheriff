@@ -1,6 +1,6 @@
 schedule:
-  - "frontier::strip_frontmatter"
-  - "markdown_core::render"
-  - "trailboss::process_wikilinks"
-
+  - trailboss::build_routes_once
+  - frontier::strip_frontmatter
+  - markdown_core::render
+  - trailboss::process_wikilinks
 tokens: []

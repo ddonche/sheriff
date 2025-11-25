@@ -3,6 +3,10 @@ title: "Changelog"
 ^^^^
 
 # Changelog
+## v0.9.5
+- Complete overhaul of Sheriff Architecture to using Goblin summoning magic.
+- Standardized wikilinks appear as [[p/sheriff/changelog]] or with custom text.
+
 ## v0.8.4
 - refactored module directory names
 - refactor of Frontier module

@@ -1,5 +1,5 @@
 name: sheriff
-version: 0.9.4
+version: 0.9.5
 entry: main.gbln
 
 # NEW: Repository info for badge display

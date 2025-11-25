@@ -1,142 +1,337 @@
 /// modules/trailboss_wiki/trailboss.gbln
+/// Wikilinks + routing for Sheriff (JSON-based).
+
+import modules/trailboss_wiki/routes_json as rjson
+
+/// ======================================================================
+/// 1) ROUTE JSON GENERATION (ONE routes.json PER PORTAL)
+/// ======================================================================
+
+/// Scheduled event: called via Sheriff's :summon(ctx, schedule)
+/// events.yall:
+///   - trailboss::build_routes_once
+///   - frontier::strip_frontmatter
+///   - markdown_core::render
+///   - trailboss::process_wikilinks
+act build_routes_once(ctx)
+    portal | ctx["portal"]
+    if portal == nil or portal == ""
+        return ctx
+    xx
+
+    rjson::build_routes_json_for_portal(portal)
+    return ctx
+xx
+
+/// ======================================================================
+/// 2) LOOKUP HELPERS (USING routes.json ARRAY)
+/// ======================================================================
+
+/// routes is an ARRAY of metadata objects; find the first with matching slug.
+act find_route_meta(routes, slug)
+    if routes == nil
+        return nil
+    xx
+
+    for meta in routes
+        if meta["slug"] == slug
+            return meta
+        xx
+    xx
+
+    return nil
+xx
+
+act find_href_for_slug(ctx, portal, slug)
+    if slug == nil or slug == ""
+        if portal == nil or portal == ""
+            return "/index.html"
+        xx
+        return "/{portal}/index.html"
+    xx
+
+    /// ctx["path"] ALWAYS exists in Sheriff main.gbln
+    src | ctx["path"]
+
+    if src == nil or src == ""
+        /// nuclear fallback
+        if portal == nil or portal == ""
+            return "/{slug}.html"
+        xx
+        return "/{portal}/{slug}.html"
+    xx
+
+    /// Derive portal root from ctx["path"]
+    /// "../site/portals/default/content/docs/foo.md"
+    ///   → "../site/portals/default"
+    portal_root | :keep_before(src, "/content/")
+    if portal_root == ""
+        /// fallback to portal-based root
+        portal_root |= "../site/portals/{portal}"
+    xx
+
+    routes_path | "{portal_root}/routes.json"
+
+    if :file_exists(routes_path) == false
+        /// No routes; fallback
+        if portal == nil or portal == ""
+            return "/{slug}.html"
+        xx
+        return "/{portal}/{slug}.html"
+    xx
+
+    /// SAFE NOW: read_json won't throw
+    parsed | :read_json(routes_path)
+    routes | parsed["routes"]
+
+    if routes == nil
+        if portal == nil or portal == ""
+            return "/{slug}.html"
+        xx
+        return "/{portal}/{slug}.html"
+    xx
+
+    for meta in routes
+        if meta == nil
+            skip
+        xx
+
+        if meta["slug"] == slug
+            href_abs | meta["href"]
+            if href_abs == nil or href_abs == ""
+                href_abs |= "/{portal}/{slug}.html"
+            xx
+            return href_abs
+        xx
+    xx
+
+    /// No match → fallback
+    if portal == nil or portal == ""
+        return "/{slug}.html"
+    xx
+    return "/{portal}/{slug}.html"
+xx
+
+/// Small helper to build the final <a> tag.
+act build_wikilink_html(href, label, is_external)
+    html_parts | []
+    :put_last!(html_parts, "<a href=\"")
+    :put_last!(html_parts, href)
+    :put_last!(html_parts, "\">")
+    :put_last!(html_parts, label)
+    if is_external
+        :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+    xx
+    :put_last!(html_parts, "</a>")
+    return :pack(html_parts)
+xx
+
+/// ======================================================================
+/// 3) RESOLVE A SINGLE WIKILINK
+/// ======================================================================
+
 /// HTML post-processor for Sheriff wikilinks.
 ///
 /// Supported patterns in rendered HTML:
 ///   [[Badge]]
-///   [[Badge|Badge Module]]
+///   [[Badge | Badge Module]]
 ///   [[Some Page#Section]]
-///   [[https://goblinlang.org|Goblin]]
-/// Turn [[...]] inner text into an HTML <a>...</a> tag.
-act resolve_wikilink(inner, portal)
+///   [[https://goblinlang.org]]
+///   [[https://goblinlang.org | Goblin]]
+///   [[p/loricism/infinitum]]
+///   [[p/loricism/infinitum | The Infinitum]]
+///   [[u/janden]]
+///   [[u/janden | Janden, Keeper of Goblins]]
+act resolve_wikilink(inner, ctx, portal)
     if inner == nil
         return ""
-    end
-    
-    text = inner.trim
+    xx
+
+    text | :trim(inner)
     if text == ""
         return ""
-    end
-    
+    xx
+
     /// Extract content between [[ and ]]
-    core = keep_between(text, "[[", "]]")
+    core | :keep_between(text, "[[", "]]")
     if core == ""
-        core = text
-    end
-    
-    inner_text = core.trim
+        core |= text
+    xx
+
+    inner_text | :trim(core)
     if inner_text == ""
         return ""
-    end
-    
-    /// Classify the link type
-    lower_text = lower(inner_text)
-    is_external = starts_with(lower_text, "http://") or starts_with(lower_text, "https://")
-    has_pipe = keep_after(inner_text, "|") !== ""
-    
-    judge
-        is_external:
-            /// External link: [[https://example.com|Label]] or [[https://example.com]]
-            link_part = keep_before(inner_text, "|").trim
-            label_part = keep_after(inner_text, "|").trim
-            
-            if link_part == ""
-                link_part = inner_text
-            end
-            if label_part == ""
-                label_part = link_part
-            end
-            
-            html_parts = []
-            put_last!(html_parts, "<a href=\"")
-            put_last!(html_parts, link_part)
-            put_last!(html_parts, "\">")
-            put_last!(html_parts, label_part)
-            put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
-            put_last!(html_parts, "</a>")
-            return pack(html_parts)
-            
-        has_pipe:
-            /// Internal with label: [[Page Name|Display Label]]
-            link_part = keep_before(inner_text, "|").trim
-            label_part = keep_after(inner_text, "|").trim
-            
-            /// Extract page and anchor
-            page = keep_before(link_part, "#").trim
-            anchor = keep_after(link_part, "#").trim
-            
-            if page == ""
-                page = link_part
-            end
-            
-            slug = lower(page)
-            update_where!(slug, " ", "-")
-            update_where!(slug, "_", "-")
-            
-            href = "/{portal}/{slug}.html"
-            if anchor !== ""
-                href = "{href}#{anchor}"
-            end
-            
-            html_parts = []
-            put_last!(html_parts, "<a href=\"")
-            put_last!(html_parts, href)
-            put_last!(html_parts, "\">")
-            put_last!(html_parts, label_part)
-            put_last!(html_parts, "</a>")
-            return pack(html_parts)
-            
-        else:
-            /// Plain internal link: [[Page Name]]
-            page = keep_before(inner_text, "#").trim
-            anchor = keep_after(inner_text, "#").trim
-            
-            if page == ""
-                page = inner_text
-            end
-            
-            slug = lower(page)
-            update_where!(slug, " ", "-")
-            update_where!(slug, "_", "-")
-            
-            href = "/{portal}/{slug}.html"
-            if anchor !== ""
-                href = "{href}#{anchor}"
-            end
-            
-            /// Use the original text as the label
-            html_parts = []
-            put_last!(html_parts, "<a href=\"")
-            put_last!(html_parts, href)
-            put_last!(html_parts, "\">")
-            put_last!(html_parts, page)
-            put_last!(html_parts, "</a>")
-            return pack(html_parts)
-    end
-end
+    xx
 
-/// Process all wikilinks in ctx["body"], returns updated ctx
+    /// Split only if a pipe exists
+    before_pipe | :keep_before(inner_text, "|")
+
+    judge
+        /// if no pipe → keep_before returns original string
+        before_pipe == inner_text:
+            target_raw | inner_text
+            label_raw  | ""
+        else:
+            target_raw | :trim(before_pipe)
+            label_raw  | :trim(:keep_after(inner_text, "|"))
+    xx
+
+    lower_target | :lower(target_raw)
+    is_external  | :starts_with(lower_target, "http://") or :starts_with(lower_target, "https://")
+    is_portal    | :starts_with(target_raw, "p/")
+    is_user      | :starts_with(target_raw, "u/")
+
+    judge
+        /// --------------------------------------------------------------
+        /// External: [[https://example.com]] or [[https://example.com | Label]]
+        /// --------------------------------------------------------------
+        is_external:
+            href  | target_raw
+            label | label_raw
+            if label == ""
+                label |= target_raw
+            xx
+            return build_wikilink_html(href, label, true)
+
+        /// --------------------------------------------------------------
+        /// Portal link: [[p/portal/slug]] or [[p/portal/slug#anchor | Label]]
+        /// --------------------------------------------------------------
+        is_portal:
+            /// target_raw = "p/portal/slug"
+            portal_name | :keep_between(target_raw, "p/", "/")
+            
+            rest | :keep_after(target_raw, "p/{portal_name}/")
+
+            if portal_name == "" or rest == ""
+                href  | "#"
+                label | label_raw
+                if label == ""
+                    label |= target_raw
+                xx
+                return build_wikilink_html(href, label, false)
+            xx
+
+            portal_root   | "../site/portals/{portal_name}"
+            portal_exists | :file_exists(portal_root)
+
+            page   | :trim(:keep_before(rest, "#"))
+            anchor | :trim(:keep_after(rest, "#"))
+
+            if page == ""
+                page |= rest
+            xx
+
+            slug | page
+            slug |= :lower(slug)
+
+            :update_where!(slug, " ", "-")
+            :update_where!(slug, "_", "-")
+
+            /// -----------------------------------------------------
+            /// DEFINE HREF BEFORE BRANCHES  (THIS FIXES THE ERROR)
+            /// -----------------------------------------------------
+            href | ""
+
+            if portal_exists
+                :update!(href, find_href_for_slug(ctx, portal_name, slug))
+                if anchor !== ""
+                    :update!(href, "{href}#{anchor}")
+                xx
+            else
+                :update!(href, "/p/{portal_name}/{slug}.html")
+                if anchor !== ""
+                    :update!(href, "{href}#{anchor}")
+                xx
+            xx
+
+            label | label_raw
+            if label == ""
+                :update!(label, target_raw)
+            xx
+
+            return build_wikilink_html(href, label, false)
+
+        /// --------------------------------------------------------------
+        /// User link: [[u/janden]] or [[u/janden | Custom Text]]
+        /// --------------------------------------------------------------
+        is_user:
+            username | :keep_after(target_raw, "u/")
+            if username == ""
+                /// Malformed user link → show raw text
+                href  | "#"
+                label | label_raw
+                if label == ""
+                    label |= target_raw
+                xx
+                return build_wikilink_html(href, label, false)
+            xx
+
+            /// TODO: adjust to real user URL scheme later
+            href | "/users/{username}"
+
+            label | label_raw
+            if label == ""
+                label |= "@" + username
+            xx
+
+            return build_wikilink_html(href, label, false)
+
+        /// --------------------------------------------------------------
+        /// Plain internal: [[Page Name]] or [[Page Name#Section | Label]]
+        /// --------------------------------------------------------------
+        else:
+            page   | :trim(:keep_before(target_raw, "#"))
+            anchor | :trim(:keep_after(target_raw, "#"))
+
+            if page == ""
+                page |= target_raw
+            xx
+
+            slug | :lower(page)
+            :update_where!(slug, " ", "-")
+            :update_where!(slug, "_", "-")
+
+            href | find_href_for_slug(ctx, portal, slug)
+            if anchor !== ""
+                href |= "{href}#{anchor}"
+            xx
+
+            label | label_raw
+            if label == ""
+                label |= page
+            xx
+
+            return build_wikilink_html(href, label, false)
+    xx
+xx
+
+/// ======================================================================
+/// 4) PROCESS ALL WIKILINKS IN A PAGE
+/// ======================================================================
+
 act process_wikilinks(ctx)
-    body = ctx["body"]
-    portal = ctx["portal"]
-    
+    body   | ctx["body"]
+    portal | ctx["portal"]
+
     if body == nil or body == ""
         return ctx
-    end
-    
-    result = body
-    
+    xx
+
+    if portal == nil or portal == ""
+        /// No portal context → don't try wiki routing here.
+        return ctx
+    xx
+
+    result | body
+
     sweep body
         "[[" ... "]]":
-            if self == nil or self == ""
-                skip
-            end
-            
-            repl = resolve_wikilink(self, portal)
+            repl | resolve_wikilink(self, ctx, portal)
             if repl !== ""
-                update_where!(result, self, repl)
-            end
-    end
-    
-    update!(ctx["body"], result)
+                :update_where!(result, self, repl)
+            xx
+    xx
+
+    :update!(ctx["body"], result)
     return ctx
-end
+xx

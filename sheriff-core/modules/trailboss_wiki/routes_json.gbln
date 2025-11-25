@@ -1,0 +1,101 @@
+/// modules/trailboss_wiki/routes_json.gbln
+/// Build + load JSON routes for a portal.
+/// JSON shape (per portal):
+/// {
+///   "portal": "default",
+///   "routes": [
+///     {
+///       "slug":      "password-generator-recipe",
+///       "href":      "/default/docs/tutorials/recipes/password_generator_recipe.html",
+///       "title":     "Password Generator Recipe",
+///       "aliases":   [],
+///       "canonical": "[[p/default/password-generator-recipe]]"
+///     },
+///     ...
+///   ]
+/// }
+
+act build_routes_json_for_portal(portal)
+    content_root | "../site/portals/{portal}/content"
+    routes_path  | "../site/portals/{portal}/routes.json"
+
+    files  | :walk(content_root, "**/*.md")
+    routes | []
+
+    for src in files
+        /// Example:
+        ///   ../site/portals/default/content/docs/tutorials/recipes/password_generator_recipe.md
+
+        stem_name | :stem(src)   /// "password_generator_recipe"
+
+        /// Slug: lowercase, spaces/underscores → hyphens
+        slug | :lower(stem_name)
+        :update_where!(slug, " ", "-")
+        :update_where!(slug, "_", "-")
+
+        /// Relative path under the portal (docs/... or blog/...)
+        prefix | "../site/portals/{portal}/content/"
+        rel    | :keep_after(src, prefix)
+        if rel == ""
+            /// Fallback: just use stem_name at root
+            rel |= "{stem_name}.md"
+        xx
+
+        rel_no_ext | rel
+        if :ends_with(rel_no_ext, ".md")
+            rel_no_ext |= :ignore_where(rel_no_ext, ".md")
+        xx
+
+        /// Absolute site-root href for this page
+        href_abs | "/{portal}/{rel_no_ext}.html"
+
+        /// Human-friendly title from stem_name
+        title_src | stem_name
+        :update_where!(title_src, "_", " ")
+        :update_where!(title_src, "-", " ")
+        page_title | :title(title_src)
+
+        /// Canonical wikilink – Sheriff/Iveki identity:
+        /// global, portal + slug: [[p/portal/slug]]
+        canonical | "[[p/{portal}/{slug}]]"
+
+        meta | {
+            "slug":      slug,
+            "href":      href_abs,
+            "title":     page_title,
+            "aliases":   [],
+            "canonical": canonical
+        }
+
+        :put_last!(routes, meta)
+    xx
+
+    payload | {
+        "portal": portal,
+        "routes": routes
+    }
+
+    /// write_json!(path, value)
+    :write_json!(routes_path, payload)
+    return nil
+xx
+
+/// Load routes.json for a portal and return the routes array.
+/// If file is missing or malformed, return [] so callers are safe.
+act load_routes_json(portal)
+    routes_path | "../site/portals/{portal}/routes.json"
+
+    if :file_exists(routes_path) == false
+        return []
+    xx
+
+    /// read_json(path) → decoded Goblin value
+    parsed | :read_json(routes_path)
+
+    routes | parsed["routes"]
+    if routes == nil
+        return []
+    xx
+
+    return routes
+xx

@@ -1,19 +1,14 @@
 /// modules/markdown_core/markdown.gbln
-
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
 act render(ctx)
-
-    body = ctx["body"]
-
-    if body == nil or body == ""
-        return ctx
-    end
-
-    clean      = sanitize_bom(body)
-    normalized = normalize_newlines(clean)
-    out        = md_to_html(normalized)
-
+    body | ctx["body"]
+    if body == nil or body == "" => return ctx
+    
+    clean | :sanitize_bom(body)
+    normalized | :normalize_newlines(clean)
+    out | :md_to_html(normalized)
+    
     /// Write rendered HTML back into ctx["body"]
-    update!(ctx["body"], out)
+    :update!(ctx["body"], out)
     return ctx
-end
+xx
