@@ -1,0 +1,187 @@
+/// modules/prospector_search/prospector.gbln
+/// Prospector: Search index + search UI
+/// - init(pre_ctx): clear index + copy JS
+/// - index_page(ctx): append one NDJSON line per docs page (from ctx body)
+/// - apply_tokens(ctx): register PROSPECTOR::SEARCH_* tokens
+
+/// ----------------------------------------------------------------------
+/// INIT: Clear search index at start of portal build + copy JS
+/// ----------------------------------------------------------------------
+act init(pre_ctx)
+    portal | pre_ctx["portal"]
+    if portal.nix? => return pre_ctx
+
+    public_dir | "../dist/{portal}/public"
+    if :file_exists(public_dir) == false
+        :create_dir!(public_dir)
+    xx
+
+    /// Fresh JSON index for this build
+    index_path | "{public_dir}/search-index.json"
+    :write_text!(index_path, "")
+
+    /// Copy client-side search JS into public
+    js_src | "modules/prospector_search/sheriff-search.js"
+    if :file_exists(js_src)
+        js_dst  | "{public_dir}/sheriff-search.js"
+        js_code | :read_text(js_src)
+        :write_text!(js_dst, js_code)
+    else
+        :say("PROSPECTOR: WARNING – {js_src} not found; search JS not copied")
+    xx
+
+    :say("PROSPECTOR: Initialized search for portal '{portal}'")
+    return pre_ctx
+xx
+
+/// ----------------------------------------------------------------------
+/// PER-PAGE: Build index from ctx (MARKDOWN, not HTML shell)
+/// Call this right after frontier::strip_frontmatter
+/// ----------------------------------------------------------------------
+act index_page(ctx)
+    portal | ctx["portal"]
+    body   | ctx["body"]
+    fm     | ctx["frontmatter"]
+    path   | ctx["path"]
+
+    if portal.nix? or body.nix? => return ctx
+    if body == "" => return ctx
+
+    /// only index docs layout
+    layout | "docs"
+    if !fm.nix? and !fm["layout"].nix?
+        :update!(layout, :trim("" + fm["layout"]))
+    xx
+    if layout != "docs" => return ctx
+
+    /// -------- href from source path --------
+    content_root | "../site/portals/{portal}/content"
+    rel_path     | :path_relative_to(path, content_root)
+
+    rel_no_ext | rel_path
+    if :ends_with(rel_no_ext, ".md")
+        rel_no_ext | :ignore_where(rel_no_ext, ".md")
+    xx
+
+    href | "/{portal}/{rel_no_ext}.html"
+
+    /// -------- title --------
+    title | "Untitled"
+
+    /// 1) try frontmatter.title (but don't die if key missing)
+    if !fm.nix?
+        attempt
+            v | fm["title"]
+            if !v.nix?
+                t | :trim("" + v)
+                if t != ""
+                    :update!(title, t)
+                xx
+            xx
+        rescue err
+            /// missing key or not a map – ignore
+        xx
+    xx
+
+    /// 2) fallback: first markdown H1 (# Heading)
+    if title == "Untitled"
+        text | :normalize_newlines("" + body)
+        h1   | :keep_between(text, "# ", "\n")
+        if !h1.nix?
+            t2 | :trim(h1)
+            if t2 != ""
+                :update!(title, t2)
+            xx
+        xx
+    xx
+
+    /// -------- summary --------
+    summary | ""
+
+    /// 1) try frontmatter.summary
+    if !fm.nix?
+        attempt
+            v | fm["summary"]
+            if !v.nix?
+                s | :trim("" + v)
+                if s != ""
+                    :update!(summary, s)
+                xx
+            xx
+        rescue err
+            /// missing key – ignore
+        xx
+    xx
+
+    /// 2) fallback: first 200 chars of markdown body
+    if summary == ""
+        text2 | :normalize_newlines("" + body)
+        if :len(text2) > 200
+            :update!(summary, text2[0:200])
+        else
+            :update!(summary, text2)
+        xx
+    xx
+
+    /// -------- build JSON entry --------
+    entry | {
+        "href":    href,
+        "title":   title,
+        "summary": summary
+    }
+
+    /// write JSON safely to temp
+    tmp_path | "../dist/{portal}/.prospector.tmp.json"
+    :write_json!(tmp_path, entry)
+
+    /// read JSON string
+    json_text | :read_text(tmp_path)
+
+    /// append to NDJSON file
+    index_path | "../dist/{portal}/public/search-index.json"
+    :append_file!(index_path, json_text + "\n")
+
+    return ctx
+xx
+
+/// ------------------------------------------------------
+/// APPLY_TOKENS: register + resolve PROSPECTOR tokens
+/// ------------------------------------------------------
+act apply_tokens(ctx)
+    body   | ctx["body"]
+    portal | ctx["portal"]
+
+    if body.nix?   => return ctx
+    if portal.nix? => return ctx
+
+    /// SEARCH INPUT (box + results container)
+    search_input_html | """
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    """
+
+    /// SEARCH SCRIPT (wires up client-side search)
+    search_script_html | """
+    <script src="/public/sheriff-search.js"></script>
+    """
+
+    /// Register PROSPECTOR tokens
+    register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
+    register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
+
+    /// Resolve ONLY tokens that have registered values
+    updated | resolve_token(body)
+
+    :update!(ctx["body"], updated)
+    return ctx
+xx

@@ -1,0 +1,177 @@
+/// modules/stagehand/stagehand.gbln
+/// Stagehand: backstage crew for Sheriff.
+/// - Copies theme/public assets (once per portal)
+/// - Wires layout slots from templates.yall into SLOT::* tokens
+/// - Expands SLOT::* into the layout HTML, leaving module tokens for others
+
+/// Copy ONLY the active theme's CSS + the portal's public/ assets.
+/// Active theme is read from ../site/portals/{portal}/config.yall:
+///
+/// theme:
+///   name: outpost
+///
+/// If missing, defaults to "outpost".
+act copy_assets(pre_ctx)
+    portal | pre_ctx["portal"]
+
+    if portal.nix?
+        :say("STAGEHAND: No portal in pre_ctx; skipping copy_assets")
+        return pre_ctx
+    xx
+
+    /// ----- 1) Determine active theme name from config.yall -----
+    config_path | "../site/portals/{portal}/config.yall"
+    theme_name  | "outpost"   /// sensible default
+
+    if :file_exists(config_path)
+        cfg | :yall_parse_file(config_path)
+
+        if !cfg.nix? and !cfg["theme"].nix?
+            theme_cfg | cfg["theme"]
+
+            if !theme_cfg["name"].nix?
+                :update!(theme_name, :trim("" + theme_cfg["name"]))
+            xx
+        xx
+    xx
+
+    :say("STAGEHAND: Active theme for portal '{portal}' is '{theme_name}'")
+
+    /// ----- 2) Copy ONLY that theme's CSS into dist/{portal}/public/css -----
+    theme_css_src   | "../site/portals/{portal}/themes/{theme_name}/css"
+    public_css_dest | "../dist/{portal}/public/css"
+
+    css_copied | 0
+
+    if :file_exists(theme_css_src)
+        :create_dir!(public_css_dest)
+
+        for css_file in :walk(theme_css_src, "**/*.css")
+            filename | :basename(css_file)
+            dest     | "{public_css_dest}/{filename}"
+            :copy_file!(css_file, dest)
+            :update!(css_copied, css_copied + 1)
+        xx
+
+        :say("STAGEHAND: Copied {css_copied} CSS files from theme '{theme_name}'")
+    else
+        :say("STAGEHAND: No CSS directory found for theme '{theme_name}' at {theme_css_src}")
+    xx
+
+    /// ----- 3) Copy portal public/ → dist/{portal}/public -----
+    public_src  | "../site/portals/{portal}/public"
+    public_dest | "../dist/{portal}/public"
+
+    assets_copied | 0
+
+    if :file_exists(public_src)
+        :create_dir!(public_dest)
+
+        for asset in :walk(public_src, "**/*.*")
+            rel_path | :path_relative_to(asset, public_src)
+            dir      | :dirname(rel_path)
+            dest     | "{public_dest}/{rel_path}"
+
+            if dir != ""
+                dest_dir | "{public_dest}/{dir}"
+                if :file_exists(dest_dir) == false
+                    :create_dir!(dest_dir)
+                xx
+            xx
+
+            :copy_file!(asset, dest)
+            :update!(assets_copied, assets_copied + 1)
+        xx
+
+        :say("STAGEHAND: Copied {assets_copied} public assets")
+    else
+        :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
+    xx
+
+    return pre_ctx
+xx
+
+/// ----------------------------------------------------------------------
+/// Helper: given ["BRINDLE::LOGO", "BADGE::VERSION"]
+/// return a single string:
+///   "{{{BRINDLE::LOGO}}}{{{BADGE::VERSION}}}"
+/// Raw braces so Goblin doesn't eat them at parse-time.
+/// ----------------------------------------------------------------------
+act build_slot_value(slot_tokens)
+    if slot_tokens.nix?
+        return ""
+    xx
+
+    value | ""
+
+    for tok in slot_tokens
+        open  | raw "{{{"
+        close | raw "}}}"
+        :update!(value, value ++ open + tok + close)
+    xx
+
+    return value
+xx
+
+/// ----------------------------------------------------------------------
+/// Wire layout slots → SLOT::* tokens for the current page/layout.
+/// 1. Read ../site/portals/{portal}/templates.yall
+/// 2. Look up layouts[layout_name].slots
+/// 3. For each slot_name in that map:
+///      - Build "{{{MOD::TOKEN}}}..." string
+///      - register_token("SLOT", slot_name, that_string)
+/// 4. Apply SLOT tokens into the current HTML via resolve_token(body)
+///    (module tokens remain for their own apply_tokens steps).
+/// ----------------------------------------------------------------------
+act wire_slots(ctx)
+    portal | ctx["portal"]
+    fm     | ctx["frontmatter"]
+    body   | ctx["body"]
+
+    if portal.nix? or body.nix?
+        return ctx
+    xx
+
+    /// 1) Determine layout name (default "docs")
+    layout_name | "docs"
+    if !fm.nix? and !fm["layout"].nix?
+        :update!(layout_name, :trim("" + fm["layout"]))
+    xx
+
+    /// 2) Load templates.yall and locate slots for this layout
+    templates_path | "../site/portals/{portal}/templates.yall"
+    if :file_exists(templates_path) == false
+        return ctx
+    xx
+
+    templates | :yall_parse_file(templates_path)
+    if templates.nix? or templates["layouts"].nix?
+        return ctx
+    xx
+
+    layouts_cfg | templates["layouts"]
+    if layouts_cfg[layout_name].nix? or layouts_cfg[layout_name]["slots"].nix?
+        return ctx
+    xx
+
+    slots_cfg | layouts_cfg[layout_name]["slots"]
+
+    /// 3) For each slot [name, tokens], build the raw token string
+    ///    and register SLOT::slot_name = "{{{MOD::TOKEN}}}..."
+    for pair in slots_cfg
+        slot_name   | pair[0]
+        slot_tokens | pair[1]
+
+        slot_value  | build_slot_value(slot_tokens)
+        register_token("SLOT", "" + slot_name, slot_value)
+    xx
+
+    /// 4) Apply SLOT tokens into the layout HTML.
+    ///    At this point, SLOT tokens expand to raw {{{MOD::TOKEN}}}
+    ///    strings; those module tokens get resolved later by their
+    ///    own apply_tokens() steps.
+    rendered | resolve_token(body)
+    :update!(ctx["body"], rendered)
+
+    return ctx
+xx

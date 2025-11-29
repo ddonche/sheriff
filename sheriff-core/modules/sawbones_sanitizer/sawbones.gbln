@@ -1,0 +1,236 @@
+/// modules/sawbones_sanitizer/sawbones.gbln
+/// Text cleanup utilities for Sheriff / markdown / previews.
+
+/// ----------------------------------------------------------------------
+/// LOW-LEVEL BLADES
+/// ----------------------------------------------------------------------
+
+/// Strip U+FFFD replacement chars (65533).
+act sb_strip_invalid_utf8(text)
+  :ignore_where(text, "\u{FFFD}")
+end
+
+/// Strip C0 control chars except TAB(9), LF(10), CR(13).
+act sb_strip_control_chars(text)
+  chars | []
+  for ch in text
+    code | :ord(ch)
+    keep | code == 9 or code == 10 or code == 13 or code >= 32
+    if keep
+      put_last!(chars, ch)
+    end
+  end
+  :join(chars, "")
+end
+
+/// Strip various zero-width / BOM-ish characters.
+act sb_strip_zero_width(text)
+  t | text
+  t | :ignore_where(t, "\u{FEFF}")   /// BOM / ZWNBSP
+  t | :ignore_where(t, "\u{200B}")   /// ZERO WIDTH SPACE
+  t | :ignore_where(t, "\u{200C}")   /// ZERO WIDTH NON-JOINER
+  t | :ignore_where(t, "\u{200D}")   /// ZERO WIDTH JOINER
+  t | :ignore_where(t, "\u{2060}")   /// WORD JOINER
+  t | :ignore_where(t, "\u{180E}")   /// MONGOLIAN VOWEL SEPARATOR
+  t
+end
+
+/// Strip emoji ranges.
+act sb_strip_emoji(text)
+  t | text
+  /// Emoji: 0x1F300–0x1FAFF
+  t | :ignore_matching(t, "[\u{1F300}-\u{1FAFF}]", nil)
+  /// Dingbats/symbols: 0x2600–0x27BF
+  t | :ignore_matching(t, "[\u{2600}-\u{27BF}]", nil)
+  t
+end
+
+/// Strip any non-ASCII (keep 0–127).
+act sb_strip_non_ascii(text)
+  :ignore_matching(text, "[^\x00-\x7F]", nil)
+end
+
+/// ----------------------------------------------------------------------
+/// NORMALIZATION UTILITIES
+/// ----------------------------------------------------------------------
+
+/// Normalize newlines via core builtin.
+act sb_normalize_newlines(text)
+  :normalize_newlines(text)
+end
+
+/// Collapse 2+ blank lines into single blank line.
+act sb_collapse_blank_lines(text)
+  chars        | []
+  blank_run    | 0
+  current_line | []
+
+  for ch in text
+    if ch == "\n"
+      line_str | :join(current_line, "")
+      trimmed | :minimize(line_str)
+      if trimmed == ""
+        blank_run | blank_run + 1
+      else
+        blank_run | 0
+      end
+
+      if blank_run <= 1
+        put_last!(chars, line_str)
+        put_last!(chars, "\n")
+      end
+
+      current_line | []
+    else
+      put_last!(current_line, ch)
+    end
+  end
+
+  if :len(current_line) > 0
+    line_str | :join(current_line, "")
+    trimmed | :minimize(line_str)
+    if trimmed != ""
+      put_last!(chars, line_str)
+    else
+      if blank_run == 0
+        put_last!(chars, line_str)
+      end
+    end
+  end
+
+  :join(chars, "")
+end
+
+/// Normalize spaces: collapse runs to single space, preserve newlines.
+act sb_normalize_spaces(text)
+  chars    | []
+  in_space | false
+
+  for ch in text
+    if ch == " " or ch == "\t"
+      if not in_space
+        put_last!(chars, " ")
+        in_space | true
+      end
+    else
+      put_last!(chars, ch)
+      in_space | false
+    end
+  end
+
+  :join(chars, "")
+end
+
+/// Strip leading BOM using core builtin.
+act sb_remove_bom(text)
+  :sanitize_bom(text)
+end
+
+/// Expand tabs to spaces.
+act sb_fix_tabs(text, tabsize)
+  chars | []
+  col | 0
+
+  for ch in text
+    if ch == "\n" or ch == "\r"
+      put_last!(chars, ch)
+      col | 0
+      skip
+    end
+
+    if ch == "\t"
+      if tabsize <= 0
+        put_last!(chars, " ")
+        col | col + 1
+      else
+        next_stop | ((col / tabsize) + 1) * tabsize
+        needed    | next_stop - col
+        /// Add 'needed' spaces
+        spaces | :repeat(" ", needed)
+        for space_ch in spaces
+          put_last!(chars, space_ch)
+        end
+        col | next_stop
+      end
+    else
+      put_last!(chars, ch)
+      col | col + 1
+    end
+  end
+
+  :join(chars, "")
+end
+
+/// ----------------------------------------------------------------------
+/// CORE SANITIZERS / PIPELINES
+/// ----------------------------------------------------------------------
+
+/// UTF-8 sanity: BOM → invalid → control → zero-width.
+act sb_sanitize_utf8(text)
+  t | text
+  t | sb_remove_bom(t)
+  t | sb_strip_invalid_utf8(t)
+  t | sb_strip_control_chars(t)
+  t | sb_strip_zero_width(t)
+  t
+end
+
+/// Markdown sanitizer: utf8 → newlines → blank lines → spaces.
+act sb_sanitize_markdown(text)
+  t | text
+  t | sb_sanitize_utf8(t)
+  t | sb_normalize_newlines(t)
+  t | sb_collapse_blank_lines(t)
+  t | sb_normalize_spaces(t)
+  t
+end
+
+/// Markdown sanitizer without emoji.
+act sb_sanitize_markdown_no_emoji(text)
+  t | sb_sanitize_markdown(text)
+  t | sb_strip_emoji(t)
+  t
+end
+
+/// ASCII-only sanitizer.
+act sb_sanitize_ascii(text)
+  t | text
+  t | sb_sanitize_utf8(t)
+  t | sb_normalize_newlines(t)
+  t | sb_strip_non_ascii(t)
+  t | sb_collapse_blank_lines(t)
+  t | sb_normalize_spaces(t)
+  t
+end
+
+/// Preview sanitizer: markdown + length cap.
+act sb_sanitize_preview(text, max_chars)
+  t | sb_sanitize_markdown(text)
+
+  if max_chars <= 0
+    return t
+  end
+
+  chars | []
+  for ch in t
+    if :len(chars) >= max_chars
+      stop
+    end
+    put_last!(chars, ch)
+  end
+
+  :join(chars, "")
+end
+
+/// Pipeline adapter: ctx -> ctx, for ctx["body"].
+act sanitize_body(ctx)
+  body | ctx["body"]
+  if body.nix?
+    return ctx
+  end
+
+  clean | sb_sanitize_markdown(body)
+
+  ctx | :update_at!(ctx, "body", clean)
+  ctx
+end

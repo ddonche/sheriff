@@ -1,8 +1,7 @@
 ^^^^
 title: Home
-slug: index
-aliases: []
-hidden: false
+layout: home
+summary: Sheriff is a static site generator written in the Goblin programming language.
 ^^^^
 
 # Welcome to Sheriff

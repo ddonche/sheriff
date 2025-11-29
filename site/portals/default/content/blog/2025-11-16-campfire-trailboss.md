@@ -1,9 +1,7 @@
 ^^^^
 title: Sheriff 0.8.0 – Campfire & Trailboss
-date: 2025-11-16
-description: Testing the new Campfire blog module.
-author: Dan Donche
-author_slug: dan-donche
+layout: blog
+summary: How Campfire and Trailboss modules work in Sheriff.
 ^^^^
 
 # Sheriff 0.8.0 – Campfire & Trailboss

@@ -1,8 +1,7 @@
 ^^^^
 title: Judge
-slug: judge
-aliases: []
-hidden: false
+layout: docs
+summary: Judge is more than just case switching and pattern matching. 
 ^^^^
 
 # Goblin Decision Constructs

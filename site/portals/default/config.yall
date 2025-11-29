@@ -2,7 +2,7 @@
 
 id: default
 name: "Sheriff"
-version: "0.9.4"
+version: "0.11.0"
 
 repo:
   url: "https://github.com/ddonche/sheriff"
@@ -11,22 +11,11 @@ repo:
   forks: "0"
 
 theme:
-  engine: "brindle-themes"   # which module handles theming
-  name: "OBSIDIAN"
+  name: "outpost"
   brand_name: "SHERIFF"
-  logo: "/logo.png"
-  favicon: "/favicon.ico"
+  logo: "logo.png"
+  favicon: "favicon.ico"
   overrides: {}
-
-modules:
-  # Modules this portal intends to use
-  - "markdown-core"
-  - "trailboss-wiki"
-  - "scout-nav"
-  - "campfire-blog"
-  - "brindle-themes"
-  - "badge-labels"
-  - "tumbleweed-glossary"
 
 routing:
   dist_root: "default"       # -> dist/default/...

@@ -14,10 +14,8 @@ import modules/trailboss_wiki/routes_json as rjson
 ///   - markdown_core::render
 ///   - trailboss::process_wikilinks
 act build_routes_once(ctx)
-    portal | ctx["portal"]
-    if portal == nil or portal == ""
-        return ctx
-    xx
+    portal | pre_ctx["portal"]
+    if portal.nix? => return ctx
 
     rjson::build_routes_json_for_portal(portal)
     return ctx
@@ -29,87 +27,54 @@ xx
 
 /// routes is an ARRAY of metadata objects; find the first with matching slug.
 act find_route_meta(routes, slug)
-    if routes == nil
-        return nil
-    xx
+    if routes.nix? => return nil
 
     for meta in routes
-        if meta["slug"] == slug
-            return meta
-        xx
+        if meta["slug"] == slug => return meta
     xx
 
     return nil
 xx
 
 act find_href_for_slug(ctx, portal, slug)
-    if slug == nil or slug == ""
-        if portal == nil or portal == ""
-            return "/index.html"
-        xx
+    /// Fallback pattern used throughout
+    fallback | ""
+    if portal.nix?
+        fallback |= "/{slug}.html"
+    else
+        fallback |= "/{portal}/{slug}.html"
+    xx
+    
+    if slug.nix?
+        if portal.nix? => return "/index.html"
         return "/{portal}/index.html"
     xx
-
-    /// ctx["path"] ALWAYS exists in Sheriff main.gbln
+    
     src | ctx["path"]
-
-    if src == nil or src == ""
-        /// nuclear fallback
-        if portal == nil or portal == ""
-            return "/{slug}.html"
-        xx
-        return "/{portal}/{slug}.html"
-    xx
-
+    if src.nix? => return fallback
+    
     /// Derive portal root from ctx["path"]
-    /// "../site/portals/default/content/docs/foo.md"
-    ///   → "../site/portals/default"
     portal_root | :keep_before(src, "/content/")
-    if portal_root == ""
-        /// fallback to portal-based root
-        portal_root |= "../site/portals/{portal}"
-    xx
-
+    if portal_root.nix? => portal_root |= "../site/portals/{portal}"
+    
     routes_path | "{portal_root}/routes.json"
-
-    if :file_exists(routes_path) == false
-        /// No routes; fallback
-        if portal == nil or portal == ""
-            return "/{slug}.html"
-        xx
-        return "/{portal}/{slug}.html"
-    xx
-
-    /// SAFE NOW: read_json won't throw
+    if :file_exists(routes_path) == false => return fallback
+    
     parsed | :read_json(routes_path)
     routes | parsed["routes"]
-
-    if routes == nil
-        if portal == nil or portal == ""
-            return "/{slug}.html"
-        xx
-        return "/{portal}/{slug}.html"
-    xx
-
+    if routes.nix? => return fallback
+    
     for meta in routes
-        if meta == nil
-            skip
-        xx
-
+        if meta.nix? => skip
         if meta["slug"] == slug
             href_abs | meta["href"]
-            if href_abs == nil or href_abs == ""
-                href_abs |= "/{portal}/{slug}.html"
-            xx
+            if href_abs.nix? => href_abs |= "/{portal}/{slug}.html"
             return href_abs
         xx
     xx
-
+    
     /// No match → fallback
-    if portal == nil or portal == ""
-        return "/{slug}.html"
-    xx
-    return "/{portal}/{slug}.html"
+    return fallback
 xx
 
 /// Small helper to build the final <a> tag.
@@ -119,9 +84,7 @@ act build_wikilink_html(href, label, is_external)
     :put_last!(html_parts, href)
     :put_last!(html_parts, "\">")
     :put_last!(html_parts, label)
-    if is_external
-        :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
-    xx
+    if is_external => :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
     :put_last!(html_parts, "</a>")
     return :pack(html_parts)
 xx
@@ -143,37 +106,28 @@ xx
 ///   [[u/janden]]
 ///   [[u/janden | Janden, Keeper of Goblins]]
 act resolve_wikilink(inner, ctx, portal)
-    if inner == nil
-        return ""
-    xx
+    if inner.nix? => return ""
 
     text | :trim(inner)
-    if text == ""
-        return ""
-    xx
+    if text.nix? => return ""
 
-    /// Extract content between [[ and ]]
     core | :keep_between(text, "[[", "]]")
-    if core == ""
-        core |= text
-    xx
+    if core.nix? => core |= text
 
     inner_text | :trim(core)
-    if inner_text == ""
-        return ""
-    xx
+    if inner_text.nix? => return ""
 
-    /// Split only if a pipe exists
+    /// Split only if a pipe actually exists.
     before_pipe | :keep_before(inner_text, "|")
+    after_pipe  | :keep_after(inner_text, "|")
 
     judge
-        /// if no pipe → keep_before returns original string
-        before_pipe == inner_text:
+        before_pipe.nix? and after_pipe.is_nix?:
             target_raw | inner_text
             label_raw  | ""
         else:
             target_raw | :trim(before_pipe)
-            label_raw  | :trim(:keep_after(inner_text, "|"))
+            label_raw  | :trim(after_pipe)
     xx
 
     lower_target | :lower(target_raw)
@@ -182,32 +136,20 @@ act resolve_wikilink(inner, ctx, portal)
     is_user      | :starts_with(target_raw, "u/")
 
     judge
-        /// --------------------------------------------------------------
-        /// External: [[https://example.com]] or [[https://example.com | Label]]
-        /// --------------------------------------------------------------
         is_external:
             href  | target_raw
             label | label_raw
-            if label == ""
-                label |= target_raw
-            xx
+            if label.nix? => label |= target_raw
             return build_wikilink_html(href, label, true)
 
-        /// --------------------------------------------------------------
-        /// Portal link: [[p/portal/slug]] or [[p/portal/slug#anchor | Label]]
-        /// --------------------------------------------------------------
         is_portal:
-            /// target_raw = "p/portal/slug"
             portal_name | :keep_between(target_raw, "p/", "/")
-            
             rest | :keep_after(target_raw, "p/{portal_name}/")
 
-            if portal_name == "" or rest == ""
+            if portal_name.nix? or rest.nix?
                 href  | "#"
                 label | label_raw
-                if label == ""
-                    label |= target_raw
-                xx
+                if label.nix? => label |= target_raw
                 return build_wikilink_html(href, label, false)
             xx
 
@@ -217,89 +159,57 @@ act resolve_wikilink(inner, ctx, portal)
             page   | :trim(:keep_before(rest, "#"))
             anchor | :trim(:keep_after(rest, "#"))
 
-            if page == ""
-                page |= rest
-            xx
+            if page.nix? => page |= rest
 
             slug | page
             slug |= :lower(slug)
-
             :update_where!(slug, " ", "-")
             :update_where!(slug, "_", "-")
 
-            /// -----------------------------------------------------
-            /// DEFINE HREF BEFORE BRANCHES  (THIS FIXES THE ERROR)
-            /// -----------------------------------------------------
             href | ""
 
             if portal_exists
                 :update!(href, find_href_for_slug(ctx, portal_name, slug))
-                if anchor !== ""
-                    :update!(href, "{href}#{anchor}")
-                xx
+                if !anchor.nix? => :update!(href, "{href}#{anchor}")
             else
                 :update!(href, "/p/{portal_name}/{slug}.html")
-                if anchor !== ""
-                    :update!(href, "{href}#{anchor}")
-                xx
+                if !anchor.nix? => :update!(href, "{href}#{anchor}")
             xx
 
             label | label_raw
-            if label == ""
-                :update!(label, target_raw)
-            xx
+            if label.nix? => :update!(label, target_raw)
 
             return build_wikilink_html(href, label, false)
 
-        /// --------------------------------------------------------------
-        /// User link: [[u/janden]] or [[u/janden | Custom Text]]
-        /// --------------------------------------------------------------
         is_user:
             username | :keep_after(target_raw, "u/")
-            if username == ""
-                /// Malformed user link → show raw text
+            if username.nix?
                 href  | "#"
                 label | label_raw
-                if label == ""
-                    label |= target_raw
-                xx
+                if label.nix? => label |= target_raw
                 return build_wikilink_html(href, label, false)
             xx
 
-            /// TODO: adjust to real user URL scheme later
             href | "/users/{username}"
-
             label | label_raw
-            if label == ""
-                label |= "@" + username
-            xx
+            if label.nix? => label |= "@" + username
 
             return build_wikilink_html(href, label, false)
 
-        /// --------------------------------------------------------------
-        /// Plain internal: [[Page Name]] or [[Page Name#Section | Label]]
-        /// --------------------------------------------------------------
         else:
             page   | :trim(:keep_before(target_raw, "#"))
             anchor | :trim(:keep_after(target_raw, "#"))
 
-            if page == ""
-                page |= target_raw
-            xx
+            if page.nix? => page |= target_raw
 
             slug | :lower(page)
             :update_where!(slug, " ", "-")
             :update_where!(slug, "_", "-")
 
             href | find_href_for_slug(ctx, portal, slug)
-            if anchor !== ""
-                href |= "{href}#{anchor}"
-            xx
+            if !anchor.nix? => href |= "{href}#{anchor}"
 
-            label | label_raw
-            if label == ""
-                label |= page
-            xx
+            label | inner_text
 
             return build_wikilink_html(href, label, false)
     xx
@@ -313,23 +223,15 @@ act process_wikilinks(ctx)
     body   | ctx["body"]
     portal | ctx["portal"]
 
-    if body == nil or body == ""
-        return ctx
-    xx
-
-    if portal == nil or portal == ""
-        /// No portal context → don't try wiki routing here.
-        return ctx
-    xx
+    if body.nix? => return ctx
+    if portal.nix? => return ctx
 
     result | body
 
     sweep body
         "[[" ... "]]":
             repl | resolve_wikilink(self, ctx, portal)
-            if repl !== ""
-                :update_where!(result, self, repl)
-            xx
+            if !repl.nix? => :update_where!(result, self, repl)
     xx
 
     :update!(ctx["body"], result)

@@ -1,1 +1,114 @@
-///badge
+/// modules/badge_labels/badge.gbln
+/// Badge module — publishes BADGE::VERSION and BADGE::REPO
+/// Reads from ../site/portals/{portal}/config.yall ONLY.
+
+/// Load portal config (or nil if missing)
+act load_cfg(portal)
+    path | "../site/portals/{portal}/config.yall"
+    if :file_exists(path) == false
+        return nil
+    xx
+    return :yall_parse_file(path)
+xx
+
+/// Extract version: if missing OR empty → return "".
+act extract_version(cfg)
+    if cfg.nix? => return ""
+    v | cfg["version"]
+    if v.nix? => return ""
+    t | :trim("" + v)
+    if t == "" => return ""
+    return t
+xx
+
+/// Extract repo object: if missing → return nil.
+act extract_repo(cfg)
+    if cfg.nix? => return nil
+    repo | cfg["repo"]
+    if repo.nix? => return nil
+    return repo
+xx
+
+/// Build the HTML for BADGE::REPO — matches sheriff-dark.css + React header
+act build_repo_badge(repo, ver)
+    url   | "" + repo["url"]
+    name  | "" + repo["name"]
+    stars | "" + repo["stars"]
+    forks | "" + repo["forks"]
+
+    return """
+<a href="{url}" class="sheriff-github-badge">
+  <svg class="sheriff-github-icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.563 21.796 24 17.298 24 12c0-6.627-5.373-12-12-12z"/>
+  </svg>
+  <div class="sheriff-github-info">
+    <div class="sheriff-github-repo">{name}</div>
+    <div class="sheriff-github-stats">
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        {ver}
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        {stars}
+      </div>
+      <div class="sheriff-github-stat">
+        <svg class="sheriff-github-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="18" cy="6" r="3"/>
+          <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+          <path d="M12 12v3"/>
+        </svg>
+        {forks}
+      </div>
+    </div>
+  </div>
+</a>
+"""
+xx
+
+/// MAIN ENTRY
+act apply_tokens(ctx)
+    portal | ctx["portal"]
+    body   | ctx["body"]
+
+    /// If no portal or no body, nothing to do
+    if portal.nix? or body.nix? => return ctx
+
+    cfg  | load_cfg(portal)
+    ver  | extract_version(cfg)
+    repo | extract_repo(cfg)
+
+    /// -------------------------
+    /// BADGE::VERSION
+    /// -------------------------
+    if ver == ""
+        register_token("BADGE", "VERSION", "")
+    else
+        /// match .sheriff-version-badge in CSS
+        html_v | "<span class=\"sheriff-version-badge\">" + ver + "</span>"
+        register_token("BADGE", "VERSION", html_v)
+    xx
+
+    /// -------------------------
+    /// BADGE::REPO
+    /// -------------------------
+    if repo.nix?
+        register_token("BADGE", "REPO", "")
+    else
+        html_r | build_repo_badge(repo, ver)
+        register_token("BADGE", "REPO", html_r)
+    xx
+
+    /// Apply BADGE tokens into the HTML
+    rendered | :resolve_token(body)
+    :update!(ctx["body"], rendered)
+
+    return ctx
+xx

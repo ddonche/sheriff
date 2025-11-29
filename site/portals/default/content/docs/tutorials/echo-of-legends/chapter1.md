@@ -1,8 +1,7 @@
 ^^^^
 title: Chapter 1
-slug: chapter-one
-aliases: []
-hidden: false
+layout: docs
+summary: Generate a hero with a name, class, and stats using dice roll notation, then print them to the screen.
 ^^^^
 
 # Chapter 1: Your First Hero

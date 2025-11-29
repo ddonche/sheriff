@@ -1,11 +1,21 @@
 ^^^^
-title: "Changelog"
+title: Changelog
+layout: docs
+summary: A list of changes from each version of Sheriff. 
 ^^^^
 
 # Changelog
+## v0.11.0
+- Implemented [[Prospector (module)|Prospector]] search module. 
+
+## v0.10.0
+- Everything in new Sheriff working up to the individual modules replacing their tokens. 
+- Routes created, wikilinks work, markdown converts, layouts and slots work. 
+
 ## v0.9.5
 - Complete overhaul of Sheriff Architecture to using Goblin summoning magic.
 - Standardized wikilinks appear as [[p/sheriff/changelog]] or with custom text.
+- Began Brindle processing layouts and frontmatter extraction.
 
 ## v0.8.4
 - refactored module directory names

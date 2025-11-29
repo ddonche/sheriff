@@ -1,3 +1,9 @@
+^^^^
+title: Provoke
+layout: docs
+summary: Provoke is Goblin's validation mechanism for enforcing constraints and requirements in your code.
+^^^^
+
 # Provoke: Validation in Goblin
 
 Provoke is Goblin's validation mechanism for enforcing constraints and requirements in your code. It comes in three forms: inline statement, block statement, and function call.

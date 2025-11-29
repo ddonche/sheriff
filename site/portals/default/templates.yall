@@ -1,0 +1,114 @@
+layouts:
+  docs:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+      HEADER_NAV:
+        - "SCOUT::DOCS_NAV"
+
+      LEFT_NAV:
+        - "SCOUT::DOCS_TREE"
+      SIDEBAR_TOP:
+        - "SCOUT::BREADCRUMBS"
+      SIDEBAR_MAIN:
+        - "SCOUT::TOC"
+      FOOTER:
+        - "SITE::FOOTER"
+
+  blog:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+      HEADER_NAV:
+        - "SCOUT::MAIN_NAV"
+
+      LEFT_NAV: []
+      SIDEBAR_TOP: []
+      SIDEBAR_MAIN:
+        - "CAMPFIRE::RECENT_POSTS"
+      FOOTER:
+        - "SITE::FOOTER"
+
+  blog_index:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+      HEADER_NAV:
+        - "SCOUT::MAIN_NAV"
+
+      LEFT_NAV: []
+      SIDEBAR_TOP: []
+      SIDEBAR_MAIN:
+        - "CAMPFIRE::BLOG_LIST"
+      FOOTER:
+        - "SITE::FOOTER"
+
+  home:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+      HEADER_NAV:
+        - "SCOUT::MAIN_NAV"
+
+      LEFT_NAV: []
+      SIDEBAR_TOP: []
+      SIDEBAR_MAIN:
+        - "SITE::HOME_INTRO"
+      FOOTER:
+        - "SITE::FOOTER"

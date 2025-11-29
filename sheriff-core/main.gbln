@@ -3,28 +3,47 @@ import "../site/portals/default/manifest.imports"
 
 /// Load events.yall into a map via Y'all
 act load_events(portal)
-    path | "../site/portals/" + portal + "/events.yall"
+    path | "../site/portals/{portal}/events.yall"
     return :yall_parse_file(path)
+xx
+
+act create_all_dirs(path)
+    /// Ensure all directories in the path exist
+    slash_positions | :find_all(path, "/")
+    for slash_pos in slash_positions
+        dir_part | path[0:slash_pos]
+        if dir_part != "" and :file_exists(dir_part) == false
+            :create_dir!(dir_part)
+        xx
+    xx
 xx
 
 /// MAIN BUILD FUNCTION
 act build(portal)
-    :say("Building portal: " + portal)
+    :say("Building portal: {portal}")
     
-    cfg | load_events(portal)
+    cfg      | load_events(portal)
     schedule | cfg["schedule"]   /// Array of action names
     
-    content_root | "../site/portals/" + portal + "/content"
-    md_files | []
+    content_root | "../site/portals/{portal}/content"
+    md_files     | []
     
     for f in :walk(content_root, "**/*.md")
         :put_last!(md_files, f)
+    xx
+
+    /// Run pre-build schedule once
+    pre_schedule | cfg["pre"]
+    if !pre_schedule.nix?
+        pre_ctx | {
+            "portal": portal
+        }
+        :summon(pre_ctx, pre_schedule)
     xx
     
     for md_path in md_files
         raw | :read_text(md_path)
         
-        /// INITIAL CTX
         ctx | {
             "body": raw,
             "frontmatter": nil,
@@ -33,25 +52,19 @@ act build(portal)
             "portal": portal
         }
                 
-        /// PROVOKE: Thread ctx through the schedule
         ctx |= :summon(ctx, schedule)
         
-        stem | :stem(md_path)
-        out_dir | "../dist/" + portal
-        out_file | out_dir + "/" + stem + ".html"
+        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
+        dir      | :dirname(rel_path)                         /// "docs"
+        base     | :stem(rel_path)                            /// "judge"
+        out_file | "../dist/{portal}/{dir}/{base}.html"      /// "../dist/default/docs/judge.html"
         
-        :write_text!(
-            out_file,
-            "<!doctype html>\n<html><head>" +
-            "<meta charset=\"utf-8\" />" +
-            "<title>" + stem + "</title>" +
-            "</head><body>\n" +
-            ctx["body"] + "\n</body></html>"
-        )
+        create_all_dirs(out_file)
         
+        :write_text!(out_file, ctx["body"])
     xx
     
-    :say("Portal build finished: " + portal)
+    :say("Portal build finished: {portal}")
 xx
 
 build("default")

@@ -1,0 +1,8 @@
+/// modules/debug_body/debug_body.gbln
+act log_body(ctx)
+    body | ctx["body"]
+    say "DEBUG BODY START"
+    say body
+    say "DEBUG BODY END"
+    return ctx
+xx

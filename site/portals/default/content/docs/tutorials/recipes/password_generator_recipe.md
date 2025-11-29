@@ -1,8 +1,7 @@
 ^^^^
 title: Goblin Password Generator Recipe
-slug: password-generator-recipe
-aliases: []
-hidden: false
+layout: docs
+summary: This recipe shows how to generate secure, randomized passwords using Goblin's powerful features.
 ^^^^
 
 # Goblin Password Generator Recipe
