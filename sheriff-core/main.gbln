@@ -1,5 +1,5 @@
 /// sheriff-core/main.gbln
-import "../site/portals/default/manifest.imports"
+import "../site/portals/sheriff/manifest.imports"
 
 /// Load events.yall into a map via Y'all
 act load_events(portal)
@@ -20,51 +20,91 @@ xx
 
 /// MAIN BUILD FUNCTION
 act build(portal)
-    :say("Building portal: {portal}")
-    
+    :say("Building portal:")
+    :say(portal)
+
     cfg      | load_events(portal)
     schedule | cfg["schedule"]   /// Array of action names
-    
+
     content_root | "../site/portals/{portal}/content"
     md_files     | []
-    
+
     for f in :walk(content_root, "**/*.md")
         :put_last!(md_files, f)
     xx
 
-    /// Run pre-build schedule once
+    /// Run pre-build schedule once (manual step-through mode)
     pre_schedule | cfg["pre"]
     if !pre_schedule.nix?
         pre_ctx | {
             "portal": portal
         }
-        :summon(pre_ctx, pre_schedule)
+
+        :say("=== PRE-SCHEDULE START ===")
+        :say("INITIAL pre_ctx:")
+        :say(pre_ctx)
+
+        for act_name in pre_schedule
+            :say("---- RUNNING PRE ACT ----")
+            :say(act_name)
+
+            /// Run exactly ONE action via summon
+            :say("SUMMON received pre_ctx type:")
+            :say(valtype(pre_ctx))
+
+            ret | :summon(pre_ctx, [act_name])
+
+            :say("Returned value:")
+            :say(ret)
+
+            :say("Is NIL?")
+            :say(ret.nix?)
+
+            if ret.nix?
+                :say("!!!! THIS ACT RETURNED NIL !!!!")
+                :say(act_name)
+                /// Keep old pre_ctx
+            else
+                pre_ctx | ret
+            xx
+
+            :say("Current pre_ctx after this act:")
+            :say(pre_ctx)
+        xx
+
+        :say("=== PRE-SCHEDULE END ===")
     xx
-    
+
+    /// BUILD EACH MARKDOWN FILE
     for md_path in md_files
         raw | :read_text(md_path)
-        
+
         ctx | {
             "body": raw,
-            "frontmatter": nil,
+            "frontmatter": {}, 
             "tokens": {},
             "path": md_path,
             "portal": portal
         }
-                
+
+        :say("=== BEFORE SUMMON ===")
+        :say("SUMMON received ctx type:")
+        :say(valtype(ctx))
         ctx |= :summon(ctx, schedule)
-        
+
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
-        dir      | :dirname(rel_path)                         /// "docs"
-        base     | :stem(rel_path)                            /// "judge"
-        out_file | "../dist/{portal}/{dir}/{base}.html"      /// "../dist/default/docs/judge.html"
-        
+        dir      | :dirname(rel_path)                        /// "docs"
+        base     | :stem(rel_path)                           /// "judge"
+        out_file | "../dist/{portal}/{dir}/{base}.html"      
+
         create_all_dirs(out_file)
-        
+        :say("RETURNING FROM MAIN ACTION:")
+        :say(ctx["body"])
         :write_text!(out_file, ctx["body"])
     xx
-    
-    :say("Portal build finished: {portal}")
+
+    :say("Portal build finished:")
+    :say(portal)
 xx
 
-build("default")
+build("sheriff")

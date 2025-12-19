@@ -1,62 +1,97 @@
 /// modules/trailboss_wiki/routes_json.gbln
-/// Build + load JSON routes for a portal.
-/// JSON shape (per portal):
-/// {
-///   "portal": "default",
-///   "routes": [
-///     {
-///       "slug":      "password-generator-recipe",
-///       "href":      "/default/docs/tutorials/recipes/password_generator_recipe.html",
-///       "title":     "Password Generator Recipe",
-///       "aliases":   [],
-///       "canonical": "[[p/default/password-generator-recipe]]"
-///     },
-///     ...
-///   ]
-/// }
+/// Build + load JSON routes for a portal (config.yall).
+///
+/// routing.dist_root -> output directory name (filesystem)
+/// routing.url_root  -> url prefix used in hrefs (web path)
+///
+/// href rule:
+/// - url_root == "" or nil => "/{rel_no_ext}.html"
+/// - else                  => "/{url_root}/{rel_no_ext}.html"
+///
+/// canonical stays:
+///   [[p/{portal}/{slug}]]
+
+act load_cfg(portal)
+    path | "../site/portals/{portal}/config.yall"
+    if :file_exists(path) == false
+        return nil
+    xx
+    return :yall_parse_file(path)
+xx
+
+act get_routing_map(cfg)
+    if cfg.nix? => return nil
+    if :valtype(cfg) != "map" => return nil
+
+    routing | cfg["routing"]
+    if routing.nix? => return nil
+    if :valtype(routing) != "map" => return nil
+
+    return routing
+xx
+
+act get_url_root(cfg)
+    routing | get_routing_map(cfg)
+    if routing.nix? => return ""
+
+    url_root | routing["url_root"]
+    if url_root.nix?
+        return ""
+    xx
+
+    t | :trim("" + url_root)
+    if t == "" => return ""
+
+    return t
+xx
+
+act build_href(url_root, rel_no_ext)
+    if rel_no_ext.nix? or rel_no_ext == ""
+        return "/index.html"
+    xx
+
+    if url_root.nix? or url_root == ""
+        return "/{rel_no_ext}.html"
+    xx
+
+    return "/{url_root}/{rel_no_ext}.html"
+xx
 
 act build_routes_json_for_portal(portal)
     content_root | "../site/portals/{portal}/content"
     routes_path  | "../site/portals/{portal}/routes.json"
 
+    cfg      | load_cfg(portal)
+    url_root | get_url_root(cfg)
+
     files  | :walk(content_root, "**/*.md")
     routes | []
 
     for src in files
-        /// Example:
-        ///   ../site/portals/default/content/docs/tutorials/recipes/password_generator_recipe.md
+        stem_name | :stem(src)
 
-        stem_name | :stem(src)   /// "password_generator_recipe"
-
-        /// Slug: lowercase, spaces/underscores → hyphens
         slug | :lower(stem_name)
         :update_where!(slug, " ", "-")
         :update_where!(slug, "_", "-")
 
-        /// Relative path under the portal (docs/... or blog/...)
         prefix | "../site/portals/{portal}/content/"
         rel    | :keep_after(src, prefix)
         if rel == ""
-            /// Fallback: just use stem_name at root
             rel |= "{stem_name}.md"
         xx
 
-        rel_no_ext | rel
-        if :ends_with(rel_no_ext, ".md")
-            rel_no_ext |= :ignore_where(rel_no_ext, ".md")
+        rel_no_ext | :keep_before(rel, ".md")
+        if rel_no_ext == ""
+            rel_no_ext |= rel
         xx
 
-        /// Absolute site-root href for this page
-        href_abs | "/{portal}/{rel_no_ext}.html"
+        href_abs | build_href(url_root, rel_no_ext)
 
-        /// Human-friendly title from stem_name
         title_src | stem_name
         :update_where!(title_src, "_", " ")
         :update_where!(title_src, "-", " ")
         page_title | :title(title_src)
 
-        /// Canonical wikilink – Sheriff/Iveki identity:
-        /// global, portal + slug: [[p/portal/slug]]
         canonical | "[[p/{portal}/{slug}]]"
 
         meta | {
@@ -71,17 +106,15 @@ act build_routes_json_for_portal(portal)
     xx
 
     payload | {
-        "portal": portal,
-        "routes": routes
+        "portal":   portal,
+        "url_root": url_root,
+        "routes":   routes
     }
 
-    /// write_json!(path, value)
     :write_json!(routes_path, payload)
     return nil
 xx
 
-/// Load routes.json for a portal and return the routes array.
-/// If file is missing or malformed, return [] so callers are safe.
 act load_routes_json(portal)
     routes_path | "../site/portals/{portal}/routes.json"
 
@@ -89,8 +122,8 @@ act load_routes_json(portal)
         return []
     xx
 
-    /// read_json(path) → decoded Goblin value
     parsed | :read_json(routes_path)
+    if parsed.nix? => return []
 
     routes | parsed["routes"]
     if routes == nil

@@ -8,47 +8,123 @@
 /// JOB 1: Apply layout
 /// ------------------------------------------------------
 act apply_layout(ctx)
+    
     body   | ctx["body"]
+    
     portal | ctx["portal"]
+    
+    if body.nix?
+        :say("body is nil, returning early")
+        return ctx
+    xx
+    
+    if portal.nix?
+        :say("portal is nil, returning early")
+        return ctx
+    xx
     fm     | ctx["frontmatter"]
-
     if body.nix?   => return ctx
     if portal.nix? => return ctx
-
+    /// SAFETY: if frontmatter exists but is NOT a map → wipe it.
+    if !fm.nix? and :valtype(fm) != "map"
+        fm | {}
+    xx
     /// layout name (default "docs")
     layout_name | "docs"
-    if !fm.nix? and !fm["layout"].nix?
+    if :valtype(fm) == "map" and !fm["layout"].nix?
         :update!(layout_name, :trim("" + fm["layout"]))
     xx
-
     layout_path | "../site/portals/{portal}/layouts/{layout_name}.html"
-
     if :file_exists(layout_path) == false
         :say("BRINDLE: layout NOT FOUND at {layout_path}")
         return ctx
     xx
-
     layout_html | :read_text(layout_path)
-
-    /// page title
+    /// ----------------------------------------------
+    /// PAGE TITLE / AUTHOR / META
+    /// ----------------------------------------------
     page_title | "Untitled"
-    if !fm.nix? and !fm["title"].nix?
+    if :valtype(fm) == "map" and !fm["title"].nix?
         :update!(page_title, :trim("" + fm["title"]))
     xx
-
+    page_author | ""
+    if :valtype(fm) == "map" and !fm["author"].nix?
+        :update!(page_author, :trim("" + fm["author"]))
+    xx
+    page_meta_html | ""
+    if :valtype(fm) == "map"
+        :update!(page_meta_html, build_page_meta(fm))
+    xx
     /// register page tokens
     clear_token("PAGE", "CONTENT")
     clear_token("PAGE", "TITLE")
-
+    clear_token("PAGE", "AUTHOR")
+    clear_token("PAGE", "META")
     register_token("PAGE", "CONTENT", body)
-    register_token("PAGE", "TITLE",  page_title)
-
+    register_token("PAGE", "TITLE",   page_title)
+    register_token("PAGE", "AUTHOR",  page_author)
+    register_token("PAGE", "META",    page_meta_html)
     /// resolve ONLY PAGE tokens here
-    /// (Layout contains ONLY PAGE:: and SLOT:: — SLOT stays unresolved)
     final_html | resolve_token(layout_html)
-
     :update!(ctx["body"], final_html)
+    :say("=== BRINDLE apply_layout complete ===")
     return ctx
+xx
+
+/// ------------------------------------------------------
+/// Build PAGE::META from frontmatter (meta_kind + meta_type)
+/// ------------------------------------------------------
+act build_page_meta(fm)
+    if fm.nix? => return ""
+    if :valtype(fm) != "map" => return ""
+
+    kind | ""
+    type | ""
+
+    /// meta_kind
+    if !fm["meta_kind"].nix?
+        tmp | :trim("" + fm["meta_kind"])
+        if tmp != ""
+            :update!(kind, tmp)
+        xx
+    xx
+
+    /// meta_type
+    if !fm["meta_type"].nix?
+        tmp2 | :trim("" + fm["meta_type"])
+        if tmp2 != ""
+            :update!(type, tmp2)
+        xx
+    xx
+
+    if kind == "" and type == "" => return ""
+
+    html | ""
+
+    /// both → kind • type, but dot is a circle box, not text
+    if kind != "" and type != ""
+        :update!(html, """
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">{kind}</span>
+          <span class="sheriff-page-meta-dot"></span>
+          <span class="sheriff-page-meta-type">{type}</span>
+        </span>
+        """)
+    elif kind != ""
+        :update!(html, """
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-kind">{kind}</span>
+        </span>
+        """)
+    else
+        :update!(html, """
+        <span class="sheriff-page-meta-label">
+          <span class="sheriff-page-meta-type">{type}</span>
+        </span>
+        """)
+    xx
+
+    return html
 xx
 
 /// ------------------------------------------------------
@@ -74,20 +150,22 @@ act apply_tokens(ctx)
     if :file_exists(config_path)
         cfg | :yall_parse_file(config_path)
 
-        if !cfg.nix? and !cfg["theme"].nix?
+        if !cfg.nix? and :valtype(cfg) == "map" and !cfg["theme"].nix?
             theme_cfg | cfg["theme"]
 
-            if !theme_cfg["name"].nix?
-                :update!(theme_name, :trim("" + theme_cfg["name"]))
-            xx
-            if !theme_cfg["brand_name"].nix?
-                :update!(brand_name, :trim("" + theme_cfg["brand_name"]))
-            xx
-            if !theme_cfg["logo"].nix?
-                :update!(logo_name, :trim("" + theme_cfg["logo"]))
-            xx
-            if !theme_cfg["favicon"].nix?
-                :update!(favicon_name, :trim("" + theme_cfg["favicon"]))
+            if :valtype(theme_cfg) == "map"
+                if !theme_cfg["name"].nix?
+                    :update!(theme_name, :trim("" + theme_cfg["name"]))
+                xx
+                if !theme_cfg["brand_name"].nix?
+                    :update!(brand_name, :trim("" + theme_cfg["brand_name"]))
+                xx
+                if !theme_cfg["logo"].nix?
+                    :update!(logo_name, :trim("" + theme_cfg["logo"]))
+                xx
+                if !theme_cfg["favicon"].nix?
+                    :update!(favicon_name, :trim("" + theme_cfg["favicon"]))
+                xx
             xx
         xx
     xx
@@ -99,7 +177,6 @@ act apply_tokens(ctx)
     /// BRINDLE TOKENS
     /// --------------------------------------------------
 
-    /// STYLE (favicon + CSS)
     style_html | """
     <link rel="icon" type="image/x-icon" href="{favicon_href}">
     <link id="theme-css"
@@ -109,17 +186,14 @@ act apply_tokens(ctx)
           data-dark="/public/css/dark.css">
     """
 
-    /// LOGO – anchor + img, CSS hooks preserved
     logo_html | """
     <img class="sheriff-logo-mark" src="{logo_href}" alt="{brand_name}">
     """
 
-    /// BRANDNAME – wrapped in the original text classes
     brand_html | """
     <div class="sheriff-logo-text">{brand_name}</div>
     """
 
-    /// THEME SWITCHER – full SVGs + script (from old Brindle)
     theme_switcher_html | """
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme">
         <svg class="theme-icon theme-icon-light" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
@@ -178,7 +252,6 @@ act apply_tokens(ctx)
     </script>
     """
 
-    /// VERSION SWITCHER – use entity for chevron to avoid mojibake
     version_switcher_html | """
     <div class="sheriff-version-select">
       <span class="sheriff-version-select-label">v2.0</span>

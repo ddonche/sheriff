@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{{{PAGE::TITLE}}}</title>
+
+    {{{BRINDLE::BASELINE}}}
+    {{{BRINDLE::THEME_LINK}}}
+</head>
+<body class="layout-docs">
+    <header class="site-header">
+        {{{BRINDLE::SWITCHER}}}
+        {{{SLOT::HEADER}}}
+    </header>
+
+    <main class="site-main">
+        <div class="site-shell">
+            <aside class="site-sidebar">
+                {{{SLOT::SIDEBAR_TOP}}}
+                {{{SLOT::SIDEBAR_MAIN}}}
+                {{{SLOT::SIDEBAR_BOTTOM}}}
+            </aside>
+
+            <article class="site-content">
+                {{{PAGE::CONTENT}}}
+            </article>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        {{{SLOT::FOOTER}}}
+    </footer>
+</body>
+</html>

@@ -156,14 +156,8 @@ act build_breadcrumbs(ctx)
     idx | 0
     for seg in clean_segs
         is_last | (idx == clean_segs.len - 1)
-
-        /// Get a label and force it to string
-        label | slug_to_label(seg)
-        label | "" + label
-
-        /// Escape + Title-case
-        safe | :escape_html(label)
-        safe | safe.title
+        label   | slug_to_label(seg)
+        safe    | :escape_html(label).title
 
         if is_last
             :put_last!(parts,
@@ -218,6 +212,7 @@ act apply_tokens(ctx)
     /// Clear page-scoped tokens for the next file
     clear_token("SCOUT", "TOC")
     clear_token("SCOUT", "BREADCRUMBS")
+
     return ctx
 xx
 
@@ -226,34 +221,27 @@ xx
 /// ========================================================================
 
 act make_abs_href(portal, raw)
-    if raw.nix?
-        return ""
-    xx
-
     href | :trim("" + raw)
-
-    if href == "" or href == "{}"
+    if href == ""
         return ""
     xx
 
-    /// Check for absolute URLs (http/https)
-    if :starts_with(href, "http://")
+    if href.len >= 7 and href[0:7] == "http://"
         return href
     xx
-    
-    if :starts_with(href, "https://")
-        return href
-    xx
-    
-    /// Already starts with /
-    if :starts_with(href, "/")
+    if href.len >= 8 and href[0:8] == "https://"
         return href
     xx
 
-    /// Relative path - make it absolute
+    if href[0:1] == "/"
+        return href
+    xx
+
     return "/" + href
 xx
 
+/// ------------------------------------------------------------------------
+/// Shared nested <ul> generator used by sidebar + header dropdowns.
 /// ------------------------------------------------------------------------
 act generate_nested_items(portal, items_map)
     if items_map.nix?
@@ -316,8 +304,7 @@ act generate_nested_items(portal, items_map)
 xx
 
 /// ------------------------------------------------------------------------
-/// Sidebar / nested docs tree renderer.
-/// NOTE: HTML structure + CSS classes preserved from old implementation.
+/// SIDEBAR / DOCS TREE – matches old .sheriff-left-nav structure
 /// ------------------------------------------------------------------------
 act scout_render_sidebar(portal, menu_content)
     if menu_content.nix?
@@ -400,7 +387,7 @@ act scout_render_sidebar(portal, menu_content)
 xx
 
 /// ------------------------------------------------------------------------
-/// Footer flat links – dead simple & safe.
+/// FOOTER – flat compact links (same HTML / CSS as before)
 /// ------------------------------------------------------------------------
 act scout_render_footer(portal, footer_content)
     if footer_content.nix?
@@ -418,48 +405,23 @@ act scout_render_footer(portal, footer_content)
     xx
 
     footer_links | ""
-    first        | true
+    first | true
 
     for text in keys
-        url | footer_content[text]
+        url     | footer_content[text]
+        url_str | make_abs_href(portal, url)
+        if url_str == ""
+            skip
+        xx
 
-        /// Separator between items
-        sep | ""
+        separator | ""
         if first == false
-            sep | " · "
+            update!(separator, " · ")
         xx
 
-        /// Decide: plain text vs link
-        is_link | true
-        url_str | ""
-
-        if url.nix?
-            is_link | false
-        else
-            tmp | "" + url
-            tmp | :trim(tmp)
-
-            if tmp == "" or tmp == "{}"
-                is_link | false
-            else
-                url_str | make_abs_href(portal, tmp)
-                if url_str == ""
-                    is_link | false
-                xx
-            xx
-        xx
-
-        item | ""
-        if is_link
-            /// Real link
-            item | "{sep}<a href=\"{url_str}\" class=\"sheriff-link\">{text}</a>"
-        else
-            /// Text-only entry
-            item | "{sep}<span>{text}</span>"
-        xx
-
-        footer_links | footer_links + item
-        first        | false
+        link | """{separator}<a href="{url_str}" class="sheriff-link">{text}</a>"""
+        update!(footer_links, footer_links + link)
+        update!(first, false)
     xx
 
     if footer_links == ""
@@ -474,8 +436,71 @@ act scout_render_footer(portal, footer_content)
 xx
 
 /// ------------------------------------------------------------------------
-/// Header nav – CSS & structure preserved.
+/// HEADER NAV – matches old .sheriff-header-nav structure exactly
 /// ------------------------------------------------------------------------
+act generate_header_dropdown(portal, dropdown_map)
+    if dropdown_map.nix?
+        return ""
+    xx
+
+    keys | :keys(dropdown_map)
+    if keys.len == 0
+        return ""
+    xx
+
+    sections_html | ""
+
+    for section_key in keys
+        section_val  | dropdown_map[section_key]
+        section_type | :valtype(section_val)
+
+        if section_type == "str"
+            href | make_abs_href(portal, section_val)
+            if href == ""
+                skip
+            xx
+
+            section_html | """
+<div class="dropdown-section">
+  <a href="{href}">{section_key}</a>
+</div>
+"""
+            update!(sections_html, sections_html + section_html)
+
+        elif section_type == "map"
+            links_html | ""
+            link_keys  | :keys(section_val)
+
+            for link_key in link_keys
+                link_href | make_abs_href(portal, section_val[link_key])
+                if link_href == ""
+                    skip
+                xx
+
+                link_item | """
+    <li>
+      <a href="{link_href}">{link_key}</a>
+    </li>
+"""
+                update!(links_html, links_html + link_item)
+            xx
+
+            if links_html != ""
+                section_html | """
+<div class="dropdown-section">
+  <span class="dropdown-section-title">{section_key}</span>
+  <ul>
+{links_html}  </ul>
+</div>
+"""
+                update!(sections_html, sections_html + section_html)
+            xx
+        xx
+    xx
+
+    return sections_html
+xx
+
 act scout_render_header_nav(portal, menu_content)
     if menu_content.nix?
         return ""
@@ -542,75 +567,11 @@ act scout_render_header_nav(portal, menu_content)
 xx
 
 /// ------------------------------------------------------------------------
-act generate_header_dropdown(portal, dropdown_map)
-    if dropdown_map.nix?
-        return ""
-    xx
-
-    keys | :keys(dropdown_map)
-    if keys.len == 0
-        return ""
-    xx
-
-    sections_html | ""
-
-    for section_key in keys
-        section_val  | dropdown_map[section_key]
-        section_type | :valtype(section_val)
-
-        if section_type == "str"
-            href | make_abs_href(portal, section_val)
-            if href == ""
-                skip
-            xx
-
-            section_html | """
-<div class="dropdown-section">
-  <a href="{href}">{section_key}</a>
-</div>
-"""
-            update!(sections_html, sections_html + section_html)
-
-        elif section_type == "map"
-            links_html | ""
-            link_keys  | :keys(section_val)
-
-            for link_key in link_keys
-                link_href | make_abs_href(portal, section_val[link_key])
-                if link_href == ""
-                    skip
-                xx
-
-                link_item | """
-    <li>
-      <a href="{link_href}">{link_key}</a>
-    </li>
-"""
-                update!(links_html, links_html + link_item)
-            xx
-
-            if links_html != ""
-                section_html | """
-<div class="dropdown-section">
-  <span class="dropdown-section-title">{section_key}</span>
-  <ul>
-{links_html}  </ul>
-</div>
-"""
-                update!(sections_html, sections_html + section_html)
-            xx
-        xx
-    xx
-
-    return sections_html
-xx
-
-/// ------------------------------------------------------------------------
 /// Built-in menu kinds:
-///   - "header"      → header dropdown
-///   - "sidebar"     → nested docs tree
-///   - "footer_flat" → compact footer links
-/// Unknown kinds currently fall back to "sidebar".
+///   - "header"      → header dropdown bar
+///   - "sidebar"     → docs tree / left nav
+///   - "footer_flat" → footer link row
+/// Unknown kinds fall back to "sidebar" for now.
 /// ------------------------------------------------------------------------
 act scout_render_menu_for_kind(portal, menu_map, kind)
     if menu_map.nix?
@@ -632,42 +593,22 @@ act scout_render_menu_for_kind(portal, menu_map, kind)
         return scout_render_footer(portal, menu_map)
     xx
 
-    /// Default / sidebar
+    if k == "sidebar"
+        return scout_render_sidebar(portal, menu_map)
+    xx
+
+    /// Fallback
     return scout_render_sidebar(portal, menu_map)
 xx
 
 /// ------------------------------------------------------------------------
-/// Determine active theme name from portal config.
-/// Defaults to "outpost" if missing.
-/// ------------------------------------------------------------------------
-act scout_active_theme_name(portal)
-    cfg_path | "../site/portals/{portal}/config.yall"
-    if :file_exists(cfg_path) == false
-        return "outpost"
-    xx
-
-    cfg   | :yall_parse_file(cfg_path)
-    theme | cfg["theme"]
-    if theme.nix?
-        return "outpost"
-    xx
-
-    name | theme["name"]
-    if name.nix?
-        return "outpost"
-    xx
-
-    return "" + name
-xx
-
-/// ------------------------------------------------------------------------
 /// Load theme-specific nav mapping:
-/// - Portal config:  ../site/portals/{portal}/config.yall
-///     theme:
-///       name: some_theme
-/// - Theme mapping:  ../themes/{theme}/scout_nav.yall
+///   - Portal config: ../site/portals/{portal}/config.yall
+///       theme:
+///         name: outpost
+///   - Theme file:    ../site/portals/{portal}/themes/{theme_name}/scout_nav.yall
 ///
-/// If any of this is missing, we HARD FAIL on purpose.
+/// If anything is missing, we log and bail (no menus).
 /// ------------------------------------------------------------------------
 act scout_load_theme_nav_mapping(portal)
     cfg_path | "../site/portals/{portal}/config.yall"
@@ -691,11 +632,9 @@ act scout_load_theme_nav_mapping(portal)
 
     theme_name | "" + name
 
-    /// FIXED: theme file must be INSIDE THE PORTAL
     map_path | "../site/portals/{portal}/themes/{theme_name}/scout_nav.yall"
-
     if :file_exists(map_path) == false
-        :say("SCOUT: Theme '{theme_name}' missing scout_nav.yall at " ++ map_path)
+        :say("SCOUT: Theme '{theme_name}' missing scout_nav.yall")
         return nil
     xx
 
@@ -710,80 +649,77 @@ act scout_load_theme_nav_mapping(portal)
 xx
 
 /// ------------------------------------------------------------------------
-/// Publish SCOUT::* nav tokens from nav.yall + theme mapping.
-/// For each menu in nav.yall, we generate:
-///   SCOUT::<name>_DROPDOWN  → header dropdown
-///   SCOUT::<name>_SIDEBAR   → sidebar tree
-///   SCOUT::<name>_FLAT      → footer-style flat links
+/// Publish SCOUT::* nav tokens using:
+///   - portal nav.yall (menus)
+///   - theme scout_nav.yall (tokens -> { menu, kind })
 ///
-/// Then we apply the theme mapping (scout_nav.yall):
-///   tokens:
-///     FOOTER_LEFT:
-///       menu: footer_left
-///       kind: footer_flat
-///     FOOTER_RIGHT:
-///       menu: footer_right
-///       kind: footer_flat
-///   etc.
+/// Example scout_nav.yall for Outpost:
+///
+/// tokens:
+///   DOCS_NAV:
+///     menu: header
+///     kind: header
+///   MAIN_NAV:
+///     menu: header
+///     kind: header
+///   DOCS_TREE:
+///     menu: left_docs
+///     kind: sidebar
+///   FOOTER_LEFT:
+///     menu: footer_left
+///     kind: footer_flat
+///   FOOTER_RIGHT:
+///     menu: footer_right
+///     kind: footer_flat
 /// ------------------------------------------------------------------------
-act publish_nav_tokens(pre_ctx)
-    /// Defensive: if some earlier pre action returned nil, don't explode.
-    if pre_ctx.nix?
-        :say("SCOUT: pre_ctx is nil in publish_nav_tokens; skipping menus.")
-        return pre_ctx
-    xx
-
-    portal | pre_ctx["portal"]
-    if portal.nix?
-        :say("SCOUT: No portal in pre_ctx. Skipping menus.")
-        return pre_ctx
-    xx
-    
+act publish_nav_tokens(portal)
     nav_path | "../site/portals/{portal}/nav.yall"
     if :file_exists(nav_path) == false
-        :say("SCOUT: No nav.yall for portal '{portal}'. Skipping menus.")
-        return pre_ctx
+        :say("SCOUT: No nav.yall found for portal '{portal}'. Skipping menus.")
+        return nil
     xx
 
     nav_cfg | :yall_parse_file(nav_path)
     menus   | nav_cfg["menus"]
     if menus.nix?
         :say("SCOUT: nav.yall has no menus section. Skipping menus.")
-        return pre_ctx
+        return nil
     xx
 
-    names | :keys(menus)
+    mapping | scout_load_theme_nav_mapping(portal)
+    if mapping.nix?
+        :say("SCOUT: Skipping menu render — theme mapping unavailable.")
+        return nil
+    xx
 
-    /// Generic per-menu tokens (header/sidebar/flat)
-    for name in names
-        menu_map | menus[name]
-        if menu_map.nix?
-            :say("SCOUT: menu '" ++ ("" + name) ++ "' is nil, skipping.")
+    token_names | :keys(mapping)
+
+    for tname in token_names
+        tcfg    | mapping[tname]
+        menu_id | tcfg["menu"]
+        kind    | tcfg["kind"]
+
+        if menu_id.nix? or kind.nix?
+            :say("SCOUT: Token '" ++ ("" + tname) ++ "' missing menu/kind mapping in theme.")
             skip
         xx
 
-        /// 1) Header dropdown token: <name>_DROPDOWN
-        header_html | scout_render_header_nav(portal, menu_map)
-        if header_html != ""
-            header_token | ("" + name) + "_DROPDOWN"
-            register_token("SCOUT", header_token, header_html)
+        menu_name | "" + menu_id
+        menu_map  | menus[menu_name]
+        if menu_map.nix?
+            :say("SCOUT: Theme maps token '" ++ ("" + tname) ++
+                 "' to menu '" ++ menu_name ++ "', but nav.yall has no such menu.")
+            skip
         xx
 
-        /// 2) Sidebar token: <name>_SIDEBAR
-        sidebar_html | scout_render_sidebar(portal, menu_map)
-        if sidebar_html != ""
-            sidebar_token | ("" + name) + "_SIDEBAR"
-            register_token("SCOUT", sidebar_token, sidebar_html)
+        html | scout_render_menu_for_kind(portal, menu_map, "" + kind)
+        if html == ""
+            :say("SCOUT: Token '" ++ ("" + tname) ++ "' rendered empty HTML.")
+            skip
         xx
 
-        /// 3) Flat footer token: <name>_FLAT
-        footer_html | scout_render_footer(portal, menu_map)
-        if footer_html != ""
-            footer_token | ("" + name) + "_FLAT"
-            register_token("SCOUT", footer_token, footer_html)
-        xx
+        register_token("SCOUT", "" + tname, html)
     xx
 
-    /// IMPORTANT: always hand the ctx back
-    return pre_ctx
+    return nil
 xx

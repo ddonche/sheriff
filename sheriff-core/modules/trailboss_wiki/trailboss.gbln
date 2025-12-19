@@ -7,233 +7,425 @@ import modules/trailboss_wiki/routes_json as rjson
 /// 1) ROUTE JSON GENERATION (ONE routes.json PER PORTAL)
 /// ======================================================================
 
-/// Scheduled event: called via Sheriff's :summon(ctx, schedule)
-/// events.yall:
-///   - trailboss::build_routes_once
-///   - frontier::strip_frontmatter
-///   - markdown_core::render
-///   - trailboss::process_wikilinks
-act build_routes_once(ctx)
+act build_routes_once(pre_ctx)
+    if pre_ctx.nix?
+        :say("TRAILBOSS.build_routes_once: pre_ctx is nil; skipping routes.json.")
+        return pre_ctx
+    xx
+
     portal | pre_ctx["portal"]
-    if portal.nix? => return ctx
-
-    rjson::build_routes_json_for_portal(portal)
-    return ctx
-xx
-
-/// ======================================================================
-/// 2) LOOKUP HELPERS (USING routes.json ARRAY)
-/// ======================================================================
-
-/// routes is an ARRAY of metadata objects; find the first with matching slug.
-act find_route_meta(routes, slug)
-    if routes.nix? => return nil
-
-    for meta in routes
-        if meta["slug"] == slug => return meta
-    xx
-
-    return nil
-xx
-
-act find_href_for_slug(ctx, portal, slug)
-    /// Fallback pattern used throughout
-    fallback | ""
     if portal.nix?
-        fallback |= "/{slug}.html"
-    else
-        fallback |= "/{portal}/{slug}.html"
+        :say("TRAILBOSS.build_routes_once: portal missing in pre_ctx; skipping routes.json.")
+        return pre_ctx
     xx
-    
-    if slug.nix?
-        if portal.nix? => return "/index.html"
-        return "/{portal}/index.html"
+
+    :say("TRAILBOSS: building routes.json for portal = {portal}")
+    rjson::build_routes_json_for_portal(portal)
+
+    return pre_ctx
+xx
+
+/// ======================================================================
+/// 2) CONFIG + MOUNT HELPERS
+/// ======================================================================
+
+/// Load portal config (or nil if missing)
+act load_cfg(portal)
+    path | "../site/portals/{portal}/config.yall"
+    if :file_exists(path) == false
+        return nil
     xx
-    
+    return :yall_parse_file(path)
+xx
+
+/// Defensive string cleaner:
+/// - casts to string
+/// - strips anything after '#'
+/// - trims
+/// - strips wrapping quotes if present
+act clean_cfg_string(v)
+    if v.nix? => return ""
+
+    s | "" + v
+
+    /// strip inline comments if they somehow get through
+    left | :keep_before(s, "#")
+    if !left.nix? and :trim(left) != ""
+        :update!(s, "" + left)
+    xx
+
+    s |= :trim(s)
+
+    /// strip wrapping quotes if present
+    if :starts_with(s, "\"") and :ends_with(s, "\"")
+        inner | :keep_between(s, "\"", "\"")
+        if !inner.nix?
+            :update!(s, inner)
+        xx
+    xx
+
+    return :trim(s)
+xx
+
+/// Determine where a portal is mounted in dist.
+/// Rules:
+/// - if routing.dist_root missing/empty or == "default" => ROOT mount (no prefix)
+/// - else => "/{dist_root}"
+act portal_mount(portal)
+    cfg | load_cfg(portal)
+    if cfg.nix? => return ""     /// treat as root if unknown
+
+    routing | cfg["routing"]
+    if routing.nix? or :valtype(routing) != "map"
+        return ""
+    xx
+
+    dr | routing["dist_root"]
+    dr | clean_cfg_string(dr)
+
+    if dr == "" => return ""
+    if dr == "default" => return ""
+
+    return "/" + dr
+xx
+
+/// ======================================================================
+/// 3) SHARED HELPERS
+/// ======================================================================
+
+act normalize_to_slug(page)
+    if page.nix? => return ""
+
+    cleaned | "" + page
+    :update_where!(cleaned, " (module)", "")
+    :update_where!(cleaned, "(module)", "")
+    :update_where!(cleaned, "(", "")
+    :update_where!(cleaned, ")", "")
+    cleaned |= :trim(cleaned)
+
+    slug | :lower(cleaned)
+    :update_where!(slug, " ", "-")
+    :update_where!(slug, "_", "-")
+
+    return slug
+xx
+
+act split_anchor(text)
+    page   | :trim(:keep_before(text, "#"))
+    anchor | :trim(:keep_after(text, "#"))
+
+    if page.nix? or page == ""
+        page |= text
+    xx
+
+    return {"page": page, "anchor": anchor}
+xx
+
+act derive_portal_root_from_ctx(ctx, portal)
     src | ctx["path"]
-    if src.nix? => return fallback
-    
-    /// Derive portal root from ctx["path"]
-    portal_root | :keep_before(src, "/content/")
-    if portal_root.nix? => portal_root |= "../site/portals/{portal}"
-    
+    if src.nix? => return "../site/portals/{portal}"
+
+    src_norm | "" + src
+    :update_where!(src_norm, "\\", "/")
+
+    root | :keep_before(src_norm, "/content/")
+    if root.nix? or root == ""
+        root |= "../site/portals/{portal}"
+    xx
+
+    return root
+xx
+
+act load_routes_for_portal(ctx, portal)
+    if portal.nix? or portal == "" => return []
+
+    portal_root | derive_portal_root_from_ctx(ctx, portal)
     routes_path | "{portal_root}/routes.json"
-    if :file_exists(routes_path) == false => return fallback
-    
+
+    if :file_exists(routes_path) == false
+        return []
+    xx
+
     parsed | :read_json(routes_path)
     routes | parsed["routes"]
-    if routes.nix? => return fallback
-    
+
+    if routes.nix? => return []
+    if :valtype(routes) != "array" => return []
+
+    return routes
+xx
+
+act lookup_href_by_slug(ctx, portal, slug)
+    if portal.nix? or portal == "" => return ""
+    if slug.nix? or slug == ""     => return ""
+
+    routes | load_routes_for_portal(ctx, portal)
+    if :valtype(routes) != "array" => return ""
+
     for meta in routes
         if meta.nix? => skip
         if meta["slug"] == slug
             href_abs | meta["href"]
-            if href_abs.nix? => href_abs |= "/{portal}/{slug}.html"
-            return href_abs
+            if !href_abs.nix? and ("" + href_abs) != ""
+                return "" + href_abs
+            xx
         xx
     xx
-    
-    /// No match → fallback
-    return fallback
+
+    return ""
+xx
+
+/// ======================================================================
+/// 4) FALLBACK HREF BUILDERS (WIKI SEMANTICS)
+/// ======================================================================
+
+/// Internal links always map to docs/* in the current mounted site.
+act fallback_internal_href(slug)
+    if slug.nix? or slug == "" => return "/docs/index.html"
+    return "/docs/{slug}.html"
+xx
+
+/// Portal links use the target portal's mount.
+/// If target portal is root-mounted, we emit "/{slug}.html".
+/// Else we emit "/<mount>/{slug}.html".
+act fallback_portal_href(portal, slug)
+    m | portal_mount(portal)
+
+    if slug.nix? or slug == ""
+        if m == ""
+            return "/index.html"
+        xx
+        return "{m}/index.html"
+    xx
+
+    if m == ""
+        return "/{slug}.html"
+    xx
+
+    return "{m}/{slug}.html"
+xx
+
+/// ======================================================================
+/// 5) HTML SAFETY + FINAL <a>
+/// ======================================================================
+
+act escape_attr(s)
+    if s.nix? => return ""
+    out | "" + s
+    :update_where!(out, "\"", "&quot;")
+    return out
+xx
+
+act escape_text(s)
+    if s.nix? => return ""
+    out | "" + s
+    :update_where!(out, "&", "&amp;")
+    :update_where!(out, "<", "&lt;")
+    :update_where!(out, ">", "&gt;")
+    return out
 xx
 
 /// Small helper to build the final <a> tag.
+/// NEVER emits href="".
+/// NEVER lets quotes break the attribute.
 act build_wikilink_html(href, label, is_external)
+    href_s  | "" + href
+    label_s | "" + label
+
+    if href_s.nix? or href_s == ""
+        :update!(href_s, "#")
+    xx
+
+    if label_s.nix? or label_s == ""
+        :update!(label_s, href_s)
+    xx
+
+    href_s  |= escape_attr(href_s)
+    label_s |= escape_text(label_s)
+
     html_parts | []
     :put_last!(html_parts, "<a href=\"")
-    :put_last!(html_parts, href)
-    :put_last!(html_parts, "\">")
-    :put_last!(html_parts, label)
-    if is_external => :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+    :put_last!(html_parts, href_s)
+    :put_last!(html_parts, "\" class=\"sheriff-link\">")
+    :put_last!(html_parts, label_s)
+    if is_external
+        :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+    xx
     :put_last!(html_parts, "</a>")
     return :pack(html_parts)
 xx
 
 /// ======================================================================
-/// 3) RESOLVE A SINGLE WIKILINK
+/// 6) RESOLVE A SINGLE WIKILINK
 /// ======================================================================
 
-/// HTML post-processor for Sheriff wikilinks.
-///
-/// Supported patterns in rendered HTML:
-///   [[Badge]]
-///   [[Badge | Badge Module]]
-///   [[Some Page#Section]]
-///   [[https://goblinlang.org]]
-///   [[https://goblinlang.org | Goblin]]
-///   [[p/loricism/infinitum]]
-///   [[p/loricism/infinitum | The Infinitum]]
-///   [[u/janden]]
-///   [[u/janden | Janden, Keeper of Goblins]]
 act resolve_wikilink(inner, ctx, portal)
     if inner.nix? => return ""
 
-    text | :trim(inner)
-    if text.nix? => return ""
+    raw | :trim("" + inner)
+    if raw == "" => return ""
 
-    core | :keep_between(text, "[[", "]]")
-    if core.nix? => core |= text
-
-    inner_text | :trim(core)
-    if inner_text.nix? => return ""
-
-    /// Split only if a pipe actually exists.
-    before_pipe | :keep_before(inner_text, "|")
-    after_pipe  | :keep_after(inner_text, "|")
-
-    judge
-        before_pipe.nix? and after_pipe.is_nix?:
-            target_raw | inner_text
-            label_raw  | ""
-        else:
-            target_raw | :trim(before_pipe)
-            label_raw  | :trim(after_pipe)
+    core | :keep_between(raw, "[[", "]]")
+    if core.nix? or core == ""
+        core |= raw
     xx
 
-    lower_target | :lower(target_raw)
-    is_external  | :starts_with(lower_target, "http://") or :starts_with(lower_target, "https://")
-    is_portal    | :starts_with(target_raw, "p/")
-    is_user      | :starts_with(target_raw, "u/")
+    inner_text | :trim(core)
+    if inner_text == "" => return ""
+
+    link_part  | :keep_before(inner_text, "|")
+    label_part | :keep_after(inner_text, "|")
+
+    if link_part.nix? or link_part == ""
+        link_part |= inner_text
+    xx
+
+    link_part  |= :trim(link_part)
+    label_part |= :trim(label_part)
+
+    display_label | label_part
+    if display_label.nix? or display_label == ""
+        display_label |= link_part
+    xx
+
+    lower_link  | :lower(link_part)
+    is_external | :starts_with(lower_link, "http://") or :starts_with(lower_link, "https://")
+    is_portal   | :starts_with(link_part, "p/")
+    is_user     | :starts_with(link_part, "u/")
 
     judge
         is_external:
-            href  | target_raw
-            label | label_raw
-            if label.nix? => label |= target_raw
-            return build_wikilink_html(href, label, true)
+            return build_wikilink_html(link_part, display_label, true)
 
         is_portal:
-            portal_name | :keep_between(target_raw, "p/", "/")
-            rest | :keep_after(target_raw, "p/{portal_name}/")
+            portal_name | :keep_between(link_part, "p/", "/")
+            rest        | :keep_after(link_part, "p/{portal_name}/")
 
-            if portal_name.nix? or rest.nix?
-                href  | "#"
-                label | label_raw
-                if label.nix? => label |= target_raw
-                return build_wikilink_html(href, label, false)
+            if portal_name.nix? or portal_name == "" or rest.nix? or rest == ""
+                return build_wikilink_html("#", display_label, false)
             xx
 
-            portal_root   | "../site/portals/{portal_name}"
-            portal_exists | :file_exists(portal_root)
+            parts  | split_anchor(rest)
+            page   | parts["page"]
+            anchor | parts["anchor"]
 
-            page   | :trim(:keep_before(rest, "#"))
-            anchor | :trim(:keep_after(rest, "#"))
+            slug | normalize_to_slug(page)
 
-            if page.nix? => page |= rest
+            href | lookup_href_by_slug(ctx, portal_name, slug)
 
-            slug | page
-            slug |= :lower(slug)
-            :update_where!(slug, " ", "-")
-            :update_where!(slug, "_", "-")
-
-            href | ""
-
-            if portal_exists
-                :update!(href, find_href_for_slug(ctx, portal_name, slug))
-                if !anchor.nix? => :update!(href, "{href}#{anchor}")
-            else
-                :update!(href, "/p/{portal_name}/{slug}.html")
-                if !anchor.nix? => :update!(href, "{href}#{anchor}")
+            /// Wiki behavior: if not found, still link to where it WOULD be.
+            if href == ""
+                href |= fallback_portal_href(portal_name, slug)
             xx
 
-            label | label_raw
-            if label.nix? => :update!(label, target_raw)
+            if !anchor.nix? and anchor != ""
+                href |= "{href}#{anchor}"
+            xx
 
-            return build_wikilink_html(href, label, false)
+            return build_wikilink_html(href, display_label, false)
 
         is_user:
-            username | :keep_after(target_raw, "u/")
-            if username.nix?
-                href  | "#"
-                label | label_raw
-                if label.nix? => label |= target_raw
-                return build_wikilink_html(href, label, false)
+            username | :keep_after(link_part, "u/")
+            if username.nix? or username == ""
+                return build_wikilink_html("#", display_label, false)
             xx
-
-            href | "/users/{username}"
-            label | label_raw
-            if label.nix? => label |= "@" + username
-
-            return build_wikilink_html(href, label, false)
+            return build_wikilink_html("/users/{username}", display_label, false)
 
         else:
-            page   | :trim(:keep_before(target_raw, "#"))
-            anchor | :trim(:keep_after(target_raw, "#"))
+            parts  | split_anchor(link_part)
+            page   | parts["page"]
+            anchor | parts["anchor"]
 
-            if page.nix? => page |= target_raw
+            slug | normalize_to_slug(page)
 
-            slug | :lower(page)
-            :update_where!(slug, " ", "-")
-            :update_where!(slug, "_", "-")
+            href | fallback_internal_href(slug)
 
-            href | find_href_for_slug(ctx, portal, slug)
-            if !anchor.nix? => href |= "{href}#{anchor}"
+            if !anchor.nix? and anchor != ""
+                href |= "{href}#{anchor}"
+            xx
 
-            label | inner_text
-
-            return build_wikilink_html(href, label, false)
+            return build_wikilink_html(href, display_label, false)
     xx
 xx
 
 /// ======================================================================
-/// 4) PROCESS ALL WIKILINKS IN A PAGE
+/// 7) PROCESS ALL WIKILINKS IN A PAGE
 /// ======================================================================
 
 act process_wikilinks(ctx)
     body   | ctx["body"]
     portal | ctx["portal"]
 
-    if body.nix? => return ctx
+    if body.nix?   => return ctx
     if portal.nix? => return ctx
 
-    result | body
+    result | "" + body
 
     sweep body
         "[[" ... "]]":
-            repl | resolve_wikilink(self, ctx, portal)
-            if !repl.nix? => :update_where!(result, self, repl)
+            if self.nix? or self == "" => skip
+
+            repl_raw | resolve_wikilink(self, ctx, portal)
+            if repl_raw.nix? => skip
+
+            repl | "" + repl_raw
+            if repl == "" => skip
+
+            :update_where!(result, self, repl)
     xx
 
     :update!(ctx["body"], result)
+    return ctx
+xx
+
+/// ======================================================================
+/// 8) PUBLISH CANONICAL WIKILINK FOR CURRENT PAGE
+/// ======================================================================
+
+act publish_canonical_link(ctx)
+    portal | ctx["portal"]
+    src    | ctx["path"]
+    body   | ctx["body"]
+
+    if portal.nix? => return ctx
+    if src.nix?    => return ctx
+    if body.nix?   => return ctx
+
+    src_norm | "" + src
+    :update_where!(src_norm, "\\", "/")
+
+    stem_name | :stem(src_norm)
+    slug      | normalize_to_slug(stem_name)
+
+    canonical | "[[p/{portal}/{slug}]]"
+
+    html | """
+    <div class="sheriff-canon-wrap">
+      <span class="sheriff-canon-text">{canonical}</span>
+      <button
+        class="copy-wikilink"
+        type="button"
+        data-wikilink="{canonical}"
+        aria-label="Copy canonical wikilink">
+        <svg
+          class="copy-wikilink-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a 2 2 0 0 1-2-2V4a 2 2 0 0 1 2-2h9a 2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    """
+
+    updated | "" + body
+    :update_where!(updated, "{{{TRAILBOSS::CANONLINK}}}", html)
+    :update!(ctx["body"], updated)
+
     return ctx
 xx

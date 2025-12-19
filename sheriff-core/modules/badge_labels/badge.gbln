@@ -14,27 +14,75 @@ xx
 /// Extract version: if missing OR empty → return "".
 act extract_version(cfg)
     if cfg.nix? => return ""
+
+    if :valtype(cfg) != "map"
+        return ""
+    xx
+
     v | cfg["version"]
     if v.nix? => return ""
+
     t | :trim("" + v)
     if t == "" => return ""
+
     return t
 xx
 
 /// Extract repo object: if missing → return nil.
 act extract_repo(cfg)
     if cfg.nix? => return nil
+
+    if :valtype(cfg) != "map"
+        return nil
+    xx
+
     repo | cfg["repo"]
     if repo.nix? => return nil
+
+    /// Only accept maps as repo objects
+    if :valtype(repo) != "map"
+        return nil
+    xx
+
     return repo
 xx
 
 /// Build the HTML for BADGE::REPO — matches sheriff-dark.css + React header
 act build_repo_badge(repo, ver)
-    url   | "" + repo["url"]
-    name  | "" + repo["name"]
-    stars | "" + repo["stars"]
-    forks | "" + repo["forks"]
+    /// Hard guard: if repo isn't a map, bail to "".
+    if repo.nix?
+        return ""
+    xx
+
+    if :valtype(repo) != "map"
+        return ""
+    xx
+
+    url   | ""
+    name  | ""
+    stars | ""
+    forks | ""
+
+    if !repo["url"].nix?
+        :update!(url, "" + repo["url"])
+    xx
+
+    if !repo["name"].nix?
+        :update!(name, "" + repo["name"])
+    xx
+
+    if !repo["stars"].nix?
+        :update!(stars, "" + repo["stars"])
+    xx
+
+    if !repo["forks"].nix?
+        :update!(forks, "" + repo["forks"])
+    xx
+
+    /// If we somehow didn't get a URL, don't render a broken badge.
+    if url == ""
+        return ""
+    xx
 
     return """
 <a href="{url}" class="sheriff-github-badge">
@@ -72,43 +120,223 @@ act build_repo_badge(repo, ver)
 </a>
 """
 xx
+////
+/// ========================================================================
+/// SOCIAL SHARING
+/// ========================================================================
+
+/// Load widgets config
+act load_widgets_cfg(portal)
+    path | "../site/portals/{portal}/widgets.yall"
+    if :file_exists(path) == false
+        return nil
+    xx
+    return :yall_parse_file(path)
+xx
+
+/// Get platform data (SVG + URL template)
+act get_social_platform_data(name)
+    :say("get_social_platform_data called with: " + name)
+    
+    if name == "twitter"
+        :say("Matched twitter")
+        return {
+            svg: """<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>""",
+            url: "https://twitter.com/intent/tweet?url={url}&text={title}"
+        }
+    xx
+    
+    :say("No match, returning nil")
+    return nil
+xx
+
+/// Generate social sharing widget HTML
+act generate_social_share_widget(portal, page_url, page_title)
+    :say("generate_social_share_widget called")
+    
+    widgets_cfg | load_widgets_cfg(portal)
+    if widgets_cfg.nix?
+        :say("widgets_cfg is nil")
+        return ""
+    xx
+
+    if :valtype(widgets_cfg) != "map"
+        :say("widgets_cfg is not a map")
+        return ""
+    xx
+    
+    :say("widgets_cfg loaded")
+    
+    badge_cfg | widgets_cfg["badge"]
+    if badge_cfg.nix?
+        :say("badge_cfg is nil")
+        return ""
+    xx
+
+    if :valtype(badge_cfg) != "map"
+        :say("badge_cfg is not a map")
+        return ""
+    xx
+    
+    :say("badge_cfg loaded")
+    
+    platforms | badge_cfg["social_sharing"]
+    if platforms.nix?
+        :say("platforms is nil")
+        return ""
+    xx
+    
+    :say("platforms loaded")
+    
+    icons_html | ""
+    
+    for platform in platforms
+        :say("Platform: " + platform)
+        data | get_social_platform_data(platform)
+        if data.nix?
+            :say("Data is nil for: " + platform)
+            skip
+        xx
+        
+        url | data["url"]
+        url | :update_where(url, "{url}", page_url)
+        url | :update_where(url, "{title}", page_title)
+        
+        svg | data["svg"]
+        
+        icon | """
+      <a href="{url}" target="_blank" class="social-icon" aria-label="Share on {platform}">
+        {svg}
+      </a>
+    """
+        update!(icons_html, icons_html + icon)
+    xx
+    
+    if icons_html == ""
+        return ""
+    xx
+    
+    html | """
+<div class="sheriff-social-share">
+{icons_html}</div>
+"""
+    return html
+xx
+////
+
+/// Compute "~N min read" label from an HTML body, or "" if empty.
+/// Uses ~250 wpm and strips decimals by string-mangling the float.
+act compute_readtime_label(body)
+    if body.nix? => return ""
+
+    /// Normalize & split into words
+    norm | ""
+    :update!(norm, :normalize_newlines("" + body))
+    :update_where!(norm, "\t", " ")
+
+    parts | :split(norm, " ")
+
+    word_count | 0
+    for p in parts
+        t | :trim(p)
+        if t != ""
+            :update!(word_count, word_count + 1)
+        xx
+    xx
+
+    if word_count == 0 => return ""
+
+    /// Get minutes as float
+    mins_f | word_count / 250
+
+    /// Convert to string & strip everything after '.'
+    mins_str   | "" + mins_f
+    mins_whole | :keep_before(mins_str, ".")
+
+    if mins_whole.nix? or :trim(mins_whole) == ""
+        :update!(mins_whole, mins_str)
+    xx
+
+    mins_whole | :trim(mins_whole)
+
+    /// Guard: if we somehow got "0" but have words, bump to "1"
+    if mins_whole == "0"
+        :update!(mins_whole, "1")
+    xx
+
+    /// Build final label as plain lowercase text
+    label | ""
+    if mins_whole == "1"
+        :update!(label, "~ 1 min read")
+    else
+        :update!(label, "~ {mins_whole} min read")
+    xx
+
+    return label
+xx
 
 /// MAIN ENTRY
 act apply_tokens(ctx)
     portal | ctx["portal"]
     body   | ctx["body"]
 
-    /// If no portal or no body, nothing to do
     if portal.nix? or body.nix? => return ctx
 
     cfg  | load_cfg(portal)
     ver  | extract_version(cfg)
     repo | extract_repo(cfg)
 
-    /// -------------------------
     /// BADGE::VERSION
-    /// -------------------------
     if ver == ""
         register_token("BADGE", "VERSION", "")
     else
-        /// match .sheriff-version-badge in CSS
         html_v | "<span class=\"sheriff-version-badge\">" + ver + "</span>"
         register_token("BADGE", "VERSION", html_v)
     xx
 
-    /// -------------------------
     /// BADGE::REPO
-    /// -------------------------
     if repo.nix?
         register_token("BADGE", "REPO", "")
     else
-        html_r | build_repo_badge(repo, ver)
-        register_token("BADGE", "REPO", html_r)
+        html_repo | build_repo_badge(repo, ver)
+        register_token("BADGE", "REPO", html_repo)
     xx
 
-    /// Apply BADGE tokens into the HTML
+    /// BADGE::READTIME
+    read_label | compute_readtime_label(body)
+
+    if read_label == ""
+        register_token("BADGE", "READTIME", "")
+    else
+        html_rt | ""
+        :update!(html_rt, """
+        <span class="sheriff-byline-readtime">
+          {read_label}
+        </span>
+        """)
+        register_token("BADGE", "READTIME", html_rt)
+    xx
+
+    //// BADGE::SOCIAL_SHARE
+    page_title | "Test Page Title"
+    page_url   | "https://example.com/test-page"
+
+    fm | ctx["frontmatter"]
+    if !fm.nix? and :valtype(fm) == "map"
+        title_val | fm["title"]
+        if !title_val.nix?
+            update!(page_title, "" + title_val)
+        xx
+    xx
+
+    social_share_html | generate_social_share_widget(portal, page_url, page_title)
+    register_token("BADGE", "SOCIAL_SHARE", social_share_html)
+    ////
+
     rendered | :resolve_token(body)
     :update!(ctx["body"], rendered)
 
+    /// THEN clear for next page
+    clear_token("BADGE", "READTIME")
     return ctx
 xx

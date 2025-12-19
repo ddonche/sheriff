@@ -31,6 +31,7 @@ act init(pre_ctx)
     xx
 
     :say("PROSPECTOR: Initialized search for portal '{portal}'")
+    :say("Prospector values are:" ++ pre_ctx)
     return pre_ctx
 xx
 
@@ -49,9 +50,18 @@ act index_page(ctx)
 
     /// only index docs layout
     layout | "docs"
-    if !fm.nix? and !fm["layout"].nix?
-        :update!(layout, :trim("" + fm["layout"]))
+
+    if !fm.nix?
+        attempt
+            lay_val | fm["layout"]
+            if !lay_val.nix?
+                layout | :trim("" + lay_val)
+            xx
+        rescue err
+            /// frontmatter is missing or not a map or has no "layout" – ignore
+        xx
     xx
+
     if layout != "docs" => return ctx
 
     /// -------- href from source path --------

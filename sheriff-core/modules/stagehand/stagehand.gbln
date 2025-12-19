@@ -87,7 +87,7 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
     xx
-
+    :say("Stagehand values are:" ++ pre_ctx)
     return pre_ctx
 xx
 
@@ -132,9 +132,14 @@ act wire_slots(ctx)
         return ctx
     xx
 
+    /// SAFETY: ensure fm is actually a map
+    if !fm.nix? and :valtype(fm) != "map"
+        fm | {}
+    xx
+
     /// 1) Determine layout name (default "docs")
     layout_name | "docs"
-    if !fm.nix? and !fm["layout"].nix?
+    if :valtype(fm) == "map" and !fm["layout"].nix?
         :update!(layout_name, :trim("" + fm["layout"]))
     xx
 
@@ -167,11 +172,7 @@ act wire_slots(ctx)
     xx
 
     /// 4) Apply SLOT tokens into the layout HTML.
-    ///    At this point, SLOT tokens expand to raw {{{MOD::TOKEN}}}
-    ///    strings; those module tokens get resolved later by their
-    ///    own apply_tokens() steps.
     rendered | resolve_token(body)
     :update!(ctx["body"], rendered)
-
     return ctx
 xx
