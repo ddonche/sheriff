@@ -31,7 +31,6 @@ act init(pre_ctx)
     xx
 
     :say("PROSPECTOR: Initialized search for portal '{portal}'")
-    :say("Prospector values are:" ++ pre_ctx)
     return pre_ctx
 xx
 

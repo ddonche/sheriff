@@ -67,7 +67,6 @@ act apply_layout(ctx)
     /// resolve ONLY PAGE tokens here
     final_html | resolve_token(layout_html)
     :update!(ctx["body"], final_html)
-    :say("=== BRINDLE apply_layout complete ===")
     return ctx
 xx
 

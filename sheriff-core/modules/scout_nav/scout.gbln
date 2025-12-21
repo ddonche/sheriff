@@ -422,11 +422,11 @@ act scout_render_footer(portal, footer_content)
 
     for text in keys
         url | footer_content[text]
-
+        
         /// Separator between items
         sep | ""
         if first == false
-            sep | " · "
+            update!(sep, " · ")
         xx
 
         /// Decide: plain text vs link
@@ -434,32 +434,30 @@ act scout_render_footer(portal, footer_content)
         url_str | ""
 
         if url.nix?
-            is_link | false
+            update!(is_link, false)
         else
             tmp | "" + url
             tmp | :trim(tmp)
 
             if tmp == "" or tmp == "{}"
-                is_link | false
+                update!(is_link, false)
             else
-                url_str | make_abs_href(portal, tmp)
+                update!(url_str, make_abs_href(portal, tmp))
                 if url_str == ""
-                    is_link | false
+                    update!(is_link, false)
                 xx
             xx
         xx
 
         item | ""
         if is_link
-            /// Real link
-            item | "{sep}<a href=\"{url_str}\" class=\"sheriff-link\">{text}</a>"
+            update!(item, "{sep}<a href=\"{url_str}\" class=\"sheriff-link\">{text}</a>")
         else
-            /// Text-only entry
-            item | "{sep}<span>{text}</span>"
+            update!(item, "{sep}<span>{text}</span>")
         xx
 
-        footer_links | footer_links + item
-        first        | false
+        update!(footer_links, footer_links + item)
+        update!(first, false)
     xx
 
     if footer_links == ""

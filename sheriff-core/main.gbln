@@ -40,25 +40,12 @@ act build(portal)
             "portal": portal
         }
 
-        :say("=== PRE-SCHEDULE START ===")
-        :say("INITIAL pre_ctx:")
-        :say(pre_ctx)
-
         for act_name in pre_schedule
             :say("---- RUNNING PRE ACT ----")
             :say(act_name)
 
             /// Run exactly ONE action via summon
-            :say("SUMMON received pre_ctx type:")
-            :say(valtype(pre_ctx))
-
             ret | :summon(pre_ctx, [act_name])
-
-            :say("Returned value:")
-            :say(ret)
-
-            :say("Is NIL?")
-            :say(ret.nix?)
 
             if ret.nix?
                 :say("!!!! THIS ACT RETURNED NIL !!!!")
@@ -68,11 +55,8 @@ act build(portal)
                 pre_ctx | ret
             xx
 
-            :say("Current pre_ctx after this act:")
-            :say(pre_ctx)
         xx
 
-        :say("=== PRE-SCHEDULE END ===")
     xx
 
     /// BUILD EACH MARKDOWN FILE
@@ -87,9 +71,6 @@ act build(portal)
             "portal": portal
         }
 
-        :say("=== BEFORE SUMMON ===")
-        :say("SUMMON received ctx type:")
-        :say(valtype(ctx))
         ctx |= :summon(ctx, schedule)
 
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
@@ -98,8 +79,6 @@ act build(portal)
         out_file | "../dist/{portal}/{dir}/{base}.html"      
 
         create_all_dirs(out_file)
-        :say("RETURNING FROM MAIN ACTION:")
-        :say(ctx["body"])
         :write_text!(out_file, ctx["body"])
     xx
 

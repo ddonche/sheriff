@@ -1,18 +1,18 @@
 # site/portals/default/config.yaml
 
 id: default
-name: "Sheriff"
-version: "0.11.0"
+name: "Goblin"
+version: "0.20.0"
 
 repo:
-  url: "https://github.com/ddonche/sheriff"
-  name: "ddonche/sheriff"
+  url: "https://github.com/ddonche/goblin-lang"
+  name: "ddonche/goblin-lang"
   stars: "1"
   forks: "0"
 
 theme:
   name: "outpost"
-  brand_name: "SHERIFF"
+  brand_name: "GOBLIN LANG"
   logo: "logo.png"
   favicon: "favicon.ico"
   overrides: {}

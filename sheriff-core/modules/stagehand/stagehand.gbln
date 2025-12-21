@@ -87,7 +87,6 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
     xx
-    :say("Stagehand values are:" ++ pre_ctx)
     return pre_ctx
 xx
 
