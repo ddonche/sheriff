@@ -162,10 +162,16 @@ act wire_slots(ctx)
 
     /// 3) For each slot [name, tokens], build the raw token string
     ///    and register SLOT::slot_name = "{{{MOD::TOKEN}}}..."
+    /// Clear ONLY the slot keys for this layout
+    for pair in slots_cfg
+        slot_name | "" + pair[0]
+        clear_token("SLOT", slot_name)
+    xx
+
+    /// Now register them fresh
     for pair in slots_cfg
         slot_name   | pair[0]
         slot_tokens | pair[1]
-
         slot_value  | build_slot_value(slot_tokens)
         register_token("SLOT", "" + slot_name, slot_value)
     xx

@@ -9,6 +9,32 @@ act load_events(portal)
 xx
 ////
 
+act reset_slots()
+    clear_token("SLOT", "STYLELINK")
+    clear_token("SLOT", "LOGO")
+    clear_token("SLOT", "BRANDNAME")
+    clear_token("SLOT", "VERSION")
+    clear_token("SLOT", "THEMESWITCHER")
+    clear_token("SLOT", "VERSIONSWITCHER")
+    clear_token("SLOT", "SEARCH")
+    clear_token("SLOT", "REPO")
+
+    clear_token("SLOT", "HEADER_NAV")
+    clear_token("SLOT", "LEFT_NAV")
+    clear_token("SLOT", "SIDEBAR_TOP")
+    clear_token("SLOT", "SIDEBAR_MAIN")
+
+    clear_token("SLOT", "FOOTER_LEFT")
+    clear_token("SLOT", "FOOTER_RIGHT")
+
+    clear_token("SLOT", "HEADERLEFT")
+    clear_token("SLOT", "HEADERRIGHT")
+    clear_token("SLOT", "PAGEMETALEFT")
+    clear_token("SLOT", "PAGEMETARIGHT")
+
+    clear_token("SLOT", "SCRIPTS")
+xx
+
 act load_events(portal)
     return :yall_parse_file("../sheriff-core/events.yall")
 xx
@@ -76,7 +102,7 @@ act build(portal)
             "path": md_path,
             "portal": portal
         }
-
+        reset_slots()
         ctx |= :summon(ctx, schedule)
 
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"

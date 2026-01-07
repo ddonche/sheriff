@@ -6,8 +6,22 @@ meta_kind: docs
 meta_type: overview
 summary: A list of changes from each version of Sheriff. 
 ^^^^
+## v0.12.0
+- Implemented multi-portal builds:
+- You can now specify the exact portal you want to build in the CLI, i.e. 
 
-# Changelog
+```goblin
+goblin run main.gbln sheriff
+```
+
+- Or you can specify to build all the portals in your site/portals directory:
+
+```goblin
+goblin run main.gbln all
+```
+
+- Implemented soft pagination for docs and blog pages. If you click the button to the right of the metadata for each page (toggle page mode) it will paginate the content.
+
 ## v0.11.0
 - Implemented [[Prospector (module)|Prospector]] search module. 
 
