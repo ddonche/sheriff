@@ -3,6 +3,22 @@
 /// (1) Apply layout (inject PAGE::TITLE + PAGE::CONTENT)
 /// (2) Register + resolve BRINDLE tokens (style, logo, brandname, theme switcher, version switcher)
 
+act resolve_theme_name(portal)
+    config_path|"../site/portals/{portal}/config.yall"
+    theme_name|"outpost"
+
+    if :file_exists(config_path)
+        cfg|:yall_parse_file(config_path)
+        if !cfg.nix? and :valtype(cfg)=="map" and !cfg["theme"].nix?
+            theme_cfg|cfg["theme"]
+            if :valtype(theme_cfg)=="map" and !theme_cfg["name"].nix?
+                :update!(theme_name,:trim(""+theme_cfg["name"]))
+            xx
+        xx
+    xx
+
+    return theme_name
+xx
 
 /// ------------------------------------------------------
 /// JOB 1: Apply layout
@@ -22,23 +38,31 @@ act apply_layout(ctx)
         :say("portal is nil, returning early")
         return ctx
     xx
+
     fm     | ctx["frontmatter"]
     if body.nix?   => return ctx
     if portal.nix? => return ctx
+
     /// SAFETY: if frontmatter exists but is NOT a map → wipe it.
     if !fm.nix? and :valtype(fm) != "map"
         fm | {}
     xx
+
     /// layout name (default "docs")
     layout_name | "docs"
+
     if :valtype(fm) == "map" and !fm["layout"].nix?
         :update!(layout_name, :trim("" + fm["layout"]))
     xx
-    layout_path | "../site/portals/{portal}/layouts/{layout_name}.html"
+
+    theme_name | resolve_theme_name(portal)
+    layout_path | "../site/portals/{portal}/themes/{theme_name}/layouts/{layout_name}.html"
+
     if :file_exists(layout_path) == false
         :say("BRINDLE: layout NOT FOUND at {layout_path}")
         return ctx
     xx
+
     layout_html | :read_text(layout_path)
     /// ----------------------------------------------
     /// PAGE TITLE / AUTHOR / META
@@ -47,16 +71,19 @@ act apply_layout(ctx)
     if :valtype(fm) == "map" and !fm["title"].nix?
         :update!(page_title, :trim(fm["title"]))
     xx
+
     page_author | ""
     if :valtype(fm) == "map" and !fm["author"].nix?
         :update!(page_author, :trim(fm["author"]))
     else 
         :update!(page_author, "Unknown")
     xx
+
     page_meta_html | ""
     if :valtype(fm) == "map"
         :update!(page_meta_html, build_page_meta(fm))
     xx
+
     /// register page tokens
     clear_token("PAGE", "CONTENT")
     clear_token("PAGE", "TITLE")

@@ -11,6 +11,24 @@
 ///   name: outpost
 ///
 /// If missing, defaults to "outpost".
+
+act resolve_theme_name(portal)
+    config_path|"../site/portals/{portal}/config.yall"
+    theme_name|"outpost"
+
+    if :file_exists(config_path)
+        cfg|:yall_parse_file(config_path)
+        if !cfg.nix? and :valtype(cfg)=="map" and !cfg["theme"].nix?
+            theme_cfg|cfg["theme"]
+            if :valtype(theme_cfg)=="map" and !theme_cfg["name"].nix?
+                :update!(theme_name,:trim(""+theme_cfg["name"]))
+            xx
+        xx
+    xx
+
+    return theme_name
+xx
+
 act copy_assets(pre_ctx)
     portal | pre_ctx["portal"]
 
@@ -143,7 +161,8 @@ act wire_slots(ctx)
     xx
 
     /// 2) Load templates.yall and locate slots for this layout
-    templates_path | "../site/portals/{portal}/templates.yall"
+    theme_name | resolve_theme_name(portal)
+    templates_path | "../site/portals/{portal}/themes/{theme_name}/templates.yall"
     if :file_exists(templates_path) == false
         return ctx
     xx

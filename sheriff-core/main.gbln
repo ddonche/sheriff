@@ -169,7 +169,7 @@ else
         else
             for p in portals
                 :say("")
-                :say("=== BUILD ALL: " ++ p ++ " ===")
+                :say("=== BUILD ALL:" ++ p ++ "===")
                 build(p)
             xx
         xx

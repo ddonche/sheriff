@@ -2,31 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{{PAGE::TITLE}}}</title>
-
-    {{{BRINDLE::BASELINE}}}
-    {{{BRINDLE::THEME_LINK}}}
+    {{{SLOT::STYLELINK}}}
 </head>
-<body class="layout-blog-index">
-    <header class="site-header">
-        {{{BRINDLE::SWITCHER}}}
-        {{{SLOT::HEADER}}}
-    </header>
-
-    <main class="site-main">
-        <div class="site-shell">
-            <section class="site-content">
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                {{{SLOT::LOGO}}}
+                <div class="sheriff-logo-text-wrap">
+                  {{{SLOT::BRANDNAME}}}
+                  {{{SLOT::VERSION}}}
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              {{{SLOT::THEMESWITCHER}}}
+              {{{SLOT::VERSIONSWITCHER}}}
+              {{{SLOT::SEARCH}}}
+              {{{SLOT::REPO}}}
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            {{{SLOT::HEADER_NAV}}}
+          </div>
+        </header>
+        <div class="sheriff-main-layout-two">
+            <section class="sheriff-article">
                 {{{PAGE::CONTENT}}}
             </section>
-
-            <aside class="site-sidebar">
+            <aside class="sheriff-sidebar">
+                {{{SLOT::SIDEBAR_TOP}}}
                 {{{SLOT::SIDEBAR_MAIN}}}
             </aside>
         </div>
-    </main>
-
-    <footer class="site-footer">
-        {{{SLOT::FOOTER}}}
-    </footer>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                {{{SLOT::FOOTER_LEFT}}}
+            </div>
+            <div class="sheriff-footer-right">
+                {{{SLOT::FOOTER_RIGHT}}}
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
 </body>
 </html>

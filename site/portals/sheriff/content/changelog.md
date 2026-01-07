@@ -23,7 +23,7 @@ goblin run main.gbln all
 - Implemented soft pagination for docs and blog pages. If you click the button to the right of the metadata for each page (toggle page mode) it will paginate the content.
 
 ## v0.11.0
-- Implemented [[Prospector (module)|Prospector]] search module. 
+- Implemented [[Prospector (module)|Prospector]] search module (not wired up yet). 
 
 ## v0.10.0
 - Everything in new Sheriff working up to the individual modules replacing their tokens. 
