@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{{PAGE::TITLE}}}</title>
+    {{{SLOT::STYLELINK}}}
+</head>
+<body>
+    <div class="sheriff-shell" id="top">
+        <header class="sheriff-header">
+          <div class="sheriff-header-top">
+            <div class="sheriff-header-left">
+              <a href="/" class="sheriff-logo-link">
+                {{{SLOT::LOGO}}}
+                <div class="sheriff-logo-text-wrap">
+                  {{{SLOT::BRANDNAME}}}
+                  {{{SLOT::VERSION}}}
+                </div>
+              </a>
+            </div>
+            <div class="sheriff-header-right">
+              {{{SLOT::THEMESWITCHER}}}
+              {{{SLOT::VERSIONSWITCHER}}}
+              {{{SLOT::SEARCH}}}
+              {{{SLOT::REPO}}}
+            </div>
+          </div>
+          <div class="sheriff-header-bottom">
+            {{{SLOT::HEADER_NAV}}}
+          </div>
+        </header>
+        <div class="sheriff-main-layout-three">
+            {{{SLOT::LEFT_NAV}}}
+            <article class="sheriff-article">
+              <!-- Page header (meta strip + title + byline) -->
+              <header class="sheriff-page-header">
+                <!-- Top meta strip -->
+                <div class="sheriff-page-meta-bar">
+                  <div class="sheriff-page-meta-left">
+                    {{{SLOT::HEADERLEFT}}}
+                    <!-- e.g. THEME PREVIEW · ARTICLE -->
+                  </div>
+                  <div class="sheriff-page-meta-right">
+                    {{{SLOT::HEADERRIGHT}}}
+                    <!-- e.g. canonical wikilink + copy icon -->
+                  </div>
+                </div>
+                <!-- Title (your existing .sheriff-article h1 + ::after underline) -->
+                <h1>
+                  {{{PAGE::TITLE}}}
+                </h1>
+                <div class="sheriff-title-underline"></div>
+                <!-- Byline / meta row -->
+                <div class="sheriff-page-byline">
+                  <div class="sheriff-page-byline-main">
+                    By
+                    <span class="sheriff-page-byline-author">
+                      {{{PAGE::AUTHOR}}}
+                    </span>
+                    {{{SLOT::PAGEMETALEFT}}}
+                    <!-- e.g. " · " + BADGE::READTIME -->
+                  </div>
+                  <div class="sheriff-page-byline-actions">
+                    {{{SLOT::PAGEMETARIGHT}}}
+                    <!-- e.g. BADGE::UTILICONS -->
+                  </div>
+                </div>
+                <hr class="sheriff-page-header-divider" />
+              </header>
+              <!-- Markdown / main content -->
+              {{{PAGE::CONTENT}}}
+            </article>
+            <aside class="sheriff-toc">
+                {{{SLOT::SIDEBAR_TOP}}}
+                {{{SLOT::SIDEBAR_MAIN}}}
+            </aside>
+        </div>
+        <footer class="sheriff-footer">
+            <div class="sheriff-footer-left">
+                {{{SLOT::FOOTER_LEFT}}}
+            </div>
+            <div class="sheriff-footer-right">
+                {{{SLOT::FOOTER_RIGHT}}}
+            </div>
+        </footer>
+    </div>
+    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+    {{{SLOT::SCRIPTS}}}
+</body>
+</html>
