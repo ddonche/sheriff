@@ -45,11 +45,13 @@ act apply_layout(ctx)
     /// ----------------------------------------------
     page_title | "Untitled"
     if :valtype(fm) == "map" and !fm["title"].nix?
-        :update!(page_title, :trim("" + fm["title"]))
+        :update!(page_title, :trim(fm["title"]))
     xx
     page_author | ""
     if :valtype(fm) == "map" and !fm["author"].nix?
-        :update!(page_author, :trim("" + fm["author"]))
+        :update!(page_author, :trim(fm["author"]))
+    else 
+        :update!(page_author, "Unknown")
     xx
     page_meta_html | ""
     if :valtype(fm) == "map"
@@ -64,6 +66,13 @@ act apply_layout(ctx)
     register_token("PAGE", "TITLE",   page_title)
     register_token("PAGE", "AUTHOR",  page_author)
     register_token("PAGE", "META",    page_meta_html)
+
+    scripts_html | """
+    <script src="/public/js/soft_pagination.js" defer></script>
+    """
+
+    register_token("BRINDLE", "SCRIPTS", scripts_html)
+    
     /// resolve ONLY PAGE tokens here
     final_html | resolve_token(layout_html)
     :update!(ctx["body"], final_html)

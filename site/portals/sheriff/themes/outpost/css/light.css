@@ -1149,6 +1149,92 @@ body {
 }
 
 /* ========================================================================== */
+/* SOFT PAGINATION – use Sheriff panel bg (matches .sheriff-header-bottom)    */
+/* ========================================================================== */
+
+/* light theme panel color (same as header-bottom) */
+:root {
+  --sheriff-panel: #f1f3f5;
+}
+
+.sheriff-pager{
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  /* SAME BG AS OTHER SITE PANELS */
+  background: var(--sheriff-panel) !important;
+
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+
+  /* wall gap */
+  padding: 0.65rem 0.85rem !important;
+  margin: 0.75rem 0 1rem 0 !important;
+}
+
+/* center label */
+.sheriff-pager .sheriff-pager-label{
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+
+  font: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: none !important;
+
+  color: var(--sheriff-muted) !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* arrows: EXACT SAME RED AS YOUR LINKS */
+.sheriff-pager .sheriff-pager-prev,
+.sheriff-pager .sheriff-pager-next{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+
+  padding: 0.25rem !important; /* click target, not “against the wall” */
+  margin: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  cursor: pointer !important;
+  line-height: 1 !important;
+
+  color: var(--sheriff-link) !important;   /* <-- YOUR RED */
+}
+
+.sheriff-pager .sheriff-pager-prev svg,
+.sheriff-pager .sheriff-pager-next svg{
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.sheriff-pager .sheriff-pager-prev:hover,
+.sheriff-pager .sheriff-pager-next:hover{
+  color: var(--sheriff-link-hover) !important;
+}
+
+.sheriff-pager .sheriff-pager-prev:disabled,
+.sheriff-pager .sheriff-pager-next:disabled,
+.sheriff-pager .sheriff-pager-prev[aria-disabled="true"],
+.sheriff-pager .sheriff-pager-next[aria-disabled="true"]{
+  opacity: 0.35 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* ========================================================================== */
 /* RESPONSIVE                                                                 */
 /* ========================================================================== */
 

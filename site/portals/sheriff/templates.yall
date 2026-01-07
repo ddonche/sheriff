@@ -27,7 +27,6 @@ layouts:
         - "SCOUT::left_docs_SIDEBAR"
 
       SIDEBAR_TOP:
-        - "BADGE::SOCIAL_SHARE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
@@ -46,6 +45,9 @@ layouts:
         - "BADGE::READTIME"
       PAGEMETARIGHT:
         - "BADGE::UTILICONS"
+
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
 
   blog:
     slots:
@@ -73,7 +75,6 @@ layouts:
       LEFT_NAV: []
 
       SIDEBAR_TOP:
-        - "BADGE::SOCIAL_SHARE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "CAMPFIRE::RECENT_POSTS"
@@ -91,6 +92,9 @@ layouts:
         - "BADGE::READTIME"
       PAGEMETARIGHT:
         - "BADGE::UTILICONS"
+
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
 
   blog_index:
     slots:
@@ -117,7 +121,6 @@ layouts:
       LEFT_NAV: []
 
       SIDEBAR_TOP:
-        - "BADGE::SOCIAL_SHARE"
       SIDEBAR_MAIN:
         - "CAMPFIRE::BLOG_LIST"
 
