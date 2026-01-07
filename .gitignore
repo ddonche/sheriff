@@ -1,1 +1,8 @@
 dist/
+
+# Ignore ALL portals
+site/portals/*
+
+# Re-include sheriff portal
+!site/portals/sheriff/
+!site/portals/sheriff/**
