@@ -1,16 +1,10 @@
-/// sheriff-core/main.gbln
-/// import "../site/portals/sheriff/manifest.imports"
-import "../sheriff-core/manifest.imports"
+/// sheriff-core/build.gbln
+/// Portal-agnostic build logic. NO portal imports. NO auto-build at bottom.
 
-//// Load events.yall into a map via Y'all
+/// Load events.yall into a map via Y'all
 act load_events(portal)
     path | "../site/portals/{portal}/events.yall"
     return :yall_parse_file(path)
-xx
-////
-
-act load_events(portal)
-    return :yall_parse_file("../sheriff-core/events.yall")
 xx
 
 act create_all_dirs(path)
@@ -60,9 +54,7 @@ act build(portal)
             else
                 pre_ctx | ret
             xx
-
         xx
-
     xx
 
     /// BUILD EACH MARKDOWN FILE
@@ -71,7 +63,7 @@ act build(portal)
 
         ctx | {
             "body": raw,
-            "frontmatter": {}, 
+            "frontmatter": {},
             "tokens": {},
             "path": md_path,
             "portal": portal
@@ -82,7 +74,7 @@ act build(portal)
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
         dir      | :dirname(rel_path)                        /// "docs"
         base     | :stem(rel_path)                           /// "judge"
-        out_file | "../dist/{portal}/{dir}/{base}.html"      
+        out_file | "../dist/{portal}/{dir}/{base}.html"
 
         create_all_dirs(out_file)
         :write_text!(out_file, ctx["body"])
@@ -90,64 +82,4 @@ act build(portal)
 
     :say("Portal build finished:")
     :say(portal)
-xx
-
-act discover_portals()
-    root | "../site/portals"
-
-    if :file_exists(root) == false or :is_dir(root) == false
-        return []
-    xx
-
-    portals | []
-
-    /// list_dirs returns ONLY directory names (e.g. "goblin", "sheriff")
-    for name in :list_dirs(root)
-        portal | :trim("" + name)
-
-        if portal == "" or portal == "." or portal == ".."
-            skip
-        xx
-
-        /// optional: ignore hidden-ish folders
-        if portal[0:1] == "."
-            skip
-        xx
-
-        /// double-check it's still a dir (paranoia, but cheap)
-        if :is_dir(:path_join(root, portal)) == false
-            skip
-        xx
-
-        :put_last!(portals, portal)
-    xx
-
-    return portals
-xx
-
-/// sheriff-core/main.gbln
-/// Requires a portal argument:
-///   goblin run main.gbln <portal>
-
-if args.nix? or args.len == 0
-    :say("ERROR: missing portal name")
-    :say("Usage: goblin run main.gbln <portal|all>")
-else
-    cmd | args[0]
-
-    if cmd == "all"
-        portals | discover_portals()
-
-        if portals.nix? or portals.len == 0
-            :say("ERROR: no portals found under ../site/portals")
-        else
-            for p in portals
-                :say("")
-                :say("=== BUILD ALL: " ++ p ++ " ===")
-                build(p)
-            xx
-        xx
-    else
-        build(cmd)
-    xx
 xx

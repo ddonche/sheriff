@@ -1,0 +1,18 @@
+pre:
+  - "prospector::init"
+  - "stagehand::copy_assets"
+  - "trailboss::build_routes_once"
+  - "scout::publish_nav_tokens"
+
+schedule:
+  - "frontier::strip_frontmatter"
+  - "prospector::index_page"
+  - "markdown_core::render"
+  - "trailboss::process_wikilinks"
+  - "brindle::apply_layout"
+  - "stagehand::wire_slots"
+  - "trailboss::publish_canonical_link"
+  - "scout::apply_tokens"
+  - "brindle::apply_tokens"
+  - "badge::apply_tokens"
+  - "prospector::apply_tokens"
