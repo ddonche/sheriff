@@ -1,1 +1,70 @@
-///campfire
+/// modules/campfire_blog/campfire.gbln
+/// Campfire: blog-only behavior
+/// - Build blog list from /content/blog
+/// - Publish CAMPFIRE tokens
+
+/// ------------------------------------------------------
+/// Build blog list HTML for a portal
+/// ------------------------------------------------------
+act build_blog_list(portal)
+
+    if portal.nix?
+        return ""
+    xx
+
+    content_root | "../site/portals/{portal}/content"
+    blog_root | content_root + "/blog"
+
+    if :file_exists(blog_root) == false
+        return ""
+    xx
+
+    items | []
+
+    for markdown_path in :walk(blog_root, "**/*.md")
+
+        rel_path | :path_relative_to(markdown_path, content_root)
+        dir | :dirname(rel_path)
+        stem | :stem(rel_path)
+
+        href | "/" + dir + "/" + stem + ".html"
+        title | stem
+
+        list_item | "<li><a class=\"sheriff-link\" href=\"{href}\">{title}</a></li>"
+
+        :put_last!(items, list_item)
+    xx
+
+    if items.len == 0
+        return ""
+    xx
+
+    html | "<ul class=\"campfire-blog-list\">" + :pack(items) + "</ul>"
+    return html
+xx
+
+
+/// ------------------------------------------------------
+/// Apply tokens (called in schedule)
+/// ------------------------------------------------------
+act apply_tokens(ctx)
+
+    body | ctx["body"]
+    portal | ctx["portal"]
+
+    if body.nix? or portal.nix?
+        return ctx
+    xx
+
+    blog_list_html | build_blog_list(portal)
+
+    if blog_list_html != ""
+        register_token("CAMPFIRE", "BLOG_LIST", blog_list_html)
+        register_token("CAMPFIRE", "INDEX", blog_list_html)
+    xx
+
+    rendered | resolve_token(body)
+    :update!(ctx["body"], rendered)
+
+    return ctx
+xx

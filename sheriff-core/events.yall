@@ -13,6 +13,7 @@ schedule:
   - "stagehand::wire_slots"
   - "trailboss::publish_canonical_link"
   - "scout::apply_tokens"
+  - "campfire::apply_tokens"
   - "brindle::apply_tokens"
   - "badge::apply_tokens"
   - "prospector::apply_tokens"

@@ -105,6 +105,18 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
     xx
+
+    /// ----- 4) Copy index.html from content/ to dist root if it exists -----
+    index_src  | "../site/portals/{portal}/content/index.html"
+    index_dest | "../dist/{portal}/index.html"
+
+    if :file_exists(index_src)
+        :copy_file!(index_src, index_dest)
+        :say("STAGEHAND: Copied index.html to dist root")
+    else
+        :say("STAGEHAND: No index.html found in content/, skipping")
+    xx
+
     return pre_ctx
 xx
 

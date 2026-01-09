@@ -1,47 +1,251 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{{PAGE::TITLE}}}</title>
-    {{{SLOT::STYLELINK}}}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{{PAGE::TITLE}}}</title>
+  {{{SLOT::STYLELINK}}}
 </head>
+
 <body>
-    <div class="sheriff-shell" id="top">
-        <header class="sheriff-header">
-          <div class="sheriff-header-top">
-            <div class="sheriff-header-left">
-              <a href="/" class="sheriff-logo-link">
-                {{{SLOT::LOGO}}}
-                <div class="sheriff-logo-text-wrap">
-                  {{{SLOT::BRANDNAME}}}
-                  {{{SLOT::VERSION}}}
+  <div class="sheriff-page" id="top">
+    <div class="sheriff-shell">
+      <header class="sheriff-header">
+        <div class="sheriff-header-top">
+          <div class="sheriff-header-left">
+            <a href="/" class="sheriff-logo-link">
+              {{{SLOT::LOGO}}}
+              <div class="sheriff-logo-text-wrap">
+                {{{SLOT::BRANDNAME}}}
+                {{{SLOT::VERSION}}}
+              </div>
+            </a>
+          </div>
+
+          <div class="sheriff-header-right">
+            {{{SLOT::THEMESWITCHER}}}
+            {{{SLOT::VERSIONSWITCHER}}}
+            {{{SLOT::SEARCH}}}
+            {{{SLOT::REPO}}}
+          </div>
+        </div>
+
+        <!-- You said "minus the nav", so keep this slot but you can remove it if desired -->
+        <div class="sheriff-header-bottom">
+          {{{SLOT::HEADER_NAV}}}
+        </div>
+      </header>
+
+      <main class="sheriff-home-main">
+        <!-- HERO -->
+        <section class="home-hero">
+          <div class="home-hero-backdrop" aria-hidden="true"></div>
+
+          <div class="home-hero-content">
+            <div class="home-hero-logos">
+              <div class="home-hero-logo-box">
+                <div class="home-hero-logo home-hero-logo--{{{HOMESTEAD::HERO_LOGO_LEFT_VARIANT}}}">
+                  {{{HOMESTEAD::HERO_LOGO_LEFT_SVG}}}
                 </div>
+                <div class="home-hero-logo-name">{{{HOMESTEAD::HERO_LOGO_LEFT_NAME}}}</div>
+              </div>
+
+              <div class="home-hero-joiner">{{{HOMESTEAD::HERO_LOGO_JOINER}}}</div>
+
+              <div class="home-hero-logo-box">
+                <div class="home-hero-logo home-hero-logo--{{{HOMESTEAD::HERO_LOGO_RIGHT_VARIANT}}}">
+                  {{{HOMESTEAD::HERO_LOGO_RIGHT_SVG}}}
+                </div>
+                <div class="home-hero-logo-name">{{{HOMESTEAD::HERO_LOGO_RIGHT_NAME}}}</div>
+              </div>
+            </div>
+
+            <h1 class="home-hero-title">{{{HOMESTEAD::HERO_TITLE}}}</h1>
+            <p class="home-hero-subtitle">{{{HOMESTEAD::HERO_SUBTITLE}}}</p>
+            <p class="home-hero-note">{{{HOMESTEAD::HERO_NOTE}}}</p>
+
+            <div class="home-hero-actions">
+              <a class="btn btn-primary" href="{{{HOMESTEAD::HERO_PRIMARY_URL}}}">
+                <span class="btn-label">{{{HOMESTEAD::HERO_PRIMARY_LABEL}}}</span>
+                {{{HOMESTEAD::ICON_ARROW_RIGHT_SVG}}}
+              </a>
+
+              <a class="btn btn-secondary" href="{{{HOMESTEAD::HERO_SECONDARY_URL}}}">
+                {{{HOMESTEAD::ICON_GITHUB_SVG}}}
+                <span class="btn-label">{{{HOMESTEAD::HERO_SECONDARY_LABEL}}}</span>
               </a>
             </div>
-            <div class="sheriff-header-right">
-              {{{SLOT::THEMESWITCHER}}}
-              {{{SLOT::VERSIONSWITCHER}}}
-              {{{SLOT::SEARCH}}}
-              {{{SLOT::REPO}}}
+          </div>
+        </section>
+
+        <!-- STATS -->
+        <section class="home-stats">
+          <div class="home-stat-card">
+            <div class="home-stat-value">{{{HOMESTEAD::STAT_1_VALUE}}}</div>
+            <div class="home-stat-label">{{{HOMESTEAD::STAT_1_LABEL}}}</div>
+          </div>
+
+          <div class="home-stat-card">
+            <div class="home-stat-value">{{{HOMESTEAD::STAT_2_VALUE}}}</div>
+            <div class="home-stat-label">{{{HOMESTEAD::STAT_2_LABEL}}}</div>
+          </div>
+
+          <div class="home-stat-card">
+            <div class="home-stat-value">{{{HOMESTEAD::STAT_3_VALUE}}}</div>
+            <div class="home-stat-label">{{{HOMESTEAD::STAT_3_LABEL}}}</div>
+          </div>
+
+          <div class="home-stat-card">
+            <div class="home-stat-value">{{{HOMESTEAD::STAT_4_VALUE}}}</div>
+            <div class="home-stat-label">{{{HOMESTEAD::STAT_4_LABEL}}}</div>
+          </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section class="home-features">
+          <h2 class="home-section-title">{{{HOMESTEAD::FEATURES_TITLE}}}</h2>
+          <p class="home-section-subtitle">{{{HOMESTEAD::FEATURES_SUBTITLE}}}</p>
+
+          <div class="home-feature-grid">
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_1_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_1_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_1_BODY_HTML}}}</div>
+            </article>
+
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_2_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_2_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_2_BODY_HTML}}}</div>
+            </article>
+
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_3_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_3_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_3_BODY_HTML}}}</div>
+            </article>
+
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_4_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_4_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_4_BODY_HTML}}}</div>
+            </article>
+
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_5_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_5_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_5_BODY_HTML}}}</div>
+            </article>
+
+            <article class="home-feature-card">
+              <div class="home-feature-icon">{{{HOMESTEAD::FEATURE_6_ICON_SVG}}}</div>
+              <h3 class="home-feature-title">{{{HOMESTEAD::FEATURE_6_TITLE}}}</h3>
+              <div class="home-feature-desc">{{{HOMESTEAD::FEATURE_6_BODY_HTML}}}</div>
+            </article>
+          </div>
+
+          <p class="home-features-closing">{{{HOMESTEAD::FEATURES_CLOSING}}}</p>
+        </section>
+
+        <!-- PREREQUISITES -->
+        <section class="home-panel">
+          <h2 class="home-panel-title">{{{HOMESTEAD::PREREQ_TITLE}}}</h2>
+          <p class="home-panel-subtitle">{{{HOMESTEAD::PREREQ_SUBTITLE}}}</p>
+
+          <div class="home-panel-blocks">
+            {{{HOMESTEAD::PREREQ_BLOCKS_HTML}}}
+          </div>
+        </section>
+
+        <!-- QUICKSTART -->
+        <section class="home-panel">
+          <h2 class="home-panel-title">{{{HOMESTEAD::QS_TITLE}}}</h2>
+
+          <div class="home-steps">
+            <div class="home-step">
+              <div class="home-step-number">1</div>
+              <div class="home-step-content">
+                <h3 class="home-step-title">{{{HOMESTEAD::QS_STEP_1_TITLE}}}</h3>
+                <div class="home-step-desc">{{{HOMESTEAD::QS_STEP_1_BODY_HTML}}}</div>
+
+                <div class="home-codeblock">
+                  <button class="home-copy-code" aria-label="Copy code">
+                    {{{HOMESTEAD::ICON_COPY_SVG}}}
+                  </button>
+                  <code>{{{HOMESTEAD::QS_STEP_1_CODE}}}</code>
+                </div>
+
+                <div class="home-step-extra-label">{{{HOMESTEAD::QS_STEP_1_EXTRA_LABEL}}}</div>
+                <div class="home-codeblock">
+                  <button class="home-copy-code" aria-label="Copy code">
+                    {{{HOMESTEAD::ICON_COPY_SVG}}}
+                  </button>
+                  <code>{{{HOMESTEAD::QS_STEP_1_EXTRA_CODE}}}</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="home-step">
+              <div class="home-step-number">2</div>
+              <div class="home-step-content">
+                <h3 class="home-step-title">{{{HOMESTEAD::QS_STEP_2_TITLE}}}</h3>
+                <div class="home-step-desc">{{{HOMESTEAD::QS_STEP_2_BODY_HTML}}}</div>
+
+                <div class="home-codeblock">
+                  <button class="home-copy-code" aria-label="Copy code">
+                    {{{HOMESTEAD::ICON_COPY_SVG}}}
+                  </button>
+                  <code>{{{HOMESTEAD::QS_STEP_2_CODE}}}</code>
+                </div>
+              </div>
+            </div>
+
+            <div class="home-step">
+              <div class="home-step-number">3</div>
+              <div class="home-step-content">
+                <h3 class="home-step-title">{{{HOMESTEAD::QS_STEP_3_TITLE}}}</h3>
+                <div class="home-step-desc">{{{HOMESTEAD::QS_STEP_3_BODY_HTML}}}</div>
+
+                <div class="home-codeblock">
+                  <button class="home-copy-code" aria-label="Copy code">
+                    {{{HOMESTEAD::ICON_COPY_SVG}}}
+                  </button>
+                  <code>{{{HOMESTEAD::QS_STEP_3_CODE}}}</code>
+                </div>
+
+                <div class="home-step-closing">{{{HOMESTEAD::QS_STEP_3_CLOSING}}}</div>
+              </div>
             </div>
           </div>
-          <div class="sheriff-header-bottom">
-            {{{SLOT::HEADER_NAV}}}
+        </section>
+
+        <!-- CTA -->
+        <section class="home-cta">
+          <h2 class="home-cta-title">{{{HOMESTEAD::CTA_TITLE}}}</h2>
+          <p class="home-cta-subtitle">{{{HOMESTEAD::CTA_SUBTITLE}}}</p>
+
+          <div class="home-cta-actions">
+            <a class="btn btn-primary" href="{{{HOMESTEAD::CTA_PRIMARY_URL}}}">
+              {{{HOMESTEAD::CTA_PRIMARY_LABEL}}}
+            </a>
+            <a class="btn btn-secondary" href="{{{HOMESTEAD::CTA_SECONDARY_URL}}}">
+              {{{HOMESTEAD::CTA_SECONDARY_LABEL}}}
+            </a>
           </div>
-        </header>
-        <main class="sheriff-home-main">
-            {{{PAGE::CONTENT}}}
-        </main>
-        <footer class="sheriff-footer">
-            <div class="sheriff-footer-left">
-                {{{SLOT::FOOTER_LEFT}}}
-            </div>
-            <div class="sheriff-footer-right">
-                {{{SLOT::FOOTER_RIGHT}}}
-            </div>
-        </footer>
+        </section>
+      </main>
+
+      <!-- FOOTER (custom schema) -->
+      <footer class="sheriff-footer">
+        <div class="sheriff-footer-left">
+          {{{SLOT::HOME_FOOTER_LEFT}}}
+        </div>
+        <div class="sheriff-footer-right">
+          {{{SLOT::HOME_FOOTER_RIGHT}}}
+        </div>
+      </footer>
     </div>
-    <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
+  </div>
+
 </body>
 </html>
