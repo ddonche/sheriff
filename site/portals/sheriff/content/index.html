@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sheriff - Markdown in. Website out.</title>
+  <link rel="icon" type="image/x-icon" href="public/favicon.ico">
+
   <style>
     * {
       margin: 0;
@@ -45,13 +47,6 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-    }
-
-    .logo-mark {
-      width: 1.4rem;
-      height: 1.4rem;
-      border-radius: 0.35rem;
-      background: linear-gradient(135deg, #2bcfce, #e85555);
     }
 
     .logo-text {
@@ -113,13 +108,13 @@
     /* Hero */
     .hero {
       text-align: center;
-      padding: 4rem 2rem 8rem 2rem;
+      padding: 4rem 2rem 6rem 2rem;
       position: relative;
     }
 
     .hero-backdrop {
       position: absolute;
-      top: 50%;
+      top: 45%;
       left: 50%;
       transform: translate(-50%, -50%);
       width: 40rem;
@@ -137,55 +132,46 @@
 
     .hero-logos {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      gap: 4rem;
-      margin-bottom: 3rem;
+      gap: 3.5rem;
+      margin-bottom: 3.25rem;
+      flex-wrap: wrap;
     }
 
     .hero-logo-box {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1.25rem;
+      gap: 0.75rem;
+      text-align: center;
     }
 
-    .hero-logo-icon {
-      width: 10rem;
-      height: 10rem;
-      border-radius: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s ease;
-    }
-
-    .hero-logo-icon:hover {
-      transform: translateY(-8px) scale(1.05);
-    }
-
-    .sheriff-logo {
-      background: linear-gradient(135deg, #2bcfce, #e85555);
-      box-shadow: 0 20px 60px rgba(43, 207, 206, 0.25);
-    }
-
-    .goblin-logo {
-      background: linear-gradient(135deg, #7c3aed, #ec4899);
-      box-shadow: 0 20px 60px rgba(124, 58, 237, 0.25);
+    .hero-logo-img {
+      width: 240px;
+      height: 240px;
+      object-fit: contain;
+      display: block;
+      background: transparent;
+      border: none;
+      border-radius: 0;
     }
 
     .hero-logo-name {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: #d8d8dc;
+      line-height: 1.1;
     }
 
-    .plus-icon {
-      font-size: 3rem;
+    .hero-logo-sub {
+      font-size: 0.85rem;
       color: #a0a0a5;
-      font-weight: 300;
+      line-height: 1.3;
+      margin-top: -0.25rem;
+      max-width: 16rem;
     }
 
     .hero-title {
@@ -558,7 +544,7 @@
     <header>
       <div class="header-top">
         <div class="logo">
-          <div class="logo-mark"></div>
+          <img src="public/logo.png" alt="Sheriff" style="height: 2.5rem; width: auto;">
           <div style="display: flex; align-items: baseline; gap: 0.4rem;">
             <div class="logo-text">SHERIFF</div>
             <span class="version-badge">v0.9.5</span>
@@ -583,28 +569,15 @@
         <!-- Big logos -->
         <div class="hero-logos">
           <div class="hero-logo-box">
-            <div class="hero-logo-icon sheriff-logo">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
+            <img class="hero-logo-img" src="public/images/sheriff.png" alt="Sheriff" loading="eager" />
             <span class="hero-logo-name">Sheriff</span>
+            <span class="hero-logo-sub">Static site generator</span>
           </div>
           
-          <div class="plus-icon">+</div>
-          
           <div class="hero-logo-box">
-            <div class="hero-logo-icon goblin-logo">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                <line x1="9" y1="9" x2="9.01" y2="9"/>
-                <line x1="15" y1="9" x2="15.01" y2="9"/>
-              </svg>
-            </div>
+            <img class="hero-logo-img" src="public/images/goblin.png" alt="Goblin" loading="eager" />
             <span class="hero-logo-name">Goblin</span>
+            <span class="hero-logo-sub">Powers Sheriff</span>
           </div>
         </div>
 
