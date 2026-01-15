@@ -77,7 +77,7 @@ layouts:
       SIDEBAR_TOP:
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
-        - "CAMPFIRE::RECENT_POSTS"
+        - "CAMPFIRE::BLOG_LIST"
 
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"

@@ -1,6 +1,7 @@
 ^^^^
 title: Horde Format Official Rules
 author: Dan Donche
+date: 2015-12-05
 layout: blog
 meta_kind: blog
 meta_type: community

@@ -3,6 +3,7 @@ pre:
   - "stagehand::copy_assets"
   - "trailboss::build_routes_once"
   - "scout::publish_nav_tokens"
+  - "campfire::build_index_once"
 
 schedule:
   - "frontier::strip_frontmatter"

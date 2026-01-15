@@ -1,6 +1,7 @@
 ^^^^
 title: Sheriff 0.8.0 – Campfire & Trailboss
 author: Dan Donche
+date: 2015-11-16
 layout: blog
 meta_kind: blog
 meta_type: development

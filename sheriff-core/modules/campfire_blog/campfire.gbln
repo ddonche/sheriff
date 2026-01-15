@@ -1,10 +1,34 @@
 /// modules/campfire_blog/campfire.gbln
 /// Campfire: blog-only behavior
-/// - Build blog list from /content/blog
-/// - Publish CAMPFIRE tokens
+/// - BLOG_LIST: sidebar list (frontmatter title, skip index)
+/// - INDEX: rich cards (title, author, date, summary)
+/// - PRE: build/register tokens once (build_index_once)
+/// - APPLY: resolve tokens into page body
+/// - NO imports
+/// - NO invented helpers
 
 /// ------------------------------------------------------
-/// Build blog list HTML for a portal
+/// Extract ^^^^ frontmatter using builtins only
+/// Returns map (assumed valid by contract)
+/// ------------------------------------------------------
+act campfire_extract_frontmatter(md_text)
+
+    fm_map | nil
+
+    sweep md_text
+        first "^^^^" ... "^^^^":
+            fm_text  | :keep_between(self, "^^^^", "^^^^")
+            trimmed  | :trim(fm_text)
+            parsed   | :to_map(trimmed)
+            :update!(fm_map, parsed)
+            stop
+    xx
+
+    return fm_map
+xx
+
+/// ------------------------------------------------------
+/// Sidebar blog list (title from frontmatter, skip index)
 /// ------------------------------------------------------
 act build_blog_list(portal)
 
@@ -13,7 +37,7 @@ act build_blog_list(portal)
     xx
 
     content_root | "../site/portals/{portal}/content"
-    blog_root | content_root + "/blog"
+    blog_root    | content_root + "/blog"
 
     if :file_exists(blog_root) == false
         return ""
@@ -24,14 +48,31 @@ act build_blog_list(portal)
     for markdown_path in :walk(blog_root, "**/*.md")
 
         rel_path | :path_relative_to(markdown_path, content_root)
-        dir | :dirname(rel_path)
-        stem | :stem(rel_path)
+        dir      | :dirname(rel_path)
+        stem     | :stem(rel_path)
+
+        /// skip the blog index page itself
+        if stem == "index"
+            skip
+        xx
 
         href | "/" + dir + "/" + stem + ".html"
-        title | stem
+
+        text | :read_text(markdown_path)
+        fm   | campfire_extract_frontmatter(text)
+
+        title | ""
+        attempt
+            :update!(title, :trim(fm["title"]))
+        rescue
+            :update!(title, "")
+        end
+
+        if title == ""
+            :update!(title, stem)
+        xx
 
         list_item | "<li><a class=\"sheriff-link\" href=\"{href}\">{title}</a></li>"
-
         :put_last!(items, list_item)
     xx
 
@@ -39,28 +80,141 @@ act build_blog_list(portal)
         return ""
     xx
 
-    html | "<ul class=\"campfire-blog-list\">" + :pack(items) + "</ul>"
-    return html
+    return "<ul class=\"campfire-blog-list\">" + :pack(items) + "</ul>"
 xx
 
+/// ------------------------------------------------------
+/// Blog index cards (title, author/date, summary, read more)
+/// ------------------------------------------------------
+act build_blog_index(portal)
+
+    if portal.nix?
+        return ""
+    xx
+
+    content_root | "../site/portals/{portal}/content"
+    blog_root    | content_root + "/blog"
+
+    if :file_exists(blog_root) == false
+        return ""
+    xx
+
+    cards | []
+
+    for markdown_path in :walk(blog_root, "**/*.md")
+
+        rel_path | :path_relative_to(markdown_path, content_root)
+        dir      | :dirname(rel_path)
+        stem     | :stem(rel_path)
+
+        if stem == "index"
+            skip
+        xx
+
+        href | "/" + dir + "/" + stem + ".html"
+
+        text | :read_text(markdown_path)
+        fm   | campfire_extract_frontmatter(text)
+
+        title     | ""
+        author    | ""
+        post_date | ""
+        summary   | ""
+
+        attempt
+            :update!(title, :trim(fm["title"]))
+        rescue
+            :update!(title, "")
+        end
+
+        attempt
+            :update!(author, :trim(fm["author"]))
+        rescue
+            :update!(author, "")
+        end
+
+        attempt
+            :update!(post_date, :trim(fm["date"]))
+        rescue
+            :update!(post_date, "")
+        end
+
+        attempt
+            :update!(summary, :trim(fm["summary"]))
+        rescue
+            :update!(summary, "")
+        end
+
+        if title == ""
+            :update!(title, stem)
+        xx
+
+        meta_line | ""
+        if author != "" and post_date != ""
+            :update!(meta_line, "{author} • {post_date}")
+        elif author != ""
+            :update!(meta_line, author)
+        elif post_date != ""
+            :update!(meta_line, post_date)
+        xx
+
+        meta_html | ""
+        if meta_line != ""
+            :update!(meta_html, "<div class=\"campfire-post-meta\">{meta_line}</div>")
+        xx
+
+        preview_html | ""
+        if summary != ""
+            :update!(preview_html, "<p class=\"campfire-post-preview\">{summary}</p>")
+        xx
+
+        card | "<div class=\"campfire-post\">" +
+               "<div class=\"campfire-post-title\"><a class=\"sheriff-link\" href=\"{href}\">{title}</a></div>" +
+               meta_html +
+               preview_html +
+               "<div class=\"campfire-post-readmore\"><a class=\"sheriff-link\" href=\"{href}\">Read more →</a></div>" +
+               "</div>"
+
+        :put_last!(cards, card)
+    xx
+
+    if cards.len == 0
+        return ""
+    xx
+
+    return "<div class=\"campfire-post-index\">" + :pack(cards) + "</div>"
+xx
 
 /// ------------------------------------------------------
-/// Apply tokens (called in schedule)
+/// PRE ACT: Build + register tokens once
+/// Matches events.yall: "campfire::build_index_once"
+/// ------------------------------------------------------
+act build_index_once(pre_ctx)
+
+    portal | pre_ctx["portal"]
+
+    if portal.nix?
+        return pre_ctx
+    xx
+
+    blog_list_html  | build_blog_list(portal)
+    blog_index_html | build_blog_index(portal)
+
+    register_token("CAMPFIRE", "BLOG_LIST", blog_list_html)
+    register_token("CAMPFIRE", "INDEX",     blog_index_html)
+
+    return pre_ctx
+xx
+
+/// ------------------------------------------------------
+/// Apply tokens (per page)
 /// ------------------------------------------------------
 act apply_tokens(ctx)
 
     body | ctx["body"]
-    portal | ctx["portal"]
 
-    if body.nix? or portal.nix?
+    if body.nix?
         return ctx
-    xx
-
-    blog_list_html | build_blog_list(portal)
-
-    if blog_list_html != ""
-        register_token("CAMPFIRE", "BLOG_LIST", blog_list_html)
-        register_token("CAMPFIRE", "INDEX", blog_list_html)
     xx
 
     rendered | resolve_token(body)

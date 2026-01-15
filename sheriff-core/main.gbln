@@ -78,7 +78,6 @@ act build(portal)
         }
 
         :clear_tokens("SLOT")
-        :clear_tokens("CAMPFIRE")
 
         ctx |= :summon(ctx, schedule)
 
