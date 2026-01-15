@@ -116,10 +116,11 @@ act build_blog_index(portal)
         text | :read_text(markdown_path)
         fm   | campfire_extract_frontmatter(text)
 
-        title     | ""
-        author    | ""
-        post_date | ""
-        summary   | ""
+        title         | ""
+        author        | ""
+        post_date     | ""
+        summary       | ""
+        author_avatar | ""
 
         attempt
             :update!(title, :trim(fm["title"]))
@@ -145,8 +146,19 @@ act build_blog_index(portal)
             :update!(summary, "")
         end
 
+        attempt
+            :update!(author_avatar, :trim(fm["author_avatar"]))
+        rescue
+            :update!(author_avatar, "")
+        end
+
         if title == ""
             :update!(title, stem)
+        xx
+
+        /// default avatar if missing
+        if author_avatar == ""
+            :update!(author_avatar, "/public/avatars/default.png")
         xx
 
         /// -------------------------------
@@ -154,30 +166,32 @@ act build_blog_index(portal)
         /// -------------------------------
         meta_html | ""
 
+        author_html | ""
+        if author != ""
+            :update!(author_html,
+              "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
+                "<img class=\"campfire-author-avatar\" src=\"{author_avatar}\" alt=\"{author}\">" +
+                "<span class=\"campfire-author-name\">{author}</span>" +
+              "</a>"
+            )
+        xx
+
+        date_html | ""
+        if post_date != ""
+            :update!(date_html, "<span class=\"campfire-date\">{post_date}</span>")
+        xx
+
+        dot_html | ""
         if author != "" and post_date != ""
+            :update!(dot_html, "<span class=\"campfire-meta-dot\" aria-hidden=\"true\"></span>")
+        xx
+
+        if author != "" or post_date != ""
             :update!(meta_html,
               "<div class=\"campfire-post-meta\">" +
-                "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
-                  "<span class=\"campfire-author-avatar\" aria-hidden=\"true\"></span>" +
-                  "<span class=\"campfire-author-name\">{author}</span>" +
-                "</a>" +
-                "<span class=\"campfire-meta-dot\" aria-hidden=\"true\"></span>" +
-                "<span class=\"campfire-date\">{post_date}</span>" +
-              "</div>"
-            )
-        elif author != ""
-            :update!(meta_html,
-              "<div class=\"campfire-post-meta\">" +
-                "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
-                  "<span class=\"campfire-author-avatar\" aria-hidden=\"true\"></span>" +
-                  "<span class=\"campfire-author-name\">{author}</span>" +
-                "</a>" +
-              "</div>"
-            )
-        elif post_date != ""
-            :update!(meta_html,
-              "<div class=\"campfire-post-meta\">" +
-                "<span class=\"campfire-date\">{post_date}</span>" +
+                author_html +
+                dot_html +
+                date_html +
               "</div>"
             )
         xx

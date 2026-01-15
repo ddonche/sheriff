@@ -79,6 +79,25 @@ act apply_layout(ctx)
         :update!(page_author, "Unknown")
     xx
 
+    /// ----------------------------------------------
+    /// BLOG ONLY: author avatar (optional)
+    /// ----------------------------------------------
+    page_author_avatar | "/public/avatars/default.png"
+
+    if layout_name == "blog"
+        tmp_avatar | ""
+
+        attempt
+            :update!(tmp_avatar, :trim(fm["author_avatar"]))
+        rescue
+            :update!(tmp_avatar, "")
+        end
+
+        if tmp_avatar != ""
+            :update!(page_author_avatar, tmp_avatar)
+        xx
+    xx
+
     page_meta_html | ""
     if :valtype(fm) == "map"
         :update!(page_meta_html, build_page_meta(fm))
@@ -88,10 +107,12 @@ act apply_layout(ctx)
     clear_token("PAGE", "CONTENT")
     clear_token("PAGE", "TITLE")
     clear_token("PAGE", "AUTHOR")
+    clear_token("PAGE", "AUTHOR_AVATAR")
     clear_token("PAGE", "META")
     register_token("PAGE", "CONTENT", body)
     register_token("PAGE", "TITLE",   page_title)
     register_token("PAGE", "AUTHOR",  page_author)
+    register_token("PAGE", "AUTHOR_AVATAR", page_author_avatar)
     register_token("PAGE", "META",    page_meta_html)
 
     scripts_html | """

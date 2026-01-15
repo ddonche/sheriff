@@ -930,12 +930,13 @@ body {
 
 /* Placeholder avatar circle (swap later for image) */
 .campfire-author-avatar{
-  width: 1.55rem;            /* <-- BIGGER */
-  height: 1.55rem;
+  width: 1.6rem;      /* bigger */
+  height: 1.6rem;
   border-radius: 999px;
-  border: 1px solid var(--sheriff-border);
-  background: transparent;
+  object-fit: cover;
+  display: block;
   flex-shrink: 0;
+  border: 1px solid var(--sheriff-border);
 }
 
 /* Dot separator (Medium-ish) */
@@ -1019,6 +1020,31 @@ body {
   .campfire-thumb{
     height: 9rem;
   }
+}
+
+/* ========================================================================== */
+/* CAMPFIRE SIDEBAR LIST – NO BULLETS                                          */
+/* ========================================================================== */
+
+.campfire-blog-list{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.campfire-blog-list li{
+  margin: 0 0 0.45rem 0;
+  padding: 0;
+}
+
+.campfire-blog-list li:last-child{
+  margin-bottom: 0;
+}
+
+/* optional: make sidebar links feel like a clean list */
+.campfire-blog-list a{
+  display: block;
+  line-height: 1.35;
 }
 
 /* ========================================================================== */
