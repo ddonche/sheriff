@@ -117,6 +117,7 @@ act apply_layout(ctx)
 
     scripts_html | """
     <script src="/public/js/soft_pagination.js" defer></script>
+    <script src="/public/js/sheriff-markdown-help.js" defer></script>
     """
 
     register_token("BRINDLE", "SCRIPTS", scripts_html)

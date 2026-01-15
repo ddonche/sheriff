@@ -2,14 +2,12 @@ menus:
   header:
     Docs:
       Overview: docs/index.html
-      Judge: docs/judge.html
-      Tethers: docs/tether.html
-      Changelog: changelog.html
+      Changelog: docs/changelog.html
+      Roadmap: docs/roadmap.html
       Getting Started:
         Introduction: docs/getting-started/index.html
         Installation: docs/getting-started/installation.html
         Basics: docs/getting-started/basics.html
-        Tokens: docs/getting-started/token_system.html
 
     Tutorials:
       Echo of Legends:
@@ -37,7 +35,7 @@ menus:
         Tokens: docs/reference/tokens.html
 
   footer_left:
-    © 2025 Sheriff Docs: ""
+    © 2025-2026 Sheriff Docs: ""
     built with Goblin: https://goblinlang.org
 
   footer_right:
