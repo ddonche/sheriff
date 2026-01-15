@@ -149,30 +149,75 @@ act build_blog_index(portal)
             :update!(title, stem)
         xx
 
-        meta_line | ""
-        if author != "" and post_date != ""
-            :update!(meta_line, "{author} • {post_date}")
-        elif author != ""
-            :update!(meta_line, author)
-        elif post_date != ""
-            :update!(meta_line, post_date)
-        xx
-
+        /// -------------------------------
+        /// META HTML (author avatar + date)
+        /// -------------------------------
         meta_html | ""
-        if meta_line != ""
-            :update!(meta_html, "<div class=\"campfire-post-meta\">{meta_line}</div>")
+
+        if author != "" and post_date != ""
+            :update!(meta_html,
+              "<div class=\"campfire-post-meta\">" +
+                "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
+                  "<span class=\"campfire-author-avatar\" aria-hidden=\"true\"></span>" +
+                  "<span class=\"campfire-author-name\">{author}</span>" +
+                "</a>" +
+                "<span class=\"campfire-meta-dot\" aria-hidden=\"true\"></span>" +
+                "<span class=\"campfire-date\">{post_date}</span>" +
+              "</div>"
+            )
+        elif author != ""
+            :update!(meta_html,
+              "<div class=\"campfire-post-meta\">" +
+                "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
+                  "<span class=\"campfire-author-avatar\" aria-hidden=\"true\"></span>" +
+                  "<span class=\"campfire-author-name\">{author}</span>" +
+                "</a>" +
+              "</div>"
+            )
+        elif post_date != ""
+            :update!(meta_html,
+              "<div class=\"campfire-post-meta\">" +
+                "<span class=\"campfire-date\">{post_date}</span>" +
+              "</div>"
+            )
         xx
 
+        /// -------------------------------
+        /// SUMMARY
+        /// -------------------------------
         preview_html | ""
         if summary != ""
             :update!(preview_html, "<p class=\"campfire-post-preview\">{summary}</p>")
         xx
 
+        /// -------------------------------
+        /// (Future) TAGS PLACEHOLDER
+        /// -------------------------------
+        tags_html | ""  /// keep empty for now
+
+        /// -------------------------------
+        /// THUMB PLACEHOLDER
+        /// -------------------------------
+        thumb_html | "<div class=\"campfire-thumb\" aria-hidden=\"true\"></div>"
+
+        /// -------------------------------
+        /// CARD
+        /// -------------------------------
         card | "<div class=\"campfire-post\">" +
-               "<div class=\"campfire-post-title\"><a class=\"sheriff-link\" href=\"{href}\">{title}</a></div>" +
-               meta_html +
-               preview_html +
-               "<div class=\"campfire-post-readmore\"><a class=\"sheriff-link\" href=\"{href}\">Read more →</a></div>" +
+               "<div class=\"campfire-post-row\">" +
+                 "<div class=\"campfire-post-main\">" +
+                   "<div class=\"campfire-post-title\"><a class=\"sheriff-link\" href=\"{href}\">{title}</a></div>" +
+                   meta_html +
+                   preview_html +
+                   "<div class=\"campfire-post-footer\">" +
+                     tags_html +
+                     "<div class=\"campfire-post-readmore\"><a class=\"sheriff-link\" href=\"{href}\">Read more →</a></div>" +
+                   "</div>" +
+                 "</div>" +
+                 "<div class=\"campfire-post-aside\">" +
+                   thumb_html +
+                 "</div>" +
+               "</div>" +
                "</div>"
 
         :put_last!(cards, card)

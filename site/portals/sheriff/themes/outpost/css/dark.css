@@ -842,6 +842,186 @@ body {
 }
 
 /* ========================================================================== */
+/* CAMPFIRE INDEX – MEDIUM-ISH LIST ROWS (THEME AGNOSTIC)                      */
+/* ========================================================================== */
+
+.campfire-post-index{
+  display: grid;
+  gap: 0;                 /* rows define their own spacing */
+  margin-top: 1.25rem;
+}
+
+/* Each post = a row */
+.campfire-post{
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--sheriff-border);
+}
+
+.campfire-post:first-child{
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Row layout: content + thumbnail placeholder (future image) */
+.campfire-post-row{
+  display: grid;
+  grid-template-columns: 1fr 10.5rem; /* text | thumbnail */
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Title: bigger, strong, readable */
+.campfire-post-title{
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+
+  margin: 0 0 0.85rem 0;            /* <-- MORE SPACE BEFORE META */
+}
+
+.campfire-post-title a{
+  color: var(--sheriff-text);
+  text-decoration: none;
+}
+
+.campfire-post-title a:hover{
+  color: var(--sheriff-link-hover);
+}
+
+/* Meta row (author • date) */
+.campfire-post-meta{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.75rem 0;
+
+  font-size: 0.85rem;
+  color: var(--sheriff-muted);
+  letter-spacing: normal;
+  text-transform: none;
+
+  font-weight: 400;          /* <-- BASE WEIGHT (DATE SHOULD NOT LOOK BOLD) */
+}
+
+/* Author “chip” (future-proof for linking to author pages) */
+.campfire-author{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;              /* a bit more breathing room */
+  text-decoration: none;
+  color: var(--sheriff-muted);
+}
+
+.campfire-author:hover{
+  color: var(--sheriff-link-hover);
+}
+
+.campfire-author-name{
+  font-weight: 500;
+  color: var(--sheriff-text);
+}
+
+.campfire-date{
+  font-weight: 400;          /* <-- ENSURE NOT BOLD */
+  color: var(--sheriff-muted);
+}
+
+/* Placeholder avatar circle (swap later for image) */
+.campfire-author-avatar{
+  width: 1.55rem;            /* <-- BIGGER */
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--sheriff-border);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+/* Dot separator (Medium-ish) */
+.campfire-meta-dot{
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--sheriff-border);
+  display: inline-block;
+}
+
+/* Summary: no background, just clean text */
+.campfire-post-preview{
+  margin: 0 0 0.75rem 0;
+  color: var(--sheriff-text);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  max-width: 44rem; /* keeps it from feeling like a wall of text */
+}
+
+/* Footer row for tags + read more */
+.campfire-post-footer{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;  /* <-- DON'T FLING READ MORE TO THE RIGHT */
+  gap: 0.75rem;                 /* consistent spacing */
+}
+
+/* Tags (for later) */
+.campfire-tags{
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.campfire-tag{
+  font-size: 0.78rem;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 999px;
+  color: var(--sheriff-muted);
+  text-decoration: none;
+}
+
+.campfire-tag:hover{
+  color: var(--sheriff-link-hover);
+  border-color: var(--sheriff-link-hover);
+}
+
+/* Read more */
+.campfire-post-readmore{
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.campfire-post-readmore a{
+  color: var(--sheriff-link);
+  text-decoration: none;
+}
+
+.campfire-post-readmore a:hover{
+  color: var(--sheriff-link-hover);
+}
+
+/* Thumbnail placeholder (future image) */
+.campfire-thumb{
+  width: 100%;
+  height: 7.25rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--sheriff-border);
+  background: transparent;
+}
+
+/* Responsive: stack thumbnail under text */
+@media (max-width: 860px){
+  .campfire-post-row{
+    grid-template-columns: 1fr;
+  }
+
+  .campfire-thumb{
+    height: 9rem;
+  }
+}
+
+/* ========================================================================== */
 /* HORIZONTAL RULE                                                            */
 /* ========================================================================== */
 
