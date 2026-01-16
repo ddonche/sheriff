@@ -262,7 +262,7 @@ xx
 act resolve_wikilink(inner, ctx, portal)
     if inner.nix? => return ""
 
-    raw | :trim("" + inner)
+    raw | :trim(inner)
     if raw == "" => return ""
 
     core | :keep_between(raw, "[[", "]]")
@@ -272,6 +272,59 @@ act resolve_wikilink(inner, ctx, portal)
 
     inner_text | :trim(core)
     if inner_text == "" => return ""
+
+    /// IMAGE WIKILINK (fixed shape)
+    if :starts_with(inner_text, "image:")
+        body | :keep_after(inner_text, "image:")
+        if body.nix? => return ""
+
+        parts | :split(body, "|")
+        if parts.nix? => return ""
+
+        filename | parts[0]
+        size     | parts[1]
+        align    | parts[2]
+        caption  | parts[3]
+
+        if filename.nix? or filename == "" => return ""
+
+        if size.nix? or size == ""   => size   | "full"
+        if align.nix? or align == "" => align  | "center"
+        if caption.nix?              => caption | ""
+
+        /// mount-aware src
+        m | portal_mount(portal)
+        src | "/public/images/{filename}"
+        if m != ""
+            src | "{m}/public/images/{filename}"
+        xx
+
+        src_e | escape_attr(src)
+        cap_a | escape_attr(caption)
+        cap_t | escape_text(caption)
+
+        img_class | "sheriff-image sheriff-image-{size} sheriff-align-{align}"
+
+        parts_out | []
+        :put_last!(parts_out, "<span class=\"sheriff-image-block\">")
+        :put_last!(parts_out, "<img src=\"")
+        :put_last!(parts_out, src_e)
+        :put_last!(parts_out, "\" alt=\"")
+        :put_last!(parts_out, cap_a)
+        :put_last!(parts_out, "\" class=\"")
+        :put_last!(parts_out, img_class)
+        :put_last!(parts_out, "\">")
+        :put_last!(parts_out, "<span class=\"sheriff-image-caption\">")
+        :put_last!(parts_out, cap_t)
+        :put_last!(parts_out, "</span>")
+        :put_last!(parts_out, "</span>")
+
+        return :pack(parts_out)
+    xx
+
+    /// ======================================================
+    /// EXISTING WIKILINK LOGIC (UNCHANGED)
+    /// ======================================================
 
     link_part  | :keep_before(inner_text, "|")
     label_part | :keep_after(inner_text, "|")

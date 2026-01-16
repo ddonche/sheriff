@@ -83,6 +83,7 @@
           '<tr><td>Horizontal Rule</td><td><code>---</code></td></tr>' +
           '<tr><td>Internal Link</td><td><code>[[page-slug|custom name]]</code></td></tr>' +
           '<tr><td>External Link</td><td><code>[[https://example.com|Website]]</code></td></tr>' +
+          '<tr><td>Image</td><td><code>[[image:filename.jpg|thumb|left|Caption]]</code></td></tr>' +
         '</table>' +
       '</div>';
 
