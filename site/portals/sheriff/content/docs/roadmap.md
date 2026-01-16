@@ -11,11 +11,12 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 
 ## Docs and Blogs
 - edit history
-- images
 - image upload
 - WYSIWYG editor
 - tagging (blogs only at first)
 - RSS (blogs)
+- syntax highlighting
+- redirects
 
 ## Theme and Layout
 - theme overrides
@@ -23,6 +24,7 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - sidebar section collapse
 - active blog shown in sidebar
 - sortable blog list in sidebar
+- 404 pages
 
 ## Teams
 - login/auth
@@ -37,6 +39,13 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - image/link carousel 
 - Deputy forums module
 - other page-builder widgets (accordions, tabs, etc.)
+- Git integration (push -> deploy)
+- build logs
+- sitemaps
+- image optimization
+- analytics hooks
+- form handling
+- math diagrams
 
 ## Bug Fixes 
 - fix canonical link away from portal-specific

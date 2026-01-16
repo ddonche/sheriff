@@ -2,6 +2,7 @@
 title: Horde Format Official Rules
 author: Dan Donche
 author_avatar: /public/avatars/dan.png
+thumb: /public/images/blog/mtg-goblin.png
 date: 2015-12-05
 layout: blog
 meta_kind: blog

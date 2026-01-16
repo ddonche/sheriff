@@ -210,9 +210,26 @@ act build_blog_index(portal)
         tags_html | ""  /// keep empty for now
 
         /// -------------------------------
-        /// THUMB PLACEHOLDER
+        /// THUMB (matches CSS exactly)
         /// -------------------------------
+        thumb_src | ""
+
+        attempt
+            :update!(thumb_src, :trim(fm["thumb"]))
+        rescue
+            :update!(thumb_src, "")
+        end
+
+        /// default placeholder
         thumb_html | "<div class=\"campfire-thumb\" aria-hidden=\"true\"></div>"
+
+        if thumb_src != ""
+            :update!(thumb_html,
+              "<a class=\"campfire-thumb\" href=\"{href}\">" +
+                "<img src=\"{thumb_src}\" alt=\"{title}\">" +
+              "</a>"
+            )
+        xx
 
         /// -------------------------------
         /// CARD

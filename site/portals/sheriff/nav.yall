@@ -10,11 +10,14 @@ menus:
         Basics: docs/getting-started/basics.html
 
     Tutorials:
-      Echo of Legends:
-        Chapter 1: docs/tutorials/echo-of-legends/chapter1.html
+      Styling:
+        Themes: docs/tutorials/themes.html
+        Branding: docs/tutorials/branding.html
+        Focus Panels: docs/tutorials/focus_panels.html
       Recipes:
         Password Generator: docs/tutorials/recipes/password_generator_recipe.html
 
+    Features: features.html
     Downloads: downloads.html
     Blog: blog/index.html
 

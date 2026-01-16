@@ -322,6 +322,112 @@ act resolve_wikilink(inner, ctx, portal)
         return :pack(parts_out)
     xx
 
+    /// ======================================================================
+    /// FOCUS PANEL (NEW)
+    /// ======================================================================
+
+    /// Focus panel placeholder (one per page; first one wins)
+    /// [[focuspanel:filename.png|size (thumb/full)|align (left/right/center)|caption]]
+    if :starts_with(inner_text, "focuspanel:")
+        body | :keep_after(inner_text, "focuspanel:")
+        if body.nix? => return ""
+
+        parts | :split(body, "|")
+        if parts.nix? => return ""
+
+        filename | parts[0]
+        size     | parts[1]
+        align    | parts[2]
+        caption  | parts[3]
+
+        if filename.nix? or filename == "" => return ""
+
+        if size.nix? or size == ""   => size   | "full"
+        if align.nix? or align == "" => align  | "center"
+        if caption.nix?              => caption | ""
+
+        /// mount-aware src
+        m | portal_mount(portal)
+        src | "/public/images/{filename}"
+        if m != ""
+            src | "{m}/public/images/{filename}"
+        xx
+
+        src_e | escape_attr(src)
+        cap_a | escape_attr(caption)
+        cap_t | escape_text(caption)
+
+        img_class | "sheriff-focus-panel-img sheriff-image-{size} sheriff-align-{align}"
+
+        out | []
+        :put_last!(out, "<div class=\"sheriff-focus-panel\" data-focus-panel data-default-src=\"")
+        :put_last!(out, src_e)
+        :put_last!(out, "\" data-default-caption=\"")
+        :put_last!(out, cap_a)
+        :put_last!(out, "\">")
+
+        :put_last!(out, "<img class=\"")
+        :put_last!(out, img_class)
+        :put_last!(out, "\" src=\"")
+        :put_last!(out, src_e)
+        :put_last!(out, "\" alt=\"")
+        :put_last!(out, cap_a)
+        :put_last!(out, "\">")
+
+        :put_last!(out, "<div class=\"sheriff-focus-panel-caption\">")
+        :put_last!(out, cap_t)
+        :put_last!(out, "</div>")
+
+        :put_last!(out, "</div>")
+
+        return :pack(out)
+    xx
+
+    /// FOCUS LINK (drives the focus panel on hover)
+    /// [[focus:image:filename.png|Label]]
+    if :starts_with(inner_text, "focus:")
+        rest | :keep_after(inner_text, "focus:")
+        if rest.nix? or rest == "" => return ""
+
+        parts | :split(rest, "|")
+        if parts.nix? => return ""
+        if parts.len < 2 => return ""
+
+        img_ref | parts[0]
+        label   | parts[1]
+
+        if img_ref.nix? or img_ref == "" => return ""
+        if label.nix? => label | ""
+
+        if :starts_with(img_ref, "image:") == false
+            return ""
+        xx
+
+        filename | :keep_after(img_ref, "image:")
+        if filename.nix? or filename == "" => return ""
+
+        /// mount-aware src
+        m | portal_mount(portal)
+        src | "/public/images/{filename}"
+        if m != ""
+            src | "{m}/public/images/{filename}"
+        xx
+
+        src_e   | escape_attr(src)
+        cap_a   | escape_attr(label)     /// caption = label (this is what JS reads)
+        label_t | escape_text(label)
+
+        out | []
+        :put_last!(out, "<span class=\"sheriff-link sheriff-focus-link\" data-focus-src=\"")
+        :put_last!(out, src_e)
+        :put_last!(out, "\" data-focus-caption=\"")
+        :put_last!(out, cap_a)
+        :put_last!(out, "\" tabindex=\"0\" role=\"link\">")
+        :put_last!(out, label_t)
+        :put_last!(out, "</span>")
+        return :pack(out)
+    xx
+
     /// ======================================================
     /// EXISTING WIKILINK LOGIC (UNCHANGED)
     /// ======================================================
@@ -414,9 +520,29 @@ act process_wikilinks(ctx)
 
     result | "" + body
 
+    /// capture first focuspanel and remove it from body output
+    focus_html | ""
+
     sweep body
         "[[" ... "]]":
             if self.nix? or self == "" => skip
+
+            /// Detect focuspanel reliably (self is the full token: "[[...]]")
+            core | :keep_between(self, "[[", "]]")
+            core |= :trim(core)
+
+            if :starts_with(core, "focuspanel:")
+                if focus_html == ""
+                    html_raw | resolve_wikilink(self, ctx, portal)
+                    if !html_raw.nix? and ("" + html_raw) != ""
+                        :update!(focus_html, "" + html_raw)
+                    xx
+                xx
+
+                /// remove placeholder from inline content
+                :update_where!(result, self, "")
+                skip
+            xx
 
             repl_raw | resolve_wikilink(self, ctx, portal)
             if repl_raw.nix? => skip
@@ -426,6 +552,14 @@ act process_wikilinks(ctx)
 
             :update_where!(result, self, repl)
     xx
+
+    /// Replace SITE token (layout-controlled) with captured HTML.
+    /// If none found, token becomes "" (disappears).
+    :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
+
+    /// Your current template test has this token in the HTML.
+    /// This line lets it work without requiring a template edit first.
+    :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 
     :update!(ctx["body"], result)
     return ctx

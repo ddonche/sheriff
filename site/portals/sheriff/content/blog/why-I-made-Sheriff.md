@@ -2,6 +2,7 @@
 title: Why I Made Sheriff
 author: Dan Donche
 author_avatar: /public/avatars/dan.png
+thumb: /public/images/blog/test.png
 date: 2025-11-16
 layout: blog
 meta_kind: blog
