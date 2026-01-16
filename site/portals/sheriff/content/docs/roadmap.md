@@ -17,6 +17,8 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - RSS (blogs)
 - syntax highlighting
 - redirects
+- multicolumn lists
+- infoboxes
 
 ## Theme and Layout
 - theme overrides
@@ -36,7 +38,6 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - versioning (different from edit history)
 - social sharing 
 - social media icons widget
-- image/link carousel 
 - Deputy forums module
 - other page-builder widgets (accordions, tabs, etc.)
 - Git integration (push -> deploy)
@@ -46,6 +47,7 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - analytics hooks
 - form handling
 - math diagrams
+- tumbleweed lexicon
 
 ## Bug Fixes 
 - fix canonical link away from portal-specific
@@ -53,3 +55,5 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - copy link button actually works
 - search bar activated
 - avatar in docs (like blog)
+- skip code blocks in wiki link conversion
+- refactor theming and css to use one core theme w/ overrides per portal

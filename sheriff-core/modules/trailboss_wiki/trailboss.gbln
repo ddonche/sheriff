@@ -176,6 +176,57 @@ act lookup_href_by_slug(ctx, portal, slug)
 xx
 
 /// ======================================================================
+/// CODE STASH (PREVENT TOKEN/WIKILINK PROCESSING INSIDE CODE/PRE)
+/// ======================================================================
+
+act stash_code_segments(html)
+    if html.nix? => return {"html": "", "stash": []}
+
+    out   | "" + html
+    stash | []
+    n     | 0
+
+    /// Stash fenced blocks first (<pre ... </pre>)
+    sweep out
+        "<pre" ... "</pre>":
+            seg | "" + self
+            key | "@@TB_CODE_{n}@@"
+            :put_last!(stash, {"k": key, "v": seg})
+            :update_where!(out, seg, key)
+            n += 1
+    xx
+
+    /// Then stash inline code (<code ... </code>)
+    sweep out
+        "<code" ... "</code>":
+            seg | "" + self
+            key | "@@TB_CODE_{n}@@"
+            :put_last!(stash, {"k": key, "v": seg})
+            :update_where!(out, seg, key)
+            n += 1
+    xx
+
+    return {"html": out, "stash": stash}
+xx
+
+act restore_code_segments(html, stash)
+    if html.nix? => return ""
+    out | "" + html
+    if stash.nix? => return out
+    if :valtype(stash) != "array" => return out
+
+    for item in stash
+        if item.nix? => skip
+        k | item["k"]
+        v | item["v"]
+        if k.nix? or v.nix? => skip
+        :update_where!(out, "" + k, "" + v)
+    xx
+
+    return out
+xx
+
+/// ======================================================================
 /// 4) FALLBACK HREF BUILDERS (WIKI SEMANTICS)
 /// ======================================================================
 
@@ -323,11 +374,10 @@ act resolve_wikilink(inner, ctx, portal)
     xx
 
     /// ======================================================================
-    /// FOCUS PANEL (NEW)
+    /// FOCUS PANEL (STRICT SHAPE)
     /// ======================================================================
-
-    /// Focus panel placeholder (one per page; first one wins)
-    /// [[focuspanel:filename.png|size (thumb/full)|align (left/right/center)|caption]]
+    /// REQUIRED:
+    /// [[focuspanel:filename.png|size|align|caption]]
     if :starts_with(inner_text, "focuspanel:")
         body | :keep_after(inner_text, "focuspanel:")
         if body.nix? => return ""
@@ -335,16 +385,21 @@ act resolve_wikilink(inner, ctx, portal)
         parts | :split(body, "|")
         if parts.nix? => return ""
 
+        /// STRICT: must be exactly 4 segments
+        /// parts[0]=filename, [1]=size, [2]=align, [3]=caption
+        if parts.len < 4
+            return ""
+        xx
+
         filename | parts[0]
         size     | parts[1]
         align    | parts[2]
         caption  | parts[3]
 
         if filename.nix? or filename == "" => return ""
-
-        if size.nix? or size == ""   => size   | "full"
-        if align.nix? or align == "" => align  | "center"
-        if caption.nix?              => caption | ""
+        if size.nix? or size == ""         => return ""
+        if align.nix? or align == ""       => return ""
+        if caption.nix?                    => caption | ""
 
         /// mount-aware src
         m | portal_mount(portal)
@@ -357,8 +412,6 @@ act resolve_wikilink(inner, ctx, portal)
         cap_a | escape_attr(caption)
         cap_t | escape_text(caption)
 
-        img_class | "sheriff-focus-panel-img sheriff-image-{size} sheriff-align-{align}"
-
         out | []
         :put_last!(out, "<div class=\"sheriff-focus-panel\" data-focus-panel data-default-src=\"")
         :put_last!(out, src_e)
@@ -366,9 +419,7 @@ act resolve_wikilink(inner, ctx, portal)
         :put_last!(out, cap_a)
         :put_last!(out, "\">")
 
-        :put_last!(out, "<img class=\"")
-        :put_last!(out, img_class)
-        :put_last!(out, "\" src=\"")
+        :put_last!(out, "<img class=\"sheriff-focus-panel-img\" src=\"")
         :put_last!(out, src_e)
         :put_last!(out, "\" alt=\"")
         :put_last!(out, cap_a)
@@ -518,16 +569,19 @@ act process_wikilinks(ctx)
     if body.nix?   => return ctx
     if portal.nix? => return ctx
 
-    result | "" + body
+    /// --- STASH CODE/PRE so we don't mutate code examples ---
+    stashed | stash_code_segments(body)
+    work    | stashed["html"]
+    stash   | stashed["stash"]
 
-    /// capture first focuspanel and remove it from body output
+    result | "" + work
+
     focus_html | ""
 
-    sweep body
+    sweep work
         "[[" ... "]]":
             if self.nix? or self == "" => skip
 
-            /// Detect focuspanel reliably (self is the full token: "[[...]]")
             core | :keep_between(self, "[[", "]]")
             core |= :trim(core)
 
@@ -539,7 +593,6 @@ act process_wikilinks(ctx)
                     xx
                 xx
 
-                /// remove placeholder from inline content
                 :update_where!(result, self, "")
                 skip
             xx
@@ -553,15 +606,14 @@ act process_wikilinks(ctx)
             :update_where!(result, self, repl)
     xx
 
-    /// Replace SITE token (layout-controlled) with captured HTML.
-    /// If none found, token becomes "" (disappears).
+    /// Replace SITE token AFTER wikilinks — still safe because code is stashed.
     :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
-
-    /// Your current template test has this token in the HTML.
-    /// This line lets it work without requiring a template edit first.
     :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 
-    :update!(ctx["body"], result)
+    /// --- RESTORE CODE/PRE blocks ---
+    final | restore_code_segments(result, stash)
+
+    :update!(ctx["body"], final)
     return ctx
 xx
 
