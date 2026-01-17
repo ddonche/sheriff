@@ -6,6 +6,13 @@ meta_kind: docs
 meta_type: overview
 summary: A list of changes from each version of Sheriff. 
 ^^^^
+## v0.13.0
+- Major refactor with themes being centralized in core. 
+- Portals can now override theme css easily. 
+- added [[Focus Panels|Focus Panels]] feature
+- added images
+- bug fixes for TOC pages with no links
+
 ## v0.12.0
 - Implemented multi-portal builds:
 - You can now specify the exact portal you want to build in the CLI, i.e. 

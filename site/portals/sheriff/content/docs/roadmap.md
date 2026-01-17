@@ -21,11 +21,10 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - infoboxes
 
 ## Theme and Layout
-- theme overrides
 - more themes to choose from
-- sidebar section collapse
 - active blog shown in sidebar
 - sortable blog list in sidebar
+- active link showing in left nav menu
 
 ## Teams
 - login/auth

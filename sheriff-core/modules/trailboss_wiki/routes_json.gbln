@@ -8,8 +8,8 @@
 /// - url_root == "" or nil => "/{rel_no_ext}.html"
 /// - else                  => "/{url_root}/{rel_no_ext}.html"
 ///
-/// canonical stays:
-///   [[p/{portal}/{slug}]]
+/// canonical is portal-local:
+///   [[{slug}]]
 
 act load_cfg(portal)
     path | "../site/portals/{portal}/config.yall"
@@ -45,6 +45,24 @@ act get_url_root(cfg)
     return t
 xx
 
+/// Match Trailboss slug normalization rules (basic + stable)
+act normalize_to_slug(page)
+    if page.nix? => return ""
+
+    cleaned | "" + page
+    :update_where!(cleaned, " (module)", "")
+    :update_where!(cleaned, "(module)", "")
+    :update_where!(cleaned, "(", "")
+    :update_where!(cleaned, ")", "")
+    cleaned |= :trim(cleaned)
+
+    slug | :lower(cleaned)
+    :update_where!(slug, " ", "-")
+    :update_where!(slug, "_", "-")
+
+    return slug
+xx
+
 act build_href(url_root, rel_no_ext)
     if rel_no_ext.nix? or rel_no_ext == ""
         return "/index.html"
@@ -68,14 +86,17 @@ act build_routes_json_for_portal(portal)
     routes | []
 
     for src in files
-        stem_name | :stem(src)
+        /// normalize path separators (Windows-safe)
+        src_norm | "" + src
+        :update_where!(src_norm, "\\", "/")
 
-        slug | :lower(stem_name)
-        :update_where!(slug, " ", "-")
-        :update_where!(slug, "_", "-")
+        stem_name | :stem(src_norm)
+
+        /// slug stays filename-derived (portal-local canonical like [[getting-started]])
+        slug | normalize_to_slug(stem_name)
 
         prefix | "../site/portals/{portal}/content/"
-        rel    | :keep_after(src, prefix)
+        rel    | :keep_after(src_norm, prefix)
         if rel == ""
             rel |= "{stem_name}.md"
         xx
@@ -85,6 +106,9 @@ act build_routes_json_for_portal(portal)
             rel_no_ext |= rel
         xx
 
+        /// normalize rel path separators too (defensive)
+        :update_where!(rel_no_ext, "\\", "/")
+
         href_abs | build_href(url_root, rel_no_ext)
 
         title_src | stem_name
@@ -92,11 +116,12 @@ act build_routes_json_for_portal(portal)
         :update_where!(title_src, "-", " ")
         page_title | :title(title_src)
 
-        canonical | "[[p/{portal}/{slug}]]"
+        canonical | "[[{slug}]]"
 
         meta | {
             "slug":      slug,
             "href":      href_abs,
+            "rel":       rel_no_ext,
             "title":     page_title,
             "aliases":   [],
             "canonical": canonical

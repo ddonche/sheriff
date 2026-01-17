@@ -74,7 +74,8 @@ act build(portal)
             "frontmatter": {}, 
             "tokens": {},
             "path": md_path,
-            "portal": portal
+            "portal": portal,
+            "href": ""
         }
 
         :clear_tokens("SLOT")

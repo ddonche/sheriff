@@ -11,6 +11,7 @@
   --sheriff-danger: #e85555;
   --sheriff-link: #d85c68;
   --sheriff-link-hover: #4db8b0;
+  --sheriff-missing-link-color: #5090a0;
   --sheriff-panel: #35353a;
   --sheriff-input-bg: #35353a;
   --sheriff-inline-code-bg: #35353a;
@@ -28,6 +29,7 @@
   --sheriff-danger: #c93737;
   --sheriff-link: #b0323e;
   --sheriff-link-hover: #0f766e;
+  --sheriff-missing-link-color: #5090a0;
   --sheriff-panel: #f1f3f5;
   --sheriff-input-bg: #ffffff;
   --sheriff-inline-code-bg: #f0f0f2;
@@ -76,8 +78,8 @@ a[href^="https://"]::after {
   content: "";
   display: inline-block;
 
-  width: 1em;
-  height: 1em;
+  width: 0.8em;
+  height: 0.8em;
   margin-left: 0.25em;
 
   vertical-align: baseline;
@@ -889,6 +891,16 @@ button a::after {
   color: var(--sheriff-link-hover);
 }
 
+/* Missing-page links (Wikipedia-style) */
+a.sheriff-missing-link {
+  color: var(--sheriff-missing-link-color);
+}
+
+a.sheriff-missing-link:hover {
+  color: var(--sheriff-missing-link-color);
+  text-decoration: underline;
+}
+
 /* Footer stays consistent too, just reuses the same colors */
 .sheriff-footer a {
   color: var(--sheriff-link);
@@ -1358,6 +1370,41 @@ button a::after {
 /* Active link state */
 .sheriff-left-nav a.active {
   color: var(--sheriff-link-hover);
+}
+
+/* ========================================================================== */
+/* LEFT NAV – COLLAPSIBLE ADDON (minimal, keeps existing styling)             */
+/* ========================================================================== */
+
+/* Remove default marker */
+.sheriff-left-nav summary { list-style: none; }
+.sheriff-left-nav summary::-webkit-details-marker { display: none; }
+
+/* Make summary work as a clickable row with a right-side icon */
+.sheriff-left-nav summary.submenu-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Collapse indicator */
+.sheriff-left-nav .submenu-icon {
+  opacity: 0.75;
+  line-height: 1;
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.sheriff-left-nav details[open] > summary .submenu-icon {
+  transform: rotate(0deg);
+  opacity: 0.95;
+}
+
+/* Your old selector expected ul directly under has-submenu; now it's inside details */
+.sheriff-left-nav .has-submenu details > ul {
+  margin-top: 0.2rem;
 }
 
 /* ========================================================================== */

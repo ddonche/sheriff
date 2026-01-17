@@ -26,6 +26,54 @@ act build_routes_once(pre_ctx)
 xx
 
 /// ======================================================================
+/// 1b) PER-PAGE ctx["href"] (ABSOLUTE HREF FOR CURRENT PAGE)
+/// ======================================================================
+
+act attach_href(ctx)
+    portal | ctx["portal"]
+    src    | ctx["path"]
+
+    if portal.nix? => return ctx
+    if src.nix?    => return ctx
+
+    src_norm | "" + src
+    :update_where!(src_norm, "\\", "/")
+
+    /// derive rel from the real source path under content/
+    portal_root | derive_portal_root_from_ctx(ctx, portal)
+
+    prefix | "{portal_root}/content/"
+    rel    | :keep_after(src_norm, prefix)
+
+    if rel.nix? or rel == ""
+        prefix2 | "../site/portals/{portal}/content/"
+        rel     | :keep_after(src_norm, prefix2)
+    xx
+
+    if rel.nix? => rel | ""
+    :update_where!(rel, "\\", "/")
+
+    rel_no_ext | :keep_before(rel, ".md")
+    if rel_no_ext.nix? or rel_no_ext == ""
+        rel_no_ext |= :keep_before(rel, ".")
+        if rel_no_ext.nix? => rel_no_ext | ""
+    xx
+
+    :update_where!(rel_no_ext, "\\", "/")
+
+    /// same rule as routes.json uses
+    cfg      | rjson::load_cfg(portal)
+    url_root | rjson::get_url_root(cfg)
+
+    href_abs | rjson::build_href(url_root, rel_no_ext)
+
+    /// Always set the key so downstream reads never crash
+    :update!(ctx["href"], href_abs)
+
+    return ctx
+xx
+
+/// ======================================================================
 /// 2) CONFIG + MOUNT HELPERS
 /// ======================================================================
 
@@ -118,6 +166,10 @@ act split_anchor(text)
         page |= text
     xx
 
+    if anchor.nix?
+        anchor | ""
+    xx
+
     return {"page": page, "anchor": anchor}
 xx
 
@@ -168,6 +220,26 @@ act lookup_href_by_slug(ctx, portal, slug)
             href_abs | meta["href"]
             if !href_abs.nix? and ("" + href_abs) != ""
                 return "" + href_abs
+            xx
+        xx
+    xx
+
+    return ""
+xx
+
+act lookup_slug_by_href(ctx, portal, href_abs)
+    if portal.nix? or portal == "" => return ""
+    if href_abs.nix? or href_abs == "" => return ""
+
+    routes | load_routes_for_portal(ctx, portal)
+    if :valtype(routes) != "array" => return ""
+
+    for meta in routes
+        if meta.nix? => skip
+        if ("" + meta["href"]) == ("" + href_abs)
+            s | meta["slug"]
+            if !s.nix? and ("" + s) != ""
+                return "" + s
             xx
         xx
     xx
@@ -227,33 +299,14 @@ act restore_code_segments(html, stash)
 xx
 
 /// ======================================================================
-/// 4) FALLBACK HREF BUILDERS (WIKI SEMANTICS)
+/// 4) MISSING PAGE ROUTING (NO FALLBACKS, NO "#")
 /// ======================================================================
 
-/// Internal links always map to docs/* in the current mounted site.
-act fallback_internal_href(slug)
-    if slug.nix? or slug == "" => return "/docs/index.html"
-    return "/docs/{slug}.html"
-xx
-
-/// Portal links use the target portal's mount.
-/// If target portal is root-mounted, we emit "/{slug}.html".
-/// Else we emit "/<mount>/{slug}.html".
-act fallback_portal_href(portal, slug)
-    m | portal_mount(portal)
-
-    if slug.nix? or slug == ""
-        if m == ""
-            return "/index.html"
-        xx
-        return "{m}/index.html"
-    xx
-
-    if m == ""
-        return "/{slug}.html"
-    xx
-
-    return "{m}/{slug}.html"
+/// Missing-page links point to one real explainer page:
+///   content/docs/missing.md -> /docs/missing.html
+/// Mount-aware: respects routing.dist_root via portal_mount().
+act missing_page_href()
+    return "/docs/missing.html"
 xx
 
 /// ======================================================================
@@ -277,31 +330,56 @@ act escape_text(s)
 xx
 
 /// Small helper to build the final <a> tag.
-/// NEVER emits href="".
-/// NEVER lets quotes break the attribute.
-act build_wikilink_html(href, label, is_external)
+/// CRITICAL:
+/// - NEVER emits href="#".
+/// - If href is empty, it ALWAYS routes to /docs/missing.html.
+act build_wikilink_html(href, label, is_external, klass)
     href_s  | "" + href
     label_s | "" + label
+    klass_s | "" + klass
+
+    /// Auto-mark missing pages (single source of truth)
+    if href_s == "/docs/missing.html"
+        klass_s |= " sheriff-missing-link"
+    xx
 
     if href_s.nix? or href_s == ""
-        :update!(href_s, "#")
+        :update!(href_s, missing_page_href())
     xx
 
     if label_s.nix? or label_s == ""
         :update!(label_s, href_s)
     xx
 
+    if klass_s.nix? or klass_s == ""
+        :update!(klass_s, "sheriff-link")
+    xx
+
+    /// Auto-mark missing-page links (mount-safe)
+    /// Matches both:
+    ///   /docs/missing.html
+    ///   /<mount>/docs/missing.html
+    if :ends_with(href_s, "/docs/missing.html")
+        /// append (don't replace)
+        :update!(klass_s, "{klass_s} sheriff-missing-link")
+    xx
+
     href_s  |= escape_attr(href_s)
     label_s |= escape_text(label_s)
+    klass_s |= escape_attr(klass_s)
 
     html_parts | []
     :put_last!(html_parts, "<a href=\"")
     :put_last!(html_parts, href_s)
-    :put_last!(html_parts, "\" class=\"sheriff-link\">")
+    :put_last!(html_parts, "\" class=\"")
+    :put_last!(html_parts, klass_s)
+    :put_last!(html_parts, "\">")
     :put_last!(html_parts, label_s)
+
     if is_external
         :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
     xx
+
     :put_last!(html_parts, "</a>")
     return :pack(html_parts)
 xx
@@ -386,7 +464,6 @@ act resolve_wikilink(inner, ctx, portal)
         if parts.nix? => return ""
 
         /// STRICT: must be exactly 4 segments
-        /// parts[0]=filename, [1]=size, [2]=align, [3]=caption
         if parts.len < 4
             return ""
         xx
@@ -465,7 +542,7 @@ act resolve_wikilink(inner, ctx, portal)
         xx
 
         src_e   | escape_attr(src)
-        cap_a   | escape_attr(label)     /// caption = label (this is what JS reads)
+        cap_a   | escape_attr(label)
         label_t | escape_text(label)
 
         out | []
@@ -480,7 +557,7 @@ act resolve_wikilink(inner, ctx, portal)
     xx
 
     /// ======================================================
-    /// EXISTING WIKILINK LOGIC (UNCHANGED)
+    /// WIKILINK LOGIC (STRICT: routes.json OR missing page)
     /// ======================================================
 
     link_part  | :keep_before(inner_text, "|")
@@ -505,14 +582,14 @@ act resolve_wikilink(inner, ctx, portal)
 
     judge
         is_external:
-            return build_wikilink_html(link_part, display_label, true)
+            return build_wikilink_html(link_part, display_label, true, "sheriff-link")
 
         is_portal:
             portal_name | :keep_between(link_part, "p/", "/")
             rest        | :keep_after(link_part, "p/{portal_name}/")
 
             if portal_name.nix? or portal_name == "" or rest.nix? or rest == ""
-                return build_wikilink_html("#", display_label, false)
+                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
             xx
 
             parts  | split_anchor(rest)
@@ -521,25 +598,27 @@ act resolve_wikilink(inner, ctx, portal)
 
             slug | normalize_to_slug(page)
 
-            href | lookup_href_by_slug(ctx, portal_name, slug)
+            href  | lookup_href_by_slug(ctx, portal_name, slug)
+            klass | "sheriff-link"
 
-            /// Wiki behavior: if not found, still link to where it WOULD be.
+            /// STRICT: if not found, go to THIS ONE missing page (no portal mounts, no portal_name)
             if href == ""
-                href |= fallback_portal_href(portal_name, slug)
+                href  |= missing_page_href()
+                klass |= " sheriff-missing-link"
             xx
 
-            if !anchor.nix? and anchor != ""
+            if anchor != ""
                 href |= "{href}#{anchor}"
             xx
 
-            return build_wikilink_html(href, display_label, false)
+            return build_wikilink_html(href, display_label, false, klass)
 
         is_user:
             username | :keep_after(link_part, "u/")
             if username.nix? or username == ""
-                return build_wikilink_html("#", display_label, false)
+                return build_wikilink_html(portal, "", display_label, false, "sheriff-link sheriff-missing-link")
             xx
-            return build_wikilink_html("/users/{username}", display_label, false)
+            return build_wikilink_html(portal, "/users/{username}", display_label, false, "sheriff-link")
 
         else:
             parts  | split_anchor(link_part)
@@ -548,13 +627,20 @@ act resolve_wikilink(inner, ctx, portal)
 
             slug | normalize_to_slug(page)
 
-            href | fallback_internal_href(slug)
+            href  | lookup_href_by_slug(ctx, portal, slug)
+            klass | "sheriff-link"
 
-            if !anchor.nix? and anchor != ""
+            if href == ""
+                href  |= missing_page_href()
+                klass |= " sheriff-missing-link"
+            xx
+
+            /// ONLY append anchor if non-empty
+            if anchor != ""
                 href |= "{href}#{anchor}"
             xx
 
-            return build_wikilink_html(href, display_label, false)
+            return build_wikilink_html(href, display_label, false, klass)
     xx
 xx
 
@@ -575,7 +661,6 @@ act process_wikilinks(ctx)
     stash   | stashed["stash"]
 
     result | "" + work
-
     focus_html | ""
 
     sweep work
@@ -633,10 +718,11 @@ act publish_canonical_link(ctx)
     src_norm | "" + src
     :update_where!(src_norm, "\\", "/")
 
+    /// WORKING SLUG DERIVATION (the one you already had)
     stem_name | :stem(src_norm)
     slug      | normalize_to_slug(stem_name)
 
-    canonical | "[[p/{portal}/{slug}]]"
+    canonical | "[[{slug}]]"
 
     html | """
     <div class="sheriff-canon-wrap">

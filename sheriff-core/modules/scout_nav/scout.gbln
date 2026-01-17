@@ -288,11 +288,17 @@ act generate_nested_items(portal, items_map)
             xx
 
             item | """
-<li class="has-submenu">
-  <span class="submenu-header">{key}</span>
-  {nested_html}
-</li>
-"""
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>{key}</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                {nested_html}
+              </details>
+            </li>
+            """
+
             update!(ul_items, ul_items + item)
         else
             href | make_abs_href(portal, val)
@@ -382,11 +388,17 @@ act scout_render_sidebar(portal, menu_content)
             xx
 
             item | """
-<li class="has-submenu">
-  <span class="menu-header">{top_key}</span>
-  {nested}
-</li>
-"""
+            <li class="has-submenu">
+              <details class="sheriff-submenu" open>
+                <summary class="submenu-header">
+                  <span>{top_key}</span>
+                  <span class="submenu-icon" aria-hidden="true">▸</span>
+                </summary>
+                {nested}
+              </details>
+            </li>
+            """
+            
             update!(nav_items, nav_items + item)
             update!(first_key, false)
         xx
