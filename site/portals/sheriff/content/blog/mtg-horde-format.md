@@ -10,6 +10,8 @@ meta_type: community
 summary: Horde Format is a Goblin-Lang-themed Magic: The Gathering variant, just for fun.
 ^^^^
 
+[[image:blog/mtg-goblin.png|full|center|a lovely Goblin image]]
+
 Horde Format is a Magic: The Gathering variant where you can only play cards that contain specific Goblin-themed keywords anywhere in their card text or name.
 
 ## Legal Keywords

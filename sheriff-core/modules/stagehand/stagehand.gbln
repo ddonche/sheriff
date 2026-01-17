@@ -55,25 +55,19 @@ act copy_assets(pre_ctx)
 
     :say("STAGEHAND: Active theme for portal '{portal}' is '{theme_name}'")
 
-    /// ----- 2) Copy ONLY that theme's CSS into dist/{portal}/public/css -----
-    theme_css_src   | "../site/portals/{portal}/themes/{theme_name}/css"
+    /// ----- 2) Copy theme CSS (single file) from sheriff-core into dist/{portal}/public/css -----
+    theme_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}.css"
     public_css_dest | "../dist/{portal}/public/css"
-
-    css_copied | 0
 
     if :file_exists(theme_css_src)
         :create_dir!(public_css_dest)
 
-        for css_file in :walk(theme_css_src, "**/*.css")
-            filename | :basename(css_file)
-            dest     | "{public_css_dest}/{filename}"
-            :copy_file!(css_file, dest)
-            :update!(css_copied, css_copied + 1)
-        xx
+        dest | "{public_css_dest}/{theme_name}.css"
+        :copy_file!(theme_css_src, dest)
 
-        :say("STAGEHAND: Copied {css_copied} CSS files from theme '{theme_name}'")
+        :say("STAGEHAND: Copied theme CSS '{theme_name}.css' from sheriff-core")
     else
-        :say("STAGEHAND: No CSS directory found for theme '{theme_name}' at {theme_css_src}")
+        :say("STAGEHAND: Theme CSS NOT FOUND for theme '{theme_name}' at {theme_css_src}")
     xx
 
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
@@ -104,6 +98,14 @@ act copy_assets(pre_ctx)
         :say("STAGEHAND: Copied {assets_copied} public assets")
     else
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
+    xx
+
+    /// Ensure override.css exists (empty is fine) so layouts can always link it
+    override_dest | "../dist/{portal}/public/css/override.css"
+    if :file_exists(override_dest) == false
+        :create_dir!("../dist/{portal}/public/css")
+        :write_text!(override_dest, "/* portal overrides */\n")
+        :say("STAGEHAND: Wrote empty override.css")
     xx
 
     /// ----- 4) Copy index.html from content/ to dist root if it exists -----

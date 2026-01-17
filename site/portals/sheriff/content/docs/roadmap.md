@@ -26,7 +26,6 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - sidebar section collapse
 - active blog shown in sidebar
 - sortable blog list in sidebar
-- 404 pages
 
 ## Teams
 - login/auth
@@ -55,5 +54,4 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - copy link button actually works
 - search bar activated
 - avatar in docs (like blog)
-- skip code blocks in wiki link conversion
-- refactor theming and css to use one core theme w/ overrides per portal
+- read time is not accurate

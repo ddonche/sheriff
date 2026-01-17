@@ -84,6 +84,11 @@ act generate_toc(html_content)
             xx
     xx
 
+    /// If no headers, emit no TOC at all
+    if headers.len == 0
+        return ""
+    xx
+
     toc_parts | []
     for h in headers
         level | h["level"]
@@ -199,17 +204,17 @@ act apply_tokens(ctx)
         return ctx
     xx
 
+    /// Always clear first so nothing leaks between pages
+    clear_token("SCOUT", "TOC")
+    clear_token("SCOUT", "BREADCRUMBS")
+
     /// BREADCRUMBS (page-scoped)
     breadcrumbs_html | build_breadcrumbs(ctx)
-    if breadcrumbs_html != ""
-        register_token("SCOUT", "BREADCRUMBS", breadcrumbs_html)
-    xx
+    register_token("SCOUT", "BREADCRUMBS", breadcrumbs_html)
 
     /// TOC (page-scoped)
-    toc_html | generate_toc(body)
-    if toc_html != ""
-        register_token("SCOUT", "TOC", toc_html)
-    xx
+    toc_html | generate_toc(body)   /// should return "" when no headers
+    register_token("SCOUT", "TOC", toc_html)
 
     /// Resolve SCOUT::* for this page only
     rendered | :resolve_token(body)
@@ -690,7 +695,7 @@ act scout_load_theme_nav_mapping(portal)
     theme_name | "" + name
 
     /// FIXED: theme file must be INSIDE THE PORTAL
-    map_path | "../site/portals/{portal}/themes/{theme_name}/scout_nav.yall"
+    map_path | "../sheriff-core/themes/{theme_name}/scout_nav.yall"
 
     if :file_exists(map_path) == false
         :say("SCOUT: Theme '{theme_name}' missing scout_nav.yall at " ++ map_path)

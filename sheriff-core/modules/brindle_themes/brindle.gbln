@@ -56,7 +56,7 @@ act apply_layout(ctx)
     xx
 
     theme_name | resolve_theme_name(portal)
-    layout_path | "../site/portals/{portal}/themes/{theme_name}/layouts/{layout_name}.html"
+    layout_path | "../sheriff-core/themes/{theme_name}/layouts/{layout_name}.html"
 
     if :file_exists(layout_path) == false
         :say("BRINDLE: layout NOT FOUND at {layout_path}")
@@ -237,11 +237,8 @@ act apply_tokens(ctx)
 
     style_html | """
     <link rel="icon" type="image/x-icon" href="{favicon_href}">
-    <link id="theme-css"
-          rel="stylesheet"
-          href="/public/css/dark.css"
-          data-light="/public/css/light.css"
-          data-dark="/public/css/dark.css">
+    <link rel="stylesheet" href="/public/css/{theme_name}.css">
+    <link rel="stylesheet" href="/public/css/override.css">
     """
 
     logo_html | """
@@ -261,55 +258,42 @@ act apply_tokens(ctx)
             <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
         </svg>
     </button>
+
     <script>
     (function() {
-        var THEME_KEY = 'brindle-theme';
-        var link   = document.getElementById('theme-css');
-        var toggle = document.getElementById('theme-toggle');
-        if (!link || !toggle) return;
+      var KEY = 'brindle-theme';
+      var root = document.documentElement;
+      var toggle = document.getElementById('theme-toggle');
+      if (!toggle) return;
 
-        var lightIcon = toggle.querySelector('.theme-icon-light');
-        var darkIcon  = toggle.querySelector('.theme-icon-dark');
+      var lightIcon = toggle.querySelector('.theme-icon-light');
+      var darkIcon  = toggle.querySelector('.theme-icon-dark');
 
-        function setTheme(theme) {
-            var href = theme === 'dark' ? link.dataset.dark : link.dataset.light;
-            link.href = href;
-
-            if (theme === 'dark') {
-                lightIcon.style.display = 'inline-block';
-                darkIcon.style.display  = 'none';
-            } else {
-                lightIcon.style.display = 'none';
-                darkIcon.style.display  = 'inline-block';
-            }
-
-            try {
-                localStorage.setItem(THEME_KEY, theme);
-            } catch (e) {}
+      function apply(theme) {
+        root.dataset.theme = theme; // "dark" or "light"
+        if (theme === 'dark') {
+          lightIcon.style.display = 'inline-block';
+          darkIcon.style.display  = 'none';
+        } else {
+          lightIcon.style.display = 'none';
+          darkIcon.style.display  = 'inline-block';
         }
+        try { localStorage.setItem(KEY, theme); } catch(e) {}
+      }
 
-        var stored = null;
-        try {
-            stored = localStorage.getItem(THEME_KEY);
-        } catch (e) {}
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch(e) {}
+      var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
+      apply(initial);
 
-        var initial = (stored === 'dark' || stored === 'light') ? stored : 'dark';
-        setTheme(initial);
-
-        toggle.addEventListener('click', function() {
-            var current = null;
-            try {
-                current = localStorage.getItem(THEME_KEY) || 'dark';
-            } catch (e) {
-                current = 'dark';
-            }
-            var next = current === 'dark' ? 'light' : 'dark';
-            setTheme(next);
-        });
+      toggle.addEventListener('click', function() {
+        var current = root.dataset.theme || 'dark';
+        apply(current === 'dark' ? 'light' : 'dark');
+      });
     })();
     </script>
     """
-
+    
     version_switcher_html | """
     <div class="sheriff-version-select">
       <span class="sheriff-version-select-label">v2.0</span>

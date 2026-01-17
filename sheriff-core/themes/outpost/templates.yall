@@ -1,0 +1,130 @@
+layouts:
+  docs:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+
+      # HEADER NAV: use the 'header' menu as DROPDOWN
+      HEADER_NAV:
+        - "SCOUT::header_DROPDOWN"
+
+      # LEFT NAV: use the 'left_docs' menu as SIDEBAR
+      LEFT_NAV:
+        - "SCOUT::left_docs_SIDEBAR"
+
+      SIDEBAR_TOP:
+      SIDEBAR_MAIN:
+        - "SCOUT::BREADCRUMBS"
+        - "SCOUT::TOC"
+
+      # FOOTERS: use footer_* menus as FLAT
+      FOOTER_LEFT:
+        - "SCOUT::footer_left_FLAT"
+      FOOTER_RIGHT:
+        - "SCOUT::footer_right_FLAT"
+
+      HEADERLEFT:
+        - "PAGE::META"
+      HEADERRIGHT:
+        - "TRAILBOSS::CANONLINK"
+      PAGEMETALEFT:
+        - "BADGE::READTIME"
+      PAGEMETARIGHT:
+        - "BADGE::UTILICONS"
+
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
+
+  blog:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+
+      # Same main header nav
+      HEADER_NAV:
+        - "SCOUT::header_DROPDOWN"
+
+      LEFT_NAV: []
+
+      SIDEBAR_TOP:
+      SIDEBAR_MAIN:
+        - "SCOUT::BREADCRUMBS"
+        - "CAMPFIRE::BLOG_LIST"
+
+      FOOTER_LEFT:
+        - "SCOUT::footer_left_FLAT"
+      FOOTER_RIGHT:
+        - "SCOUT::footer_right_FLAT"
+
+      HEADERLEFT:
+        - "PAGE::META"
+      HEADERRIGHT:
+        - "TRAILBOSS::CANONLINK"
+      PAGEMETALEFT:
+        - "BADGE::READTIME"
+      PAGEMETARIGHT:
+        - "BADGE::UTILICONS"
+
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
+
+  blog_index:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      VERSIONSWITCHER:
+        - "BRINDLE::VERSIONSWITCHER"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      REPO:
+        - "BADGE::REPO"
+
+      HEADER_NAV:
+        - "SCOUT::header_DROPDOWN"
+
+      LEFT_NAV: []
+
+      SIDEBAR_TOP:
+      SIDEBAR_MAIN:
+        - "CAMPFIRE::BLOG_LIST"
+
+      FOOTER_LEFT:
+        - "SCOUT::footer_left_FLAT"
+      FOOTER_RIGHT:
+        - "SCOUT::footer_right_FLAT"

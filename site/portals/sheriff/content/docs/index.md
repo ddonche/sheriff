@@ -10,3 +10,7 @@ summary: Sheriff docs are a mix of documentation and wiki.
 Here we begin the Sheriff documentation. Look at these image links:
 
 [[image:test.png|full|center|A beautiful sunset]]
+
+[[image:test.png|thumb|right|A beautiful sunset]]
+
+[[image:test.png|thumb|left|A beautiful sunset]]
