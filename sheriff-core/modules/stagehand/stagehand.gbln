@@ -100,12 +100,26 @@ act copy_assets(pre_ctx)
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
     xx
 
-    /// Ensure override.css exists (empty is fine) so layouts can always link it
+    /// ------------------------------------------------------------
+    /// Theme override.css (portal-scoped, theme-scoped)
+    /// If present in portal theme folder, copy it to dist as override.css
+    /// Else ensure an empty override.css exists so layouts can always link it
+    /// ------------------------------------------------------------
+    override_src  | "../site/portals/{portal}/themes/{theme_name}/override.css"
     override_dest | "../dist/{portal}/public/css/override.css"
-    if :file_exists(override_dest) == false
-        :create_dir!("../dist/{portal}/public/css")
-        :write_text!(override_dest, "/* portal overrides */\n")
-        :say("STAGEHAND: Wrote empty override.css")
+
+    :create_dir!("../dist/{portal}/public/css")
+
+    if :file_exists(override_src)
+        :copy_file!(override_src, override_dest)
+        :say("STAGEHAND: Copied override.css from portal theme folder")
+    else
+        if :file_exists(override_dest) == false
+            :write_text!(override_dest, "/* portal/theme overrides */\n")
+            :say("STAGEHAND: Wrote empty override.css")
+        else
+            :say("STAGEHAND: override.css already exists; leaving as-is")
+        xx
     xx
 
     /// ----- 4) Copy index.html from content/ to dist root if it exists -----

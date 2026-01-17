@@ -64,6 +64,36 @@ body {
     sans-serif;
 }
 
+/* External link indicator */
+a[href^="http://"],
+a[href^="https://"] {
+  position: relative;
+  padding-right: 0.75em;
+}
+
+a[href^="http://"]::after,
+a[href^="https://"]::after {
+  content: "";
+  display: inline-block;
+
+  width: 1em;
+  height: 1em;
+  margin-left: 0.25em;
+
+  vertical-align: baseline;
+
+  background-color: currentColor;
+
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E") no-repeat center / contain;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+.sheriff-header a::after,
+.sheriff-footer a::after,
+button a::after {
+  display: none;
+}
+
 /* ========================================================================== */
 /* PAGE SHELL & LAYOUT                                                        */
 /* ========================================================================== */
@@ -384,12 +414,13 @@ body {
 /* Wrapper becomes the framed thumb box */
 .sheriff-image-block {
   display: inline-block;
+  width: fit-content;
   max-width: 100%;
   margin: 1.25rem 0;
   padding: 0.5rem;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--sheriff-panel)
+  background: var(--sheriff-panel);
 }
 
 /* IMPORTANT: do NOT float the <img>; float the wrapper */
@@ -411,6 +442,12 @@ body {
   font-size: 0.9rem;
   line-height: 1.25;
   color: var(--text-muted);
+}
+
+/* Half-width images (between thumb and full) */
+.sheriff-image-half {
+  width: 420px;     /* tune */
+  max-width: 50vw;  /* responsive safety */
 }
 
 /* Thumb sizing */
@@ -449,28 +486,65 @@ body {
   clear: both;
 }
 
+@media (max-width: 860px) {
+  .sheriff-image-block {
+    width: 100%;
+  }
+
+  .sheriff-image-half {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
 /* ========================================================================== */
-/* FOCUS PANEL – FLOATED WITH STICKY SCROLL BEHAVIOR                         */
+/* FOCUS PANEL – MATCH WIKI IMAGE FRAME STYLE                                 */
 /* ========================================================================== */
+
 .sheriff-focus-panel {
+  /* keep your sizing */
   width: 14.5rem;
   max-width: 40vw;
-  float: right;
-  margin: 0.35rem 0 1.25rem 1.25rem;
-  padding: 0.6rem;
-  border: 1px solid var(--sheriff-border);
-  border-radius: 0.45rem;
-  background: var(--sheriff-bg);
+
+  /* frame styling (match .sheriff-image-block) */
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--sheriff-panel);
+
   overflow: hidden;
   z-index: 100;
 }
 
-/* Image */
-.sheriff-focus-panel img {
+/* Image inside the frame (match .sheriff-image) */
+.sheriff-focus-panel img,
+.sheriff-focus-panel .sheriff-focus-panel-img {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 0.3rem;
+
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Caption inside the frame (match wiki caption) */
+.sheriff-focus-panel-caption {
+  display: block;
+  margin-top: 0.4rem;
+  padding-top: 0;          /* no divider line in wiki frame style */
+  border-top: 0;
+
+  font-size: 0.9rem;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+/* When floated in content (rare now, but keep sane defaults) */
+.sheriff-focus-panel {
+  float: right;
+  margin: 0.35rem 0 1.25rem 1.25rem;
 }
 
 /* Focus panel when mounted in sidebar slot (NOT floated) */
@@ -479,25 +553,15 @@ body {
   width: 100%;
   max-width: 100%;
   margin: 0 0 1.25rem 0;
-  z-index: 9999; 
+  z-index: 9999;
 }
 
 /* Sticky focus slot inside right sidebar */
 .sheriff-focus-slot {
   position: sticky;
-  top: 1rem;              /* adjust if you want more/less gap from top */
-  align-self: flex-start; /* important inside flex layout */
-  z-index: 9999; 
-}
-
-/* Caption */
-.sheriff-focus-panel-caption {
-  margin-top: 0.45rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--sheriff-border);
-  font-size: 0.82rem;
-  line-height: 1.35;
-  color: var(--sheriff-muted);
+  top: 1rem;
+  align-self: flex-start;
+  z-index: 9999;
 }
 
 /* Mobile: don't sticky + don't float */

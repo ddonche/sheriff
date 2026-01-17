@@ -11,9 +11,9 @@ menus:
 
     Tutorials:
       Styling:
-        Themes: docs/tutorials/styling/themes.html
-        Branding: docs/tutorials/styling/branding.html
-        Focus Panels: docs/tutorials/styling/focus_panels.html
+        Themes: docs/guides/themes.html
+        Branding: docs/guides/branding.html
+        Focus Panels: docs/guides/focus_panels.html
       Recipes:
         Password Generator: docs/tutorials/recipes/password_generator_recipe.html
 
@@ -28,14 +28,39 @@ menus:
         Installation: docs/getting-started/installation.html
         First build: docs/getting-started/first_build.html
 
-      Guides:
-        Themes & layout: docs/guides/themes_layout.html
+      Theme Guide:
+        Themes: docs/guides/themes.html
+        Layout: docs/guides/layout.html
+        Templates: docs/guides/templates.html
+        Layout Slots: docs/guides/layout_slots.html
+        Tokens: docs/guides/tokens.html
         Navigation: docs/guides/navigation.html
-        Content pipeline: docs/guides/content_pipeline.html
+        Table of Contents: docs/guides/toc.html
+        Site Branding: docs/guides/navigation.html
+
+      Styling Guide:
+        Using Markdown: docs/guides/using_markdown.html
+        How to Write a Doc: docs/guides/writing_docs.html
+        How to Write a Blog Post: docs/guides/writing_blogs.html
+        Setting User Avatars: docs/guides/avatars.html
+        Frontmatter: docs/guides/frontmatter.html
+        Images: docs/guides/images.html
+        Links: docs/guides/links.html
+        Focus Panels: docs/guides/focus_panels.html
+        Infoboxes: docs/guides/infoboxes.html
+        Admonitions: docs/guides/admonitions.html
+        Code Blocks: docs/guides/code_blocks.html
+        Citations: docs/guides/citations.html
+
+      Under the Hood:
+        How Sheriff Works: docs/how_sheriff_works.html
+        Portals: docs/portals.html
+        Content pipeline: docs/content_pipeline.html
+        Modules: docs/modules.html
 
       Reference:
         Config schema: docs/reference/config_schema.html
-        Tokens: docs/reference/tokens.html
+        List of Modules: docs/reference/modules_list.html
 
   footer_left:
     © 2025-2026 Sheriff Docs: ""
