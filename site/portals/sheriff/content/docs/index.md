@@ -11,6 +11,9 @@ Here we begin the Sheriff documentation. Look at these image links:
 
 [[image:test.png|full|center|A beautiful sunset]]
 
-[[image:test.png|thumb|right|A beautiful sunset]]
+---
+## Some Videos
 
-[[image:test.png|thumb|left|A beautiful sunset]]
+[[video:youtube|dQw4w9WgXcQ|full|center|Sheriff intro]]
+
+[[video:vimeo|123456789|full|center|Build pipeline walkthrough]]

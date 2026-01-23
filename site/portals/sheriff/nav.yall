@@ -45,6 +45,7 @@ menus:
         Setting User Avatars: docs/guides/avatars.html
         Frontmatter: docs/guides/frontmatter.html
         Images: docs/guides/images.html
+        Videos: docs/guides/videos.html
         Links: docs/guides/links.html
         Focus Panels: docs/guides/focus_panels.html
         Infoboxes: docs/guides/infoboxes.html
@@ -60,6 +61,7 @@ menus:
 
       Reference:
         Config schema: docs/reference/config_schema.html
+        Sheriff Wiki Syntax: docs/reference/sheriff_wiki_syntax.html
         List of Modules: docs/reference/modules_list.html
 
   footer_left:

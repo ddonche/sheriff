@@ -1,7 +1,30 @@
 /// modules/trailboss_wiki/trailboss.gbln
 /// Wikilinks + routing for Sheriff (JSON-based).
+///
+/// NOTE:
+/// In Goblin, `x.nix?` already means **nil OR empty**.
+/// So this file uses **ONLY** `.nix?` for presence/emptiness checks.
+/// No more `x.nix? or x == ""` garbage.
 
 import modules/trailboss_wiki/routes_json as rjson
+
+/// ======================================================================
+/// 0) TINY NORMALIZERS (KEEP THIS FILE SANE)
+/// ======================================================================
+
+/// Return trimmed string, or "" if nil/empty.
+act s_trim(v)
+    if v.nix? => return ""
+    return :trim("" + v)
+xx
+
+/// Normalize path slashes to forward.
+act path_norm(p)
+    if p.nix? => return ""
+    out | "" + p
+    :update_where!(out, "\\", "/")
+    return out
+xx
 
 /// ======================================================================
 /// 1) ROUTE JSON GENERATION (ONE routes.json PER PORTAL)
@@ -9,13 +32,13 @@ import modules/trailboss_wiki/routes_json as rjson
 
 act build_routes_once(pre_ctx)
     if pre_ctx.nix?
-        :say("TRAILBOSS.build_routes_once: pre_ctx is nil; skipping routes.json.")
+        :say("TRAILBOSS.build_routes_once: pre_ctx is nix; skipping routes.json.")
         return pre_ctx
     xx
 
     portal | pre_ctx["portal"]
     if portal.nix?
-        :say("TRAILBOSS.build_routes_once: portal missing in pre_ctx; skipping routes.json.")
+        :say("TRAILBOSS.build_routes_once: portal missing; skipping routes.json.")
         return pre_ctx
     xx
 
@@ -36,8 +59,7 @@ act attach_href(ctx)
     if portal.nix? => return ctx
     if src.nix?    => return ctx
 
-    src_norm | "" + src
-    :update_where!(src_norm, "\\", "/")
+    src_norm | path_norm(src)
 
     /// derive rel from the real source path under content/
     portal_root | derive_portal_root_from_ctx(ctx, portal)
@@ -45,21 +67,22 @@ act attach_href(ctx)
     prefix | "{portal_root}/content/"
     rel    | :keep_after(src_norm, prefix)
 
-    if rel.nix? or rel == ""
+    if rel.nix?
+        /// fallback: older path layout
         prefix2 | "../site/portals/{portal}/content/"
         rel     | :keep_after(src_norm, prefix2)
     xx
 
     if rel.nix? => rel | ""
-    :update_where!(rel, "\\", "/")
+    rel |= path_norm(rel)
 
     rel_no_ext | :keep_before(rel, ".md")
-    if rel_no_ext.nix? or rel_no_ext == ""
+    if rel_no_ext.nix?
         rel_no_ext |= :keep_before(rel, ".")
         if rel_no_ext.nix? => rel_no_ext | ""
     xx
 
-    :update_where!(rel_no_ext, "\\", "/")
+    rel_no_ext |= path_norm(rel_no_ext)
 
     /// same rule as routes.json uses
     cfg      | rjson::load_cfg(portal)
@@ -98,8 +121,11 @@ act clean_cfg_string(v)
 
     /// strip inline comments if they somehow get through
     left | :keep_before(s, "#")
-    if !left.nix? and :trim(left) != ""
-        :update!(s, "" + left)
+    if !left.nix?
+        left_t | :trim(left)
+        if !left_t.nix?
+            :update!(s, "" + left_t)
+        xx
     xx
 
     s |= :trim(s)
@@ -117,21 +143,24 @@ xx
 
 /// Determine where a portal is mounted in dist.
 /// Rules:
-/// - if routing.dist_root missing/empty or == "default" => ROOT mount (no prefix)
+/// - if routing.dist_root is nix or == "default" => ROOT mount (no prefix)
 /// - else => "/{dist_root}"
 act portal_mount(portal)
     cfg | load_cfg(portal)
-    if cfg.nix? => return ""     /// treat as root if unknown
+    if cfg.nix? => return ""
 
     routing | cfg["routing"]
-    if routing.nix? or :valtype(routing) != "map"
+    if routing.nix?
+        return ""
+    xx
+    if :valtype(routing) != "map"
         return ""
     xx
 
     dr | routing["dist_root"]
-    dr | clean_cfg_string(dr)
+    dr |= clean_cfg_string(dr)
 
-    if dr == "" => return ""
+    if dr.nix?        => return ""
     if dr == "default" => return ""
 
     return "/" + dr
@@ -151,6 +180,8 @@ act normalize_to_slug(page)
     :update_where!(cleaned, ")", "")
     cleaned |= :trim(cleaned)
 
+    if cleaned.nix? => return ""
+
     slug | :lower(cleaned)
     :update_where!(slug, " ", "-")
     :update_where!(slug, "_", "-")
@@ -159,13 +190,15 @@ act normalize_to_slug(page)
 xx
 
 act split_anchor(text)
-    page   | :trim(:keep_before(text, "#"))
-    anchor | :trim(:keep_after(text, "#"))
+    t | s_trim(text)
+    if t.nix? => return {"page": "", "anchor": ""}
 
-    if page.nix? or page == ""
-        page |= text
+    page   | s_trim(:keep_before(t, "#"))
+    anchor | s_trim(:keep_after(t, "#"))
+
+    if page.nix?
+        page |= t
     xx
-
     if anchor.nix?
         anchor | ""
     xx
@@ -177,11 +210,10 @@ act derive_portal_root_from_ctx(ctx, portal)
     src | ctx["path"]
     if src.nix? => return "../site/portals/{portal}"
 
-    src_norm | "" + src
-    :update_where!(src_norm, "\\", "/")
+    src_norm | path_norm(src)
 
     root | :keep_before(src_norm, "/content/")
-    if root.nix? or root == ""
+    if root.nix?
         root |= "../site/portals/{portal}"
     xx
 
@@ -189,7 +221,7 @@ act derive_portal_root_from_ctx(ctx, portal)
 xx
 
 act load_routes_for_portal(ctx, portal)
-    if portal.nix? or portal == "" => return []
+    if portal.nix? => return []
 
     portal_root | derive_portal_root_from_ctx(ctx, portal)
     routes_path | "{portal_root}/routes.json"
@@ -199,8 +231,9 @@ act load_routes_for_portal(ctx, portal)
     xx
 
     parsed | :read_json(routes_path)
-    routes | parsed["routes"]
+    if parsed.nix? => return []
 
+    routes | parsed["routes"]
     if routes.nix? => return []
     if :valtype(routes) != "array" => return []
 
@@ -208,8 +241,8 @@ act load_routes_for_portal(ctx, portal)
 xx
 
 act lookup_href_by_slug(ctx, portal, slug)
-    if portal.nix? or portal == "" => return ""
-    if slug.nix? or slug == ""     => return ""
+    if portal.nix? => return ""
+    if slug.nix?   => return ""
 
     routes | load_routes_for_portal(ctx, portal)
     if :valtype(routes) != "array" => return ""
@@ -218,7 +251,7 @@ act lookup_href_by_slug(ctx, portal, slug)
         if meta.nix? => skip
         if meta["slug"] == slug
             href_abs | meta["href"]
-            if !href_abs.nix? and ("" + href_abs) != ""
+            if !href_abs.nix?
                 return "" + href_abs
             xx
         xx
@@ -228,17 +261,21 @@ act lookup_href_by_slug(ctx, portal, slug)
 xx
 
 act lookup_slug_by_href(ctx, portal, href_abs)
-    if portal.nix? or portal == "" => return ""
-    if href_abs.nix? or href_abs == "" => return ""
+    if portal.nix?   => return ""
+    if href_abs.nix? => return ""
 
     routes | load_routes_for_portal(ctx, portal)
     if :valtype(routes) != "array" => return ""
 
+    href_s | "" + href_abs
+
     for meta in routes
         if meta.nix? => skip
-        if ("" + meta["href"]) == ("" + href_abs)
+        h | meta["href"]
+        if h.nix? => skip
+        if ("" + h) == href_s
             s | meta["slug"]
-            if !s.nix? and ("" + s) != ""
+            if !s.nix?
                 return "" + s
             xx
         xx
@@ -258,11 +295,15 @@ act stash_code_segments(html)
     stash | []
     n     | 0
 
+    /// predeclare once for this block
+    seg | ""
+    key | ""
+
     /// Stash fenced blocks first (<pre ... </pre>)
     sweep out
         "<pre" ... "</pre>":
-            seg | "" + self
-            key | "@@TB_CODE_{n}@@"
+            seg |= "" + self
+            key |= "@@TB_CODE_{n}@@"
             :put_last!(stash, {"k": key, "v": seg})
             :update_where!(out, seg, key)
             n += 1
@@ -271,8 +312,8 @@ act stash_code_segments(html)
     /// Then stash inline code (<code ... </code>)
     sweep out
         "<code" ... "</code>":
-            seg | "" + self
-            key | "@@TB_CODE_{n}@@"
+            seg |= "" + self
+            key |= "@@TB_CODE_{n}@@"
             :put_last!(stash, {"k": key, "v": seg})
             :update_where!(out, seg, key)
             n += 1
@@ -284,6 +325,7 @@ xx
 act restore_code_segments(html, stash)
     if html.nix? => return ""
     out | "" + html
+
     if stash.nix? => return out
     if :valtype(stash) != "array" => return out
 
@@ -291,7 +333,8 @@ act restore_code_segments(html, stash)
         if item.nix? => skip
         k | item["k"]
         v | item["v"]
-        if k.nix? or v.nix? => skip
+        if k.nix? => skip
+        if v.nix? => skip
         :update_where!(out, "" + k, "" + v)
     xx
 
@@ -302,9 +345,6 @@ xx
 /// 4) MISSING PAGE ROUTING (NO FALLBACKS, NO "#")
 /// ======================================================================
 
-/// Missing-page links point to one real explainer page:
-///   content/docs/missing.md -> /docs/missing.html
-/// Mount-aware: respects routing.dist_root via portal_mount().
 act missing_page_href()
     return "/docs/missing.html"
 xx
@@ -329,39 +369,34 @@ act escape_text(s)
     return out
 xx
 
-/// Small helper to build the final <a> tag.
-/// CRITICAL:
-/// - NEVER emits href="#".
-/// - If href is empty, it ALWAYS routes to /docs/missing.html.
+/// ======================================================================
+/// LINK HTML (NO "#", STRICT MISSING PAGE)
+/// ======================================================================
+
 act build_wikilink_html(href, label, is_external, klass)
-    href_s  | "" + href
-    label_s | "" + label
-    klass_s | "" + klass
+    /// Normalize inputs
+    href_s  | s_trim(href)
+    label_s | s_trim(label)
+    klass_s | s_trim(klass)
 
-    /// Auto-mark missing pages (single source of truth)
-    if href_s == "/docs/missing.html"
-        klass_s |= " sheriff-missing-link"
+    /// Hard guarantee: href is never nix (and never "#")
+    if href_s.nix?
+        href_s |= missing_page_href()
     xx
 
-    if href_s.nix? or href_s == ""
-        :update!(href_s, missing_page_href())
+    /// Label defaults to href
+    if label_s.nix?
+        label_s |= href_s
     xx
 
-    if label_s.nix? or label_s == ""
-        :update!(label_s, href_s)
+    /// Class defaults
+    if klass_s.nix?
+        klass_s |= "sheriff-link"
     xx
 
-    if klass_s.nix? or klass_s == ""
-        :update!(klass_s, "sheriff-link")
-    xx
-
-    /// Auto-mark missing-page links (mount-safe)
-    /// Matches both:
-    ///   /docs/missing.html
-    ///   /<mount>/docs/missing.html
+    /// Auto-mark missing-page links (matches mounted or root)
     if :ends_with(href_s, "/docs/missing.html")
-        /// append (don't replace)
-        :update!(klass_s, "{klass_s} sheriff-missing-link")
+        klass_s |= "{klass_s} sheriff-missing-link"
     xx
 
     href_s  |= escape_attr(href_s)
@@ -384,6 +419,16 @@ act build_wikilink_html(href, label, is_external, klass)
     return :pack(html_parts)
 xx
 
+act build_bad_video_embed(raw_inner)
+    msg | escape_text("" + raw_inner)
+    return :pack([
+        "<div class=\"sheriff-video sheriff-video-bad\">",
+          "<div class=\"sheriff-video-bad-label\">Invalid video tag:</div>",
+          "<code class=\"sheriff-video-bad-code\">", msg, "</code>",
+        "</div>"
+    ])
+xx
+
 /// ======================================================================
 /// 6) RESOLVE A SINGLE WIKILINK
 /// ======================================================================
@@ -391,16 +436,21 @@ xx
 act resolve_wikilink(inner, ctx, portal)
     if inner.nix? => return ""
 
-    raw | :trim(inner)
-    if raw == "" => return ""
+    raw | s_trim(inner)
+    if raw.nix? => return ""
 
     core | :keep_between(raw, "[[", "]]")
-    if core.nix? or core == ""
+    if core.nix?
         core |= raw
     xx
 
-    inner_text | :trim(core)
-    if inner_text == "" => return ""
+    inner_text | s_trim(core)
+    if inner_text.nix? => return ""
+
+    /// Reject deprecated video shorthand
+    if :starts_with(:lower(inner_text), "video|")
+        return build_bad_video_embed(inner_text)
+    xx
 
     /// IMAGE WIKILINK (fixed shape)
     if :starts_with(inner_text, "image:")
@@ -415,16 +465,16 @@ act resolve_wikilink(inner, ctx, portal)
         align    | parts[2]
         caption  | parts[3]
 
-        if filename.nix? or filename == "" => return ""
+        if filename.nix? => return ""
 
-        if size.nix? or size == ""   => size   | "full"
-        if align.nix? or align == "" => align  | "center"
-        if caption.nix?              => caption | ""
+        if size.nix?  => size  | "full"
+        if align.nix? => align | "center"
+        if caption.nix? => caption | ""
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if m != ""
+        if !m.nix?
             src | "{m}/public/images/{filename}"
         xx
 
@@ -473,15 +523,15 @@ act resolve_wikilink(inner, ctx, portal)
         align    | parts[2]
         caption  | parts[3]
 
-        if filename.nix? or filename == "" => return ""
-        if size.nix? or size == ""         => return ""
-        if align.nix? or align == ""       => return ""
-        if caption.nix?                    => caption | ""
+        if filename.nix? => return ""
+        if size.nix?     => return ""
+        if align.nix?    => return ""
+        if caption.nix?  => caption | ""
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if m != ""
+        if !m.nix?
             src | "{m}/public/images/{filename}"
         xx
 
@@ -515,7 +565,7 @@ act resolve_wikilink(inner, ctx, portal)
     /// [[focus:image:filename.png|Label]]
     if :starts_with(inner_text, "focus:")
         rest | :keep_after(inner_text, "focus:")
-        if rest.nix? or rest == "" => return ""
+        if rest.nix? => return ""
 
         parts | :split(rest, "|")
         if parts.nix? => return ""
@@ -524,20 +574,20 @@ act resolve_wikilink(inner, ctx, portal)
         img_ref | parts[0]
         label   | parts[1]
 
-        if img_ref.nix? or img_ref == "" => return ""
-        if label.nix? => label | ""
+        if img_ref.nix? => return ""
+        if label.nix?   => label | ""
 
         if :starts_with(img_ref, "image:") == false
             return ""
         xx
 
         filename | :keep_after(img_ref, "image:")
-        if filename.nix? or filename == "" => return ""
+        if filename.nix? => return ""
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if m != ""
+        if !m.nix?
             src | "{m}/public/images/{filename}"
         xx
 
@@ -556,14 +606,90 @@ act resolve_wikilink(inner, ctx, portal)
         return :pack(out)
     xx
 
+    /// VIDEO (same convention as image: and focuspanel:)
+    /// [[video:youtube|VIDEO_ID|size|align|Caption]]
+    /// [[video:vimeo|VIDEO_ID|size|align|Caption]]
+    if :starts_with(inner_text, "video:")
+        body | :keep_after(inner_text, "video:")
+        if body.nix? => return ""
+
+        parts | :split(body, "|")
+        if parts.nix? => return ""
+
+        provider | parts[0]
+        vid      | parts[1]
+        size     | parts[2]
+        align    | parts[3]
+        caption  | parts[4]
+
+        if provider.nix? => return ""
+        if vid.nix?      => return ""
+
+        if size.nix?  => size  | "full"
+        if align.nix? => align | "center"
+        if caption.nix? => caption | ""
+
+        provider |= :lower(:trim(provider))
+        vid      |= :trim(vid)
+        size     |= :lower(:trim(size))
+        align    |= :lower(:trim(align))
+        caption  |= :trim(caption)
+
+        /// Build embed URL
+        base | ""
+        if provider == "vimeo"
+            base |= "https://player.vimeo.com/video/"
+        else
+            base |= "https://www.youtube-nocookie.com/embed/"
+        xx
+
+        src | base + vid
+        src_e | escape_attr(src)
+
+        cap_a | escape_attr(caption)
+        cap_t | escape_text(caption)
+
+        wrap_class | "sheriff-video sheriff-video-{size}"
+        frame_class | "sheriff-video-frame sheriff-align-{align}"
+
+        out | []
+        :put_last!(out, "<div class=\"")
+        :put_last!(out, wrap_class)
+        :put_last!(out, "\">")
+
+        :put_last!(out, "<div class=\"")
+        :put_last!(out, frame_class)
+        :put_last!(out, "\">")
+
+        :put_last!(out, "<iframe src=\"")
+        :put_last!(out, src_e)
+        :put_last!(out, "\" title=\"")
+        :put_last!(out, cap_a)
+        :put_last!(out, "\" loading=\"lazy\"")
+        :put_last!(out, " allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\"")
+        :put_last!(out, " allowfullscreen")
+        :put_last!(out, " referrerpolicy=\"strict-origin-when-cross-origin\"")
+        :put_last!(out, "></iframe>")
+
+        :put_last!(out, "</div>")
+
+        :put_last!(out, "<div class=\"sheriff-video-caption\">")
+        :put_last!(out, cap_t)
+        :put_last!(out, "</div>")
+
+        :put_last!(out, "</div>")
+
+        return :pack(out)
+    xx
+
     /// ======================================================
     /// WIKILINK LOGIC (STRICT: routes.json OR missing page)
     /// ======================================================
 
-    link_part  | :keep_before(inner_text, "|")
-    label_part | :keep_after(inner_text, "|")
+    link_part  | :trim(:keep_before(inner_text, "|"))
+    label_part | :trim(:keep_after(inner_text, "|"))
 
-    if link_part.nix? or link_part == ""
+    if link_part.nix?
         link_part |= inner_text
     xx
 
@@ -571,7 +697,7 @@ act resolve_wikilink(inner, ctx, portal)
     label_part |= :trim(label_part)
 
     display_label | label_part
-    if display_label.nix? or display_label == ""
+    if display_label.nix?
         display_label |= link_part
     xx
 
@@ -588,26 +714,25 @@ act resolve_wikilink(inner, ctx, portal)
             portal_name | :keep_between(link_part, "p/", "/")
             rest        | :keep_after(link_part, "p/{portal_name}/")
 
-            if portal_name.nix? or portal_name == "" or rest.nix? or rest == ""
-                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
-            xx
+            if portal_name.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+            if rest.nix?        => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
 
             parts  | split_anchor(rest)
             page   | parts["page"]
             anchor | parts["anchor"]
 
             slug | normalize_to_slug(page)
+            if slug.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
 
             href  | lookup_href_by_slug(ctx, portal_name, slug)
             klass | "sheriff-link"
 
-            /// STRICT: if not found, go to THIS ONE missing page (no portal mounts, no portal_name)
-            if href == ""
+            if href.nix?
                 href  |= missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
-            if anchor != ""
+            if !anchor.nix?
                 href |= "{href}#{anchor}"
             xx
 
@@ -615,10 +740,10 @@ act resolve_wikilink(inner, ctx, portal)
 
         is_user:
             username | :keep_after(link_part, "u/")
-            if username.nix? or username == ""
-                return build_wikilink_html(portal, "", display_label, false, "sheriff-link sheriff-missing-link")
+            if username.nix?
+                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
             xx
-            return build_wikilink_html(portal, "/users/{username}", display_label, false, "sheriff-link")
+            return build_wikilink_html("/users/{username}", display_label, false, "sheriff-link")
 
         else:
             parts  | split_anchor(link_part)
@@ -626,17 +751,19 @@ act resolve_wikilink(inner, ctx, portal)
             anchor | parts["anchor"]
 
             slug | normalize_to_slug(page)
+            if slug.nix?
+                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+            xx
 
             href  | lookup_href_by_slug(ctx, portal, slug)
             klass | "sheriff-link"
 
-            if href == ""
+            if href.nix?
                 href  |= missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
-            /// ONLY append anchor if non-empty
-            if anchor != ""
+            if !anchor.nix?
                 href |= "{href}#{anchor}"
             xx
 
@@ -662,18 +789,21 @@ act process_wikilinks(ctx)
 
     result | "" + work
     focus_html | ""
+    core | "" 
+    repl_raw | ""
+    repl | ""
 
     sweep work
         "[[" ... "]]":
-            if self.nix? or self == "" => skip
+            if self.nix? => skip
 
-            core | :keep_between(self, "[[", "]]")
-            core |= :trim(core)
+            core |= :trim(:keep_between(self, "[[", "]]"))
+            if core.nix? => skip
 
             if :starts_with(core, "focuspanel:")
-                if focus_html == ""
+                if focus_html.nix?
                     html_raw | resolve_wikilink(self, ctx, portal)
-                    if !html_raw.nix? and ("" + html_raw) != ""
+                    if !html_raw.nix?
                         :update!(focus_html, "" + html_raw)
                     xx
                 xx
@@ -682,16 +812,17 @@ act process_wikilinks(ctx)
                 skip
             xx
 
-            repl_raw | resolve_wikilink(self, ctx, portal)
+            repl_raw |= resolve_wikilink(self, ctx, portal)
             if repl_raw.nix? => skip
 
-            repl | "" + repl_raw
-            if repl == "" => skip
+            repl |= "" + repl_raw
+            if repl.nix? => skip
 
             :update_where!(result, self, repl)
     xx
 
     /// Replace SITE token AFTER wikilinks — still safe because code is stashed.
+    if focus_html.nix? => focus_html | ""
     :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
     :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 
@@ -715,12 +846,12 @@ act publish_canonical_link(ctx)
     if src.nix?    => return ctx
     if body.nix?   => return ctx
 
-    src_norm | "" + src
-    :update_where!(src_norm, "\\", "/")
+    src_norm | path_norm(src)
 
     /// WORKING SLUG DERIVATION (the one you already had)
     stem_name | :stem(src_norm)
     slug      | normalize_to_slug(stem_name)
+    if slug.nix? => return ctx
 
     canonical | "[[{slug}]]"
 

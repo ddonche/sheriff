@@ -297,7 +297,7 @@ act compute_readtime_label(body)
         :update!(mins_whole, mins_str)
     xx
 
-    mins_whole | :trim(mins_whole)
+    mins_whole |= :trim(mins_whole)
 
     /// Guard: if we somehow got "0" but have words, bump to "1"
     if mins_whole == "0"

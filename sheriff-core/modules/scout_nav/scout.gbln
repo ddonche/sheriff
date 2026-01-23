@@ -29,9 +29,9 @@ act slug_to_label(slug)
     label | "" + slug
 
     /// strip common extensions
-    label | ignore_where(label, ".md.html")
-    label | ignore_where(label, ".html")
-    label | ignore_where(label, ".md")
+    label |= ignore_where(label, ".md.html")
+    label |= ignore_where(label, ".html")
+    label |= ignore_where(label, ".md")
 
     /// replace "_" with " "
     label |= :join(:split(label, "_"), " ")
@@ -60,24 +60,24 @@ act generate_toc(html_content)
             xx
 
         "<h2>" ... "</h2>" :
-            anchor_id | keep_between(self, "id=\"", "\"")
-            text      | trim(keep_between(self, "</a>", "<"))
+            anchor_id |= keep_between(self, "id=\"", "\"")
+            text      |= trim(keep_between(self, "</a>", "<"))
 
             if text != "" and anchor_id != ""
                 put_last!(headers, {"level": 2, "id": anchor_id, "text": text})
             xx
 
         "<h3>" ... "</h3>" :
-            anchor_id | keep_between(self, "id=\"", "\"")
-            text      | trim(keep_between(self, "</a>", "<"))
+            anchor_id |= keep_between(self, "id=\"", "\"")
+            text      |= trim(keep_between(self, "</a>", "<"))
 
             if text != "" and anchor_id != ""
                 put_last!(headers, {"level": 3, "id": anchor_id, "text": text})
             xx
 
         "<h4>" ... "</h4>" :
-            anchor_id | keep_between(self, "id=\"", "\"")
-            text      | trim(keep_between(self, "</a>", "<"))
+            anchor_id |= keep_between(self, "id=\"", "\"")
+            text      |= trim(keep_between(self, "</a>", "<"))
 
             if text != "" and anchor_id != ""
                 put_last!(headers, {"level": 4, "id": anchor_id, "text": text})
@@ -96,8 +96,8 @@ act generate_toc(html_content)
         text  | h["text"]
 
         item | "<li class=\"toc-item toc-level-" + string(level)
-        item | item + "\"><a href=\"#"
-        item | item + id + "\">" + text + "</a></li>\n"
+        item |= item + "\"><a href=\"#"
+        item |= item + id + "\">" + text + "</a></li>\n"
 
         put_last!(toc_parts, item)
     xx
@@ -164,11 +164,11 @@ act build_breadcrumbs(ctx)
 
         /// Get a label and force it to string
         label | slug_to_label(seg)
-        label | "" + label
+        label |= "" + label
 
         /// Escape + Title-case
         safe | :escape_html(label)
-        safe | safe.title
+        safe |= safe.title
 
         if is_last
             :put_last!(parts,
@@ -398,7 +398,7 @@ act scout_render_sidebar(portal, menu_content)
               </details>
             </li>
             """
-            
+
             update!(nav_items, nav_items + item)
             update!(first_key, false)
         xx
@@ -454,7 +454,7 @@ act scout_render_footer(portal, footer_content)
             update!(is_link, false)
         else
             tmp | "" + url
-            tmp | :trim(tmp)
+            tmp |= :trim(tmp)
 
             if tmp == "" or tmp == "{}"
                 update!(is_link, false)

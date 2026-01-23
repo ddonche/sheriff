@@ -19,6 +19,9 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - redirects
 - multicolumn lists
 - infoboxes
+- what links here
+- wanted pages
+- update all dead links on page creation
 
 ## Theme and Layout
 - more themes to choose from
@@ -48,9 +51,9 @@ Consider this a pile of all the features I still need to implement in Sheriff.
 - tumbleweed lexicon
 
 ## Bug Fixes 
-- fix canonical link away from portal-specific
 - breadcrumbs are actual links and not hardcoded with the arrow (make it theme based)
 - copy link button actually works
 - search bar activated
 - avatar in docs (like blog)
 - read time is not accurate
+
