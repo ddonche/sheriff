@@ -49,11 +49,13 @@ xx
 /// ------------------------------------------------------------------------
 act generate_toc(html_content)
     headers | []
+    anchor_id | ""
+    text | ""
 
     sweep html_content
         "<h1>" ... "</h1>" :
-            anchor_id | keep_between(self, "id=\"", "\"")
-            text      | trim(keep_between(self, "</a>", "<"))
+            anchor_id |= keep_between(self, "id=\"", "\"")
+            text      |= trim(keep_between(self, "</a>", "<"))
 
             if text != "" and anchor_id != ""
                 put_last!(headers, {"level": 1, "id": anchor_id, "text": text})
