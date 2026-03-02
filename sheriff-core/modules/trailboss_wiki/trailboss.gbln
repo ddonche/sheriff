@@ -49,6 +49,134 @@ act build_routes_once(pre_ctx)
 xx
 
 /// ======================================================================
+/// RENDER ADMONITIONS
+/// ======================================================================
+
+act render_admonitions(ctx)
+    body | ctx["body"]
+    if body.nix? => return ctx
+
+    /// --- STASH CODE/PRE so we don't mutate examples ---
+    stashed | stash_code_segments(body)
+    work    | stashed["html"]
+    stash   | stashed["stash"]
+
+    out | work
+
+    block | ""
+    payload | ""
+    header_line | ""
+    body_part | ""
+
+    header_rest | ""
+    kind_raw | ""
+    kind | ""
+    title | ""
+    title_t | ""
+    inner | ""
+    repl | ""
+    custom | ""
+
+    sweep out
+        "<p>::: " ... ":::</p>":
+            if self.nix? => skip
+
+            block |= self
+
+            /// Extract everything between the paragraph wrapper + fences
+            /// payload looks like:
+            ///   note\nBody...
+            ///   warning Token Economy\nBody...
+            payload |= :keep_between(block, "<p>::: ", ":::</p>")
+            if payload.nix? => skip
+
+            /// Split header vs body on first newline
+            header_line |= :keep_before(payload, "\n")
+            if header_line.nix?
+                header_line |= payload
+                body_part |= ""
+            else
+                body_part |= :keep_after(payload, "\n")
+                if body_part.nix? => body_part | ""
+            xx
+
+            header_rest |= s_trim(header_line)
+            if header_rest.nix? => header_rest | ""
+
+            /// kind = first token from header_rest
+            kind_raw |= s_trim(:keep_before(header_rest, " "))
+            if kind_raw.nix?
+                kind_raw |= header_rest
+            xx
+
+            kind_raw |= :lower(s_trim(kind_raw))
+            if kind_raw.nix? => kind_raw | "note"
+
+            /// normalize to allowed kinds
+            kind |= "note"
+            judge
+                kind_raw == "note":      kind |= "note"
+                kind_raw == "tip":       kind |= "tip"
+                kind_raw == "warning":   kind |= "warning"
+                kind_raw == "important": kind |= "important"
+                kind_raw == "example":   kind |= "example"
+                kind_raw == "strategy":  kind |= "strategy"
+                kind_raw == "lore":      kind |= "lore"
+
+                /// optional aliases
+                kind_raw == "info":      kind |= "note"
+                kind_raw == "hint":      kind |= "tip"
+                kind_raw == "caution":   kind |= "warning"
+                kind_raw == "rule":      kind |= "important"
+            xx
+
+            /// default title
+            title |= "Note"
+            judge
+                kind == "note":      title |= "Note"
+                kind == "tip":       title |= "Tip"
+                kind == "warning":   title |= "Warning"
+                kind == "important": title |= "Important"
+                kind == "example":   title |= "Example"
+                kind == "strategy":  title |= "Strategy"
+                kind == "lore":      title |= "Lore"
+            xx
+
+            /// Optional custom title (UNQUOTED):
+            /// everything after the first space on the header line
+            /// Example: "warning Token Economy" -> "Token Economy"
+            custom |= s_trim(:keep_after(header_rest, " "))
+            if !custom.nix? => title |= custom
+
+            title_t |= escape_text(title)
+
+            /// Body HTML (already rendered inline markup like <em> by markdown_core)
+            inner |= s_trim(body_part)
+            if inner.nix? => inner | ""
+
+            repl |= :pack([
+                "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
+                  "<div class=\"sheriff-admon-head\">",
+                    "<span class=\"sheriff-admon-title\">", title_t, "</span>",
+                  "</div>",
+                  "<div class=\"sheriff-admon-body\">",
+                    inner,
+                  "</div>",
+                "</div>"
+            ])
+
+            /// Replace the WHOLE <p>...</p> block so we never nest <div> inside <p>
+            :update_where!(out, block, repl)
+    xx
+
+    /// --- RESTORE CODE/PRE blocks ---
+    final | restore_code_segments(out, stash)
+
+    :update!(ctx["body"], final)
+    return ctx
+xx
+
+/// ======================================================================
 /// 1b) PER-PAGE ctx["href"] (ABSOLUTE HREF FOR CURRENT PAGE)
 /// ======================================================================
 
