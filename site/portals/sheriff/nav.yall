@@ -51,7 +51,7 @@ menus:
         Infoboxes: docs/guides/infoboxes.html
         Admonitions: docs/guides/admonitions.html
         Code Blocks: docs/guides/code_blocks.html
-        Citations: docs/guides/citations.html
+        Footnotes: docs/guides/footnotes.html
 
       Under the Hood:
         How Sheriff Works: docs/how_sheriff_works.html

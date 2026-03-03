@@ -192,6 +192,27 @@ act render_admonitions(ctx)
 xx
 
 /// ======================================================================
+/// RENDER FOOTNOTES (CLASS SHIM FOR THEME CSS)
+/// ======================================================================
+
+act render_footnotes(ctx)
+    body | ctx["body"]
+    if body.nix? => return ctx
+
+    out | body
+
+    /// Add a stable Sheriff class on the footnotes container
+    :update_where!(out, "<section class=\"footnotes\">", "<section class=\"footnotes sheriff-footnotes\">")
+
+    /// Add stable Sheriff classes for refs + backrefs (Comrak uses these)
+    :update_where!(out, "class=\"footnote-ref\"", "class=\"footnote-ref sheriff-footnote-ref\"")
+    :update_where!(out, "class=\"footnote-backref\"", "class=\"footnote-backref sheriff-footnote-backref\"")
+
+    :update!(ctx["body"], out)
+    return ctx
+xx
+
+/// ======================================================================
 /// 1b) PER-PAGE ctx["href"] (ABSOLUTE HREF FOR CURRENT PAGE)
 /// ======================================================================
 

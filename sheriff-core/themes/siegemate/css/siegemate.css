@@ -441,6 +441,134 @@ button a::after {
 }
 
 /* ========================================================================== */
+/* FOOTNOTES (Comrak)                                                        */
+/* Publisher-ish apparatus: smaller, muted, label header                      */
+/* ========================================================================== */
+
+section.footnotes,
+section.sheriff-footnotes {
+  margin-top: 2.25rem;
+
+  font-family: var(--vk-font-body);
+  font-size: 1.05rem;            /* smaller than body (body is 1.25rem) */
+  line-height: 1.65;
+  color: var(--vk-text-secondary);
+}
+
+/* Optional "FOOTNOTES" label (pure CSS) */
+section.footnotes::before,
+section.sheriff-footnotes::before {
+  content: "FOOTNOTES";
+  display: block;
+  margin: 0 0 0.75rem 0;
+
+  font-family: var(--vk-font-label);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+
+  color: var(--vk-gold-dim);
+  opacity: 0.9;
+}
+
+section.footnotes > hr,
+section.sheriff-footnotes > hr {
+  border: none;
+  border-top: 1px solid var(--admon-divider);
+  margin: 0.75rem 0 1rem 0;
+}
+
+/* Footnote list */
+section.footnotes ol,
+section.sheriff-footnotes ol {
+  margin: 0;
+  padding-left: 1.75rem;
+}
+
+section.footnotes li,
+section.sheriff-footnotes li {
+  margin: 0.55rem 0;
+}
+
+/* Keep paragraphs tight inside footnotes */
+section.footnotes li p,
+section.sheriff-footnotes li p {
+  margin: 0.25rem 0 0 0;
+  color: var(--vk-text-secondary);
+}
+
+/* Footnote marker at start of each item (the [1], [2] etc. area) */
+section.footnotes li::marker,
+section.sheriff-footnotes li::marker {
+  color: var(--vk-text-muted);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inline reference numbers (superscripts)                                    */
+/* -------------------------------------------------------------------------- */
+
+sup.footnote-ref,
+sup.sheriff-footnote-ref {
+  font-size: 0.66em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 0.06rem;
+}
+
+sup.footnote-ref a,
+sup.sheriff-footnote-ref a {
+  text-decoration: none;
+  color: var(--sheriff-link);
+  font-family: var(--vk-font-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+sup.footnote-ref a:hover,
+sup.sheriff-footnote-ref a:hover {
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Backref link (replace ↩ with ▲, match link colors)                          */
+/* -------------------------------------------------------------------------- */
+
+a.footnote-backref,
+a.sheriff-footnote-backref {
+  text-decoration: none;
+  margin-left: 0.35rem;
+  opacity: 0.9;
+  position: relative;
+  font-size: 0; /* hide original glyph */
+  color: var(--sheriff-link);
+}
+
+a.footnote-backref::before,
+a.sheriff-footnote-backref::before {
+  content: "▲";
+  font-size: 11px;
+  line-height: 1;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  color: var(--sheriff-link);
+  opacity: 0.9;
+}
+
+a.footnote-backref:hover::before,
+a.sheriff-footnote-backref:hover::before {
+  color: var(--sheriff-link-hover);
+  opacity: 1;
+}
+
+/* Fix oversized list items inside footnotes */
+section.footnotes li,
+section.sheriff-footnotes li {
+  font-size: 1.05rem;      /* match footnote body size */
+  line-height: 1.65;
+}
+
+/* ========================================================================== */
 /* ADMONITIONS (Flat margin-note style)                                       */
 /* Muted background wash + colored title + simple left border                 */
 /* ========================================================================== */

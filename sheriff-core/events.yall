@@ -12,6 +12,7 @@ schedule:
   - "markdown_core::render"
   - "brindle::apply_layout"
   - "trailboss::render_admonitions"
+  - "trailboss::render_footnotes"
   - "trailboss::process_wikilinks"
   - "stagehand::wire_slots"
   - "trailboss::publish_canonical_link"
