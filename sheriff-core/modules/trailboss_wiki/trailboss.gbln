@@ -122,6 +122,7 @@ act render_admonitions(ctx)
                 kind_raw == "example":   kind |= "example"
                 kind_raw == "strategy":  kind |= "strategy"
                 kind_raw == "lore":      kind |= "lore"
+                kind_raw == "spoiler":   kind |= "spoiler"
 
                 /// optional aliases
                 kind_raw == "info":      kind |= "note"
@@ -140,6 +141,7 @@ act render_admonitions(ctx)
                 kind == "example":   title |= "Example"
                 kind == "strategy":  title |= "Strategy"
                 kind == "lore":      title |= "Lore"
+                kind == "spoiler":   title |= "Show"
             xx
 
             /// Optional custom title (UNQUOTED):
@@ -154,16 +156,29 @@ act render_admonitions(ctx)
             inner |= s_trim(body_part)
             if inner.nix? => inner | ""
 
-            repl |= :pack([
-                "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
-                  "<div class=\"sheriff-admon-head\">",
-                    "<span class=\"sheriff-admon-title\">", title_t, "</span>",
-                  "</div>",
-                  "<div class=\"sheriff-admon-body\">",
-                    inner,
-                  "</div>",
-                "</div>"
-            ])
+            if kind == "spoiler"
+                repl |= :pack([
+                    "<details class=\"sheriff-spoiler\">",
+                      "<summary class=\"sheriff-spoiler-head\">",
+                        "<span class=\"sheriff-spoiler-title\">", title_t, "</span>",
+                      "</summary>",
+                      "<div class=\"sheriff-spoiler-body\">",
+                        inner,
+                      "</div>",
+                    "</details>"
+                ])
+            else
+                repl |= :pack([
+                    "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
+                      "<div class=\"sheriff-admon-head\">",
+                        "<span class=\"sheriff-admon-title\">", title_t, "</span>",
+                      "</div>",
+                      "<div class=\"sheriff-admon-body\">",
+                        inner,
+                      "</div>",
+                    "</div>"
+                ])
+            xx
 
             /// Replace the WHOLE <p>...</p> block so we never nest <div> inside <p>
             :update_where!(out, block, repl)

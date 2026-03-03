@@ -441,88 +441,108 @@ button a::after {
 }
 
 /* ========================================================================== */
-/* ADMONITIONS (::: note/tip/warning/important/example/strategy/lore)          */
+/* ADMONITIONS (Flat margin-note style)                                       */
+/* Muted background wash + colored title + simple left border                 */
 /* ========================================================================== */
 
 :root {
-  /* Admonition accents (dark theme) */
-  --admon-note:      rgba(184,150,106,0.55);  /* gold */
-  --admon-tip:       rgba(93,232,247,0.55);   /* cyan */
-  --admon-warning:   rgba(238,72,76,0.60);    /* red */
-  --admon-important: rgba(212,175,122,0.75);  /* brighter gold */
-  --admon-example:   rgba(176,170,158,0.55);  /* muted parchment */
-  --admon-strategy:  rgba(93,232,247,0.45);   /* cyan dim */
-  --admon-lore:      rgba(138,110,74,0.55);   /* gold dim */
+  /* =========================
+     ACCENT COLORS (DARK)
+     ========================= */
+
+  --admon-note:      #b8966a;  /* gold */
+  --admon-tip:       #c77a2c;  /* burnt orange */
+  --admon-warning:   #ee484c;  /* red */
+  --admon-important: #355e3b;  /* hunter green */
+  --admon-example:   #9a9487;  /* parchment neutral */
+  --admon-strategy:  #2f4f6b;  /* slate/navy */
+  --admon-lore: #1f5c5b;  /* deep teal */
+
+  /* =========================
+     MUTED BACKGROUND WASHES (DARK)
+     ========================= */
+
+  --admon-note-bg:      rgba(184,150,106,0.10);
+  --admon-tip-bg:       rgba(199,122,44,0.10);
+  --admon-warning-bg:   rgba(238,72,76,0.09);
+  --admon-important-bg: rgba(53,94,59,0.12);
+  --admon-example-bg:   rgba(154,148,135,0.08);
+  --admon-strategy-bg:  rgba(47,79,107,0.11);
+  --admon-lore-bg: rgba(31,92,91,0.14);
+
+  --admon-left-w: 5px;
+  --admon-divider: rgba(255,255,255,0.08);
 }
 
 :root[data-theme="light"] {
-  /* Admonition accents (light theme) – same hues, a bit stronger */
-  --admon-note:      rgba(184,150,106,0.75);
-  --admon-tip:       rgba(26,155,170,0.65);
-  --admon-warning:   rgba(201,55,55,0.75);
-  --admon-important: rgba(184,150,106,0.90);
-  --admon-example:   rgba(122,113,101,0.55);
-  --admon-strategy:  rgba(26,155,170,0.55);
-  --admon-lore:      rgba(138,110,74,0.75);
+  /* Light theme tuned separately so it doesn't look muddy */
+
+  --admon-note:      #b8966a;
+  --admon-tip:       #c06f20;
+  --admon-warning:   #c93737;
+  --admon-important: #2f5333;
+  --admon-example:   #7d776c;
+  --admon-strategy:  #2c4a63;
+  --admon-lore:      #7a5c3a;
+
+  --admon-note-bg:      rgba(184,150,106,0.18);
+  --admon-tip-bg:       rgba(192,111,32,0.14);
+  --admon-warning-bg:   rgba(201,55,55,0.14);
+  --admon-important-bg: rgba(47,83,51,0.14);
+  --admon-example-bg:   rgba(125,119,108,0.10);
+  --admon-strategy-bg:  rgba(44,74,99,0.14);
+  --admon-lore-bg:      rgba(122,92,58,0.12);
+
+  --admon-divider: rgba(0,0,0,0.10);
 }
+
+/* =========================
+   BASE BLOCK
+   ========================= */
 
 .sheriff-admon {
-  margin: 1.35rem 0 1.6rem 0;
-  background: var(--sheriff-panel);
-  border: 1px solid var(--sheriff-border);
-  border-radius: 0.55rem;
-  overflow: hidden;
-  box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+  margin: 1.4rem 0 1.7rem 0;
+
+  background: var(--admon-bg);
+  border: none;
+  border-left: var(--admon-left-w) solid var(--admon-accent);
+  border-radius: 0;
+  box-shadow: none;
 }
 
-:root[data-theme="light"] .sheriff-admon {
-  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
-}
+/* =========================
+   HEADER
+   ========================= */
 
 .sheriff-admon-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-
-  padding: 0.65rem 0.85rem;
-
-  background: linear-gradient(
-    90deg,
-    rgba(0,0,0,0.0),
-    rgba(0,0,0,0.18),
-    rgba(0,0,0,0.0)
-  );
-
-  border-bottom: 1px solid var(--sheriff-border);
-}
-
-:root[data-theme="light"] .sheriff-admon-head {
-  background: linear-gradient(
-    90deg,
-    rgba(0,0,0,0.0),
-    rgba(0,0,0,0.06),
-    rgba(0,0,0,0.0)
-  );
+  padding: 0.85rem 1rem 0.55rem 1rem;
+  border-bottom: 1px solid var(--admon-divider);
+  background: transparent;
 }
 
 .sheriff-admon-title {
   font-family: var(--vk-font-label);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 0.85rem;
-  color: var(--sheriff-text);
-  line-height: 1.2;
+  font-size: 0.95rem;
+  line-height: 1.15;
+  color: var(--admon-accent);
 }
+
+/* =========================
+   BODY
+   ========================= */
 
 .sheriff-admon-body {
-  padding: 0.85rem 0.95rem;
+  padding: 0.85rem 1rem 1rem 1rem;
+  font-family: var(--vk-font-body);
+  font-size: 1.05rem;
+  line-height: 1.75;
 }
 
-/* Make body typography match article spacing, but slightly tighter */
 .sheriff-admon-body p {
   margin: 0 0 0.75rem 0;
-  line-height: 1.75;
 }
 
 .sheriff-admon-body p:last-child {
@@ -531,71 +551,158 @@ button a::after {
 
 .sheriff-admon-body ul,
 .sheriff-admon-body ol {
-  margin: 0.65rem 0 0.85rem 0;
+  margin: 0.7rem 0 0.9rem 0;
   padding-left: 2rem;
 }
 
 .sheriff-admon-body li {
-  margin: 0.2rem 0;
+  margin: 0.25rem 0;
   line-height: 1.7;
 }
 
-/* A tasteful left “rune bar” + subtle glow per type */
-.sheriff-admon::before {
-  content: "";
-  display: block;
-  height: 0.2rem; /* top accent strip */
-  background: var(--admon-note);
-}
-
-/* NOTE */
-.sheriff-admon-note::before { background: var(--admon-note); }
-
-/* TIP */
-.sheriff-admon-tip::before { background: var(--admon-tip); }
-
-/* WARNING */
-.sheriff-admon-warning::before { background: var(--admon-warning); }
-
-/* IMPORTANT */
-.sheriff-admon-important::before { background: var(--admon-important); }
-
-/* EXAMPLE */
-.sheriff-admon-example::before { background: var(--admon-example); }
-
-/* STRATEGY */
-.sheriff-admon-strategy::before { background: var(--admon-strategy); }
-
-/* LORE */
-.sheriff-admon-lore::before { background: var(--admon-lore); }
-
-/* Optional: slight per-type border tint (keeps it classy, not neon) */
-.sheriff-admon-note      { border-color: rgba(184,150,106,0.25); }
-.sheriff-admon-tip       { border-color: rgba(93,232,247,0.22); }
-.sheriff-admon-warning   { border-color: rgba(238,72,76,0.22); }
-.sheriff-admon-important { border-color: rgba(212,175,122,0.28); }
-.sheriff-admon-example   { border-color: rgba(176,170,158,0.20); }
-.sheriff-admon-strategy  { border-color: rgba(93,232,247,0.18); }
-.sheriff-admon-lore      { border-color: rgba(138,110,74,0.22); }
-
-/* Light theme: borders should not feel too heavy */
-:root[data-theme="light"] .sheriff-admon-note,
-:root[data-theme="light"] .sheriff-admon-tip,
-:root[data-theme="light"] .sheriff-admon-warning,
-:root[data-theme="light"] .sheriff-admon-important,
-:root[data-theme="light"] .sheriff-admon-example,
-:root[data-theme="light"] .sheriff-admon-strategy,
-:root[data-theme="light"] .sheriff-admon-lore {
-  border-color: rgba(0,0,0,0.12);
-}
-
-/* If an admonition contains code blocks, keep them visually integrated */
 .sheriff-admon pre {
   margin: 0.85rem 0 0.95rem 0;
 }
 
-.sheriff-admon code {
-  /* reuse your existing inline code look */
+/* =========================
+   TYPE MAPPING
+   ========================= */
+
+.sheriff-admon-note {
+  --admon-accent: var(--admon-note);
+  --admon-bg: var(--admon-note-bg);
+}
+
+.sheriff-admon-tip {
+  --admon-accent: var(--admon-tip);
+  --admon-bg: var(--admon-tip-bg);
+}
+
+.sheriff-admon-warning {
+  --admon-accent: var(--admon-warning);
+  --admon-bg: var(--admon-warning-bg);
+}
+
+.sheriff-admon-important {
+  --admon-accent: var(--admon-important);
+  --admon-bg: var(--admon-important-bg);
+}
+
+.sheriff-admon-example {
+  --admon-accent: var(--admon-example);
+  --admon-bg: var(--admon-example-bg);
+}
+
+.sheriff-admon-strategy {
+  --admon-accent: var(--admon-strategy);
+  --admon-bg: var(--admon-strategy-bg);
+}
+
+.sheriff-admon-lore {
+  --admon-accent: var(--admon-lore);
+  --admon-bg: var(--admon-lore-bg);
+}
+
+/* ========================================================================== */
+/* SPOILER (Matches Admonitions)                                              */
+/* Flat margin-note style + disclosure caret                                  */
+/* ========================================================================== */
+
+:root {
+  /* spoiler can be neutral or mapped to a type; neutral is safest */
+  --admon-spoiler: #9a9487;            /* same as example (neutral) */
+  --admon-spoiler-bg: rgba(154,148,135,0.08);
+}
+
+:root[data-theme="light"] {
+  --admon-spoiler: #7d776c;
+  --admon-spoiler-bg: rgba(125,119,108,0.10);
+}
+
+/* Base spoiler block */
+details.sheriff-spoiler {
+  margin: 1.4rem 0 1.7rem 0;
+
+  background: var(--admon-spoiler-bg);
+  border: none;
+  border-left: var(--admon-left-w) solid var(--admon-spoiler);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Header / summary */
+details.sheriff-spoiler > summary.sheriff-spoiler-head {
+  padding: 0.85rem 1rem 0.55rem 1rem;
+  border-bottom: 1px solid var(--admon-divider);
+  background: transparent;
+
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+details.sheriff-spoiler > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Caret matches the “flat” style */
+details.sheriff-spoiler > summary::before {
+  content: "▸";
+  display: inline-block;
+  transform: translateY(-1px);
+  transition: transform 120ms ease;
+  opacity: 0.9;
+  color: var(--admon-spoiler);
+}
+
+details.sheriff-spoiler[open] > summary::before {
+  transform: rotate(90deg) translateY(-1px);
+}
+
+/* Title matches admonition title */
+.sheriff-spoiler-title {
+  font-family: var(--vk-font-label);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  line-height: 1.15;
+  color: var(--admon-spoiler);
+}
+
+/* Body matches admonition body */
+.sheriff-spoiler-body {
+  padding: 0.85rem 1rem 1rem 1rem;
+  font-family: var(--vk-font-body);
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.sheriff-spoiler-body p {
+  margin: 0 0 0.75rem 0;
+}
+
+.sheriff-spoiler-body p:last-child {
+  margin-bottom: 0;
+}
+
+.sheriff-spoiler-body ul,
+.sheriff-spoiler-body ol {
+  margin: 0.7rem 0 0.9rem 0;
+  padding-left: 2rem;
+}
+
+.sheriff-spoiler-body li {
+  margin: 0.25rem 0;
+  line-height: 1.7;
+}
+
+.sheriff-spoiler-body pre {
+  margin: 0.85rem 0 0.95rem 0;
 }
 
 /* ========================================================================== */
