@@ -75,6 +75,32 @@ act build_href(url_root, rel_no_ext)
     return "/{url_root}/{rel_no_ext}.html"
 xx
 
+/// ------------------------------------------------------------------------
+/// Extract Sheriff frontmatter (^^^^ ... ^^^^) as a map.
+/// If missing or unparseable, returns {}.
+/// ------------------------------------------------------------------------
+act extract_frontmatter_map(md_text)
+    if md_text.nix? => return {}
+
+    t | "" + md_text
+
+    /// Must begin with ^^^^
+    if :starts_with(t, "^^^^") == false
+        return {}
+    xx
+
+    block | :keep_between(t, "^^^^", "^^^^")
+    if block.nix? or :trim(block) == ""
+        return {}
+    xx
+
+    parsed | :yall_parse(block, "frontmatter")
+    if parsed.nix? => return {}
+    if :valtype(parsed) != "map" => return {}
+
+    return parsed
+xx
+
 act build_routes_json_for_portal(portal)
     content_root | "../site/portals/{portal}/content"
     routes_path  | "../site/portals/{portal}/routes.json"
@@ -118,13 +144,34 @@ act build_routes_json_for_portal(portal)
 
         canonical | "[[{slug}]]"
 
+        /// ---- NEW: pull gloss from frontmatter (fallback to summary) ----
+        md_text | :read_text(src_norm)
+        fm      | extract_frontmatter_map(md_text)
+
+        gloss | ""
+
+        if fm.nix? == false and :valtype(fm) == "map"
+            if :has(fm, "gloss")
+                g | fm["gloss"]
+                if g.nix? == false and :trim("" + g) != ""
+                    gloss |= "" + g
+                xx
+            elif :has(fm, "summary")
+                s | fm["summary"]
+                if s.nix? == false and :trim("" + s) != ""
+                    gloss |= "" + s
+                xx
+            xx
+        xx
+
         meta | {
             "slug":      slug,
             "href":      href_abs,
             "rel":       rel_no_ext,
             "title":     page_title,
             "aliases":   [],
-            "canonical": canonical
+            "canonical": canonical,
+            "gloss":     gloss
         }
 
         :put_last!(routes, meta)

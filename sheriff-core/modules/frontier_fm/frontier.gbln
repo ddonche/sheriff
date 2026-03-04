@@ -53,7 +53,7 @@ act strip_frontmatter(ctx)
     :update!(ctx["frontmatter"], fm_map)
     
     /// 2) Remove the ^^^^ ... ^^^^ block (fences + contents)
-    clean | :ignore_blocks(body, "^^^^", "^^^^")
+    clean | :ignore_blocks_first(body, "^^^^", "^^^^")
     
     /// 3) Write cleaned body back into ctx
     :update!(ctx["body"], clean)

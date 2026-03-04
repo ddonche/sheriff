@@ -6,6 +6,12 @@ meta_kind: docs
 meta_type: overview
 summary: A list of changes from each version of Sheriff. 
 ^^^^
+
+## v0.14.0
+- added [[admonitions]] and spoilers
+- added [[footnotes]]
+- added [[glossary]] tooltips to wikilinks
+
 ## v0.13.0
 - Major refactor with themes being centralized in core. 
 - Portals can now override theme css easily. 

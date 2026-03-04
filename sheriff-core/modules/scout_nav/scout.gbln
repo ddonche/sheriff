@@ -51,6 +51,8 @@ act generate_toc(html_content)
     headers | []
     anchor_id | ""
     text | ""
+    has_footnotes | false
+    saw_footnotes | false
 
     sweep html_content
         "<h1>" ... "</h1>" :
@@ -86,7 +88,24 @@ act generate_toc(html_content)
             xx
     xx
 
-    /// If no headers, emit no TOC at all
+    /// Detect injected footnotes anchor (from markdown_core)
+    if :has(html_content, "id=\"footnotes\"")
+        has_footnotes |= true
+    xx
+
+    /// Avoid duplicates if someone manually created a "footnotes" header/id already
+    for h in headers
+        if h["id"] == "footnotes"
+            saw_footnotes |= true
+        xx
+    xx
+
+    /// If the page has footnotes, add them as a TOC entry
+    if has_footnotes and saw_footnotes == false
+        put_last!(headers, {"level": 2, "id": "footnotes", "text": "References & Footnotes"})
+    xx
+
+    /// If no headers (and no footnotes link), emit no TOC at all
     if headers.len == 0
         return ""
     xx

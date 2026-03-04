@@ -192,6 +192,269 @@ act render_admonitions(ctx)
 xx
 
 /// ======================================================================
+/// RENDER NAV BLOCKS (PREV/NEXT + RELATED)
+/// Syntax:
+/// ::: nav
+/// previous [[Some Page|Label]]
+/// next [[Other Page|Label]]
+/// related [[Page1|Label]]
+/// related [[Page2]]
+/// :::
+///
+/// Notes:
+/// - Multiple ::: nav blocks are allowed and render in-place (no merging).
+/// - `related` is repeatable.
+/// - `prev` is an alias for `previous`.
+/// - This runs BEFORE process_wikilinks(ctx) (it calls resolve_wikilink itself).
+/// ======================================================================
+
+act add_class_to_first_anchor(html, add_class)
+    if html.nix? => return ""
+    if add_class.nix? => return "" + html
+
+    h | "" + html
+
+    /// Find class attr (assumes build_wikilink_html always emits class="...")
+    cls | :keep_between(h, "class=\"", "\"")
+    if cls.nix?
+        return h
+    xx
+
+    new_cls | cls
+    if :has(new_cls, add_class) == false
+        new_cls |= new_cls + " " + add_class
+    xx
+
+    :update_where!(h, "class=\"" + cls + "\"", "class=\"" + new_cls + "\"")
+    return h
+xx
+
+act render_nav_blocks(ctx)
+    body   | ctx["body"]
+    portal | ctx["portal"]
+
+    if body.nix?   => return ctx
+    if portal.nix? => return ctx
+
+    /// --- STASH CODE/PRE so we don't mutate examples ---
+    stashed | stash_code_segments(body)
+    work    | stashed["html"]
+    stash   | stashed["stash"]
+
+    out | "" + work
+
+    block       | ""
+    payload     | ""
+    header_line | ""
+    body_part   | ""
+    header_rest | ""
+
+    /// header kind token
+    kind_raw | ""
+
+    /// per-block state
+    prev_line | ""
+    next_line | ""
+    rel_lines | []
+
+    prev_link_html | ""
+    next_link_html | ""
+    nav_html       | ""
+    inner          | ""
+    lines          | []
+    line           | ""
+    t              | ""
+    low            | ""
+    rest           | ""
+
+    /// locals for output building
+    parts_out    | []
+    wrap_cls     | ""
+    has_related  | false
+    rh           | ""
+
+    sweep out
+        "<p>::: " ... ":::</p>":
+            if self.nix? => skip
+
+            /// IMPORTANT: reset block var each match
+            block |= self
+
+            payload |= :keep_between(block, "<p>::: ", ":::</p>")
+            if payload.nix? => skip
+
+            /// Split header vs body on first newline
+            header_line |= :keep_before(payload, "\n")
+            if header_line.nix?
+                header_line |= payload
+                body_part |= ""
+            else
+                body_part |= :keep_after(payload, "\n")
+                if body_part.nix? => body_part | ""
+            xx
+
+            header_rest |= s_trim(header_line)
+            if header_rest.nix? => header_rest | ""
+
+            /// Only handle ::: nav blocks
+            kind_raw |= s_trim(:keep_before(header_rest, " "))
+            if kind_raw.nix?
+                kind_raw |= header_rest
+            xx
+            kind_raw |= :lower(s_trim(kind_raw))
+            if kind_raw.nix? => kind_raw | ""
+
+            if kind_raw != "nav"
+                /// Not our block; leave it alone
+                skip
+            xx
+
+            inner |= s_trim(body_part)
+            if inner.nix? => inner | ""
+
+            /// Reset per-block state
+            prev_line |= ""
+            next_line |= ""
+            rel_lines |= []
+
+            /// Split into lines and collect directives
+            lines |= :split(inner, "\n")
+
+            for line in lines
+                if line.nix? => skip
+                t |= s_trim(line)
+                if t.nix? => skip
+                if t == "" => skip
+
+                low |= :lower(t)
+
+                /// previous / prev
+                if :starts_with(low, "previous ")
+                    rest |= s_trim(:keep_after(t, "previous "))
+                    if !rest.nix? and rest != ""
+                        prev_line |= rest
+                    xx
+                    skip
+                xx
+
+                if :starts_with(low, "prev ")
+                    rest |= s_trim(:keep_after(t, "prev "))
+                    if !rest.nix? and rest != ""
+                        prev_line |= rest
+                    xx
+                    skip
+                xx
+
+                /// next
+                if :starts_with(low, "next ")
+                    rest |= s_trim(:keep_after(t, "next "))
+                    if !rest.nix? and rest != ""
+                        next_line |= rest
+                    xx
+                    skip
+                xx
+
+                /// related (repeatable)
+                if :starts_with(low, "related ")
+                    rest |= s_trim(:keep_after(t, "related "))
+                    if !rest.nix? and rest != ""
+                        :put_last!(rel_lines, rest)
+                    xx
+                    skip
+                xx
+            xx
+
+            /// Resolve wikilinks (this function returns full <a ...>...</a>)
+            prev_link_html |= ""
+            next_link_html |= ""
+
+            if !prev_line.nix? and prev_line != ""
+                prev_link_html |= resolve_wikilink(prev_line, ctx, portal)
+                if !prev_link_html.nix? and prev_link_html != ""
+                    prev_link_html |= add_class_to_first_anchor(prev_link_html, "sheriff-nav-prev")
+                xx
+            xx
+
+            if !next_line.nix? and next_line != ""
+                next_link_html |= resolve_wikilink(next_line, ctx, portal)
+                if !next_link_html.nix? and next_link_html != ""
+                    next_link_html |= add_class_to_first_anchor(next_link_html, "sheriff-nav-next")
+                xx
+            xx
+
+            /// Build wrapper (in-place, per block)
+            parts_out |= []
+            wrap_cls  |= "sheriff-nextprev"
+
+            has_related |= (rel_lines.len > 0)
+            if has_related
+                wrap_cls |= wrap_cls + " sheriff-related-nav"
+            xx
+
+            :put_last!(parts_out, "<nav class=\"")
+            :put_last!(parts_out, wrap_cls)
+            :put_last!(parts_out, "\" aria-label=\"Article navigation\">")
+
+            /// Prev / Next row (only if either exists)
+            if (!prev_link_html.nix? and prev_link_html != "") or (!next_link_html.nix? and next_link_html != "")
+                :put_last!(parts_out, "<div class=\"sheriff-nextprev-row\">")
+
+                if !prev_link_html.nix? and prev_link_html != ""
+                    :put_last!(parts_out, "<div class=\"sheriff-nextprev-item sheriff-nextprev-prev\">")
+                    :put_last!(parts_out, prev_link_html)
+                    :put_last!(parts_out, "</div>")
+                xx
+
+                if !next_link_html.nix? and next_link_html != ""
+                    :put_last!(parts_out, "<div class=\"sheriff-nextprev-item sheriff-nextprev-next\">")
+                    :put_last!(parts_out, next_link_html)
+                    :put_last!(parts_out, "</div>")
+                xx
+
+                :put_last!(parts_out, "</div>")
+            xx
+
+            /// Related list (repeatable)
+            if has_related
+                :put_last!(parts_out, "<div class=\"sheriff-related\">")
+                :put_last!(parts_out, "<div class=\"sheriff-related-title\">Related</div>")
+                :put_last!(parts_out, "<ul class=\"sheriff-related-list\">")
+
+                for rl in rel_lines
+                    if rl.nix? => skip
+                    if rl == "" => skip
+
+                    rh |= resolve_wikilink(rl, ctx, portal)
+                    if rh.nix? => skip
+                    if rh == "" => skip
+
+                    rh |= add_class_to_first_anchor(rh, "sheriff-nav-related")
+
+                    :put_last!(parts_out, "<li class=\"sheriff-related-item\">")
+                    :put_last!(parts_out, rh)
+                    :put_last!(parts_out, "</li>")
+                xx
+
+                :put_last!(parts_out, "</ul>")
+                :put_last!(parts_out, "</div>")
+            xx
+
+            :put_last!(parts_out, "</nav>")
+
+            nav_html |= :pack(parts_out)
+
+            /// Replace whole <p>...</p> block so we never nest <div> inside <p>
+            :update_where!(out, block, nav_html)
+    xx
+
+    /// --- RESTORE CODE/PRE blocks ---
+    final | restore_code_segments(out, stash)
+
+    :update!(ctx["body"], final)
+    return ctx
+xx
+
+/// ======================================================================
 /// RENDER FOOTNOTES (CLASS SHIM FOR THEME CSS)
 /// ======================================================================
 
@@ -201,8 +464,44 @@ act render_footnotes(ctx)
 
     out | body
 
-    /// Add a stable Sheriff class on the footnotes container
-    :update_where!(out, "<section class=\"footnotes\">", "<section class=\"footnotes sheriff-footnotes\">")
+    /// Find the actual opening tag and rewrite it (Comrak may add attributes)
+    sweep out
+        "<section" ... ">" :
+            if :has(self, "class=\"footnotes\"")
+
+                /// If it already has the id, just ensure sheriff class exists
+                if :has(self, "id=\"footnotes\"")
+                    if :has(self, "sheriff-footnotes") == false
+                        cls | keep_between(self, "class=\"", "\"")
+                        new_cls | cls + " sheriff-footnotes"
+
+                        new_tag | self
+                        :update_where!(new_tag, "class=\"" + cls + "\"", "class=\"" + new_cls + "\"")
+                        :update_where!(out, self, new_tag)
+                    xx
+                else
+                    /// Add id + sheriff class, preserving other attributes
+                    cls | keep_between(self, "class=\"", "\"")
+                    new_cls | cls
+                    if :has(new_cls, "sheriff-footnotes") == false
+                        new_cls |= new_cls + " sheriff-footnotes"
+                    xx
+
+                    new_tag | self
+
+                    /// update class value
+                    :update_where!(new_tag, "class=\"" + cls + "\"", "class=\"" + new_cls + "\"")
+
+                    /// inject id right after <section
+                    :update_where!(new_tag, "<section", "<section id=\"footnotes\"")
+
+                    :update_where!(out, self, new_tag)
+                xx
+
+                /// We only want to rewrite the first footnotes section
+                stop
+            xx
+    xx
 
     /// Add stable Sheriff classes for refs + backrefs (Comrak uses these)
     :update_where!(out, "class=\"footnote-ref\"", "class=\"footnote-ref sheriff-footnote-ref\"")
@@ -424,6 +723,29 @@ act lookup_href_by_slug(ctx, portal, slug)
     return ""
 xx
 
+act lookup_gloss_by_slug(ctx, portal, slug)
+    if portal.nix? => return ""
+    if slug.nix?   => return ""
+
+    routes | load_routes_for_portal(ctx, portal)
+    if :valtype(routes) != "array" => return ""
+
+    for meta in routes
+        if meta.nix? => skip
+        if meta["slug"] == slug
+            if :has(meta, "gloss")
+                g | meta["gloss"]
+                if !g.nix?
+                    return "" + g
+                xx
+            xx
+            return ""
+        xx
+    xx
+
+    return ""
+xx
+
 act lookup_slug_by_href(ctx, portal, href_abs)
     if portal.nix?   => return ""
     if href_abs.nix? => return ""
@@ -537,11 +859,12 @@ xx
 /// LINK HTML (NO "#", STRICT MISSING PAGE)
 /// ======================================================================
 
-act build_wikilink_html(href, label, is_external, klass)
+act build_wikilink_html(href, label, is_external, klass, title_text)
     /// Normalize inputs
     href_s  | s_trim(href)
     label_s | s_trim(label)
     klass_s | s_trim(klass)
+    gloss_s | s_trim(title_text)
 
     /// Hard guarantee: href is never nix (and never "#")
     if href_s.nix?
@@ -572,7 +895,17 @@ act build_wikilink_html(href, label, is_external, klass)
     :put_last!(html_parts, href_s)
     :put_last!(html_parts, "\" class=\"")
     :put_last!(html_parts, klass_s)
-    :put_last!(html_parts, "\">")
+    :put_last!(html_parts, "\"")
+
+    /// Custom tooltip payload (NO native title attribute)
+    if !gloss_s.nix? and gloss_s != ""
+        gloss_e | escape_attr(gloss_s)
+        :put_last!(html_parts, " data-gloss=\"")
+        :put_last!(html_parts, gloss_e)
+        :put_last!(html_parts, "\"")
+    xx
+
+    :put_last!(html_parts, ">")
     :put_last!(html_parts, label_s)
 
     if is_external
@@ -872,14 +1205,14 @@ act resolve_wikilink(inner, ctx, portal)
 
     judge
         is_external:
-            return build_wikilink_html(link_part, display_label, true, "sheriff-link")
+            return build_wikilink_html(link_part, display_label, true, "sheriff-link", "")
 
         is_portal:
             portal_name | :keep_between(link_part, "p/", "/")
             rest        | :keep_after(link_part, "p/{portal_name}/")
 
-            if portal_name.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
-            if rest.nix?        => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+            if portal_name.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
+            if rest.nix?        => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
 
             parts  | split_anchor(rest)
             page   | parts["page"]
@@ -890,24 +1223,29 @@ act resolve_wikilink(inner, ctx, portal)
 
             href  | lookup_href_by_slug(ctx, portal_name, slug)
             klass | "sheriff-link"
+            title | ""
 
             if href.nix?
                 href  |= missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
+            if :has(klass, "sheriff-missing-link") == false
+                title |= lookup_gloss_by_slug(ctx, portal_name, slug)
+            xx
+
             if !anchor.nix?
                 href |= "{href}#{anchor}"
             xx
 
-            return build_wikilink_html(href, display_label, false, klass)
+            return build_wikilink_html(href, display_label, false, klass, title)
 
         is_user:
             username | :keep_after(link_part, "u/")
             if username.nix?
-                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
             xx
-            return build_wikilink_html("/users/{username}", display_label, false, "sheriff-link")
+            return build_wikilink_html("/users/{username}", display_label, false, "sheriff-link", "")
 
         else:
             parts  | split_anchor(link_part)
@@ -921,17 +1259,22 @@ act resolve_wikilink(inner, ctx, portal)
 
             href  | lookup_href_by_slug(ctx, portal, slug)
             klass | "sheriff-link"
+            title | ""
 
             if href.nix?
                 href  |= missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
+            if :has(klass, "sheriff-missing-link") == false
+                title |= lookup_gloss_by_slug(ctx, portal, slug)
+            xx
+
             if !anchor.nix?
                 href |= "{href}#{anchor}"
             xx
 
-            return build_wikilink_html(href, display_label, false, klass)
+            return build_wikilink_html(href, display_label, false, klass, title)
     xx
 xx
 

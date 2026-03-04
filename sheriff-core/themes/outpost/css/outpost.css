@@ -413,40 +413,40 @@ button a::after {
 
 /* ========================================================================== */
 /* FOOTNOTES (Comrak)                                                        */
-/* Publisher-ish apparatus: smaller, muted, label header                      */
+/* Sheriff Outpost apparatus: smaller, muted, label header                    */
 /* ========================================================================== */
 
 section.footnotes,
 section.sheriff-footnotes {
   margin-top: 2.25rem;
 
-  font-family: var(--vk-font-body);
-  font-size: 1.05rem;            /* smaller than body (body is 1.25rem) */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.92rem;           /* smaller than body copy (0.98rem) */
   line-height: 1.65;
-  color: var(--vk-text-secondary);
+  color: var(--sheriff-muted);
 }
 
 /* Optional "FOOTNOTES" label (pure CSS) */
 section.footnotes::before,
 section.sheriff-footnotes::before {
-  content: "FOOTNOTES";
+  content: "References & Footnotes";
   display: block;
   margin: 0 0 0.75rem 0;
 
-  font-family: var(--vk-font-label);
-  font-size: 0.78rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 
-  color: var(--vk-gold-dim);
-  opacity: 0.9;
+  color: var(--sheriff-muted);
 }
 
+/* Divider inside Comrak footnotes */
 section.footnotes > hr,
 section.sheriff-footnotes > hr {
   border: none;
-  border-top: 1px solid var(--admon-divider);
+  border-top: 1px solid var(--sheriff-border);
   margin: 0.75rem 0 1rem 0;
 }
 
@@ -454,25 +454,30 @@ section.sheriff-footnotes > hr {
 section.footnotes ol,
 section.sheriff-footnotes ol {
   margin: 0;
-  padding-left: 1.75rem;
+  padding-left: 1.6rem;
 }
 
+/* Items */
 section.footnotes li,
 section.sheriff-footnotes li {
   margin: 0.55rem 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--sheriff-muted);
 }
 
 /* Keep paragraphs tight inside footnotes */
 section.footnotes li p,
 section.sheriff-footnotes li p {
   margin: 0.25rem 0 0 0;
-  color: var(--vk-text-secondary);
+  color: var(--sheriff-muted);
 }
 
-/* Footnote marker at start of each item (the [1], [2] etc. area) */
+/* Marker color */
 section.footnotes li::marker,
 section.sheriff-footnotes li::marker {
-  color: var(--vk-text-muted);
+  color: var(--sheriff-muted);
+  opacity: 0.9;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -491,7 +496,7 @@ sup.footnote-ref a,
 sup.sheriff-footnote-ref a {
   text-decoration: none;
   color: var(--sheriff-link);
-  font-family: var(--vk-font-label);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
@@ -532,126 +537,117 @@ a.sheriff-footnote-backref:hover::before {
   opacity: 1;
 }
 
-/* Fix oversized list items inside footnotes */
-section.footnotes li,
-section.sheriff-footnotes li {
-  font-size: 1.05rem;      /* match footnote body size */
-  line-height: 1.65;
-}
-
 /* ========================================================================== */
-/* ADMONITIONS (Flat margin-note style)                                       */
-/* Muted background wash + colored title + simple left border                 */
+/* ADMONITIONS (Outpost)                                                      */
+/* Panel frame + thin border + left accent bar (no rounded card bullshit)     */
 /* ========================================================================== */
 
 :root {
-  /* =========================
-     ACCENT COLORS (DARK)
-     ========================= */
+  /* accent colors (unchanged) */
+  --admon-note:      var(--sheriff-link-hover);
+  --admon-tip:       #c77a2c;
+  --admon-warning:   var(--sheriff-danger);
+  --admon-important: #355e3b;
+  --admon-example:   var(--sheriff-muted);
+  --admon-strategy:  #2f4f6b;
+  --admon-lore:      #7b3f7a;
 
-  --admon-note:      #b8966a;  /* gold */
-  --admon-tip:       #c77a2c;  /* burnt orange */
-  --admon-warning:   #ee484c;  /* red */
-  --admon-important: #355e3b;  /* hunter green */
-  --admon-example:   #9a9487;  /* parchment neutral */
-  --admon-strategy:  #2f4f6b;  /* slate/navy */
-  --admon-lore: #1f5c5b;  /* deep teal */
+  /* DARK THEME BACKGROUNDS — stronger tint */
+  --admon-note-bg:      rgba(32, 38, 42, 0.85);  /* slate */
+  --admon-tip-bg:       rgba(42, 36, 30, 0.85);  /* rust grey */
+  --admon-warning-bg:   rgba(42, 30, 30, 0.85);  /* blood grey */
+  --admon-important-bg: rgba(30, 38, 32, 0.85);  /* moss grey */
+  --admon-example-bg:   rgba(36, 36, 38, 0.85);  /* neutral grey */
+  --admon-strategy-bg:  rgba(30, 36, 42, 0.85);  /* navy slate */
+  --admon-lore-bg:      rgba(38, 30, 38, 0.85);  /* plum grey */
 
-  /* =========================
-     MUTED BACKGROUND WASHES (DARK)
-     ========================= */
-
-  --admon-note-bg:      rgba(184,150,106,0.10);
-  --admon-tip-bg:       rgba(199,122,44,0.10);
-  --admon-warning-bg:   rgba(238,72,76,0.09);
-  --admon-important-bg: rgba(53,94,59,0.12);
-  --admon-example-bg:   rgba(154,148,135,0.08);
-  --admon-strategy-bg:  rgba(47,79,107,0.11);
-  --admon-lore-bg: rgba(31,92,91,0.14);
-
-  --admon-left-w: 5px;
-  --admon-divider: rgba(255,255,255,0.08);
+  --admon-left-w: 4px;
 }
 
 :root[data-theme="light"] {
-  /* Light theme tuned separately so it doesn't look muddy */
-
-  --admon-note:      #b8966a;
-  --admon-tip:       #c06f20;
-  --admon-warning:   #c93737;
+  /* accent colors (LIGHT) — keep readable on light bg */
+  --admon-note:      var(--sheriff-link-hover);
+  --admon-tip:       #b55f14;
+  --admon-warning:   var(--sheriff-danger);
   --admon-important: #2f5333;
-  --admon-example:   #7d776c;
+  --admon-example:   var(--sheriff-muted);
   --admon-strategy:  #2c4a63;
-  --admon-lore:      #7a5c3a;
+  --admon-lore:      #6a2e6a;
 
-  --admon-note-bg:      rgba(184,150,106,0.18);
-  --admon-tip-bg:       rgba(192,111,32,0.14);
-  --admon-warning-bg:   rgba(201,55,55,0.14);
-  --admon-important-bg: rgba(47,83,51,0.14);
-  --admon-example-bg:   rgba(125,119,108,0.10);
-  --admon-strategy-bg:  rgba(44,74,99,0.14);
-  --admon-lore-bg:      rgba(122,92,58,0.12);
-
-  --admon-divider: rgba(0,0,0,0.10);
+  /* washes (LIGHT) — slightly stronger so they show up */
+  --admon-note-bg:      rgba( 15,118,110, 0.12);
+  --admon-tip-bg:       rgba(181, 95, 20, 0.12);
+  --admon-warning-bg:   rgba(201, 55, 55, 0.12);
+  --admon-important-bg: rgba( 47, 83, 51, 0.12);
+  --admon-example-bg:   rgba(147,149,153, 0.10);
+  --admon-strategy-bg:  rgba( 44, 74, 99, 0.12);
+  --admon-lore-bg:      rgba(106, 46,106, 0.12);
 }
 
-/* =========================
-   BASE BLOCK
-   ========================= */
-
+/* Base block */
 .sheriff-admon {
-  margin: 1.4rem 0 1.7rem 0;
+  margin: 1.25rem 0 1.5rem 0;
 
-  background: var(--admon-bg);
-  border: none;
+  /* Outpost “panel” language */
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
   border-left: var(--admon-left-w) solid var(--admon-accent);
-  border-radius: 0;
+
+  border-radius: 0;   /* flat */
   box-shadow: none;
+  overflow: hidden;   /* keep header divider clean */
 }
 
-/* =========================
-   HEADER
-   ========================= */
+/* Add the tint without changing the panel identity */
+.sheriff-admon {
+  background:
+    linear-gradient(0deg, var(--admon-bg), var(--admon-bg)),
+    var(--sheriff-panel);
+}
 
+/* Header */
 .sheriff-admon-head {
-  padding: 0.85rem 1rem 0.55rem 1rem;
-  border-bottom: 1px solid var(--admon-divider);
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--sheriff-border);
   background: transparent;
+
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
+/* Title matches TOC/meta-strip vibe */
 .sheriff-admon-title {
-  font-family: var(--vk-font-label);
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  font-size: 0.95rem;
-  line-height: 1.15;
   color: var(--admon-accent);
+  line-height: 1.2;
 }
 
-/* =========================
-   BODY
-   ========================= */
-
+/* Body matches article typography */
 .sheriff-admon-body {
-  padding: 0.85rem 1rem 1rem 1rem;
-  font-family: var(--vk-font-body);
-  font-size: 1.05rem;
-  line-height: 1.75;
+  padding: 0.75rem 0.85rem 0.85rem 0.85rem;
+
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--sheriff-text);
 }
 
 .sheriff-admon-body p {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.9rem 0;
 }
-
 .sheriff-admon-body p:last-child {
   margin-bottom: 0;
 }
 
 .sheriff-admon-body ul,
 .sheriff-admon-body ol {
-  margin: 0.7rem 0 0.9rem 0;
-  padding-left: 2rem;
+  margin: 0.85rem 0 1.1rem 0;
+  padding-left: 2.2rem; /* match article lists */
 }
 
 .sheriff-admon-body li {
@@ -659,80 +655,64 @@ section.sheriff-footnotes li {
   line-height: 1.7;
 }
 
-.sheriff-admon pre {
-  margin: 0.85rem 0 0.95rem 0;
+.sheriff-admon-body code {
+  /* reuse your inline code look */
+  background-color: var(--sheriff-inline-code-bg);
+  border: 1px solid var(--sheriff-border);
 }
 
-/* =========================
-   TYPE MAPPING
-   ========================= */
-
-.sheriff-admon-note {
-  --admon-accent: var(--admon-note);
-  --admon-bg: var(--admon-note-bg);
+.sheriff-admon-body pre {
+  /* reuse your codeblock look */
+  background: var(--sheriff-codeblock-bg);
+  border: none;
+  border-radius: 0.2rem;
+  padding: 0.85rem 0.95rem;
+  margin: 1rem 0 0.25rem 0;
 }
 
-.sheriff-admon-tip {
-  --admon-accent: var(--admon-tip);
-  --admon-bg: var(--admon-tip-bg);
-}
+/* Type mapping */
+.sheriff-admon-note      { --admon-accent: var(--admon-note);      --admon-bg: var(--admon-note-bg); }
+.sheriff-admon-tip       { --admon-accent: var(--admon-tip);       --admon-bg: var(--admon-tip-bg); }
+.sheriff-admon-warning   { --admon-accent: var(--admon-warning);   --admon-bg: var(--admon-warning-bg); }
+.sheriff-admon-important { --admon-accent: var(--admon-important); --admon-bg: var(--admon-important-bg); }
+.sheriff-admon-example   { --admon-accent: var(--admon-example);   --admon-bg: var(--admon-example-bg); }
+.sheriff-admon-strategy  { --admon-accent: var(--admon-strategy);  --admon-bg: var(--admon-strategy-bg); }
+.sheriff-admon-lore      { --admon-accent: var(--admon-lore);      --admon-bg: var(--admon-lore-bg); }
 
-.sheriff-admon-warning {
-  --admon-accent: var(--admon-warning);
-  --admon-bg: var(--admon-warning-bg);
-}
-
-.sheriff-admon-important {
-  --admon-accent: var(--admon-important);
-  --admon-bg: var(--admon-important-bg);
-}
-
-.sheriff-admon-example {
-  --admon-accent: var(--admon-example);
-  --admon-bg: var(--admon-example-bg);
-}
-
-.sheriff-admon-strategy {
-  --admon-accent: var(--admon-strategy);
-  --admon-bg: var(--admon-strategy-bg);
-}
-
-.sheriff-admon-lore {
-  --admon-accent: var(--admon-lore);
-  --admon-bg: var(--admon-lore-bg);
-}
 
 /* ========================================================================== */
-/* SPOILER (Matches Admonitions)                                              */
-/* Flat margin-note style + disclosure caret                                  */
+/* SPOILER (Outpost)                                                          */
+/* Same frame language as admonitions + caret                                 */
 /* ========================================================================== */
 
 :root {
-  /* spoiler can be neutral or mapped to a type; neutral is safest */
-  --admon-spoiler: #9a9487;            /* same as example (neutral) */
-  --admon-spoiler-bg: rgba(154,148,135,0.08);
+  --spoiler-accent: var(--sheriff-muted);
+  --spoiler-bg: rgba(160,160,165,0.08);
 }
 
 :root[data-theme="light"] {
-  --admon-spoiler: #7d776c;
-  --admon-spoiler-bg: rgba(125,119,108,0.10);
+  --spoiler-accent: var(--sheriff-muted);
+  --spoiler-bg: rgba(147,149,153,0.10);
 }
 
-/* Base spoiler block */
 details.sheriff-spoiler {
-  margin: 1.4rem 0 1.7rem 0;
+  margin: 1.25rem 0 1.5rem 0;
 
-  background: var(--admon-spoiler-bg);
-  border: none;
-  border-left: var(--admon-left-w) solid var(--admon-spoiler);
+  background:
+    linear-gradient(0deg, var(--spoiler-bg), var(--spoiler-bg)),
+    var(--sheriff-panel);
+
+  border: 1px solid var(--sheriff-border);
+  border-left: var(--admon-left-w) solid var(--spoiler-accent);
+
   border-radius: 0;
   box-shadow: none;
+  overflow: hidden;
 }
 
-/* Header / summary */
 details.sheriff-spoiler > summary.sheriff-spoiler-head {
-  padding: 0.85rem 1rem 0.55rem 1rem;
-  border-bottom: 1px solid var(--admon-divider);
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--sheriff-border);
   background: transparent;
 
   cursor: pointer;
@@ -748,60 +728,99 @@ details.sheriff-spoiler > summary::-webkit-details-marker {
   display: none;
 }
 
-/* Caret matches the “flat” style */
 details.sheriff-spoiler > summary::before {
   content: "▸";
   display: inline-block;
   transform: translateY(-1px);
-  transition: transform 120ms ease;
+  transition: transform 120ms ease, color 0.15s ease;
+  color: var(--spoiler-accent);
   opacity: 0.9;
-  color: var(--admon-spoiler);
 }
 
 details.sheriff-spoiler[open] > summary::before {
   transform: rotate(90deg) translateY(-1px);
 }
 
-/* Title matches admonition title */
 .sheriff-spoiler-title {
-  font-family: var(--vk-font-label);
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  font-size: 0.95rem;
-  line-height: 1.15;
-  color: var(--admon-spoiler);
+  color: var(--spoiler-accent);
+  line-height: 1.2;
 }
 
-/* Body matches admonition body */
 .sheriff-spoiler-body {
-  padding: 0.85rem 1rem 1rem 1rem;
-  font-family: var(--vk-font-body);
-  font-size: 1.05rem;
-  line-height: 1.75;
+  padding: 0.75rem 0.85rem 0.85rem 0.85rem;
+
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: var(--sheriff-text);
 }
 
 .sheriff-spoiler-body p {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.9rem 0;
 }
-
 .sheriff-spoiler-body p:last-child {
   margin-bottom: 0;
 }
 
 .sheriff-spoiler-body ul,
 .sheriff-spoiler-body ol {
-  margin: 0.7rem 0 0.9rem 0;
-  padding-left: 2rem;
-}
-
-.sheriff-spoiler-body li {
-  margin: 0.25rem 0;
-  line-height: 1.7;
+  margin: 0.85rem 0 1.1rem 0;
+  padding-left: 2.2rem;
 }
 
 .sheriff-spoiler-body pre {
-  margin: 0.85rem 0 0.95rem 0;
+  background: var(--sheriff-codeblock-bg);
+  border: none;
+  border-radius: 0.2rem;
+  padding: 0.85rem 0.95rem;
+  margin: 1rem 0 0.25rem 0;
+}
+
+/* ========================================================================== */
+/* WIKILINK TOOLTIP — MATCH ACTIVE NAV ITEM */
+/* ========================================================================== */
+/* ========================================================================== */
+/* WIKILINK TOOLTIP                                                           */
+/* ========================================================================== */
+.sheriff-gloss-tip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 420px;
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
+  padding: 10px 12px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+.sheriff-gloss-text {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sheriff-text);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1.55;
+}
+
+.sheriff-gloss-hint {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sheriff-border);
+  display: block;
+  text-align: right;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sheriff-muted);
 }
 
 /* ========================================================================== */

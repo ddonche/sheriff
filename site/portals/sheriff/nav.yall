@@ -24,9 +24,9 @@ menus:
   left_docs:
     DOCUMENTATION:
       Getting started:
-        Introduction: docs/getting-started/index.html
-        Installation: docs/getting-started/installation.html
-        First build: docs/getting-started/first_build.html
+        Introduction: docs/getting_started/index.html
+        Installation: docs/getting_started/installation.html
+        First build: docs/getting_started/first_build.html
 
       Theme Guide:
         Themes: docs/guides/themes.html
@@ -47,6 +47,7 @@ menus:
         Images: docs/guides/images.html
         Videos: docs/guides/videos.html
         Links: docs/guides/links.html
+        Glossary Tooltips: docs/guides/glossary.html
         Focus Panels: docs/guides/focus_panels.html
         Infoboxes: docs/guides/infoboxes.html
         Admonitions: docs/guides/admonitions.html
