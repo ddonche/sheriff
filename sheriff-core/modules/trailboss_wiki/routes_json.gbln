@@ -144,23 +144,46 @@ act build_routes_json_for_portal(portal)
 
         canonical | "[[{slug}]]"
 
-        /// ---- NEW: pull gloss from frontmatter (fallback to summary) ----
+        /// ---- Frontmatter pull ----
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
-        gloss | ""
+        gloss     | ""
+        meta_kind | ""
+        meta_type | ""
+        summary   | ""
 
         if fm.nix? == false and :valtype(fm) == "map"
+
+            if :has(fm, "meta_kind")
+                mk | fm["meta_kind"]
+                if mk.nix? == false and :trim("" + mk) != ""
+                    meta_kind |= "" + mk
+                xx
+            xx
+
+            if :has(fm, "meta_type")
+                mt | fm["meta_type"]
+                if mt.nix? == false and :trim("" + mt) != ""
+                    meta_type |= "" + mt
+                xx
+            xx
+
+            if :has(fm, "summary")
+                sm | fm["summary"]
+                if sm.nix? == false and :trim("" + sm) != ""
+                    summary |= "" + sm
+                xx
+            xx
+
+            /// pull gloss from frontmatter (fallback to summary)
             if :has(fm, "gloss")
                 g | fm["gloss"]
                 if g.nix? == false and :trim("" + g) != ""
                     gloss |= "" + g
                 xx
-            elif :has(fm, "summary")
-                s | fm["summary"]
-                if s.nix? == false and :trim("" + s) != ""
-                    gloss |= "" + s
-                xx
+            elif summary != ""
+                gloss |= summary
             xx
         xx
 
@@ -171,7 +194,11 @@ act build_routes_json_for_portal(portal)
             "title":     page_title,
             "aliases":   [],
             "canonical": canonical,
-            "gloss":     gloss
+            "gloss":     gloss,
+
+            "meta_kind": meta_kind,
+            "meta_type": meta_type,
+            "summary":   summary
         }
 
         :put_last!(routes, meta)

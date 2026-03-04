@@ -332,12 +332,6 @@ Sheriff prefers underlines in directories and file names. When in doubt, use nam
 
 ---
 
-## Next Steps
-
-* [[Templates]] — how layouts render menus
-* [[Portals]] — per-portal nav and multi-site builds
-* [[Frontmatter]] — page metadata (title, layout, summary)
-
 ::: nav
 related [[Layouts]] - how your pages are arranged
 related [[Templates]] - how to arrange your layouts with features and info
