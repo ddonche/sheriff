@@ -89,51 +89,26 @@ act render_fences(ctx)
 
     out | "" + work
 
-    /// shared locals (DECLARED ONCE — only '|=' inside sweep)
-    block       | ""
-    payload     | ""
-    header_line | ""
-    body_part   | ""
-    header_rest | ""
-    first_tok   | ""
-    kind_raw    | ""
+    /// ------------------------------------------------------------------------
+    /// Locals (declared once; only '|=' inside sweep)
+    /// - Use nil for "unset"; keep [] for list accumulators.
+    /// ------------------------------------------------------------------------
 
-    /// --- admon locals ---
+    /// core fence parsing locals
+    block, payload, header_line, body_part, header_rest, first_tok, kind_raw | nil
+
+    /// admon locals
     is_known_kind | false
-    kind          | ""
-    title         | ""
-    title_t       | ""
-    inner         | ""
-    repl          | ""
-    custom        | ""
+    kind, title, title_t, inner, repl, custom | nil
 
-    /// --- nav locals ---
-    prev_line      | ""
-    next_line      | ""
-    rel_lines      | []
-    prev_link_html | ""
-    next_link_html | ""
-    nav_html       | ""
-    lines          | []
-    line           | ""
-    t              | ""
-    low            | ""
-    rest           | ""
-    parts_out      | []
-    wrap_cls       | ""
-    has_related    | false
-    rh             | ""
+    /// nav locals
+    prev_line, next_line, prev_link_html, next_link_html, nav_html | nil
+    lines, rel_lines, parts_out | []
+    line, t, low, rest, wrap_cls, rh | nil
+    has_related | false
 
-    /// --- related card locals (renderer emits spans) ---
-    href           | ""
-    tag_text       | ""
-    name_text      | ""
-    desc_text      | ""
-    tag_html       | ""
-    name_html      | ""
-    desc_html      | ""
-    card_html      | ""
-    slug           | ""
+    /// related card locals (renderer emits spans)
+    href, tag_text, name_text, desc_text, tag_html, name_html, desc_html, card_html, slug | nil
 
     sweep out
         "<p>::: " ... ":::</p>":

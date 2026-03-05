@@ -1089,6 +1089,15 @@ details.sheriff-spoiler[open] > summary::before {
   color: #7a5c3a;
 }
 
+@media (max-width: 560px) {
+  .sheriff-gloss-tip {
+    left: 50% !important;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 2rem);
+    width: calc(100vw - 2rem);
+  }
+}
+
 /* ========================================================================== */
 /* SHERIFF WIKI IMAGES – WIKIPEDIA-LIKE FRAME + TEXT WRAP                      */
 /* ========================================================================== */

@@ -1,0 +1,11 @@
+/* site/portals/SHERIFF/override.css */
+
+/* Missing-page links — apply everywhere (sidebar, nav, article) */
+a.sheriff-missing-link{
+  color: #5090a0 !important;
+}
+
+a.sheriff-missing-link:hover{
+  color: #1e7085 !important;
+  text-decoration: underline;
+}

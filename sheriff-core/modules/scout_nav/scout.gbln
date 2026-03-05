@@ -281,6 +281,77 @@ act make_abs_href(portal, raw)
 xx
 
 /// ------------------------------------------------------------------------
+/// Determine if a page exists in the portal's routes.json (Trailboss style).
+/// routes.json shape:
+///   { "routes": [ { "href": "/docs/thing.html", ... }, ... ] }
+/// ------------------------------------------------------------------------
+act scout_link_info_for_href(portal, href)
+    if portal.nix? => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    if href.nix?   => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+
+    routes_path | "../site/portals/{portal}/routes.json"
+
+    /// Strict like Trailboss: if we can't validate routes, treat as missing.
+    if :file_exists(routes_path) == false
+        return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    xx
+
+    parsed | :read_json(routes_path)
+    if parsed.nix?
+        return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    xx
+
+    routes | parsed["routes"]
+    if routes.nix? => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    if :valtype(routes) != "array" => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+
+    h | :trim("" + href)
+
+    /// 1) Exact match (href keys include leading "/")
+    for meta in routes
+        if meta.nix? => skip
+        mh | meta["href"]
+        if mh.nix? => skip
+        if ("" + mh) == h
+            return {"class": "sheriff-link", "href": href}
+        xx
+    xx
+
+    /// 2) Fallback: try without leading "/" (older builds / inconsistent inputs)
+    key | "" + h
+    if :starts_with(key, "/")
+        tmp | :keep_after(key, "/")
+        if !tmp.nix?
+            key |= "" + tmp
+        else
+            key |= ""
+        xx
+    xx
+
+    for meta in routes
+        if meta.nix? => skip
+        mh | meta["href"]
+        if mh.nix? => skip
+
+        mh2 | "" + mh
+        if :starts_with(mh2, "/")
+            tmp2 | :keep_after(mh2, "/")
+            if !tmp2.nix?
+                mh2 |= "" + tmp2
+            else
+                mh2 |= ""
+            xx
+        xx
+
+        if mh2 == key
+            return {"class": "sheriff-link", "href": href}
+        xx
+    xx
+
+    return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+xx
+
+/// ------------------------------------------------------------------------
 act generate_nested_items(portal, items_map)
     if items_map.nix?
         return ""
@@ -327,11 +398,16 @@ act generate_nested_items(portal, items_map)
                 skip
             xx
 
+            info | scout_link_info_for_href(portal, href)
+            cls  | info["class"]
+            out  | info["href"]
+
             item | """
-<li>
-  <a class="sheriff-link" href="{href}">{key}</a>
-</li>
-"""
+            <li>
+              <a class="{cls}" href="{out}">{key}</a>
+            </li>
+            """
+
             update!(ul_items, ul_items + item)
         xx
     xx
@@ -380,11 +456,11 @@ act scout_render_sidebar(portal, menu_content)
             xx
 
             item | """
-<div class="section-header">
-  <span>{top_key}</span>
-</div>
-{nested}
-"""
+            <div class="section-header">
+              <span>{top_key}</span>
+            </div>
+            {nested}
+            """
             update!(nav_items, nav_items + item)
             update!(first_key, false)
 
@@ -394,11 +470,16 @@ act scout_render_sidebar(portal, menu_content)
                 skip
             xx
 
+            info | scout_link_info_for_href(portal, href)
+            cls  | info["class"]
+            out  | info["href"]
+
             item | """
-<li>
-  <a class="sheriff-link" href="{href}">{top_key}</a>
-</li>
-"""
+            <li>
+              <a class="{cls}" href="{out}">{top_key}</a>
+            </li>
+            """
+
             update!(nav_items, nav_items + item)
             update!(first_key, false)
 

@@ -200,7 +200,7 @@ Sheriff began as a proof-of-concept project to demonstrate that Goblin can be us
 Sheriff serves as a working example of a practical Goblin application.
 
 ::: lore 
-Dan Donche Jr created both Goblin and Sheriff in 2025. Development is ongoing. He also created Vekke, an abstract strategy game, and you can see Sheriff in action on the site, [[https://vekke.net|Vekke.net]].
+Dan Donche Jr. created both Goblin and Sheriff in 2025. Development is ongoing. He also created Vekke, an abstract strategy game, and you can see Sheriff in action on the site, [[https://vekke.net|Vekke.net]].
 :::
 
 ---
