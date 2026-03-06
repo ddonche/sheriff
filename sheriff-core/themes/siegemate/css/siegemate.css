@@ -2491,6 +2491,42 @@ a.sheriff-missing-link:hover {
   pointer-events: none !important;
 }
 
+/* ---- Modern dark scrollbar (global) ---- */
+:root {
+  color-scheme: dark; /* helps browsers pick dark UI defaults */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(184, 150, 106, 0.45) rgba(19, 19, 26, 0.9);
+}
+
+/* Chromium / Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(19, 19, 26, 0.9);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(184, 150, 106, 0.35);
+  border-radius: 999px;
+  border: 2px solid rgba(19, 19, 26, 0.9);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 150, 106, 0.55);
+}
+
+*::-webkit-scrollbar-corner {
+  background: rgba(19, 19, 26, 0.9);
+}
+
 /* ========================================================================== */
 /* RESPONSIVE                                                                 */
 /* ========================================================================== */

@@ -11,6 +11,8 @@ summary: A list of changes from each version of Sheriff.
 - added [[admonitions]] and spoilers
 - added [[footnotes]]
 - added [[glossary]] tooltips to wikilinks
+- single-page [[building sites|builds]]
+- missing page links in left sidebar
 
 ## v0.13.0
 - Major refactor with themes being centralized in core. 
