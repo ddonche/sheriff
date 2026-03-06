@@ -89,64 +89,53 @@ act render_fences(ctx)
 
     out | "" + work
 
-    /// ------------------------------------------------------------------------
-    /// Locals (declared once; only '|=' inside sweep)
-    /// - Use nil for "unset"; keep [] for list accumulators.
-    /// ------------------------------------------------------------------------
-
     /// core fence parsing locals
     block, payload, header_line, body_part, header_rest, first_tok, kind_raw | nil
 
     /// admon locals
     is_known_kind | false
-    kind, title, title_t, inner, repl, custom | nil
+    kind, title, title_t, inner, custom | nil
+    repl | ""
 
     /// nav locals
     prev_line, next_line, prev_link_html, next_link_html, nav_html | nil
     lines, rel_lines, parts_out | []
-    line, t, low, rest, wrap_cls, rh | nil
+    line, t, low, rest, wrap_cls | nil
     has_related | false
 
-    /// related card locals (renderer emits spans)
-    href, tag_text, name_text, desc_text, tag_html, name_html, desc_html, card_html, slug | nil
+    /// related locals
+    href, tag_text, desc_text, slug | nil
+    rl_raw, name_part, desc_part, core, link_side, label_side, title_plain, a_html, g | nil
 
     sweep out
         "<p>::: " ... ":::</p>":
             if self.nix? => skip
 
-            /// capture the whole paragraph-wrapped fence
+            /// IMPORTANT: reset per-fence replacement so nothing leaks
+            repl |= ""
+
             block |= self
 
             payload |= :keep_between(block, "<p>::: ", ":::</p>")
             if payload.nix? => skip
 
-            /// split header vs body on first newline
             header_line |= :keep_before(payload, "\n")
             if header_line.nix?
                 header_line |= payload
                 body_part   |= ""
             else
                 body_part |= :keep_after(payload, "\n")
-                if body_part.nix?
-                    body_part |= ""
-                xx
+                if body_part.nix? => body_part |= ""
             xx
 
             header_rest |= s_trim(header_line)
-            if header_rest.nix?
-                header_rest |= ""
-            xx
+            if header_rest.nix? => header_rest |= ""
 
-            /// first token decides the fence kind
             first_tok |= s_trim(:keep_before(header_rest, " "))
-            if first_tok.nix?
-                first_tok |= header_rest
-            xx
+            if first_tok.nix? => first_tok |= header_rest
 
             kind_raw |= :lower(s_trim(first_tok))
-            if kind_raw.nix?
-                kind_raw |= ""
-            xx
+            if kind_raw.nix? => kind_raw |= ""
 
             /// ==========================================================
             /// NAV BLOCKS
@@ -158,11 +147,8 @@ act render_fences(ctx)
                 xx
 
                 inner |= s_trim(body_part)
-                if inner.nix?
-                    inner |= ""
-                xx
+                if inner.nix? => inner |= ""
 
-                /// reset per-block state
                 prev_line |= ""
                 next_line |= ""
                 rel_lines |= []
@@ -170,7 +156,9 @@ act render_fences(ctx)
                 lines |= :split(inner, "\n")
 
                 for line in lines
-                    if line.nix? => skip
+                    if line.nix?
+                        skip
+                    xx
 
                     t |= s_trim(line)
                     if t.nix? => skip
@@ -240,16 +228,19 @@ act render_fences(ctx)
                 :put_last!(parts_out, wrap_cls)
                 :put_last!(parts_out, "\" aria-label=\"Article navigation\">")
 
-                if (!prev_link_html.nix? and prev_link_html != "") or (!next_link_html.nix? and next_link_html != "")
+                has_prev | (!prev_link_html.nix? and prev_link_html != "")
+                has_next | (!next_link_html.nix? and next_link_html != "")
+
+                if has_prev or has_next
                     :put_last!(parts_out, "<div class=\"sheriff-nextprev-row\">")
 
-                    if !prev_link_html.nix? and prev_link_html != ""
+                    if has_prev
                         :put_last!(parts_out, "<div class=\"sheriff-nextprev-item sheriff-nextprev-prev\">")
                         :put_last!(parts_out, prev_link_html)
                         :put_last!(parts_out, "</div>")
                     xx
 
-                    if !next_link_html.nix? and next_link_html != ""
+                    if has_next
                         :put_last!(parts_out, "<div class=\"sheriff-nextprev-item sheriff-nextprev-next\">")
                         :put_last!(parts_out, next_link_html)
                         :put_last!(parts_out, "</div>")
@@ -266,71 +257,57 @@ act render_fences(ctx)
                     for rl in rel_lines
                         if rl.nix? => skip
 
-                        rl_raw | s_trim(rl)
+                        rl_raw |= s_trim(rl)
                         if rl_raw.nix? => skip
                         if rl_raw == "" => skip
 
-                        /// Allow "Thing - description" in related lines
-                        name_part | rl_raw
-                        desc_part | ""
+                        name_part |= rl_raw
+                        desc_part |= ""
 
                         if :has(rl_raw, " - ")
                             name_part |= s_trim(:keep_before(rl_raw, " - "))
                             desc_part |= s_trim(:keep_after(rl_raw, " - "))
-                            if name_part.nix? => name_part | rl_raw
-                            if desc_part.nix? => desc_part | ""
+                            if name_part.nix? => name_part |= rl_raw
+                            if desc_part.nix? => desc_part |= ""
                         xx
 
                         if name_part.nix? => skip
                         if name_part == "" => skip
 
-                        /// Extract display title from wikilink syntax WITHOUT emitting <a>
-                        core | :keep_between(name_part, "[[", "]]")
-                        if core.nix?
-                            core |= name_part
-                        xx
+                        core |= :keep_between(name_part, "[[", "]]")
+                        if core.nix? => core |= name_part
                         core |= s_trim(core)
-                        if core.nix? => core | ""
+                        if core.nix? => core |= ""
 
-                        link_side  | s_trim(:keep_before(core, "|"))
-                        label_side | s_trim(:keep_after(core, "|"))
+                        link_side  |= s_trim(:keep_before(core, "|"))
+                        label_side |= s_trim(:keep_after(core, "|"))
+                        if link_side.nix? => link_side |= core
 
-                        if link_side.nix?
-                            link_side |= core
-                        xx
+                        title_plain |= label_side
+                        if title_plain.nix? => title_plain |= link_side
+                        if title_plain.nix? => title_plain |= ""
 
-                        title_plain | label_side
-                        if title_plain.nix?
-                            title_plain |= link_side
-                        xx
-                        if title_plain.nix? => title_plain | ""
-
-                        /// Use resolve_wikilink ONLY to get href (router), then strip the anchor
-                        a_html | resolve_wikilink(name_part, ctx, portal)
+                        a_html |= resolve_wikilink(name_part, ctx, portal)
                         if a_html.nix? => skip
                         if a_html == "" => skip
 
-                        href | :keep_between(a_html, "href=\"", "\"")
-                        if href.nix?
-                            href |= missing_page_href()
-                        xx
+                        href |= :keep_between(a_html, "href=\"", "\"")
+                        if href.nix? => href |= missing_page_href()
 
-                        /// If no explicit " - desc", fall back to gloss (routes.json) using the link-side slug
-                        desc_text | desc_part
-                        if desc_text.nix? => desc_text | ""
+                        desc_text |= desc_part
+                        if desc_text.nix? => desc_text |= ""
 
                         if desc_text == ""
-                            slug | normalize_to_slug(link_side)
+                            slug |= normalize_to_slug(link_side)
                             if !slug.nix? and slug != ""
-                                g | lookup_gloss_by_slug(ctx, portal, slug)
+                                g |= lookup_gloss_by_slug(ctx, portal, slug)
                                 if !g.nix?
                                     desc_text |= "" + g
                                 xx
                             xx
                         xx
 
-                        /// Tag stub for now (wire to real frontmatter meta_kind/meta_type next)
-                        tag_text | "Reference"
+                        tag_text |= "Reference"
 
                         :put_last!(parts_out, "<li class=\"sheriff-related-item\">")
                         :put_last!(parts_out, "<a href=\"")
@@ -361,6 +338,8 @@ act render_fences(ctx)
 
                 nav_html |= :pack(parts_out)
                 :update_where!(out, block, nav_html)
+
+                /// NAV is handled; do NOT fall through into admon logic
                 skip
             xx
 
@@ -385,77 +364,74 @@ act render_fences(ctx)
                 kind_raw == "rule":      is_known_kind |= true
             xx
 
-            if is_known_kind == false
-                skip
+            if is_known_kind
+                kind |= "note"
+                judge
+                    kind_raw == "note":      kind |= "note"
+                    kind_raw == "tip":       kind |= "tip"
+                    kind_raw == "warning":   kind |= "warning"
+                    kind_raw == "important": kind |= "important"
+                    kind_raw == "example":   kind |= "example"
+                    kind_raw == "strategy":  kind |= "strategy"
+                    kind_raw == "lore":      kind |= "lore"
+                    kind_raw == "spoiler":   kind |= "spoiler"
+
+                    /// aliases -> canonical
+                    kind_raw == "info":      kind |= "note"
+                    kind_raw == "hint":      kind |= "tip"
+                    kind_raw == "caution":   kind |= "warning"
+                    kind_raw == "rule":      kind |= "important"
+                xx
+
+                title |= "Note"
+                judge
+                    kind == "note":      title |= "Note"
+                    kind == "tip":       title |= "Tip"
+                    kind == "warning":   title |= "Warning"
+                    kind == "important": title |= "Important"
+                    kind == "example":   title |= "Example"
+                    kind == "strategy":  title |= "Strategy"
+                    kind == "lore":      title |= "Lore"
+                    kind == "spoiler":   title |= "Show"
+                xx
+
+                custom |= s_trim(:keep_after(header_rest, " "))
+                if !custom.nix?
+                    title |= custom
+                xx
+
+                title_t |= escape_text(title)
+
+                inner |= s_trim(body_part)
+                if inner.nix? => inner |= ""
+
+                repl |= ""
+                if kind == "spoiler"
+                    repl |= :pack([
+                        "<details class=\"sheriff-spoiler\">",
+                          "<summary class=\"sheriff-spoiler-head\">",
+                            "<span class=\"sheriff-spoiler-title\">", title_t, "</span>",
+                          "</summary>",
+                          "<div class=\"sheriff-spoiler-body\">",
+                            inner,
+                          "</div>",
+                        "</details>"
+                    ])
+                else
+                    repl |= :pack([
+                        "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
+                          "<div class=\"sheriff-admon-head\">",
+                            "<span class=\"sheriff-admon-title\">", title_t, "</span>",
+                          "</div>",
+                          "<div class=\"sheriff-admon-body\">",
+                            inner,
+                          "</div>",
+                        "</div>"
+                    ])
+                xx
+
+                :update_where!(out, block, repl)
             xx
-
-            kind |= "note"
-            judge
-                kind_raw == "note":      kind |= "note"
-                kind_raw == "tip":       kind |= "tip"
-                kind_raw == "warning":   kind |= "warning"
-                kind_raw == "important": kind |= "important"
-                kind_raw == "example":   kind |= "example"
-                kind_raw == "strategy":  kind |= "strategy"
-                kind_raw == "lore":      kind |= "lore"
-                kind_raw == "spoiler":   kind |= "spoiler"
-
-                /// aliases -> canonical
-                kind_raw == "info":      kind |= "note"
-                kind_raw == "hint":      kind |= "tip"
-                kind_raw == "caution":   kind |= "warning"
-                kind_raw == "rule":      kind |= "important"
-            xx
-
-            title |= "Note"
-            judge
-                kind == "note":      title |= "Note"
-                kind == "tip":       title |= "Tip"
-                kind == "warning":   title |= "Warning"
-                kind == "important": title |= "Important"
-                kind == "example":   title |= "Example"
-                kind == "strategy":  title |= "Strategy"
-                kind == "lore":      title |= "Lore"
-                kind == "spoiler":   title |= "Show"
-            xx
-
-            custom |= s_trim(:keep_after(header_rest, " "))
-            if !custom.nix?
-                title |= custom
-            xx
-
-            title_t |= escape_text(title)
-
-            inner |= s_trim(body_part)
-            if inner.nix?
-                inner |= ""
-            xx
-
-            if kind == "spoiler"
-                repl |= :pack([
-                    "<details class=\"sheriff-spoiler\">",
-                      "<summary class=\"sheriff-spoiler-head\">",
-                        "<span class=\"sheriff-spoiler-title\">", title_t, "</span>",
-                      "</summary>",
-                      "<div class=\"sheriff-spoiler-body\">",
-                        inner,
-                      "</div>",
-                    "</details>"
-                ])
-            else
-                repl |= :pack([
-                    "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
-                      "<div class=\"sheriff-admon-head\">",
-                        "<span class=\"sheriff-admon-title\">", title_t, "</span>",
-                      "</div>",
-                      "<div class=\"sheriff-admon-body\">",
-                        inner,
-                      "</div>",
-                    "</div>"
-                ])
-            xx
-
-            :update_where!(out, block, repl)
     xx
 
     final | restore_code_segments(out, stash)

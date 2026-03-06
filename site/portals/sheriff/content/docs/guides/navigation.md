@@ -332,13 +332,142 @@ Sheriff prefers underlines in directories and file names. When in doubt, use nam
 
 ---
 
+## Page Navigation Blocks
+
+Sheriff supports two special navigation panels that appear at the bottom of documentation pages:
+
+* **Next / Previous navigation**
+* **Related pages**
+
+These are written using simple `::: nav` blocks.
+
+They are **page-level navigation helpers**, separate from the portal navigation defined in `nav.yall`.
+
+---
+
+### Next / Previous Navigation
+
+This panel helps readers move **sequentially through documentation**. Where other sites might automatically generate these based on the directory structure, in Sheriff you curate these links to guide people exactly where you want them to go.
+
+Example:
+
+```
+::: nav
+next [[Tuple Bind]]
+previous [[Tether]]
+:::
+```
+
+This renders navigation links *wherever you put them on your page*, but best practice is to put them at the end of your article's content (you can scroll down to see how this page's navigation looks).
+
+### Rules
+
+* `next` moves forward in the learning flow
+* `previous` moves backward
+* Both values use **wiki-style links**
+
+Example links:
+
+```
+[[Variables]]
+[[Tuple Bind]]
+[[Control Flow]]
+```
+
+Sheriff automatically resolves the correct page paths.
+
+---
+
+## Related Pages
+
+Related navigation lists **concepts that connect to the current topic**.
+
+This helps readers explore the documentation without forcing a strict order. Where other sites might automatically generate related content blocks, in Sheriff you curate the related content. 
+
+Example:
+
+```
+::: nav
+related [[Retether]]
+related [[Shadow]]
+related [[Local Variables]]
+:::
+```
+
+This renders a **Related panel** with links to those pages.
+
+---
+
+### Multiple Related Links
+
+You can include as many `related` lines as you want.
+
+Example:
+
+```
+::: nav
+related [[Variables]]
+related [[Scope]]
+related [[Tuple Bind]]
+related [[Broadcast Tether]]
+:::
+```
+
+Sheriff will display them as a clean related list.
+
+---
+
+## Combining Navigation Panels
+
+Most docs use **both blocks**.
+
+Example:
+
+```
+::: nav
+next [[Tuple Bind]]
+previous [[Tether]]
+:::
+
+::: nav
+related [[Retether]]
+related [[Shadow]]
+related [[Local Variables]]
+:::
+```
+
+This creates:
+
+* A **Next / Previous** navigation panel
+* A **Related concepts** panel
+
+Both appear at the bottom of the page (if that is where you put them).
+
+---
+
+## Why This Exists
+
+Portal navigation (from `nav.yall`) defines the **site structure**.
+
+Page navigation blocks define the **learning path**.
+
+They allow documentation authors to:
+
+* guide readers step-by-step
+* suggest related concepts
+* create a clear documentation flow
+
+without changing the portal’s sidebar structure.
+
+::: nav
+next [[Table of Contents]]
+previous [[Tokens]]
+::: 
+
 ::: nav
 related [[Layouts]] - how your pages are arranged
 related [[Templates]] - how to arrange your layouts with features and info
 related [[Themes]] - how your site looks
 :::
 
-::: nav
-next [[Table of Contents]]
-previous [[Tokens]]
-::: 
+

@@ -5,23 +5,23 @@
 /// Takes raw Markdown text, returns frontmatter map or nil.
 act frontier_extract_frontmatter(md_text)
     if md_text.nix? => return nil
-    
+
     fm_map | nil
-    
+
     sweep md_text
         first "^^^^" ... "^^^^":
             fm_text | :keep_between(self, "^^^^", "^^^^")
-            if fm_text.nix? => stop
-            
-            trimmed | :trim(fm_text)
-            if trimmed.nix?
-            else
-                parsed | :to_map(trimmed)
-                :update!(fm_map, parsed)
+
+            if !fm_text.nix?
+                trimmed | :trim(fm_text)
+
+                if !trimmed.nix?
+                    parsed | :to_map(trimmed)
+                    :update!(fm_map, parsed)
+                xx
             xx
-            stop
     xx
-    
+
     return fm_map
 xx
 

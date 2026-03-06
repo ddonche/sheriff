@@ -24,75 +24,160 @@ act create_all_dirs(path)
     xx
 xx
 
-/// MAIN BUILD FUNCTION
-act build(portal)
-    :say("Building portal:")
-    :say(portal)
+/// --- helper: run pre schedule once, return the final pre_ctx (or {"portal": portal})
+act run_pre_schedule(portal, cfg)
+    pre_ctx | { "portal": portal }
 
-    cfg      | load_events(portal)
-    schedule | cfg["schedule"]   /// Array of action names
-
-    content_root | "../site/portals/{portal}/content"
-    md_files     | []
-
-    for f in :walk(content_root, "**/*.md")
-        :put_last!(md_files, f)
+    pre_schedule | cfg["pre"]
+    if pre_schedule.nix?
+        return pre_ctx
     xx
 
-    /// Run pre-build schedule once (manual step-through mode)
-    pre_schedule | cfg["pre"]
-    if !pre_schedule.nix?
-        pre_ctx | {
-            "portal": portal
-        }
+    for act_name in pre_schedule
+        :say("---- RUNNING PRE ACT ----")
+        :say(act_name)
 
-        for act_name in pre_schedule
-            :say("---- RUNNING PRE ACT ----")
+        ret | :summon(pre_ctx, [act_name])
+
+        if ret.nix?
+            :say("!!!! THIS ACT RETURNED NIL !!!!")
             :say(act_name)
+            /// keep old pre_ctx
+        else
+            pre_ctx | ret
+        xx
+    xx
 
-            /// Run exactly ONE action via summon
-            ret | :summon(pre_ctx, [act_name])
+    return pre_ctx
+xx
 
-            if ret.nix?
-                :say("!!!! THIS ACT RETURNED NIL !!!!")
-                :say(act_name)
-                /// Keep old pre_ctx
-            else
-                pre_ctx | ret
-            xx
 
+/// --- helper: resolve a single markdown target
+/// Accepts either:
+///   - a slug: "judge"   (matches stem)
+///   - a rel path: "docs/judge.md"
+act resolve_single_md(content_root, md_files, target)
+    /// If user passed a .md path, treat it as relative to content_root
+    if :ends_with(target, ".md")
+        candidate | :path_join(content_root, target)
+        if :file_exists(candidate)
+            return candidate
         xx
 
+        /// If they passed an absolute-ish path that already exists, accept it.
+        if :file_exists(target)
+            return target
+        xx
+
+        return nil
     xx
 
-    /// BUILD EACH MARKDOWN FILE
+    /// Special-case: "index" should mean content_root/index.md if it exists
+    if target == "index"
+        root_index | :path_join(content_root, "index.md")
+        if :file_exists(root_index)
+            return root_index
+        xx
+    xx
+
+    /// Otherwise, treat as slug and pick the match closest to the content root
+    best_path | nil
+    best_len  | nil
+
     for md_path in md_files
-        raw | :read_text(md_path)
+        rel_path | :path_relative_to(md_path, content_root)
+        base     | :stem(rel_path)
 
-        ctx | {
-            "body": raw,
-            "frontmatter": {}, 
-            "tokens": {},
-            "path": md_path,
-            "portal": portal,
-            "href": ""
-        }
+        if base == target
+            cur_len | rel_path.len
 
-        :clear_tokens("SLOT")
-
-        ctx |= :summon(ctx, schedule)
-
-        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
-        dir      | :dirname(rel_path)                        /// "docs"
-        base     | :stem(rel_path)                           /// "judge"
-        out_file | "../dist/{portal}/{dir}/{base}.html"      
-
-        create_all_dirs(out_file)
-        :write_text!(out_file, ctx["body"])
+            if best_len.nix? or cur_len < best_len
+                best_len  | cur_len
+                best_path | md_path
+            xx
+        xx
     xx
 
-    :say("Portal build finished:")
-    :say(portal)
+    return best_path
+xx
+
+/// --- helper: run pre schedule once, return the final pre_ctx (or {"portal": portal})
+act run_pre_schedule(portal, cfg)
+    pre_ctx | { "portal": portal }
+
+    pre_schedule | cfg["pre"]
+    if pre_schedule.nix?
+        return pre_ctx
+    xx
+
+    for act_name in pre_schedule
+        :say("---- RUNNING PRE ACT ----")
+        :say(act_name)
+
+        ret | :summon(pre_ctx, [act_name])
+
+        if ret.nix?
+            :say("!!!! THIS ACT RETURNED NIL !!!!")
+            :say(act_name)
+            /// keep old pre_ctx
+        else
+            pre_ctx | ret
+        xx
+    xx
+
+    return pre_ctx
+xx
+
+
+/// --- helper: resolve a single markdown target
+/// Accepts either:
+///   - a slug: "judge"   (matches stem)
+///   - a rel path: "docs/judge.md"
+act resolve_single_md(content_root, md_files, target)
+    /// If user passed a .md path, treat it as relative to content_root
+    if :ends_with(target, ".md")
+        candidate | :path_join(content_root, target)
+        if :file_exists(candidate)
+            return candidate
+        xx
+
+        /// If they passed an absolute-ish path that already exists, accept it.
+        if :file_exists(target)
+            return target
+        xx
+
+        return nil
+    xx
+
+    /// Otherwise, treat as slug and find first stem match.
+    for md_path in md_files
+        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
+        base     | :stem(rel_path)                           /// "judge"
+        if base == target
+            return md_path
+        xx
+    xx
+
+    return nil
+xx
+
+
+/// --- helper: merge pre_ctx keys into ctx using update! (NO |= on indexed slots)
+act merge_pre_ctx_into_ctx(ctx, pre_ctx)
+    if pre_ctx.nix?
+        return ctx
+    xx
+
+    for k in :keys(pre_ctx)
+        /// don't let anything override portal if you want it fixed
+        if k == "portal"
+            skip
+        xx
+
+        :update!(ctx[k], pre_ctx[k])
+    xx
+
+    return ctx
 xx
 
 act discover_portals()
@@ -128,13 +213,129 @@ act discover_portals()
     return portals
 xx
 
-/// sheriff-core/main.gbln
-/// Requires a portal argument:
+/// MAIN BUILD FUNCTION
+act build(portal)
+    :say("Building portal:")
+    :say(portal)
+
+    cfg      | load_events(portal)
+    schedule | cfg["schedule"]   /// Array of action names
+
+    content_root | "../site/portals/{portal}/content"
+    md_files     | []
+
+    for f in :walk(content_root, "**/*.md")
+        :put_last!(md_files, f)
+    xx
+
+    /// Run pre-build schedule once
+    pre_ctx | run_pre_schedule(portal, cfg)
+
+    /// BUILD EACH MARKDOWN FILE
+    for md_path in md_files
+        raw | :read_text(md_path)
+
+        ctx | {
+            "body": raw,
+            "frontmatter": {},
+            "tokens": {},
+            "path": md_path,
+            "portal": portal,
+            "href": ""
+        }
+
+        /// merge any pre_ctx fields into ctx
+        ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
+
+        :clear_tokens("SLOT")
+
+        /// IMPORTANT: don't use `ctx |= ...` because that's also an invalid lvalue.
+        /// summon returns the new ctx; rebind ctx with `|`
+        ctx |= :summon(ctx, schedule)
+
+        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
+        dir      | :dirname(rel_path)                        /// "docs"
+        base     | :stem(rel_path)                           /// "judge"
+        out_file | "../dist/{portal}/{dir}/{base}.html"
+
+        create_all_dirs(out_file)
+        :write_text!(out_file, ctx["body"])
+    xx
+
+    :say("Portal build finished:")
+    :say(portal)
+xx
+
+
+/// SINGLE PAGE BUILD
+/// target can be: "judge" or "docs/judge.md"
+act build_one_page(portal, target)
+    :say("Building ONE page:")
+    :say(portal ++ " :: " ++ target)
+
+    cfg      | load_events(portal)
+    schedule | cfg["schedule"]
+
+    content_root | "../site/portals/{portal}/content"
+    md_files     | []
+
+    for f in :walk(content_root, "**/*.md")
+        :put_last!(md_files, f)
+    xx
+
+    md_path | resolve_single_md(content_root, md_files, target)
+
+    if md_path.nix?
+        :say("ERROR: page not found:")
+        :say(target)
+        :say("Tip: use slug (e.g. judge) or rel path (e.g. docs/judge.md)")
+        return
+    xx
+
+    /// Run pre-build schedule once
+    pre_ctx | run_pre_schedule(portal, cfg)
+
+    raw | :read_text(md_path)
+
+    ctx | {
+        "body": raw,
+        "frontmatter": {},
+        "tokens": {},
+        "path": md_path,
+        "portal": portal,
+        "href": ""
+    }
+
+    ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
+
+    :clear_tokens("SLOT")
+
+    ctx |= :summon(ctx, schedule)
+
+    rel_path | :path_relative_to(md_path, content_root)
+    dir      | :dirname(rel_path)
+    base     | :stem(rel_path)
+    out_file | "../dist/{portal}/{dir}/{base}.html"
+
+    create_all_dirs(out_file)
+    :write_text!(out_file, ctx["body"])
+
+    :say("Built page:")
+    :say(out_file)
+xx
+
+/// ----------------------------------------------------------------------
+/// CLI
+///   goblin run main.gbln all
 ///   goblin run main.gbln <portal>
+///   goblin run main.gbln <portal> page <slug|relpath.md>
+/// ----------------------------------------------------------------------
 
 if args.nix? or args.len == 0
     :say("ERROR: missing portal name")
-    :say("Usage: goblin run main.gbln <portal|all>")
+    :say("Usage:")
+    :say("  goblin run main.gbln <portal|all>")
+    :say("  goblin run main.gbln <portal> page <slug|relpath.md>")
 else
     cmd | args[0]
 
@@ -150,6 +351,16 @@ else
                 build(p)
             xx
         xx
+
+    elif args.len >= 2 and args[1] == "page"
+        if args.len < 3
+            :say("ERROR: missing page target")
+            :say("Usage: goblin run main.gbln <portal> page <slug|relpath.md>")
+        else
+            target | args[2]
+            build_one_page(cmd, target)
+        xx
+
     else
         build(cmd)
     xx

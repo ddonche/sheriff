@@ -26,7 +26,7 @@ menus:
       Getting started:
         Introduction: docs/getting_started/index.html
         Installation: docs/getting_started/installation.html
-        First build: docs/getting_started/first_build.html
+        First build: docs/getting_started/building_sites.html
 
       Theme Guide:
         Themes: docs/guides/themes.html
@@ -36,7 +36,7 @@ menus:
         Tokens: docs/guides/tokens.html
         Navigation: docs/guides/navigation.html
         Table of Contents: docs/guides/toc.html
-        Site Branding: docs/guides/navigation.html
+        Site Branding: docs/guides/branding.html
 
       Styling Guide:
         Using Markdown: docs/guides/using_markdown.html
