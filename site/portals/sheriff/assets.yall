@@ -1,0 +1,23 @@
+# Optional portal asset injection.
+#
+# head — script URL injected into <head>
+# top  — optional top-of-body component mount
+# end  — script URL injected before </body>
+#
+# Example:
+#
+# assets:
+#   head: https://vekke.net/assets/vekke-header.js
+#
+#   top:
+#     tag: vekke-header
+#     attrs:
+#       base-url: https://vekke.net
+#       active-page: rules
+#
+#   end: ""
+
+assets:
+  head: ""
+  top: {}
+  end: ""

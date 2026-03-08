@@ -5,69 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{{PAGE::TITLE}}}</title>
     {{{SLOT::STYLELINK}}}
-    <script src="http://localhost:5173/vekke-header.js"></script>
+    {{{ASSETS::HEAD}}}
 </head>
 <body>
-    <vekke-header
-      base-url="http://localhost:5173"
-      active-page="rules"
-      supabase-url="{{{SITE::SUPABASE_URL}}}"
-      supabase-key="{{{SITE::SUPABASE_KEY}}}">
-    </vekke-header>
-
-    <div class="sheriff-shell" id="top">
-        <div class="sheriff-header">
-          <div class="sheriff-header-bottom">
-            {{{SLOT::HEADER_NAV}}}
-          </div>
-        </div>
-        <div class="sheriff-main-layout-three">
-            {{{SLOT::LEFT_NAV}}}
-            <article class="sheriff-article">
-              <header class="sheriff-page-header">
-                <div class="sheriff-page-meta-bar">
-                  <div class="sheriff-page-meta-left">
-                    {{{SLOT::HEADERLEFT}}}
-                  </div>
-                  <div class="sheriff-page-meta-right">
-                    {{{SLOT::HEADERRIGHT}}}
-                  </div>
-                </div>
-                <h1>{{{PAGE::TITLE}}}</h1>
-                <div class="sheriff-title-underline"></div>
-                <div class="sheriff-page-byline">
-                  <div class="sheriff-page-byline-main">
-                    By
-                    <span class="sheriff-page-byline-author">{{{PAGE::AUTHOR}}}</span>
-                    {{{SLOT::PAGEMETALEFT}}}
-                  </div>
-                  <div class="sheriff-page-byline-actions">
-                    {{{SLOT::PAGEMETARIGHT}}}
-                  </div>
-                </div>
-                <hr class="sheriff-page-header-divider" />
-              </header>
-              {{{PAGE::CONTENT}}}
-              <div class="sheriff-clear"></div>
-            </article>
-            <aside class="sheriff-toc">
-              <div class="sheriff-focus-slot">
-                  {{{SITE::FOCUS_PANEL}}}
+    <div id="top">
+        {{{ASSETS::TOP}}}
+        <div class="sheriff-shell">
+            <div class="sheriff-header">
+              <div class="sheriff-header-bottom">
+                {{{SLOT::HEADER_NAV}}}
               </div>
-                {{{SLOT::SIDEBAR_TOP}}}
-                {{{SLOT::SIDEBAR_MAIN}}}
-            </aside>
+            </div>
+            <div class="sheriff-main-layout-three">
+                {{{SLOT::LEFT_NAV}}}
+                <article class="sheriff-article">
+                  <header class="sheriff-page-header">
+                    <div class="sheriff-page-meta-bar">
+                      <div class="sheriff-page-meta-left">
+                        {{{SLOT::HEADERLEFT}}}
+                      </div>
+                      <div class="sheriff-page-meta-right">
+                        {{{SLOT::HEADERRIGHT}}}
+                      </div>
+                    </div>
+                    <h1>{{{PAGE::TITLE}}}</h1>
+                    <div class="sheriff-title-underline"></div>
+                    <div class="sheriff-page-byline">
+                      <div class="sheriff-page-byline-main">
+                        By
+                        <span class="sheriff-page-byline-author">{{{PAGE::AUTHOR}}}</span>
+                        {{{SLOT::PAGEMETALEFT}}}
+                      </div>
+                      <div class="sheriff-page-byline-actions">
+                        {{{SLOT::PAGEMETARIGHT}}}
+                      </div>
+                    </div>
+                    <hr class="sheriff-page-header-divider" />
+                  </header>
+                  {{{PAGE::CONTENT}}}
+                  <div class="sheriff-clear"></div>
+                </article>
+                <aside class="sheriff-toc">
+                  <div class="sheriff-focus-slot">
+                      {{{SITE::FOCUS_PANEL}}}
+                  </div>
+                    {{{SLOT::SIDEBAR_TOP}}}
+                    {{{SLOT::SIDEBAR_MAIN}}}
+                </aside>
+            </div>
+            <footer class="sheriff-footer">
+                <div class="sheriff-footer-left">
+                    {{{SLOT::FOOTER_LEFT}}}
+                </div>
+                <div class="sheriff-footer-right">
+                    {{{SLOT::FOOTER_RIGHT}}}
+                </div>
+            </footer>
         </div>
-        <footer class="sheriff-footer">
-            <div class="sheriff-footer-left">
-                {{{SLOT::FOOTER_LEFT}}}
-            </div>
-            <div class="sheriff-footer-right">
-                {{{SLOT::FOOTER_RIGHT}}}
-            </div>
-        </footer>
     </div>
     <a href="#top" class="sheriff-back-to-top" aria-label="Back to top"></a>
     {{{SLOT::SCRIPTS}}}
+    {{{ASSETS::END}}}
 </body>
 </html>

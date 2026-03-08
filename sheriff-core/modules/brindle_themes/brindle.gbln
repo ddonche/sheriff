@@ -233,6 +233,91 @@ act apply_tokens(ctx)
     favicon_href | "/public/{favicon_name}"
 
     /// --------------------------------------------------
+    /// Read portal assets
+    /// --------------------------------------------------
+    assets_path | "../site/portals/{portal}/assets.yall"
+
+    assets_head_raw | ""
+    assets_end_raw  | ""
+    assets_top_tag  | ""
+    assets_top_html | ""
+
+    if :file_exists(assets_path)
+        assets_cfg | :yall_parse_file(assets_path)
+
+        if !assets_cfg.nix? and :valtype(assets_cfg) == "map"
+            assets_map | {}
+
+            attempt
+                :update!(assets_map, assets_cfg["assets"])
+            rescue
+                :update!(assets_map, {})
+            end
+
+            if :valtype(assets_map) == "map"
+                attempt
+                    :update!(assets_head_raw, "" + assets_map["head"])
+                rescue
+                    :update!(assets_head_raw, "")
+                end
+
+                attempt
+                    :update!(assets_end_raw, "" + assets_map["end"])
+                rescue
+                    :update!(assets_end_raw, "")
+                end
+
+                top_map | {}
+                attempt
+                    :update!(top_map, assets_map["top"])
+                rescue
+                    :update!(top_map, {})
+                end
+
+                if :valtype(top_map) == "map"
+                    attempt
+                        :update!(assets_top_tag, :trim("" + top_map["tag"]))
+                    rescue
+                        :update!(assets_top_tag, "")
+                    end
+
+                    if assets_top_tag != ""
+                        attrs_map | {}
+                        attempt
+                            :update!(attrs_map, top_map["attrs"])
+                        rescue
+                            :update!(attrs_map, {})
+                        end
+
+                        attrs_html | ""
+
+                        if :valtype(attrs_map) == "map"
+                            for pair in attrs_map
+                                attr_name  | "" + pair[0]
+                                attr_value | "" + pair[1]
+                                :update!(attrs_html, attrs_html + """ {attr_name}="{attr_value}""" + "\"")
+                            end
+                        xx
+
+                        :update!(assets_top_html, """<{assets_top_tag}{attrs_html}></{assets_top_tag}>""")
+                    xx
+                xx
+            xx
+        xx
+    xx
+
+    assets_head_html | ""
+    assets_end_html  | ""
+
+    if assets_head_raw != ""
+        :update!(assets_head_html, """<script src="{assets_head_raw}"></script>""")
+    xx
+
+    if assets_end_raw != ""
+        :update!(assets_end_html, """<script src="{assets_end_raw}"></script>""")
+    xx
+
+    /// --------------------------------------------------
     /// BRINDLE TOKENS
     /// --------------------------------------------------
 
@@ -311,8 +396,12 @@ act apply_tokens(ctx)
     register_token("BRINDLE", "THEMESWITCHER",   theme_switcher_html)
     register_token("BRINDLE", "VERSIONSWITCHER", version_switcher_html)
 
+    register_token("ASSETS", "HEAD", assets_head_html)
+    register_token("ASSETS", "TOP",  assets_top_html)
+    register_token("ASSETS", "END",  assets_end_html)
+
     /// --------------------------------------------------
-    /// Resolve *ONLY* BRINDLE tokens
+    /// Resolve *ONLY* BRINDLE / ASSETS tokens
     /// --------------------------------------------------
     updated | resolve_token(body)
 

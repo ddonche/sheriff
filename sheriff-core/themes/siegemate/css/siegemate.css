@@ -7,7 +7,7 @@
 :root {
   /* ── Vekke palette ─────────────────────────────────── */
   --vk-bg-base:       #0a0a0c;
-  --vk-bg-surface:    #0f0f14;
+  --vk-bg-surface:    #282c30;
   --vk-bg-elevated:   #13131a;
   --vk-bg-header:     #0d0d10;
   --vk-border-subtle: rgba(255,255,255,0.07);
@@ -193,7 +193,7 @@ button a::after {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-size: 1.05rem;
-  color: var(--vk-gold-bright);
+  color: var(--vk-text-primary);
   font-family: var(--vk-font-display);
   display: flex;
   align-items: baseline;
@@ -1768,34 +1768,41 @@ a.sheriff-missing-link:hover {
 /* INLINE CODE & CODE BLOCKS                                                  */
 /* ========================================================================== */
 
-.sheriff-article code {
-  font-family: var(--vk-font-mono);
-  font-size: 0.9em;
-  padding: 0.06rem 0.22rem;
-  border-radius: 0.2rem;
-  background-color: var(--sheriff-inline-code-bg);
-  border: 1px solid var(--sheriff-border);
-}
+/* shared styling foundation */
 
-.sheriff-article pre {
-  margin-top: 1.1rem;
-  margin-bottom: 2rem;
+.sheriff-article code,
+.sheriff-article pre{
+  font-family: var(--vk-font-mono);
   background: var(--sheriff-codeblock-bg);
-  color: var(--sheriff-text);
-  border-radius: 0.2rem;
-  border: none;
-  font-family: var(--vk-font-mono);
-  font-size: 1rem;
-  line-height: 1.7;
-  overflow-x: auto;
-  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--sheriff-code-border);
+  color: #cd5858;
 }
 
-.sheriff-article pre code {
+.sheriff-article code{
+  font-size: 0.9em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+/* code blocks */
+
+.sheriff-article pre{
+  margin-top: 1.2rem;
+  margin-bottom: 2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+.sheriff-article pre code{
   background: transparent;
   border: none;
   padding: 0;
   font-size: 1em;
+  color: inherit;
 }
 
 /* ========================================================================== */
