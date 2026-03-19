@@ -49,8 +49,7 @@ xx
 /// ------------------------------------------------------------------------
 act generate_toc(html_content)
     headers | []
-    anchor_id | ""
-    text | ""
+    anchor_id, text | ""
     has_footnotes | false
     saw_footnotes | false
 

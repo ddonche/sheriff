@@ -116,11 +116,7 @@ act build_blog_index(portal)
         text | :read_text(markdown_path)
         fm   | campfire_extract_frontmatter(text)
 
-        title         | ""
-        author        | ""
-        post_date     | ""
-        summary       | ""
-        author_avatar | ""
+        title, author, post_date, summary, author_avatar | ""
 
         attempt
             :update!(title, :trim(fm["title"]))

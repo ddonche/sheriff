@@ -116,26 +116,16 @@ act render_fences(ctx)
 
             block |= self
 
-            payload |= :keep_between(block, "<p>::: ", ":::</p>")
-            if payload.nix? => skip
+            payload |= :keep_between(block, "<p>::: ", ":::</p>") ?? => skip
 
-            header_line |= :keep_before(payload, "\n")
-            if header_line.nix?
-                header_line |= payload
-                body_part   |= ""
-            else
-                body_part |= :keep_after(payload, "\n")
-                if body_part.nix? => body_part |= ""
-            xx
+            header_line |= :keep_before(payload, "\n") ?? payload
+            body_part   |= :keep_after(payload, "\n") ?? ""
 
-            header_rest |= s_trim(header_line)
-            if header_rest.nix? => header_rest |= ""
+            header_rest |= s_trim(header_line) ?? ""
 
-            first_tok |= s_trim(:keep_before(header_rest, " "))
-            if first_tok.nix? => first_tok |= header_rest
+            first_tok |= s_trim(:keep_before(header_rest, " ")) ?? header_rest
 
-            kind_raw |= :lower(s_trim(first_tok))
-            if kind_raw.nix? => kind_raw |= ""
+            kind_raw |= :lower(s_trim(first_tok)) ?? ""
 
             /// ==========================================================
             /// NAV BLOCKS
@@ -160,9 +150,7 @@ act render_fences(ctx)
                         skip
                     xx
 
-                    t |= s_trim(line)
-                    if t.nix? => skip
-                    if t == "" => skip
+                    t |= s_trim(line) ?? => skip
 
                     low |= :lower(t)
 
@@ -257,45 +245,32 @@ act render_fences(ctx)
                     for rl in rel_lines
                         if rl.nix? => skip
 
-                        rl_raw |= s_trim(rl)
-                        if rl_raw.nix? => skip
-                        if rl_raw == "" => skip
+                        rl_raw |= s_trim(rl) ?? => skip
 
                         name_part |= rl_raw
                         desc_part |= ""
 
                         if :has(rl_raw, " - ")
-                            name_part |= s_trim(:keep_before(rl_raw, " - "))
-                            desc_part |= s_trim(:keep_after(rl_raw, " - "))
-                            if name_part.nix? => name_part |= rl_raw
-                            if desc_part.nix? => desc_part |= ""
+                            name_part |= s_trim(:keep_before(rl_raw, " - ")) ?? rl_raw
+                            desc_part |= s_trim(:keep_after(rl_raw, " - ")) ?? ""
                         xx
 
                         if name_part.nix? => skip
                         if name_part == "" => skip
 
-                        core |= :keep_between(name_part, "[[", "]]")
-                        if core.nix? => core |= name_part
-                        core |= s_trim(core)
-                        if core.nix? => core |= ""
+                        core |= :keep_between(name_part, "[[", "]]") ?? name_part
+                        core |= s_trim(core) ?? ""
 
-                        link_side  |= s_trim(:keep_before(core, "|"))
-                        label_side |= s_trim(:keep_after(core, "|"))
-                        if link_side.nix? => link_side |= core
+                        link_side  |= s_trim(:keep_before(core, "|")) ?? core
+                        label_side |= s_trim(:keep_after(core, "|")) ?? ""
 
-                        title_plain |= label_side
-                        if title_plain.nix? => title_plain |= link_side
-                        if title_plain.nix? => title_plain |= ""
+                        title_plain |= label_side ?? link_side ?? ""
 
-                        a_html |= resolve_wikilink(name_part, ctx, portal)
-                        if a_html.nix? => skip
-                        if a_html == "" => skip
+                        a_html |= resolve_wikilink(name_part, ctx, portal) ?? => skip
 
-                        href |= :keep_between(a_html, "href=\"", "\"")
-                        if href.nix? => href |= missing_page_href()
+                        href |= :keep_between(a_html, "href=\"", "\"") ?? missing_page_href()
 
-                        desc_text |= desc_part
-                        if desc_text.nix? => desc_text |= ""
+                        desc_text |= desc_part ?? ""
 
                         if desc_text == ""
                             slug |= normalize_to_slug(link_side)
@@ -402,8 +377,7 @@ act render_fences(ctx)
 
                 title_t |= escape_text(title)
 
-                inner |= s_trim(body_part)
-                if inner.nix? => inner |= ""
+                inner |= s_trim(body_part) ?? ""
 
                 repl |= ""
                 if kind == "spoiler"
@@ -513,22 +487,11 @@ act attach_href(ctx)
     portal_root | derive_portal_root_from_ctx(ctx, portal)
 
     prefix | "{portal_root}/content/"
-    rel    | :keep_after(src_norm, prefix)
-
-    if rel.nix?
-        /// fallback: older path layout
-        prefix2 | "../site/portals/{portal}/content/"
-        rel     | :keep_after(src_norm, prefix2)
-    xx
-
-    if rel.nix? => rel | ""
+    prefix2 | "../site/portals/{portal}/content/"
+    rel     | :keep_after(src_norm, prefix) ?? :keep_after(src_norm, prefix2) ?? ""
     rel |= path_norm(rel)
 
-    rel_no_ext | :keep_before(rel, ".md")
-    if rel_no_ext.nix?
-        rel_no_ext |= :keep_before(rel, ".")
-        if rel_no_ext.nix? => rel_no_ext | ""
-    xx
+    rel_no_ext | :keep_before(rel, ".md") ?? :keep_before(rel, ".") ?? ""
 
     rel_no_ext |= path_norm(rel_no_ext)
 
@@ -641,15 +604,8 @@ act split_anchor(text)
     t | s_trim(text)
     if t.nix? => return {"page": "", "anchor": ""}
 
-    page   | s_trim(:keep_before(t, "#"))
-    anchor | s_trim(:keep_after(t, "#"))
-
-    if page.nix?
-        page |= t
-    xx
-    if anchor.nix?
-        anchor | ""
-    xx
+    page   | s_trim(:keep_before(t, "#")) ?? t
+    anchor | s_trim(:keep_after(t, "#")) ?? ""
 
     return {"page": page, "anchor": anchor}
 xx
@@ -660,10 +616,7 @@ act derive_portal_root_from_ctx(ctx, portal)
 
     src_norm | path_norm(src)
 
-    root | :keep_before(src_norm, "/content/")
-    if root.nix?
-        root |= "../site/portals/{portal}"
-    xx
+    root | :keep_before(src_norm, "/content/") ?? "../site/portals/{portal}"
 
     return root
 xx
@@ -846,25 +799,10 @@ xx
 
 act build_wikilink_html(href, label, is_external, klass, title_text)
     /// Normalize inputs
-    href_s  | s_trim(href)
-    label_s | s_trim(label)
-    klass_s | s_trim(klass)
-    gloss_s | s_trim(title_text)
-
-    /// Hard guarantee: href is never nix (and never "#")
-    if href_s.nix?
-        href_s |= missing_page_href()
-    xx
-
-    /// Label defaults to href
-    if label_s.nix?
-        label_s |= href_s
-    xx
-
-    /// Class defaults
-    if klass_s.nix?
-        klass_s |= "sheriff-link"
-    xx
+    href_s  | s_trim(href) ?? missing_page_href()
+    label_s | s_trim(label) ?? href_s
+    klass_s | s_trim(klass) ?? "sheriff-link"
+    gloss_s | s_trim(title_text) ?? ""
 
     /// Auto-mark missing-page links (matches mounted or root)
     if :ends_with(href_s, "/docs/missing.html")
@@ -921,10 +859,7 @@ act resolve_wikilink(inner, ctx, portal)
     raw | s_trim(inner)
     if raw.nix? => return ""
 
-    core | :keep_between(raw, "[[", "]]")
-    if core.nix?
-        core |= raw
-    xx
+    core | :keep_between(raw, "[[", "]]") ?? raw
 
     inner_text | s_trim(core)
     if inner_text.nix? => return ""
@@ -949,9 +884,9 @@ act resolve_wikilink(inner, ctx, portal)
 
         if filename.nix? => return ""
 
-        if size.nix?  => size  | "full"
-        if align.nix? => align | "center"
-        if caption.nix? => caption | ""
+        if size.nix?  => size |= "full"
+        if align.nix? => align |= "center"
+        if caption.nix? => caption |= ""
 
         /// mount-aware src
         m | portal_mount(portal)
@@ -1107,9 +1042,9 @@ act resolve_wikilink(inner, ctx, portal)
         if provider.nix? => return ""
         if vid.nix?      => return ""
 
-        if size.nix?  => size  | "full"
-        if align.nix? => align | "center"
-        if caption.nix? => caption | ""
+        if size.nix?  => size  |= "full"
+        if align.nix? => align |= "center"
+        if caption.nix? => caption |= ""
 
         provider |= :lower(:trim(provider))
         vid      |= :trim(vid)
@@ -1168,20 +1103,13 @@ act resolve_wikilink(inner, ctx, portal)
     /// WIKILINK LOGIC (STRICT: routes.json OR missing page)
     /// ======================================================
 
-    link_part  | :trim(:keep_before(inner_text, "|"))
-    label_part | :trim(:keep_after(inner_text, "|"))
-
-    if link_part.nix?
-        link_part |= inner_text
-    xx
+    link_part  | :trim(:keep_before(inner_text, "|")) ?? inner_text
+    label_part | :trim(:keep_after(inner_text, "|")) ?? ""
 
     link_part  |= :trim(link_part)
     label_part |= :trim(label_part)
 
-    display_label | label_part
-    if display_label.nix?
-        display_label |= link_part
-    xx
+    display_label | label_part ?? link_part
 
     lower_link  | :lower(link_part)
     is_external | :starts_with(lower_link, "http://") or :starts_with(lower_link, "https://")
@@ -1204,14 +1132,13 @@ act resolve_wikilink(inner, ctx, portal)
             anchor | parts["anchor"]
 
             slug | normalize_to_slug(page)
-            if slug.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+            if slug.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
 
-            href  | lookup_href_by_slug(ctx, portal_name, slug)
+            href  | lookup_href_by_slug(ctx, portal_name, slug) ?? missing_page_href()
             klass | "sheriff-link"
             title | ""
 
-            if href.nix?
-                href  |= missing_page_href()
+            if href == missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
@@ -1239,15 +1166,14 @@ act resolve_wikilink(inner, ctx, portal)
 
             slug | normalize_to_slug(page)
             if slug.nix?
-                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link")
+                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
             xx
 
-            href  | lookup_href_by_slug(ctx, portal, slug)
+            href  | lookup_href_by_slug(ctx, portal, slug) ?? missing_page_href()
             klass | "sheriff-link"
             title | ""
 
-            if href.nix?
-                href  |= missing_page_href()
+            if href == missing_page_href()
                 klass |= " sheriff-missing-link"
             xx
 
@@ -1289,8 +1215,7 @@ act process_wikilinks(ctx)
         "[[" ... "]]":
             if self.nix? => skip
 
-            core |= :trim(:keep_between(self, "[[", "]]"))
-            if core.nix? => skip
+            core |= :trim(:keep_between(self, "[[", "]]")) ?? => skip
 
             if :starts_with(core, "focuspanel:")
                 if focus_html.nix?
@@ -1304,8 +1229,7 @@ act process_wikilinks(ctx)
                 skip
             xx
 
-            repl_raw |= resolve_wikilink(self, ctx, portal)
-            if repl_raw.nix? => skip
+            repl_raw |= resolve_wikilink(self, ctx, portal) ?? => skip
 
             repl |= "" + repl_raw
             if repl.nix? => skip
@@ -1314,7 +1238,7 @@ act process_wikilinks(ctx)
     xx
 
     /// Replace SITE token AFTER wikilinks — still safe because code is stashed.
-    if focus_html.nix? => focus_html | ""
+    if focus_html.nix? => focus_html |= ""
     :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
     :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 

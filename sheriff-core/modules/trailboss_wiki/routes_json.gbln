@@ -148,10 +148,7 @@ act build_routes_json_for_portal(portal)
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
-        gloss     | ""
-        meta_kind | ""
-        meta_type | ""
-        summary   | ""
+        gloss, meta_kind, meta_type, summary | ""
 
         if fm.nix? == false and :valtype(fm) == "map"
 
