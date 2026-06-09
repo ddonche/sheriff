@@ -2,6 +2,7 @@ pre:
   - "prospector::init"
   - "stagehand::copy_assets"
   - "trailboss::build_routes_once"
+  - "rjson::build_all_pages_once"
   - "scout::publish_nav_tokens"
   - "campfire::build_index_once"
 
@@ -21,3 +22,6 @@ schedule:
   - "brindle::apply_tokens"
   - "badge::apply_tokens"
   - "prospector::apply_tokens"
+
+post:
+  - "brindle::export_header_partial"

@@ -8,8 +8,7 @@
 /// INIT: Clear search index at start of portal build + copy JS
 /// ----------------------------------------------------------------------
 act init(pre_ctx)
-    portal | pre_ctx["portal"]
-    if portal.nix? => return pre_ctx
+    portal | pre_ctx["portal"] ?? => return pre_ctx
 
     public_dir | "../dist/{portal}/public"
     if :file_exists(public_dir) == false
@@ -39,13 +38,10 @@ xx
 /// Call this right after frontier::strip_frontmatter
 /// ----------------------------------------------------------------------
 act index_page(ctx)
-    portal | ctx["portal"]
-    body   | ctx["body"]
+    portal | ctx["portal"] ?? => return ctx 
+    body   | ctx["body"] ?? => return ctx 
     fm     | ctx["frontmatter"]
     path   | ctx["path"]
-
-    if portal.nix? or body.nix? => return ctx
-    if body == "" => return ctx
 
     /// only index docs layout
     layout | "docs"
@@ -53,9 +49,7 @@ act index_page(ctx)
     if !fm.nix?
         attempt
             lay_val | fm["layout"]
-            if !lay_val.nix?
-                layout | :trim("" + lay_val)
-            xx
+            if !lay_val.nix? => layout | :trim(lay_val)
         rescue err
             /// frontmatter is missing or not a map or has no "layout" – ignore
         xx
@@ -82,7 +76,7 @@ act index_page(ctx)
         attempt
             v | fm["title"]
             if !v.nix?
-                t | :trim("" + v)
+                t | :trim(v)
                 if t != ""
                     :update!(title, t)
                 xx
@@ -94,7 +88,7 @@ act index_page(ctx)
 
     /// 2) fallback: first markdown H1 (# Heading)
     if title == "Untitled"
-        text | :normalize_newlines("" + body)
+        text | :normalize_newlines(body)
         h1   | :keep_between(text, "# ", "\n")
         if !h1.nix?
             t2 | :trim(h1)
@@ -112,7 +106,7 @@ act index_page(ctx)
         attempt
             v | fm["summary"]
             if !v.nix?
-                s | :trim("" + v)
+                s | :trim(v)
                 if s != ""
                     :update!(summary, s)
                 xx
@@ -124,7 +118,7 @@ act index_page(ctx)
 
     /// 2) fallback: first 200 chars of markdown body
     if summary == ""
-        text2 | :normalize_newlines("" + body)
+        text2 | :normalize_newlines(body)
         if :len(text2) > 200
             :update!(summary, text2[0:200])
         else
@@ -157,11 +151,8 @@ xx
 /// APPLY_TOKENS: register + resolve PROSPECTOR tokens
 /// ------------------------------------------------------
 act apply_tokens(ctx)
-    body   | ctx["body"]
-    portal | ctx["portal"]
-
-    if body.nix?   => return ctx
-    if portal.nix? => return ctx
+    body   | ctx["body"] ?? => return ctx 
+    portal | ctx["portal"] ?? => return ctx 
 
     /// SEARCH INPUT (box + results container)
     search_input_html | """

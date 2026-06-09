@@ -1,0 +1,499 @@
+/* ========================================================================== */
+/* HEADER - REACT TEMPLATE STRUCTURE                                          */
+/* ========================================================================== */
+
+.sheriff-header {
+  margin-bottom: 2rem;
+}
+
+.sheriff-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  gap: 1.5rem;
+}
+
+.sheriff-header-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.65rem 1.75rem;
+  background: var(--sheriff-panel);
+  margin-left: -1.75rem;
+  margin-right: -1.75rem;
+}
+
+.sheriff-header-bottom .sheriff-search-wrapper {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.sheriff-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheriff-logo-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--sheriff-text);
+}
+
+.sheriff-logo-mark {
+  height: 45px;
+  width: auto;
+  border-radius: 0.35rem;
+}
+
+.sheriff-logo-text-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.sheriff-logo-text {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  color: var(--vk-text-primary);
+  font-family: var(--vk-font-display);
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.sheriff-page-count-badge {
+  display: inline-flex;
+  align-items: center;
+
+  margin-left: .5rem;
+  padding: .15rem .5rem;
+
+  border-radius: 999px;
+
+  font-size: .75rem;
+  font-weight: 600;
+
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
+
+  color: var(--sheriff-text);
+}
+
+.sheriff-version-badge {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--sheriff-muted);
+  line-height: 1.2;
+}
+
+.sheriff-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.sheriff-version-select {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-input-bg);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.sheriff-version-select-label {
+  color: var(--sheriff-muted);
+}
+
+.sheriff-version-select-chevron {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.sheriff-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-input-bg);
+  font-size: 1rem;
+  min-width: 12rem;
+}
+
+.sheriff-search-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--sheriff-border);
+}
+
+.sheriff-search-input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--sheriff-text);
+}
+
+.sheriff-search-input::placeholder {
+  color: var(--sheriff-muted);
+}
+
+.sheriff-search-shortcut {
+  font-size: 0.875rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--sheriff-border);
+  color: var(--sheriff-muted);
+}
+
+.sheriff-github-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.sheriff-github-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--sheriff-link);
+  transition: color 0.15s ease;
+}
+
+.sheriff-github-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.sheriff-github-repo {
+  font-weight: 600;
+  color: var(--sheriff-link);
+  font-size: 0.9375rem;
+  transition: color 0.15s ease;
+}
+
+.sheriff-github-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--sheriff-muted);
+}
+
+.sheriff-github-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sheriff-github-stat-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.sheriff-github-badge:hover .sheriff-github-icon,
+.sheriff-github-badge:hover .sheriff-github-repo {
+  color: var(--sheriff-link-hover);
+}
+
+/* ========================================================================== */
+/* THEME TOGGLE                                                               */
+/* ========================================================================== */
+
+.theme-toggle {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--sheriff-muted);
+}
+
+.theme-toggle svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* ========================================================================== */
+/* ARTICLE HEADER (META STRIP + TITLE + BYLINE)                               */
+/* ========================================================================== */
+
+.sheriff-page-header {
+  margin-bottom: 2rem;
+}
+
+/* Top meta strip: LEFT (tags) | RIGHT (wikilink + copy) */
+.sheriff-page-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--vk-text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.sheriff-page-meta-left,
+.sheriff-page-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheriff-page-meta-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sheriff-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheriff-page-meta-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--vk-gold);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Byline: LEFT (author, readtime) | RIGHT (icons) */
+.sheriff-page-byline {
+  font-size: 0.9375rem;
+  color: var(--sheriff-muted);
+  margin-bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: .25rem;
+  gap: 1rem;
+}
+
+.sheriff-page-header-divider {
+  border: none;
+  border-top: 1px solid var(--sheriff-border);
+  margin: 0 0 1.75rem 0;
+}
+
+.sheriff-page-byline-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.sheriff-page-byline-actions {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+/* Color emphasis for "By AUTHOR" */
+.sheriff-page-byline-author {
+  color: var(--sheriff-text);
+  font-weight: 500;
+}
+
+.sheriff-page-meta-readtime {
+  text-transform: none;
+  font-weight: 400;
+  font-family: inherit;
+  letter-spacing: normal;
+  font-size: 0.9375rem;
+}
+
+/* ========================================================================== */
+/* HEADER NAVIGATION WITH DROPDOWNS                                           */
+/* ========================================================================== */
+
+.sheriff-header-nav {
+  display: flex;
+  gap: 1.15rem;
+  font-size: 1.05rem;
+}
+
+.sheriff-header-nav > ul {
+  display: flex;
+  gap: 1.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sheriff-header-nav > ul > li {
+  position: relative;
+}
+
+/* Top-level links and labels */
+.sheriff-header-nav > ul > li > a,
+.sheriff-header-nav > ul > li > span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: var(--sheriff-link);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.sheriff-header-nav > ul > li > a:hover,
+.sheriff-header-nav > ul > li > span:hover {
+  color: var(--sheriff-link-hover);
+}
+
+/* Down arrow indicator */
+.sheriff-header-nav .dropdown-arrow {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+/* Dropdown panel */
+.sheriff-header-nav .dropdown-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0;
+  background: var(--sheriff-bg);
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0.35rem;
+  padding: 0.75rem 0;
+  min-width: 14rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+/* Show dropdown on hover */
+.sheriff-header-nav > ul > li:hover .dropdown-panel {
+  display: block;
+}
+
+/* Dropdown sections */
+.sheriff-header-nav .dropdown-section {
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.sheriff-header-nav .dropdown-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Section titles in dropdown */
+.sheriff-header-nav .dropdown-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--sheriff-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* Links inside dropdown */
+.sheriff-header-nav .dropdown-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sheriff-header-nav .dropdown-section li {
+  margin: 0;
+}
+
+.sheriff-header-nav .dropdown-section a {
+  display: block;
+  padding: 0.4rem 0;
+  font-size: 1rem;
+  text-decoration: none;
+  color: var(--sheriff-link);
+  transition: color 0.15s ease;
+}
+
+.sheriff-header-nav .dropdown-section a:hover {
+  color: var(--sheriff-link-hover);
+}
+
+/* ========================================================================== */
+/* WIKI PAGE HEADER                                                           */
+/* ========================================================================== */
+
+/* No byline in wiki — tighten header spacing */
+.sheriff-wiki-page-header {
+  margin-bottom: 1.5rem;
+}
+
+/* ========================================================================== */
+/* WIKI PAGE TABS (Edit / History / What Links Here)                          */
+/* ========================================================================== */
+
+.sheriff-wiki-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0.75rem 0 0 0;
+  border-bottom: 1px solid var(--vk-border-mid);
+}
+
+.sheriff-wiki-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.9rem;
+  font-family: var(--vk-font-label);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vk-text-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  background: transparent;
+}
+
+.sheriff-wiki-tab:hover {
+  color: var(--vk-gold);
+  background: var(--vk-bg-elevated);
+  border-color: var(--vk-border-mid);
+}
+
+.sheriff-wiki-tab.active {
+  color: var(--vk-text-primary);
+  background: var(--vk-bg-base);
+  border-color: var(--vk-border-mid);
+}
+
+@media (max-width: 640px) {
+  .sheriff-wiki-tab {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+  }
+}

@@ -1,0 +1,7 @@
+[local]
+portal = "{#local::portal}"
+
+[site]
+content_dir = "../site/portals/{#local::portal}/content"
+public_dir  = "../dist/{#local::portal}/public"
+base_url    = "/"

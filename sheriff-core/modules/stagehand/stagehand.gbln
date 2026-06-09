@@ -18,10 +18,10 @@ act resolve_theme_name(portal)
 
     if :file_exists(config_path)
         cfg|:yall_parse_file(config_path)
-        if !cfg.nix? and :valtype(cfg)=="map" and !cfg["theme"].nix?
+        if !cfg.nix? && :valtype(cfg)=="map" && !cfg["theme"].nix?
             theme_cfg|cfg["theme"]
-            if :valtype(theme_cfg)=="map" and !theme_cfg["name"].nix?
-                :update!(theme_name,:trim(""+theme_cfg["name"]))
+            if :valtype(theme_cfg)=="map" && !theme_cfg["name"].nix?
+                :update!(theme_name,:trim(theme_cfg["name"]))
             xx
         xx
     xx
@@ -44,11 +44,11 @@ act copy_assets(pre_ctx)
     if :file_exists(config_path)
         cfg | :yall_parse_file(config_path)
 
-        if !cfg.nix? and !cfg["theme"].nix?
+        if !cfg.nix? && !cfg["theme"].nix?
             theme_cfg | cfg["theme"]
 
             if !theme_cfg["name"].nix?
-                :update!(theme_name, :trim("" + theme_cfg["name"]))
+                :update!(theme_name, :trim(theme_cfg["name"]))
             xx
         xx
     xx
@@ -57,13 +57,16 @@ act copy_assets(pre_ctx)
 
     /// ----- 2) Copy theme CSS (single file) from sheriff-core into dist/{portal}/public/css -----
     theme_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}.css"
+    theme_header_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}-header.css"
     public_css_dest | "../dist/{portal}/public/css"
 
     if :file_exists(theme_css_src)
         :create_dir!(public_css_dest)
 
-        dest | "{public_css_dest}/{theme_name}.css"
+        dest  | "{public_css_dest}/{theme_name}.css"
+        dest2 | "{public_css_dest}/{theme_name}-header.css"
         :copy_file!(theme_css_src, dest)
+        :copy_file!(theme_header_css_src, dest2)
 
         :say("STAGEHAND: Copied theme CSS '{theme_name}.css' from sheriff-core")
     else
@@ -122,15 +125,13 @@ act copy_assets(pre_ctx)
         xx
     xx
 
-    /// ----- 4) Copy index.html from content/ to dist root if it exists -----
+    /// ----- 4) Copy index.html from content/ to dist/{portal} if it exists -----
     index_src  | "../site/portals/{portal}/content/index.html"
     index_dest | "../dist/{portal}/index.html"
 
     if :file_exists(index_src)
         :copy_file!(index_src, index_dest)
-        :say("STAGEHAND: Copied index.html to dist root")
-    else
-        :say("STAGEHAND: No index.html found in content/, skipping")
+        :say("STAGEHAND: Copied custom index.html to dist/{portal}/index.html")
     xx
 
     return pre_ctx
@@ -143,9 +144,7 @@ xx
 /// Raw braces so Goblin doesn't eat them at parse-time.
 /// ----------------------------------------------------------------------
 act build_slot_value(slot_tokens)
-    if slot_tokens.nix?
-        return ""
-    xx
+    if slot_tokens.nix? => return ""
 
     value | ""
 
@@ -169,36 +168,26 @@ xx
 ///    (module tokens remain for their own apply_tokens steps).
 /// ----------------------------------------------------------------------
 act wire_slots(ctx)
-    portal | ctx["portal"]
+    portal | ctx["portal"] ?? => return ctx
     fm     | ctx["frontmatter"]
-    body   | ctx["body"]
-
-    if portal.nix? or body.nix?
-        return ctx
-    xx
+    body   | ctx["body"] ?? => return ctx
 
     /// SAFETY: ensure fm is actually a map
-    if !fm.nix? and :valtype(fm) != "map"
-        fm | {}
-    xx
+    if !fm.nix? && :valtype(fm) != "map" => fm | {}
 
     /// 1) Determine layout name (default "docs")
     layout_name | "docs"
-    if :valtype(fm) == "map" and !fm["layout"].nix?
-        :update!(layout_name, :trim("" + fm["layout"]))
+    if :valtype(fm) == "map" && !fm["layout"].nix?
+        :update!(layout_name, :trim(fm["layout"]))
     xx
 
     /// 2) Load templates.yall and locate slots for this layout
     theme_name | resolve_theme_name(portal)
     templates_path | "../site/portals/{portal}/themes/{theme_name}/templates.yall"
-    if :file_exists(templates_path) == false
-        return ctx
-    xx
+    if :file_exists(templates_path) == false => return ctx
 
     templates | :yall_parse_file(templates_path)
-    if templates.nix? or templates["layouts"].nix?
-        return ctx
-    xx
+    if templates.nix? or templates["layouts"].nix? => return ctx
 
     layouts_cfg | templates["layouts"]
     if layouts_cfg[layout_name].nix? or layouts_cfg[layout_name]["slots"].nix?
@@ -215,7 +204,7 @@ act wire_slots(ctx)
         slot_name|pair[0]
         slot_tokens|pair[1]
         slot_value|build_slot_value(slot_tokens)
-        register_token("SLOT",""+slot_name,slot_value)
+        register_token("SLOT", slot_name, slot_value)
     xx
 
     /// 4) Apply SLOT tokens into the layout HTML.

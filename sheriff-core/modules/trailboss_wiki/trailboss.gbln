@@ -5,8 +5,32 @@
 /// In Goblin, `x.nix?` already means **nil OR empty**.
 /// So this file uses **ONLY** `.nix?` for presence/emptiness checks.
 /// No more `x.nix? or x == ""` garbage.
+/// Standalone .. is sugar for "" and send is alias for return
 
 import modules/trailboss_wiki/routes_json as rjson
+
+/// ======================================================================
+/// PIPELINES
+/// ======================================================================
+
+act render_fences(ctx)
+    pipeline | [
+        "stash_code_for_fences",
+        "sweep_fences",
+        "restore_code_for_fences"
+    ]
+    return :summon(ctx, pipeline)
+xx
+
+act process_wikilinks(ctx)
+    pipeline | [
+        "stash_code_for_wikilinks",
+        "sweep_wikilinks",
+        "inject_focus_panel",
+        "restore_code_for_wikilinks"
+    ]
+    return :summon(ctx, pipeline)
+xx
 
 /// ======================================================================
 /// 0) TINY NORMALIZERS (KEEP THIS FILE SANE)
@@ -14,14 +38,13 @@ import modules/trailboss_wiki/routes_json as rjson
 
 /// Return trimmed string, or "" if nil/empty.
 act s_trim(v)
-    if v.nix? => return ""
-    return :trim("" + v)
+    if v.nix? => send ..
+    return :trim(v)
 xx
 
 /// Normalize path slashes to forward.
 act path_norm(p)
-    if p.nix? => return ""
-    out | "" + p
+    out | p ?? => send ..
     :update_where!(out, "\\", "/")
     return out
 xx
@@ -33,13 +56,13 @@ xx
 act build_routes_once(pre_ctx)
     if pre_ctx.nix?
         :say("TRAILBOSS.build_routes_once: pre_ctx is nix; skipping routes.json.")
-        return pre_ctx
+        send pre_ctx
     xx
 
     portal | pre_ctx["portal"]
     if portal.nix?
         :say("TRAILBOSS.build_routes_once: portal missing; skipping routes.json.")
-        return pre_ctx
+        send pre_ctx
     xx
 
     :say("TRAILBOSS: building routes.json for portal = {portal}")
@@ -48,24 +71,20 @@ act build_routes_once(pre_ctx)
     return pre_ctx
 xx
 
-/// ======================================================================
-/// RENDER ::: FENCES (ONE PASS)
 /// Handles:
 /// - ::: nav       -> next/prev/related nav block
+/// - ::: shard     -> shard notice card
 /// - ::: note/...  -> admonitions + spoiler
 /// Everything else -> ignored (left as-is)
-/// ======================================================================
 
 act add_class_to_first_anchor(html, add_class)
-    if html.nix? => return ""
-    if add_class.nix? => return "" + html
+    if html.nix? => send ..
+    if add_class.nix? => send html
 
-    h | "" + html
+    h | html
 
     cls | :keep_between(h, "class=\"", "\"")
-    if cls.nix?
-        return h
-    xx
+    if cls.nix? => send h
 
     new_cls | cls
     if :has(new_cls, add_class) == false
@@ -76,18 +95,25 @@ act add_class_to_first_anchor(html, add_class)
     return h
 xx
 
-act render_fences(ctx)
-    body   | ctx["body"]
-    portal | ctx["portal"]
+act stash_code_for_fences(ctx)
+    body | ctx["body"] ?? => send ctx
 
-    if body.nix? => return ctx
-
-    /// --- STASH CODE/PRE so we don't mutate examples ---
     stashed | stash_code_segments(body)
-    work    | stashed["html"]
-    stash   | stashed["stash"]
 
-    out | "" + work
+    fences | {
+        "ctx":    ctx,
+        "work":   stashed["html"],
+        "stash":  stashed["stash"],
+        "portal": ctx["portal"]
+    }
+
+    return fences
+xx
+
+act sweep_fences(fences)
+    ctx    | fences["ctx"]
+    portal | fences["portal"]
+    out    | fences["work"]
 
     /// core fence parsing locals
     block, payload, header_line, body_part, header_rest, first_tok, kind_raw | nil
@@ -95,7 +121,10 @@ act render_fences(ctx)
     /// admon locals
     is_known_kind | false
     kind, title, title_t, inner, custom | nil
-    repl | ""
+    repl | ..
+
+    /// stub locals
+    shard_inner | nil
 
     /// nav locals
     prev_line, next_line, prev_link_html, next_link_html, nav_html | nil
@@ -107,99 +136,101 @@ act render_fences(ctx)
     href, tag_text, desc_text, slug | nil
     rl_raw, name_part, desc_part, core, link_side, label_side, title_plain, a_html, g | nil
 
+    known_kinds | ["note", "tip", "warning", "important", "example", "strategy", "lore", "spoiler"]
+
     sweep out
         "<p>::: " ... ":::</p>":
             if self.nix? => skip
 
             /// IMPORTANT: reset per-fence replacement so nothing leaks
-            repl |= ""
+            repl, header_rest, body_part |= ..
 
             block |= self
 
-            payload |= :keep_between(block, "<p>::: ", ":::</p>") ?? => skip
+            /// SHAPE A:
+            /// <p>::: kind ... :::</p>
+            /// (simple annotations that stayed in one paragraph)
+            if :has(block, "<p>:::</p>") == false
+                payload |= :keep_between(block, "<p>::: ", ":::</p>") ?? => skip
 
-            header_line |= :keep_before(payload, "\n") ?? payload
-            body_part   |= :keep_after(payload, "\n") ?? ""
+                header_line |= :keep_before(payload, "\n") ?? payload
+                body_part   |= :keep_after(payload, "\n") ?? ..
 
-            header_rest |= s_trim(header_line) ?? ""
+                header_rest |= s_trim(header_line) ?? ..
+            else
+                /// SHAPE B:
+                /// <p>::: kind</p> ... <p>:::</p>
+                /// (annotations containing code/pre/etc.)
+                header_rest |= :keep_between(block, "<p>::: ", "</p>") ?? => skip
+                header_rest |= s_trim(header_rest) ?? ..
+
+                body_part |= :keep_after(block, "</p>") ?? ..
+                body_part |= :keep_before(body_part, "<p>:::</p>") ?? ..
+                body_part |= s_trim(body_part) ?? ..
+            xx
 
             first_tok |= s_trim(:keep_before(header_rest, " ")) ?? header_rest
-
-            kind_raw |= :lower(s_trim(first_tok)) ?? ""
+            kind_raw  |= :lower(s_trim(first_tok)) ?? ..
 
             /// ==========================================================
             /// NAV BLOCKS
             /// ==========================================================
             if kind_raw == "nav"
                 /// requires portal for resolve_wikilink; if missing, leave block alone
-                if portal.nix?
-                    skip
-                xx
+                if portal.nix? => skip
 
                 inner |= s_trim(body_part)
-                if inner.nix? => inner |= ""
+                if inner.nix? => inner |= ..
 
-                prev_line |= ""
-                next_line |= ""
+                prev_line, next_line |= ..
                 rel_lines |= []
 
                 lines |= :split(inner, "\n")
 
                 for line in lines
-                    if line.nix?
-                        skip
-                    xx
+                    if line.nix? => skip
 
                     t |= s_trim(line) ?? => skip
 
                     low |= :lower(t)
 
                     if :starts_with(low, "previous ")
-                        rest |= s_trim(:keep_after(t, "previous "))
-                        if !rest.nix? and rest != ""
-                            prev_line |= rest
-                        xx
+                        rest |= s_trim(:keep_after(t, "previous ")) ?? => skip
+                        prev_line |= rest
                         skip
                     xx
 
                     if :starts_with(low, "prev ")
-                        rest |= s_trim(:keep_after(t, "prev "))
-                        if !rest.nix? and rest != ""
-                            prev_line |= rest
-                        xx
+                        rest |= s_trim(:keep_after(t, "prev ")) ?? => skip
+                        prev_line |= rest
                         skip
                     xx
 
                     if :starts_with(low, "next ")
-                        rest |= s_trim(:keep_after(t, "next "))
-                        if !rest.nix? and rest != ""
-                            next_line |= rest
-                        xx
+                        rest |= s_trim(:keep_after(t, "next ")) ?? => skip
+                        next_line |= rest
                         skip
                     xx
 
                     if :starts_with(low, "related ")
-                        rest |= s_trim(:keep_after(t, "related "))
-                        if !rest.nix? and rest != ""
-                            :put_last!(rel_lines, rest)
-                        xx
+                        rest |= s_trim(:keep_after(t, "related ")) ?? => skip
+                        :put_last!(rel_lines, rest)
                         skip
                     xx
                 xx
 
-                prev_link_html |= ""
-                next_link_html |= ""
+                prev_link_html, next_link_html |= ..
 
-                if !prev_line.nix? and prev_line != ""
+                if !prev_line.nix? and prev_line != ..
                     prev_link_html |= resolve_wikilink(prev_line, ctx, portal)
-                    if !prev_link_html.nix? and prev_link_html != ""
+                    if !prev_link_html.nix? and prev_link_html != ..
                         prev_link_html |= add_class_to_first_anchor(prev_link_html, "sheriff-nav-prev")
                     xx
                 xx
 
-                if !next_line.nix? and next_line != ""
+                if !next_line.nix? and next_line != ..
                     next_link_html |= resolve_wikilink(next_line, ctx, portal)
-                    if !next_link_html.nix? and next_link_html != ""
+                    if !next_link_html.nix? and next_link_html != ..
                         next_link_html |= add_class_to_first_anchor(next_link_html, "sheriff-nav-next")
                     xx
                 xx
@@ -216,8 +247,8 @@ act render_fences(ctx)
                 :put_last!(parts_out, wrap_cls)
                 :put_last!(parts_out, "\" aria-label=\"Article navigation\">")
 
-                has_prev | (!prev_link_html.nix? and prev_link_html != "")
-                has_next | (!next_link_html.nix? and next_link_html != "")
+                has_prev | (!prev_link_html.nix? and prev_link_html != ..)
+                has_next | (!next_link_html.nix? and next_link_html != ..)
 
                 if has_prev or has_next
                     :put_last!(parts_out, "<div class=\"sheriff-nextprev-row\">")
@@ -248,61 +279,54 @@ act render_fences(ctx)
                         rl_raw |= s_trim(rl) ?? => skip
 
                         name_part |= rl_raw
-                        desc_part |= ""
+                        desc_part |= ..
 
                         if :has(rl_raw, " - ")
                             name_part |= s_trim(:keep_before(rl_raw, " - ")) ?? rl_raw
-                            desc_part |= s_trim(:keep_after(rl_raw, " - ")) ?? ""
+                            desc_part |= s_trim(:keep_after(rl_raw, " - ")) ?? ..
                         xx
 
                         if name_part.nix? => skip
-                        if name_part == "" => skip
 
                         core |= :keep_between(name_part, "[[", "]]") ?? name_part
-                        core |= s_trim(core) ?? ""
+                        core |= s_trim(core) ?? ..
 
                         link_side  |= s_trim(:keep_before(core, "|")) ?? core
-                        label_side |= s_trim(:keep_after(core, "|")) ?? ""
+                        label_side |= s_trim(:keep_after(core, "|")) ?? ..
 
-                        title_plain |= label_side ?? link_side ?? ""
+                        title_plain |= label_side ?? link_side ?? ..
 
                         a_html |= resolve_wikilink(name_part, ctx, portal) ?? => skip
 
                         href |= :keep_between(a_html, "href=\"", "\"") ?? missing_page_href()
 
-                        desc_text |= desc_part ?? ""
+                        desc_text |= desc_part ?? ..
 
-                        if desc_text == ""
+                        if desc_text == ..
                             slug |= normalize_to_slug(link_side)
-                            if !slug.nix? and slug != ""
+                            if !slug.nix? and slug != ..
                                 g |= lookup_gloss_by_slug(ctx, portal, slug)
                                 if !g.nix?
-                                    desc_text |= "" + g
+                                    desc_text |= g
                                 xx
                             xx
                         xx
 
-                        tag_text |= "Reference"
+                        tag_text  |= "Reference"
+                        href_safe | escape_attr(href)
+                        tag_safe  | escape_text(tag_text)
+                        name_safe | escape_text(title_plain)
+                        desc_safe | escape_text(desc_text)
 
-                        :put_last!(parts_out, "<li class=\"sheriff-related-item\">")
-                        :put_last!(parts_out, "<a href=\"")
-                        :put_last!(parts_out, escape_attr(href))
-                        :put_last!(parts_out, "\" class=\"sheriff-nav-related\">")
-
-                        :put_last!(parts_out, "<span class=\"sheriff-related-tag\">")
-                        :put_last!(parts_out, escape_text(tag_text))
-                        :put_last!(parts_out, "</span>")
-
-                        :put_last!(parts_out, "<span class=\"sheriff-related-name\">")
-                        :put_last!(parts_out, escape_text(title_plain))
-                        :put_last!(parts_out, "</span>")
-
-                        :put_last!(parts_out, "<span class=\"sheriff-related-desc\">")
-                        :put_last!(parts_out, escape_text(desc_text))
-                        :put_last!(parts_out, "</span>")
-
-                        :put_last!(parts_out, "</a>")
-                        :put_last!(parts_out, "</li>")
+                        :put_last!(parts_out, """
+                        <li class="sheriff-related-item">
+                          <a href="{href_safe}" class="sheriff-nav-related">
+                            <span class="sheriff-related-tag">{tag_safe}</span>
+                            <span class="sheriff-related-name">{name_safe}</span>
+                            <span class="sheriff-related-desc">{desc_safe}</span>
+                          </a>
+                        </li>
+                        """)
                     xx
 
                     :put_last!(parts_out, "</ul>")
@@ -319,96 +343,71 @@ act render_fences(ctx)
             xx
 
             /// ==========================================================
-            /// ADMONITIONS + SPOILER
+            /// SHARD BLOCKS
             /// ==========================================================
-            is_known_kind |= false
-            judge
-                kind_raw == "note":      is_known_kind |= true
-                kind_raw == "tip":       is_known_kind |= true
-                kind_raw == "warning":   is_known_kind |= true
-                kind_raw == "important": is_known_kind |= true
-                kind_raw == "example":   is_known_kind |= true
-                kind_raw == "strategy":  is_known_kind |= true
-                kind_raw == "lore":      is_known_kind |= true
-                kind_raw == "spoiler":   is_known_kind |= true
+            if kind_raw == "shard"
+                shard_inner |= s_trim(body_part) ?? ..
 
-                /// aliases
-                kind_raw == "info":      is_known_kind |= true
-                kind_raw == "hint":      is_known_kind |= true
-                kind_raw == "caution":   is_known_kind |= true
-                kind_raw == "rule":      is_known_kind |= true
+                repl |= :pack([
+                    "<aside class=\"sheriff-shard\">",
+                      "<div class=\"sheriff-shard-body\">",
+                        shard_inner,
+                      "</div>",
+                    "</aside>"
+                ])
+
+                :update_where!(out, block, repl)
+                skip
             xx
 
-            if is_known_kind
-                kind |= "note"
-                judge
-                    kind_raw == "note":      kind |= "note"
-                    kind_raw == "tip":       kind |= "tip"
-                    kind_raw == "warning":   kind |= "warning"
-                    kind_raw == "important": kind |= "important"
-                    kind_raw == "example":   kind |= "example"
-                    kind_raw == "strategy":  kind |= "strategy"
-                    kind_raw == "lore":      kind |= "lore"
-                    kind_raw == "spoiler":   kind |= "spoiler"
-
-                    /// aliases -> canonical
-                    kind_raw == "info":      kind |= "note"
-                    kind_raw == "hint":      kind |= "tip"
-                    kind_raw == "caution":   kind |= "warning"
-                    kind_raw == "rule":      kind |= "important"
-                xx
-
-                title |= "Note"
-                judge
-                    kind == "note":      title |= "Note"
-                    kind == "tip":       title |= "Tip"
-                    kind == "warning":   title |= "Warning"
-                    kind == "important": title |= "Important"
-                    kind == "example":   title |= "Example"
-                    kind == "strategy":  title |= "Strategy"
-                    kind == "lore":      title |= "Lore"
-                    kind == "spoiler":   title |= "Show"
+            /// ==========================================================
+            /// ADMONITIONS + SPOILER
+            /// ==========================================================
+            if :has(known_kinds, kind_raw)
+                kind  |= kind_raw
+                if kind == "spoiler"
+                    title |= "Show"
+                else
+                    title |= kind.title
                 xx
 
                 custom |= s_trim(:keep_after(header_rest, " "))
-                if !custom.nix?
-                    title |= custom
-                xx
+                if !custom.nix? => title |= custom
 
                 title_t |= escape_text(title)
+                inner   |= s_trim(body_part) ?? ..
 
-                inner |= s_trim(body_part) ?? ""
-
-                repl |= ""
                 if kind == "spoiler"
-                    repl |= :pack([
-                        "<details class=\"sheriff-spoiler\">",
-                          "<summary class=\"sheriff-spoiler-head\">",
-                            "<span class=\"sheriff-spoiler-title\">", title_t, "</span>",
-                          "</summary>",
-                          "<div class=\"sheriff-spoiler-body\">",
-                            inner,
-                          "</div>",
-                        "</details>"
-                    ])
+                    repl |= """
+                    <details class="sheriff-spoiler">
+                      <summary class="sheriff-spoiler-head">
+                        <span class="sheriff-spoiler-title">{title_t}</span>
+                      </summary>
+                      <div class="sheriff-spoiler-body">{inner}</div>
+                    </details>
+                    """
                 else
-                    repl |= :pack([
-                        "<div class=\"sheriff-admon sheriff-admon-", kind, "\">",
-                          "<div class=\"sheriff-admon-head\">",
-                            "<span class=\"sheriff-admon-title\">", title_t, "</span>",
-                          "</div>",
-                          "<div class=\"sheriff-admon-body\">",
-                            inner,
-                          "</div>",
-                        "</div>"
-                    ])
+                    repl |= """
+                    <div class="sheriff-admon sheriff-admon-{kind}">
+                      <div class="sheriff-admon-head">
+                        <span class="sheriff-admon-title">{title_t}</span>
+                      </div>
+                      <div class="sheriff-admon-body">{inner}</div>
+                    </div>
+                    """
                 xx
 
                 :update_where!(out, block, repl)
             xx
     xx
 
-    final | restore_code_segments(out, stash)
+    :update!(fences["work"], out)
+    return fences
+xx
+
+act restore_code_for_fences(fences)
+    ctx   | fences["ctx"]
+    final | restore_code_segments(fences["work"], fences["stash"])
     :update!(ctx["body"], final)
     return ctx
 xx
@@ -418,8 +417,7 @@ xx
 /// ======================================================================
 
 act render_footnotes(ctx)
-    body | ctx["body"]
-    if body.nix? => return ctx
+    body | ctx["body"] ?? => send ctx
 
     out | body
 
@@ -475,11 +473,8 @@ xx
 /// ======================================================================
 
 act attach_href(ctx)
-    portal | ctx["portal"]
-    src    | ctx["path"]
-
-    if portal.nix? => return ctx
-    if src.nix?    => return ctx
+    portal | ctx["portal"] ?? => send ctx
+    src    | ctx["path"] ?? => send ctx
 
     src_norm | path_norm(src)
 
@@ -488,10 +483,10 @@ act attach_href(ctx)
 
     prefix | "{portal_root}/content/"
     prefix2 | "../site/portals/{portal}/content/"
-    rel     | :keep_after(src_norm, prefix) ?? :keep_after(src_norm, prefix2) ?? ""
+    rel     | :keep_after(src_norm, prefix) ?? :keep_after(src_norm, prefix2) ?? ..
     rel |= path_norm(rel)
 
-    rel_no_ext | :keep_before(rel, ".md") ?? :keep_before(rel, ".") ?? ""
+    rel_no_ext | :keep_before(rel, ".md") ?? :keep_before(rel, ".") ?? ..
 
     rel_no_ext |= path_norm(rel_no_ext)
 
@@ -515,7 +510,7 @@ xx
 act load_cfg(portal)
     path | "../site/portals/{portal}/config.yall"
     if :file_exists(path) == false
-        return nil
+        send nil
     xx
     return :yall_parse_file(path)
 xx
@@ -526,16 +521,16 @@ xx
 /// - trims
 /// - strips wrapping quotes if present
 act clean_cfg_string(v)
-    if v.nix? => return ""
+    if v.nix? => send ..
 
-    s | "" + v
+    s | v
 
     /// strip inline comments if they somehow get through
     left | :keep_before(s, "#")
     if !left.nix?
         left_t | :trim(left)
         if !left_t.nix?
-            :update!(s, "" + left_t)
+            :update!(s, left_t)
         xx
     xx
 
@@ -557,22 +552,17 @@ xx
 /// - if routing.dist_root is nix or == "default" => ROOT mount (no prefix)
 /// - else => "/{dist_root}"
 act portal_mount(portal)
-    cfg | load_cfg(portal)
-    if cfg.nix? => return ""
+    cfg | load_cfg(portal) ?? => send ..
 
-    routing | cfg["routing"]
-    if routing.nix?
-        return ""
-    xx
-    if :valtype(routing) != "map"
-        return ""
-    xx
+    routing | cfg["routing"] ?? => send ..
+
+    if :valtype(routing) != "map" => send ..
 
     dr | routing["dist_root"]
     dr |= clean_cfg_string(dr)
 
-    if dr.nix?        => return ""
-    if dr == "default" => return ""
+    if dr.nix?        => send ..
+    if dr == "default" => send ..
 
     return "/" + dr
 xx
@@ -582,16 +572,16 @@ xx
 /// ======================================================================
 
 act normalize_to_slug(page)
-    if page.nix? => return ""
+    if page.nix? => send ..
 
-    cleaned | "" + page
-    :update_where!(cleaned, " (module)", "")
-    :update_where!(cleaned, "(module)", "")
-    :update_where!(cleaned, "(", "")
-    :update_where!(cleaned, ")", "")
+    cleaned | page
+    :update_where!(cleaned, " (module)", ..)
+    :update_where!(cleaned, "(module)", ..)
+    :update_where!(cleaned, "(", ..)
+    :update_where!(cleaned, ")", ..)
     cleaned |= :trim(cleaned)
 
-    if cleaned.nix? => return ""
+    if cleaned.nix? => send ..
 
     slug | :lower(cleaned)
     :update_where!(slug, " ", "-")
@@ -602,17 +592,17 @@ xx
 
 act split_anchor(text)
     t | s_trim(text)
-    if t.nix? => return {"page": "", "anchor": ""}
+    if t.nix? => send {"page": .., "anchor": ..}
 
     page   | s_trim(:keep_before(t, "#")) ?? t
-    anchor | s_trim(:keep_after(t, "#")) ?? ""
+    anchor | s_trim(:keep_after(t, "#")) ?? ..
 
     return {"page": page, "anchor": anchor}
 xx
 
 act derive_portal_root_from_ctx(ctx, portal)
     src | ctx["path"]
-    if src.nix? => return "../site/portals/{portal}"
+    if src.nix? => send "../site/portals/{portal}"
 
     src_norm | path_norm(src)
 
@@ -622,90 +612,82 @@ act derive_portal_root_from_ctx(ctx, portal)
 xx
 
 act load_routes_for_portal(ctx, portal)
-    if portal.nix? => return []
+    if portal.nix? => send []
 
     portal_root | derive_portal_root_from_ctx(ctx, portal)
     routes_path | "{portal_root}/routes.json"
 
     if :file_exists(routes_path) == false
-        return []
+        send []
     xx
 
-    parsed | :read_json(routes_path)
-    if parsed.nix? => return []
+    parsed | :read_json(routes_path) ?? => send []
 
-    routes | parsed["routes"]
-    if routes.nix? => return []
-    if :valtype(routes) != "array" => return []
+    routes | parsed["routes"] ?? => send []
+    if :valtype(routes) != "array" => send []
 
     return routes
 xx
 
 act lookup_href_by_slug(ctx, portal, slug)
-    if portal.nix? => return ""
-    if slug.nix?   => return ""
+    if portal.nix? => send ..
+    if slug.nix?   => send ..
 
     routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => return ""
+    if :valtype(routes) != "array" => send ..
 
     for meta in routes
         if meta.nix? => skip
         if meta["slug"] == slug
             href_abs | meta["href"]
-            if !href_abs.nix?
-                return "" + href_abs
-            xx
+            if !href_abs.nix? => send href_abs
         xx
     xx
 
-    return ""
+    return ..
 xx
 
 act lookup_gloss_by_slug(ctx, portal, slug)
-    if portal.nix? => return ""
-    if slug.nix?   => return ""
+    if portal.nix? => send ..
+    if slug.nix?   => send ..
 
     routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => return ""
+    if :valtype(routes) != "array" => send ..
 
     for meta in routes
         if meta.nix? => skip
         if meta["slug"] == slug
             if :has(meta, "gloss")
-                g | meta["gloss"]
-                if !g.nix?
-                    return "" + g
-                xx
+                g | meta["gloss"] 
+                if !g.nix? => send g
             xx
-            return ""
+            send ..
         xx
     xx
 
-    return ""
+    return ..
 xx
 
 act lookup_slug_by_href(ctx, portal, href_abs)
-    if portal.nix?   => return ""
-    if href_abs.nix? => return ""
+    if portal.nix?   => send ..
+    if href_abs.nix? => send ..
 
     routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => return ""
+    if :valtype(routes) != "array" => send ..
 
-    href_s | "" + href_abs
+    href_s | href_abs
 
     for meta in routes
         if meta.nix? => skip
         h | meta["href"]
         if h.nix? => skip
-        if ("" + h) == href_s
+        if (h) == href_s
             s | meta["slug"]
-            if !s.nix?
-                return "" + s
-            xx
+            if !s.nix? => send s
         xx
     xx
 
-    return ""
+    return ..
 xx
 
 /// ======================================================================
@@ -713,20 +695,19 @@ xx
 /// ======================================================================
 
 act stash_code_segments(html)
-    if html.nix? => return {"html": "", "stash": []}
+    if html.nix? => send {"html": .., "stash": []}
 
-    out   | "" + html
+    out   | html
     stash | []
     n     | 0
 
     /// predeclare once for this block
-    seg | ""
-    key | ""
+    seg, key | ..
 
     /// Stash fenced blocks first (<pre ... </pre>)
     sweep out
         "<pre" ... "</pre>":
-            seg |= "" + self
+            seg |= self
             key |= "@@TB_CODE_{n}@@"
             :put_last!(stash, {"k": key, "v": seg})
             :update_where!(out, seg, key)
@@ -736,7 +717,7 @@ act stash_code_segments(html)
     /// Then stash inline code (<code ... </code>)
     sweep out
         "<code" ... "</code>":
-            seg |= "" + self
+            seg |= self
             key |= "@@TB_CODE_{n}@@"
             :put_last!(stash, {"k": key, "v": seg})
             :update_where!(out, seg, key)
@@ -747,11 +728,10 @@ act stash_code_segments(html)
 xx
 
 act restore_code_segments(html, stash)
-    if html.nix? => return ""
-    out | "" + html
+    out | html ?? => send ..
 
-    if stash.nix? => return out
-    if :valtype(stash) != "array" => return out
+    if stash.nix? => send out
+    if :valtype(stash) != "array" => send out
 
     for item in stash
         if item.nix? => skip
@@ -759,7 +739,7 @@ act restore_code_segments(html, stash)
         v | item["v"]
         if k.nix? => skip
         if v.nix? => skip
-        :update_where!(out, "" + k, "" + v)
+        :update_where!(out, k, v)
     xx
 
     return out
@@ -778,15 +758,13 @@ xx
 /// ======================================================================
 
 act escape_attr(s)
-    if s.nix? => return ""
-    out | "" + s
+    out | s ?? => send ..
     :update_where!(out, "\"", "&quot;")
     return out
 xx
 
 act escape_text(s)
-    if s.nix? => return ""
-    out | "" + s
+    out | s ?? => send ..
     :update_where!(out, "&", "&amp;")
     :update_where!(out, "<", "&lt;")
     :update_where!(out, ">", "&gt;")
@@ -802,7 +780,7 @@ act build_wikilink_html(href, label, is_external, klass, title_text)
     href_s  | s_trim(href) ?? missing_page_href()
     label_s | s_trim(label) ?? href_s
     klass_s | s_trim(klass) ?? "sheriff-link"
-    gloss_s | s_trim(title_text) ?? ""
+    gloss_s | s_trim(title_text) ?? ..
 
     /// Auto-mark missing-page links (matches mounted or root)
     if :ends_with(href_s, "/docs/missing.html")
@@ -813,40 +791,30 @@ act build_wikilink_html(href, label, is_external, klass, title_text)
     label_s |= escape_text(label_s)
     klass_s |= escape_attr(klass_s)
 
-    html_parts | []
-    :put_last!(html_parts, "<a href=\"")
-    :put_last!(html_parts, href_s)
-    :put_last!(html_parts, "\" class=\"")
-    :put_last!(html_parts, klass_s)
-    :put_last!(html_parts, "\"")
-
-    /// Custom tooltip payload (NO native title attribute)
-    if !gloss_s.nix? and gloss_s != ""
-        gloss_e | escape_attr(gloss_s)
-        :put_last!(html_parts, " data-gloss=\"")
-        :put_last!(html_parts, gloss_e)
-        :put_last!(html_parts, "\"")
+    gloss_attr | ..
+    if gloss_s.nix?
+        gloss_s |= ..
+    else
+        gloss_safe | escape_attr(gloss_s)
+        gloss_attr |= " data-gloss=\"{gloss_safe}\""
     xx
 
-    :put_last!(html_parts, ">")
-    :put_last!(html_parts, label_s)
-
+    ext_icon | ..
     if is_external
-        :put_last!(html_parts, "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>")
+        ext_icon |= "<span class=\"external-link-icon\" aria-hidden=\"true\"></span>"
     xx
 
-    :put_last!(html_parts, "</a>")
-    return :pack(html_parts)
+    return """<a href="{href_s}" class="{klass_s}"{gloss_attr}>{label_s}{ext_icon}</a>"""
 xx
 
 act build_bad_video_embed(raw_inner)
-    msg | escape_text("" + raw_inner)
-    return :pack([
-        "<div class=\"sheriff-video sheriff-video-bad\">",
-          "<div class=\"sheriff-video-bad-label\">Invalid video tag:</div>",
-          "<code class=\"sheriff-video-bad-code\">", msg, "</code>",
-        "</div>"
-    ])
+    msg | escape_text(raw_inner)
+    return """
+<div class="sheriff-video sheriff-video-bad">
+  <div class="sheriff-video-bad-label">Invalid video tag:</div>
+  <code class="sheriff-video-bad-code">{msg}</code>
+</div>
+"""
 xx
 
 /// ======================================================================
@@ -854,44 +822,40 @@ xx
 /// ======================================================================
 
 act resolve_wikilink(inner, ctx, portal)
-    if inner.nix? => return ""
+    if inner.nix? => send ..
 
-    raw | s_trim(inner)
-    if raw.nix? => return ""
+    raw | s_trim(inner) ?? => send ..
 
     core | :keep_between(raw, "[[", "]]") ?? raw
 
-    inner_text | s_trim(core)
-    if inner_text.nix? => return ""
+    inner_text | s_trim(core) ?? => send ..
 
     /// Reject deprecated video shorthand
     if :starts_with(:lower(inner_text), "video|")
-        return build_bad_video_embed(inner_text)
+        send build_bad_video_embed(inner_text)
     xx
 
     /// IMAGE WIKILINK (fixed shape)
     if :starts_with(inner_text, "image:")
-        body | :keep_after(inner_text, "image:")
-        if body.nix? => return ""
+        body | :keep_after(inner_text, "image:") ?? => send ..
 
-        parts | :split(body, "|")
-        if parts.nix? => return ""
+        parts | :split(body, "|") ?? => send ..
 
         filename | parts[0]
         size     | parts[1]
         align    | parts[2]
         caption  | parts[3]
 
-        if filename.nix? => return ""
+        if filename.nix? => send ..
 
         if size.nix?  => size |= "full"
         if align.nix? => align |= "center"
-        if caption.nix? => caption |= ""
+        if caption.nix? => caption |= ..
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix?
+        if !m.nix? 
             src | "{m}/public/images/{filename}"
         xx
 
@@ -901,21 +865,12 @@ act resolve_wikilink(inner, ctx, portal)
 
         img_class | "sheriff-image sheriff-image-{size} sheriff-align-{align}"
 
-        parts_out | []
-        :put_last!(parts_out, "<span class=\"sheriff-image-block\">")
-        :put_last!(parts_out, "<img src=\"")
-        :put_last!(parts_out, src_e)
-        :put_last!(parts_out, "\" alt=\"")
-        :put_last!(parts_out, cap_a)
-        :put_last!(parts_out, "\" class=\"")
-        :put_last!(parts_out, img_class)
-        :put_last!(parts_out, "\">")
-        :put_last!(parts_out, "<span class=\"sheriff-image-caption\">")
-        :put_last!(parts_out, cap_t)
-        :put_last!(parts_out, "</span>")
-        :put_last!(parts_out, "</span>")
-
-        return :pack(parts_out)
+        return """
+<span class="sheriff-image-block">
+  <img src="{src_e}" alt="{cap_a}" class="{img_class}">
+  <span class="sheriff-image-caption">{cap_t}</span>
+</span>
+"""
     xx
 
     /// ======================================================================
@@ -924,128 +879,85 @@ act resolve_wikilink(inner, ctx, portal)
     /// REQUIRED:
     /// [[focuspanel:filename.png|size|align|caption]]
     if :starts_with(inner_text, "focuspanel:")
-        body | :keep_after(inner_text, "focuspanel:")
-        if body.nix? => return ""
+        body | :keep_after(inner_text, "focuspanel:") ?? => send ..
 
-        parts | :split(body, "|")
-        if parts.nix? => return ""
+        parts | :split(body, "|") ?? => send ..
 
         /// STRICT: must be exactly 4 segments
-        if parts.len < 4
-            return ""
-        xx
+        if parts.len < 4 => send ..
 
         filename | parts[0]
         size     | parts[1]
         align    | parts[2]
         caption  | parts[3]
 
-        if filename.nix? => return ""
-        if size.nix?     => return ""
-        if align.nix?    => return ""
-        if caption.nix?  => caption | ""
+        if filename.nix? => send ..
+        if size.nix?     => send ..
+        if align.nix?    => send ..
+        if caption.nix?  => caption | ..
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix?
-            src | "{m}/public/images/{filename}"
-        xx
+        if !m.nix? => src | "{m}/public/images/{filename}"
 
         src_e | escape_attr(src)
         cap_a | escape_attr(caption)
         cap_t | escape_text(caption)
 
-        out | []
-        :put_last!(out, "<div class=\"sheriff-focus-panel\" data-focus-panel data-default-src=\"")
-        :put_last!(out, src_e)
-        :put_last!(out, "\" data-default-caption=\"")
-        :put_last!(out, cap_a)
-        :put_last!(out, "\">")
-
-        :put_last!(out, "<img class=\"sheriff-focus-panel-img\" src=\"")
-        :put_last!(out, src_e)
-        :put_last!(out, "\" alt=\"")
-        :put_last!(out, cap_a)
-        :put_last!(out, "\">")
-
-        :put_last!(out, "<div class=\"sheriff-focus-panel-caption\">")
-        :put_last!(out, cap_t)
-        :put_last!(out, "</div>")
-
-        :put_last!(out, "</div>")
-
-        return :pack(out)
+        return """
+<div class="sheriff-focus-panel" data-focus-panel data-default-src="{src_e}" data-default-caption="{cap_a}">
+  <img class="sheriff-focus-panel-img" src="{src_e}" alt="{cap_a}">
+  <div class="sheriff-focus-panel-caption">{cap_t}</div>
+</div>
+"""
     xx
 
     /// FOCUS LINK (drives the focus panel on hover)
     /// [[focus:image:filename.png|Label]]
     if :starts_with(inner_text, "focus:")
-        rest | :keep_after(inner_text, "focus:")
-        if rest.nix? => return ""
+        rest | :keep_after(inner_text, "focus:") ?? => send ..
 
-        parts | :split(rest, "|")
-        if parts.nix? => return ""
-        if parts.len < 2 => return ""
+        parts | :split(rest, "|") ?? => send ..
+        if parts.len < 2 => send ..
 
         img_ref | parts[0]
         label   | parts[1]
 
-        if img_ref.nix? => return ""
-        if label.nix?   => label | ""
+        if img_ref.nix? => send ..
+        if label.nix?   => label | ..
 
-        if :starts_with(img_ref, "image:") == false
-            return ""
-        xx
+        if :starts_with(img_ref, "image:") == false => send ..
 
-        filename | :keep_after(img_ref, "image:")
-        if filename.nix? => return ""
+        filename | :keep_after(img_ref, "image:") ?? => send ..
 
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix?
-            src | "{m}/public/images/{filename}"
-        xx
+        if !m.nix? => src | "{m}/public/images/{filename}"
 
         src_e   | escape_attr(src)
         cap_a   | escape_attr(label)
         label_t | escape_text(label)
 
-        out | []
-        :put_last!(out, "<span class=\"sheriff-link sheriff-focus-link\" data-focus-src=\"")
-        :put_last!(out, src_e)
-        :put_last!(out, "\" data-focus-caption=\"")
-        :put_last!(out, cap_a)
-        :put_last!(out, "\" tabindex=\"0\" role=\"link\">")
-        :put_last!(out, label_t)
-        :put_last!(out, "</span>")
-        return :pack(out)
+        return """<span class="sheriff-link sheriff-focus-link" data-focus-src="{src_e}" data-focus-caption="{cap_a}" tabindex="0" role="link">{label_t}</span>"""
     xx
 
     /// VIDEO (same convention as image: and focuspanel:)
     /// [[video:youtube|VIDEO_ID|size|align|Caption]]
     /// [[video:vimeo|VIDEO_ID|size|align|Caption]]
     if :starts_with(inner_text, "video:")
-        body | :keep_after(inner_text, "video:")
-        if body.nix? => return ""
+        body | :keep_after(inner_text, "video:") ?? => send ..
 
-        parts | :split(body, "|")
-        if parts.nix? => return ""
+        parts | :split(body, "|") ?? => send ..
 
-        provider | parts[0]
-        vid      | parts[1]
-        size     | parts[2]
-        align    | parts[3]
-        caption  | parts[4]
+        provider | parts[0] ?? => send ..
+        vid      | parts[1] ?? => send ..
+        size     | parts[2] ?? => size |= "full"
+        align    | parts[3] ?? => align |= "center"
+        caption  | parts[4] ?? => send ..
 
-        if provider.nix? => return ""
-        if vid.nix?      => return ""
-
-        if size.nix?  => size  |= "full"
-        if align.nix? => align |= "center"
-        if caption.nix? => caption |= ""
-
+        /// see if we can refactor these 
         provider |= :lower(:trim(provider))
         vid      |= :trim(vid)
         size     |= :lower(:trim(size))
@@ -1053,7 +965,7 @@ act resolve_wikilink(inner, ctx, portal)
         caption  |= :trim(caption)
 
         /// Build embed URL
-        base | ""
+        base | ..
         if provider == "vimeo"
             base |= "https://player.vimeo.com/video/"
         else
@@ -1069,34 +981,17 @@ act resolve_wikilink(inner, ctx, portal)
         wrap_class | "sheriff-video sheriff-video-{size}"
         frame_class | "sheriff-video-frame sheriff-align-{align}"
 
-        out | []
-        :put_last!(out, "<div class=\"")
-        :put_last!(out, wrap_class)
-        :put_last!(out, "\">")
-
-        :put_last!(out, "<div class=\"")
-        :put_last!(out, frame_class)
-        :put_last!(out, "\">")
-
-        :put_last!(out, "<iframe src=\"")
-        :put_last!(out, src_e)
-        :put_last!(out, "\" title=\"")
-        :put_last!(out, cap_a)
-        :put_last!(out, "\" loading=\"lazy\"")
-        :put_last!(out, " allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\"")
-        :put_last!(out, " allowfullscreen")
-        :put_last!(out, " referrerpolicy=\"strict-origin-when-cross-origin\"")
-        :put_last!(out, "></iframe>")
-
-        :put_last!(out, "</div>")
-
-        :put_last!(out, "<div class=\"sheriff-video-caption\">")
-        :put_last!(out, cap_t)
-        :put_last!(out, "</div>")
-
-        :put_last!(out, "</div>")
-
-        return :pack(out)
+        return """
+<div class="{wrap_class}">
+  <div class="{frame_class}">
+    <iframe src="{src_e}" title="{cap_a}" loading="lazy"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+      referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+  <div class="sheriff-video-caption">{cap_t}</div>
+</div>
+"""
     xx
 
     /// ======================================================
@@ -1104,7 +999,7 @@ act resolve_wikilink(inner, ctx, portal)
     /// ======================================================
 
     link_part  | :trim(:keep_before(inner_text, "|")) ?? inner_text
-    label_part | :trim(:keep_after(inner_text, "|")) ?? ""
+    label_part | :trim(:keep_after(inner_text, "|")) ?? ..
 
     link_part  |= :trim(link_part)
     label_part |= :trim(label_part)
@@ -1112,31 +1007,31 @@ act resolve_wikilink(inner, ctx, portal)
     display_label | label_part ?? link_part
 
     lower_link  | :lower(link_part)
-    is_external | :starts_with(lower_link, "http://") or :starts_with(lower_link, "https://")
+    is_external | :starts_with(lower_link, ["http://", "https:"])
     is_portal   | :starts_with(link_part, "p/")
     is_user     | :starts_with(link_part, "u/")
 
     judge
         is_external:
-            return build_wikilink_html(link_part, display_label, true, "sheriff-link", "")
+            send build_wikilink_html(link_part, display_label, true, "sheriff-link", ..)
 
         is_portal:
             portal_name | :keep_between(link_part, "p/", "/")
             rest        | :keep_after(link_part, "p/{portal_name}/")
 
-            if portal_name.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
-            if rest.nix?        => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
+            if portal_name.nix? => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
+            if rest.nix?        => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
 
             parts  | split_anchor(rest)
             page   | parts["page"]
             anchor | parts["anchor"]
 
             slug | normalize_to_slug(page)
-            if slug.nix? => return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
+            if slug.nix? => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
 
             href  | lookup_href_by_slug(ctx, portal_name, slug) ?? missing_page_href()
             klass | "sheriff-link"
-            title | ""
+            title | ..
 
             if href == missing_page_href()
                 klass |= " sheriff-missing-link"
@@ -1146,18 +1041,16 @@ act resolve_wikilink(inner, ctx, portal)
                 title |= lookup_gloss_by_slug(ctx, portal_name, slug)
             xx
 
-            if !anchor.nix?
-                href |= "{href}#{anchor}"
-            xx
+            if !anchor.nix? => href |= "{href}#{anchor}"
 
-            return build_wikilink_html(href, display_label, false, klass, title)
+            send build_wikilink_html(href, display_label, false, klass, title)
 
         is_user:
             username | :keep_after(link_part, "u/")
             if username.nix?
-                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
+                send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
             xx
-            return build_wikilink_html("/users/{username}", display_label, false, "sheriff-link", "")
+            send build_wikilink_html("/users/{username}", display_label, false, "sheriff-link", ..)
 
         else:
             parts  | split_anchor(link_part)
@@ -1166,12 +1059,12 @@ act resolve_wikilink(inner, ctx, portal)
 
             slug | normalize_to_slug(page)
             if slug.nix?
-                return build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", "")
+                send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
             xx
 
             href  | lookup_href_by_slug(ctx, portal, slug) ?? missing_page_href()
             klass | "sheriff-link"
-            title | ""
+            title | ..
 
             if href == missing_page_href()
                 klass |= " sheriff-missing-link"
@@ -1181,9 +1074,7 @@ act resolve_wikilink(inner, ctx, portal)
                 title |= lookup_gloss_by_slug(ctx, portal, slug)
             xx
 
-            if !anchor.nix?
-                href |= "{href}#{anchor}"
-            xx
+            if !anchor.nix? => href |= "{href}#{anchor}"
 
             return build_wikilink_html(href, display_label, false, klass, title)
     xx
@@ -1193,23 +1084,32 @@ xx
 /// 7) PROCESS ALL WIKILINKS IN A PAGE
 /// ======================================================================
 
-act process_wikilinks(ctx)
-    body   | ctx["body"]
-    portal | ctx["portal"]
+act stash_code_for_wikilinks(ctx)
+    body   | ctx["body"] ?? => send ctx
+    portal | ctx["portal"] ?? => send ctx
 
-    if body.nix?   => return ctx
-    if portal.nix? => return ctx
-
-    /// --- STASH CODE/PRE so we don't mutate code examples ---
     stashed | stash_code_segments(body)
-    work    | stashed["html"]
-    stash   | stashed["stash"]
 
-    result | "" + work
-    focus_html | ""
-    core | "" 
-    repl_raw | ""
-    repl | ""
+    wl | {
+        "ctx":    ctx,
+        "work":   stashed["html"],
+        "stash":  stashed["stash"],
+        "portal": portal,
+        "result": stashed["html"],
+        "focus_html": ..
+    }
+
+    return wl
+xx
+
+act sweep_wikilinks(wl)
+    ctx    | wl["ctx"]
+    portal | wl["portal"]
+    work   | wl["work"]
+    result | wl["result"]
+    focus_html | wl["focus_html"]
+
+    core, repl_raw, repl | ..
 
     sweep work
         "[[" ... "]]":
@@ -1220,31 +1120,41 @@ act process_wikilinks(ctx)
             if :starts_with(core, "focuspanel:")
                 if focus_html.nix?
                     html_raw | resolve_wikilink(self, ctx, portal)
-                    if !html_raw.nix?
-                        :update!(focus_html, "" + html_raw)
-                    xx
+                    if !html_raw.nix? => :update!(focus_html, html_raw)
                 xx
 
-                :update_where!(result, self, "")
+                :update_where!(result, self, ..)
                 skip
             xx
 
             repl_raw |= resolve_wikilink(self, ctx, portal) ?? => skip
 
-            repl |= "" + repl_raw
-            if repl.nix? => skip
+            repl |= repl_raw ?? => skip
 
             :update_where!(result, self, repl)
     xx
 
-    /// Replace SITE token AFTER wikilinks — still safe because code is stashed.
-    if focus_html.nix? => focus_html |= ""
+    :update!(wl["result"], result)
+    :update!(wl["focus_html"], focus_html)
+    return wl
+xx
+
+act inject_focus_panel(wl)
+    result     | wl["result"]
+    focus_html | wl["focus_html"]
+
+    if focus_html.nix? => focus_html |= ..
+
     :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
     :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 
-    /// --- RESTORE CODE/PRE blocks ---
-    final | restore_code_segments(result, stash)
+    :update!(wl["result"], result)
+    return wl
+xx
 
+act restore_code_for_wikilinks(wl)
+    ctx   | wl["ctx"]
+    final | restore_code_segments(wl["result"], wl["stash"])
     :update!(ctx["body"], final)
     return ctx
 xx
@@ -1254,20 +1164,15 @@ xx
 /// ======================================================================
 
 act publish_canonical_link(ctx)
-    portal | ctx["portal"]
-    src    | ctx["path"]
-    body   | ctx["body"]
-
-    if portal.nix? => return ctx
-    if src.nix?    => return ctx
-    if body.nix?   => return ctx
+    portal | ctx["portal"] ?? => send ctx
+    src    | ctx["path"] ?? => send ctx
+    body   | ctx["body"] ?? => send ctx
 
     src_norm | path_norm(src)
 
     /// WORKING SLUG DERIVATION (the one you already had)
     stem_name | :stem(src_norm)
-    slug      | normalize_to_slug(stem_name)
-    if slug.nix? => return ctx
+    slug      | normalize_to_slug(stem_name) ?? => send ctx
 
     canonical | "[[{slug}]]"
 
@@ -1295,7 +1200,7 @@ act publish_canonical_link(ctx)
     </div>
     """
 
-    updated | "" + body
+    updated | body
     :update_where!(updated, "{{{TRAILBOSS::CANONLINK}}}", html)
     :update!(ctx["body"], updated)
 

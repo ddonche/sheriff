@@ -44,10 +44,8 @@ xx
 /// Also populates ctx["frontmatter"]. Used in the pipeline as
 ///   frontier::strip_frontmatter
 act strip_frontmatter(ctx)
-    body | ctx["body"]
-    
-    if body.nix? => return ctx
-    
+    body | ctx["body"] ?? => return ctx
+        
     /// 1) Extract frontmatter map from the current body
     fm_map | frontier_extract_frontmatter(body)
     :update!(ctx["frontmatter"], fm_map)

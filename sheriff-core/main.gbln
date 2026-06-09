@@ -2,14 +2,7 @@
 /// import "../site/portals/sheriff/manifest.imports"
 import "../sheriff-core/manifest.imports"
 
-//// Load events.yall into a map via Y'all
-act load_events(portal)
-    path | "../site/portals/{portal}/events.yall"
-    return :yall_parse_file(path)
-xx
-////
-
-act load_events(portal)
+act load_events()
     return :yall_parse_file("../sheriff-core/events.yall")
 xx
 
@@ -24,9 +17,30 @@ act create_all_dirs(path)
     xx
 xx
 
-/// --- helper: run pre schedule once, return the final pre_ctx (or {"portal": portal})
-act run_pre_schedule(portal, cfg)
-    pre_ctx | { "portal": portal }
+act backup_dist()
+    dist_dir    | "../dist/{#local::portal}"
+    backup_path | "../data/backups/{#local::portal}/latest.zip"
+
+    if :file_exists(dist_dir) == false
+        return ""
+    xx
+
+    create_all_dirs(backup_path)
+
+    :say("Backing up current dist:")
+    :say(dist_dir)
+    :say("Backup zip:")
+    :say(backup_path)
+
+    :zip_dir!(dist_dir, backup_path)
+    :delete_path!(dist_dir)
+
+    return backup_path
+xx
+
+/// --- helper: run pre schedule once, return the final pre_ctx
+act run_pre_schedule(cfg)
+    pre_ctx | { "portal": #local::portal }
 
     pre_schedule | cfg["pre"]
     if pre_schedule.nix?
@@ -51,6 +65,28 @@ act run_pre_schedule(portal, cfg)
     return pre_ctx
 xx
 
+/// --- helper: run post schedule once after all pages are built
+act run_post_schedule(cfg)
+    post_ctx | { "portal": #local::portal }
+
+    post_schedule | cfg["post"] ?? => return post_ctx
+
+    for act_name in post_schedule
+        :say("---- RUNNING POST ACT ----")
+        :say(act_name)
+
+        ret | :summon(post_ctx, [act_name])
+
+        if ret.nix?
+            :say("!!!! THIS POST ACT RETURNED NIL !!!!")
+            :say(act_name)
+        else
+            post_ctx | ret
+        xx
+    xx
+
+    return post_ctx
+xx
 
 /// --- helper: resolve a single markdown target
 /// Accepts either:
@@ -100,67 +136,6 @@ act resolve_single_md(content_root, md_files, target)
 
     return best_path
 xx
-
-/// --- helper: run pre schedule once, return the final pre_ctx (or {"portal": portal})
-act run_pre_schedule(portal, cfg)
-    pre_ctx | { "portal": portal }
-
-    pre_schedule | cfg["pre"]
-    if pre_schedule.nix?
-        return pre_ctx
-    xx
-
-    for act_name in pre_schedule
-        :say("---- RUNNING PRE ACT ----")
-        :say(act_name)
-
-        ret | :summon(pre_ctx, [act_name])
-
-        if ret.nix?
-            :say("!!!! THIS ACT RETURNED NIL !!!!")
-            :say(act_name)
-            /// keep old pre_ctx
-        else
-            pre_ctx | ret
-        xx
-    xx
-
-    return pre_ctx
-xx
-
-
-/// --- helper: resolve a single markdown target
-/// Accepts either:
-///   - a slug: "judge"   (matches stem)
-///   - a rel path: "docs/judge.md"
-act resolve_single_md(content_root, md_files, target)
-    /// If user passed a .md path, treat it as relative to content_root
-    if :ends_with(target, ".md")
-        candidate | :path_join(content_root, target)
-        if :file_exists(candidate)
-            return candidate
-        xx
-
-        /// If they passed an absolute-ish path that already exists, accept it.
-        if :file_exists(target)
-            return target
-        xx
-
-        return nil
-    xx
-
-    /// Otherwise, treat as slug and find first stem match.
-    for md_path in md_files
-        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
-        base     | :stem(rel_path)                           /// "judge"
-        if base == target
-            return md_path
-        xx
-    xx
-
-    return nil
-xx
-
 
 /// --- helper: merge pre_ctx keys into ctx using update! (NO |= on indexed slots)
 act merge_pre_ctx_into_ctx(ctx, pre_ctx)
@@ -214,14 +189,16 @@ act discover_portals()
 xx
 
 /// MAIN BUILD FUNCTION
-act build(portal)
+act build()
     :say("Building portal:")
-    :say(portal)
+    :say(#local::portal)
 
-    cfg      | load_events(portal)
-    schedule | cfg["schedule"]   /// Array of action names
+    backup_path | backup_dist()
 
-    content_root | "../site/portals/{portal}/content"
+    cfg      | load_events()
+    schedule | cfg["schedule"]
+
+    content_root | "../site/portals/{#local::portal}/content"
     md_files     | []
 
     for f in :walk(content_root, "**/*.md")
@@ -229,7 +206,7 @@ act build(portal)
     xx
 
     /// Run pre-build schedule once
-    pre_ctx | run_pre_schedule(portal, cfg)
+    pre_ctx | run_pre_schedule(cfg)
 
     /// BUILD EACH MARKDOWN FILE
     for md_path in md_files
@@ -240,7 +217,7 @@ act build(portal)
             "frontmatter": {},
             "tokens": {},
             "path": md_path,
-            "portal": portal,
+            "portal": #local::portal,
             "href": ""
         }
 
@@ -249,34 +226,39 @@ act build(portal)
 
         :clear_tokens("SLOT")
 
-        /// IMPORTANT: don't use `ctx |= ...` because that's also an invalid lvalue.
-        /// summon returns the new ctx; rebind ctx with `|`
         ctx |= :summon(ctx, schedule)
 
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
         dir      | :dirname(rel_path)                        /// "docs"
         base     | :stem(rel_path)                           /// "judge"
-        out_file | "../dist/{portal}/{dir}/{base}.html"
+        out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
         create_all_dirs(out_file)
         :write_text!(out_file, ctx["body"])
     xx
 
-    :say("Portal build finished:")
-    :say(portal)
-xx
+    /// Run post-build schedule once
+    run_post_schedule(cfg)
 
+    :say("Portal build finished:")
+    :say(#local::portal)
+
+    if backup_path != ""
+        :say("Backup created:")
+        :say(backup_path)
+    xx
+xx
 
 /// SINGLE PAGE BUILD
 /// target can be: "judge" or "docs/judge.md"
-act build_one_page(portal, target)
+act build_one_page(target)
     :say("Building ONE page:")
-    :say(portal ++ " :: " ++ target)
+    :say(#local::portal ++ " :: " ++ target)
 
-    cfg      | load_events(portal)
+    cfg      | load_events()
     schedule | cfg["schedule"]
 
-    content_root | "../site/portals/{portal}/content"
+    content_root | "../site/portals/{#local::portal}/content"
     md_files     | []
 
     for f in :walk(content_root, "**/*.md")
@@ -293,7 +275,7 @@ act build_one_page(portal, target)
     xx
 
     /// Run pre-build schedule once
-    pre_ctx | run_pre_schedule(portal, cfg)
+    pre_ctx | run_pre_schedule(cfg)
 
     raw | :read_text(md_path)
 
@@ -302,7 +284,7 @@ act build_one_page(portal, target)
         "frontmatter": {},
         "tokens": {},
         "path": md_path,
-        "portal": portal,
+        "portal": #local::portal,
         "href": ""
     }
 
@@ -315,7 +297,7 @@ act build_one_page(portal, target)
     rel_path | :path_relative_to(md_path, content_root)
     dir      | :dirname(rel_path)
     base     | :stem(rel_path)
-    out_file | "../dist/{portal}/{dir}/{base}.html"
+    out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
     create_all_dirs(out_file)
     :write_text!(out_file, ctx["body"])
@@ -337,7 +319,7 @@ if args.nix? or args.len == 0
     :say("  goblin run main.gbln <portal|all>")
     :say("  goblin run main.gbln <portal> page <slug|relpath.md>")
 else
-    cmd | args[0]
+    cmd, #local::portal | args[0]
 
     if cmd == "all"
         portals | discover_portals()
@@ -348,7 +330,8 @@ else
             for p in portals
                 :say("")
                 :say("=== BUILD ALL:" ++ p ++ "===")
-                build(p)
+                #local::portal | p
+                build()
             xx
         xx
 
@@ -358,10 +341,10 @@ else
             :say("Usage: goblin run main.gbln <portal> page <slug|relpath.md>")
         else
             target | args[2]
-            build_one_page(cmd, target)
+            build_one_page(target)
         xx
 
     else
-        build(cmd)
+        build()
     xx
 xx

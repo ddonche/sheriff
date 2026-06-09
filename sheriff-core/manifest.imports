@@ -1,4 +1,4 @@
-import modules/prospector_search/prospector as prospector
+use prospector
 import modules/trailboss_wiki/routes_json   as rjson
 import modules/frontier_fm/frontier         as frontier
 import modules/markdown_core/markdown       as markdown_core

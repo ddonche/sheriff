@@ -8,7 +8,7 @@
 /// Strip U+FFFD replacement chars (65533).
 act sb_strip_invalid_utf8(text)
   :ignore_where(text, "\u{FFFD}")
-end
+xx
 
 /// Strip C0 control chars except TAB(9), LF(10), CR(13).
 act sb_strip_control_chars(text)
@@ -16,39 +16,37 @@ act sb_strip_control_chars(text)
   for ch in text
     code | :ord(ch)
     keep | code == 9 or code == 10 or code == 13 or code >= 32
-    if keep
-      put_last!(chars, ch)
-    end
-  end
+    if keep => put_last!(chars, ch)
+  xx
   :join(chars, "")
-end
+xx
 
 /// Strip various zero-width / BOM-ish characters.
 act sb_strip_zero_width(text)
   t | text
-  t | :ignore_where(t, "\u{FEFF}")   /// BOM / ZWNBSP
-  t | :ignore_where(t, "\u{200B}")   /// ZERO WIDTH SPACE
-  t | :ignore_where(t, "\u{200C}")   /// ZERO WIDTH NON-JOINER
-  t | :ignore_where(t, "\u{200D}")   /// ZERO WIDTH JOINER
-  t | :ignore_where(t, "\u{2060}")   /// WORD JOINER
-  t | :ignore_where(t, "\u{180E}")   /// MONGOLIAN VOWEL SEPARATOR
+  t |= :ignore_where(t, "\u{FEFF}")   /// BOM / ZWNBSP
+  t |= :ignore_where(t, "\u{200B}")   /// ZERO WIDTH SPACE
+  t |= :ignore_where(t, "\u{200C}")   /// ZERO WIDTH NON-JOINER
+  t |= :ignore_where(t, "\u{200D}")   /// ZERO WIDTH JOINER
+  t |= :ignore_where(t, "\u{2060}")   /// WORD JOINER
+  t |= :ignore_where(t, "\u{180E}")   /// MONGOLIAN VOWEL SEPARATOR
   t
-end
+xx
 
 /// Strip emoji ranges.
 act sb_strip_emoji(text)
   t | text
   /// Emoji: 0x1F300–0x1FAFF
-  t | :ignore_matching(t, "[\u{1F300}-\u{1FAFF}]", nil)
+  t |= :ignore_matching(t, "[\u{1F300}-\u{1FAFF}]", nil)
   /// Dingbats/symbols: 0x2600–0x27BF
-  t | :ignore_matching(t, "[\u{2600}-\u{27BF}]", nil)
+  t |= :ignore_matching(t, "[\u{2600}-\u{27BF}]", nil)
   t
-end
+xx
 
 /// Strip any non-ASCII (keep 0–127).
 act sb_strip_non_ascii(text)
   :ignore_matching(text, "[^\x00-\x7F]", nil)
-end
+xx
 
 /// ----------------------------------------------------------------------
 /// NORMALIZATION UTILITIES
@@ -57,13 +55,12 @@ end
 /// Normalize newlines via core builtin.
 act sb_normalize_newlines(text)
   :normalize_newlines(text)
-end
+xx
 
 /// Collapse 2+ blank lines into single blank line.
 act sb_collapse_blank_lines(text)
-  chars        | []
-  blank_run    | 0
-  current_line | []
+  chars, current_line   | []
+  blank_run             | 0
 
   for ch in text
     if ch == "\n"

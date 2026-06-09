@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{{PAGE::TITLE}}}</title>
+    {{{PAGE::SEO}}}
     {{{SLOT::STYLELINK}}}
     {{{ASSETS::HEAD}}}
 </head>
@@ -14,6 +14,7 @@
             <div class="sheriff-header">
               <div class="sheriff-header-bottom">
                 {{{SLOT::HEADER_NAV}}}
+                {{{SLOT::SEARCH}}}
               </div>
             </div>
             <div class="sheriff-main-layout-three">

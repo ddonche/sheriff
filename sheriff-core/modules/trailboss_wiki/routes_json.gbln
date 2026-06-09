@@ -1,5 +1,6 @@
 /// modules/trailboss_wiki/routes_json.gbln
 /// Build + load JSON routes for a portal (config.yall).
+/// Also writes a small portal report JSON for badges/counts.
 ///
 /// routing.dist_root -> output directory name (filesystem)
 /// routing.url_root  -> url prefix used in hrefs (web path)
@@ -32,24 +33,22 @@ xx
 
 act get_url_root(cfg)
     routing | get_routing_map(cfg)
-    if routing.nix? => return ""
-
+    if routing.nix? => send ..
+    
     url_root | routing["url_root"]
-    if url_root.nix?
-        return ""
-    xx
+    if url_root.nix? => send ..
 
-    t | :trim("" + url_root)
-    if t == "" => return ""
+    t | :trim(url_root)
+    if t.nix? => send ..
 
     return t
 xx
 
 /// Match Trailboss slug normalization rules (basic + stable)
 act normalize_to_slug(page)
-    if page.nix? => return ""
+    if page.nix? => send ..
 
-    cleaned | "" + page
+    cleaned | page
     :update_where!(cleaned, " (module)", "")
     :update_where!(cleaned, "(module)", "")
     :update_where!(cleaned, "(", "")
@@ -64,13 +63,9 @@ act normalize_to_slug(page)
 xx
 
 act build_href(url_root, rel_no_ext)
-    if rel_no_ext.nix? or rel_no_ext == ""
-        return "/index.html"
-    xx
+    if rel_no_ext.nix? => return "/index.html"
 
-    if url_root.nix? or url_root == ""
-        return "/{rel_no_ext}.html"
-    xx
+    if url_root.nix? => return "/{rel_no_ext}.html"
 
     return "/{url_root}/{rel_no_ext}.html"
 xx
@@ -82,17 +77,13 @@ xx
 act extract_frontmatter_map(md_text)
     if md_text.nix? => return {}
 
-    t | "" + md_text
+    t | md_text
 
     /// Must begin with ^^^^
-    if :starts_with(t, "^^^^") == false
-        return {}
-    xx
+    if :starts_with(t, "^^^^") == false => return {}
 
     block | :keep_between(t, "^^^^", "^^^^")
-    if block.nix? or :trim(block) == ""
-        return {}
-    xx
+    if block.nix? or :trim(block) == .. => return {}
 
     parsed | :yall_parse(block, "frontmatter")
     if parsed.nix? => return {}
@@ -101,9 +92,52 @@ act extract_frontmatter_map(md_text)
     return parsed
 xx
 
+act letter_key(page_title)
+    t | :trim(page_title)
+    low | :lower(t)
+
+    if :starts_with(low, "a") => return "A"
+    if :starts_with(low, "b") => return "B"
+    if :starts_with(low, "c") => return "C"
+    if :starts_with(low, "d") => return "D"
+    if :starts_with(low, "e") => return "E"
+    if :starts_with(low, "f") => return "F"
+    if :starts_with(low, "g") => return "G"
+    if :starts_with(low, "h") => return "H"
+    if :starts_with(low, "i") => return "I"
+    if :starts_with(low, "j") => return "J"
+    if :starts_with(low, "k") => return "K"
+    if :starts_with(low, "l") => return "L"
+    if :starts_with(low, "m") => return "M"
+    if :starts_with(low, "n") => return "N"
+    if :starts_with(low, "o") => return "O"
+    if :starts_with(low, "p") => return "P"
+    if :starts_with(low, "q") => return "Q"
+    if :starts_with(low, "r") => return "R"
+    if :starts_with(low, "s") => return "S"
+    if :starts_with(low, "t") => return "T"
+    if :starts_with(low, "u") => return "U"
+    if :starts_with(low, "v") => return "V"
+    if :starts_with(low, "w") => return "W"
+    if :starts_with(low, "x") => return "X"
+    if :starts_with(low, "y") => return "Y"
+    if :starts_with(low, "z") => return "Z"
+
+    return "#"
+xx
+
 act build_routes_json_for_portal(portal)
     content_root | "../site/portals/{portal}/content"
     routes_path  | "../site/portals/{portal}/routes.json"
+    report_path  | "../site/portals/{portal}/report.json"
+
+    if :file_exists(routes_path)
+        :delete_path!(routes_path)
+    xx
+
+    if :file_exists(report_path)
+        :delete_path!(report_path)
+    xx
 
     cfg      | load_cfg(portal)
     url_root | get_url_root(cfg)
@@ -111,15 +145,59 @@ act build_routes_json_for_portal(portal)
     files  | :walk(content_root, "**/*.md")
     routes | []
 
+    page_count | 0
+
+    letter_counts | {
+        "#": 0,
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 0,
+        "E": 0,
+        "F": 0,
+        "G": 0,
+        "H": 0,
+        "I": 0,
+        "J": 0,
+        "K": 0,
+        "L": 0,
+        "M": 0,
+        "N": 0,
+        "O": 0,
+        "P": 0,
+        "Q": 0,
+        "R": 0,
+        "S": 0,
+        "T": 0,
+        "U": 0,
+        "V": 0,
+        "W": 0,
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+    }
+
     for src in files
         /// normalize path separators (Windows-safe)
-        src_norm | "" + src
+        src_norm | src
         :update_where!(src_norm, "\\", "/")
 
         stem_name | :stem(src_norm)
 
         /// slug stays filename-derived (portal-local canonical like [[getting-started]])
         slug | normalize_to_slug(stem_name)
+
+        if slug == "index"
+            skip
+        xx
+
+        if slug == "404"
+            skip
+        xx
+
+        if slug == "missing"
+            skip
+        xx
 
         prefix | "../site/portals/{portal}/content/"
         rel    | :keep_after(src_norm, prefix)
@@ -148,38 +226,26 @@ act build_routes_json_for_portal(portal)
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
-        gloss, meta_kind, meta_type, summary | ""
+        gloss, meta_kind, meta_type, summary | ..
 
         if fm.nix? == false and :valtype(fm) == "map"
 
             if :has(fm, "meta_kind")
-                mk | fm["meta_kind"]
-                if mk.nix? == false and :trim("" + mk) != ""
-                    meta_kind |= "" + mk
-                xx
+                meta_kind |= fm["meta_kind"]
             xx
 
             if :has(fm, "meta_type")
-                mt | fm["meta_type"]
-                if mt.nix? == false and :trim("" + mt) != ""
-                    meta_type |= "" + mt
-                xx
+                meta_type |= fm["meta_type"]
             xx
 
             if :has(fm, "summary")
-                sm | fm["summary"]
-                if sm.nix? == false and :trim("" + sm) != ""
-                    summary |= "" + sm
-                xx
+                summary |= fm["summary"]
             xx
 
             /// pull gloss from frontmatter (fallback to summary)
             if :has(fm, "gloss")
-                g | fm["gloss"]
-                if g.nix? == false and :trim("" + g) != ""
-                    gloss |= "" + g
-                xx
-            elif summary != ""
+                gloss |= fm["gloss"]
+            elif summary != ..
                 gloss |= summary
             xx
         xx
@@ -199,6 +265,15 @@ act build_routes_json_for_portal(portal)
         }
 
         :put_last!(routes, meta)
+
+        page_count += 1
+
+        bucket | letter_key(page_title)
+
+        current | letter_counts[bucket]
+        current += 1
+
+        :update!(letter_counts[bucket], current)
     xx
 
     payload | {
@@ -207,24 +282,109 @@ act build_routes_json_for_portal(portal)
         "routes":   routes
     }
 
+    report_payload | {
+        "portal":   portal,
+        "url_root": url_root,
+        "pages":    page_count,
+        "letters":  letter_counts
+    }
+
     :write_json!(routes_path, payload)
+    :write_json!(report_path, report_payload)
+
     return nil
+xx
+
+act build_all_pages_once(pre_ctx)
+    if pre_ctx.nix?
+        send pre_ctx
+    xx
+
+    portal | pre_ctx["portal"]
+
+    if portal.nix?
+        send pre_ctx
+    xx
+
+    routes_path  | "../site/portals/{portal}/routes.json"
+    content_root | "../site/portals/{portal}/content"
+    out_path     | "{content_root}/all_pages.md"
+
+    if :file_exists(routes_path) == false => return pre_ctx
+
+    parsed | :read_json(routes_path)
+
+    if parsed.nix? => return pre_ctx
+
+    routes | parsed["routes"]
+
+    if routes.nix? => return pre_ctx
+
+    if :file_exists(out_path)
+        :delete_path!(out_path)
+    xx
+
+    lines | []
+
+    :put_last!(lines, "^^^^")
+    :put_last!(lines, "title: All Pages")
+    :put_last!(lines, "author: Sheriff")
+    :put_last!(lines, "layout: docs")
+    :put_last!(lines, "meta_kind: docs")
+    :put_last!(lines, "meta_type: generated")
+    :put_last!(lines, "summary: Alphabetical index of all pages.")
+    :put_last!(lines, "^^^^")
+
+    sorted | :sort(routes)
+
+    current_letter | ""
+
+    for route in sorted
+        slug | route["slug"]
+
+        if slug != "all-pages"
+            route_title | route["title"]
+
+            bucket | letter_key(route_title)
+
+            if bucket != current_letter
+                :put_last!(lines, "")
+                :put_last!(lines, "## {bucket}")
+
+                current_letter |= bucket
+            xx
+
+            display_link | "[[{slug}|{route_title}]]"
+            :put_last!(lines, "* {display_link}")
+        xx
+    xx
+
+    :write_text!(out_path, :join(lines, "\n"))
+
+    return pre_ctx
 xx
 
 act load_routes_json(portal)
     routes_path | "../site/portals/{portal}/routes.json"
 
-    if :file_exists(routes_path) == false
-        return []
-    xx
+    if :file_exists(routes_path) == false => return []
 
     parsed | :read_json(routes_path)
     if parsed.nix? => return []
 
     routes | parsed["routes"]
-    if routes == nil
-        return []
-    xx
+    if routes == nil => return []
 
     return routes
+xx
+
+act load_report_json(portal)
+    report_path | "../site/portals/{portal}/report.json"
+
+    if :file_exists(report_path) == false => return {}
+
+    parsed | :read_json(report_path)
+    if parsed.nix? => return {}
+
+    return parsed
 xx

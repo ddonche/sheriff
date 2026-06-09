@@ -1,0 +1,37 @@
+[glam]
+name = "prospector"
+version = "0.1.0"
+author = "Dan Donche"
+description = "Builds a static search index and search UI tokens."
+license = "MIT"
+entry = "prospector.gbln"
+
+[needs]
+source_dir = "#site::content_dir"
+output_dir = "#site::public_dir"
+base_url   = "#site::base_url"
+
+[values]
+index_file  = "search-index.json"
+client_file = "prospector.js"
+
+[provides]
+actions = [
+    "prospector::init",
+    "prospector::index_page",
+    "prospector::apply_tokens"
+]
+
+values = [
+    "#prospector::search_index"
+]
+
+tokens = [
+    "PROSPECTOR::SEARCH_INPUT",
+    "PROSPECTOR::SEARCH_SCRIPT"
+]
+
+files = [
+    "search-index.json",
+    "prospector.js"
+]

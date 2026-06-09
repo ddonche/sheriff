@@ -1,0 +1,176 @@
+/// glams/prospector/prospector.gbln
+/// Prospector: Search index + search UI
+/// - init(pre_ctx): clear index + copy JS
+/// - index_page(ctx): append one NDJSON line per docs page (from ctx body)
+/// - apply_tokens(ctx): register PROSPECTOR::SEARCH_* tokens
+
+/// ----------------------------------------------------------------------
+/// INIT: Clear search index at start of portal build + copy JS
+/// ----------------------------------------------------------------------
+act init(pre_ctx)
+    output_dir  | #prospector::output_dir
+    index_file  | #prospector::index_file
+    client_file | #prospector::client_file
+
+    if :file_exists(output_dir) == false
+        :create_dir!(output_dir)
+    xx
+
+    index_path | "{output_dir}/{index_file}"
+    :write_text!(index_path, "")
+
+    js_src | "glams/prospector/{client_file}"
+    if :file_exists(js_src)
+        js_dst  | "{output_dir}/{client_file}"
+        js_code | :read_text(js_src)
+        :write_text!(js_dst, js_code)
+    else
+        :say("PROSPECTOR: WARNING – {js_src} not found; search JS not copied")
+    xx
+
+    :say("PROSPECTOR: Initialized search for portal '{#local::portal}'")
+    return pre_ctx
+xx
+
+/// ----------------------------------------------------------------------
+/// PER-PAGE: Build index from ctx (MARKDOWN, not HTML shell)
+/// Call this right after frontier::strip_frontmatter
+/// ----------------------------------------------------------------------
+act index_page(ctx)
+    body | ctx["body"] ?? => return ctx
+    fm   | ctx["frontmatter"]
+    path | ctx["path"]
+
+    /// only index docs layout
+    layout | "docs"
+
+    if !fm.nix?
+        attempt
+            lay_val | fm["layout"]
+            if !lay_val.nix? => layout | :trim(lay_val)
+        rescue err
+            /// frontmatter is missing or not a map or has no "layout" – ignore
+        xx
+    xx
+
+    if layout != "docs" => return ctx
+
+    /// -------- href from source path --------
+    content_root | #prospector::source_dir
+    rel_path     | :path_relative_to(path, content_root)
+
+    rel_no_ext | rel_path
+    if :ends_with(rel_no_ext, ".md")
+        rel_no_ext | :ignore_where(rel_no_ext, ".md")
+    xx
+
+    href | "/{#local::portal}/{rel_no_ext}.html"
+
+    /// -------- title --------
+    title | "Untitled"
+
+    if !fm.nix?
+        attempt
+            v | fm["title"]
+            if !v.nix?
+                t | :trim(v)
+                if t != ""
+                    :update!(title, t)
+                xx
+            xx
+        rescue err
+            /// missing key or not a map – ignore
+        xx
+    xx
+
+    if title == "Untitled"
+        text | :normalize_newlines(body)
+        h1   | :keep_between(text, "# ", "\n")
+        if !h1.nix?
+            t2 | :trim(h1)
+            if t2 != ""
+                :update!(title, t2)
+            xx
+        xx
+    xx
+
+    /// -------- summary --------
+    summary | ""
+
+    if !fm.nix?
+        attempt
+            v | fm["summary"]
+            if !v.nix?
+                s | :trim(v)
+                if s != ""
+                    :update!(summary, s)
+                xx
+            xx
+        rescue err
+            /// missing key – ignore
+        xx
+    xx
+
+    if summary == ""
+        text2 | :normalize_newlines(body)
+        if :len(text2) > 200
+            :update!(summary, text2[0:200])
+        else
+            :update!(summary, text2)
+        xx
+    xx
+
+    /// -------- build JSON entry --------
+    entry | {
+        "href":    href,
+        "title":   title,
+        "summary": summary
+    }
+
+    /// write JSON safely to temp
+    output_dir | #prospector::output_dir
+    tmp_path   | "{output_dir}/.prospector.tmp.json"
+    :write_json!(tmp_path, entry)
+
+    json_text  | :read_text(tmp_path)
+    index_path | "{output_dir}/{#prospector::index_file}"
+    :append_file!(index_path, json_text + "\n")
+
+    return ctx
+xx
+
+/// ------------------------------------------------------
+/// APPLY_TOKENS: register + resolve PROSPECTOR tokens
+/// ------------------------------------------------------
+act apply_tokens(ctx)
+    body | ctx["body"] ?? => return ctx
+
+    /// SEARCH INPUT (box + results container)
+    search_input_html | """
+    <div class="sheriff-search-wrapper" id="sheriff-search">
+      <div class="sheriff-search-icon"></div>
+      <input
+        class="sheriff-search-input"
+        type="search"
+        id="sheriff-search-input"
+        placeholder="Search..."
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="sheriff-search-shortcut">/</span>
+    </div>
+    """
+
+    /// SEARCH SCRIPT (wires up client-side search)
+    search_script_html | """
+    <script src="/public/{#prospector::client_file}"></script>
+    """
+
+    register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
+    register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
+
+    updated | resolve_token(body)
+
+    :update!(ctx["body"], updated)
+    return ctx
+xx

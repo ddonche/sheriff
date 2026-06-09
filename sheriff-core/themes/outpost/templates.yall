@@ -1,26 +1,14 @@
 layouts:
-  docs:
+  docs_embed:
     slots:
       STYLELINK:
         - "BRINDLE::STYLE"
-      LOGO:
-        - "BRINDLE::LOGO"
-      BRANDNAME:
-        - "BRINDLE::BRANDNAME"
-      VERSION:
-        - "BADGE::VERSION"
-      THEMESWITCHER:
-        - "BRINDLE::THEMESWITCHER"
-      VERSIONSWITCHER:
-        - "BRINDLE::VERSIONSWITCHER"
-      SEARCH:
-        - "PROSPECTOR::SEARCH_INPUT"
-      REPO:
-        - "BADGE::REPO"
 
       # HEADER NAV: use the 'header' menu as DROPDOWN
       HEADER_NAV:
         - "SCOUT::header_DROPDOWN"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
 
       # LEFT NAV: use the 'left_docs' menu as SIDEBAR
       LEFT_NAV:
@@ -48,6 +36,101 @@ layouts:
 
       SCRIPTS:
         - "BRINDLE::SCRIPTS"
+        
+  docs:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      PAGECOUNT:
+        - "BADGE::PAGE_COUNT"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      REPO:
+        - "BADGE::REPO"
+
+      HEADER_NAV:
+        - "SCOUT::header_DROPDOWN"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+
+      LEFT_NAV:
+        - "SCOUT::left_docs_SIDEBAR"
+      
+      SIDEBAR_TOP:
+      SIDEBAR_MAIN:
+        - "SCOUT::BREADCRUMBS"
+        - "SCOUT::TOC"
+      
+      FOOTER_LEFT:
+        - "SCOUT::footer_left_FLAT"
+      FOOTER_RIGHT:
+        - "SCOUT::footer_right_FLAT"
+      
+      HEADERLEFT:
+        - "PAGE::META"
+      HEADERRIGHT:
+        - "TRAILBOSS::CANONLINK"
+      PAGEMETALEFT:
+        - "BADGE::READTIME"
+      PAGEMETARIGHT:
+        - "BADGE::UTILICONS"
+      
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
+
+  wiki:
+    slots:
+      STYLELINK:
+        - "BRINDLE::STYLE"
+      LOGO:
+        - "BRINDLE::LOGO"
+      BRANDNAME:
+        - "BRINDLE::BRANDNAME"
+      VERSION:
+        - "BADGE::VERSION"
+      THEMESWITCHER:
+        - "BRINDLE::THEMESWITCHER"
+      REPO:
+        - "BADGE::REPO"
+      
+      HEADER_NAV:
+        - "SCOUT::header_DROPDOWN"
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      
+      LEFT_NAV:
+        - "SCOUT::left_wiki_SIDEBAR"
+      
+      SIDEBAR_TOP:
+        - "SCOUT::WHATLINKSHERE"
+      SIDEBAR_MAIN:
+        - "SCOUT::BREADCRUMBS"
+        - "SCOUT::CATEGORIES_NAV"
+      WIKI_CATEGORIES:
+        - "SCOUT::CATEGORY_TAGS"
+      WIKI_PAGETABS:
+      
+      FOOTER_LEFT:
+        - "SCOUT::footer_left_FLAT"
+      FOOTER_RIGHT:
+        - "SCOUT::footer_right_FLAT"
+      
+      HEADERLEFT:
+        - "PAGE::META"
+      HEADERRIGHT:
+        - "TRAILBOSS::CANONLINK"
+      PAGEMETALEFT:
+      PAGEMETARIGHT:
+        - "BADGE::UTILICONS"
+      
+      SCRIPTS:
+        - "BRINDLE::SCRIPTS"
 
   blog:
     slots:
@@ -61,29 +144,26 @@ layouts:
         - "BADGE::VERSION"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
-      VERSIONSWITCHER:
-        - "BRINDLE::VERSIONSWITCHER"
-      SEARCH:
-        - "PROSPECTOR::SEARCH_INPUT"
       REPO:
         - "BADGE::REPO"
-
-      # Same main header nav
+      
       HEADER_NAV:
         - "SCOUT::header_DROPDOWN"
-
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      
       LEFT_NAV: []
-
+      
       SIDEBAR_TOP:
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "CAMPFIRE::BLOG_LIST"
-
+      
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
       FOOTER_RIGHT:
         - "SCOUT::footer_right_FLAT"
-
+      
       HEADERLEFT:
         - "PAGE::META"
       HEADERRIGHT:
@@ -92,7 +172,7 @@ layouts:
         - "BADGE::READTIME"
       PAGEMETARIGHT:
         - "BADGE::UTILICONS"
-
+      
       SCRIPTS:
         - "BRINDLE::SCRIPTS"
 
@@ -108,22 +188,20 @@ layouts:
         - "BADGE::VERSION"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
-      VERSIONSWITCHER:
-        - "BRINDLE::VERSIONSWITCHER"
-      SEARCH:
-        - "PROSPECTOR::SEARCH_INPUT"
       REPO:
         - "BADGE::REPO"
-
+      
       HEADER_NAV:
         - "SCOUT::header_DROPDOWN"
-
+      SEARCH:
+        - "PROSPECTOR::SEARCH_INPUT"
+      
       LEFT_NAV: []
-
+      
       SIDEBAR_TOP:
       SIDEBAR_MAIN:
         - "CAMPFIRE::BLOG_LIST"
-
+      
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
       FOOTER_RIGHT:

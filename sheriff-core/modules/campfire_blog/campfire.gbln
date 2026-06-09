@@ -32,16 +32,12 @@ xx
 /// ------------------------------------------------------
 act build_blog_list(portal)
 
-    if portal.nix?
-        return ""
-    xx
+    if portal.nix? => return ""
 
     content_root | "../site/portals/{portal}/content"
     blog_root    | content_root + "/blog"
 
-    if :file_exists(blog_root) == false
-        return ""
-    xx
+    if :file_exists(blog_root) == false => return ""
 
     items | []
 
@@ -52,9 +48,7 @@ act build_blog_list(portal)
         stem     | :stem(rel_path)
 
         /// skip the blog index page itself
-        if stem == "index"
-            skip
-        xx
+        if stem == "index" => skip
 
         href | "/" + dir + "/" + stem + ".html"
 
@@ -68,17 +62,13 @@ act build_blog_list(portal)
             :update!(title, "")
         end
 
-        if title == ""
-            :update!(title, stem)
-        xx
+        if title == "" => :update!(title, stem)
 
         list_item | "<li><a class=\"sheriff-link\" href=\"{href}\">{title}</a></li>"
         :put_last!(items, list_item)
     xx
 
-    if items.len == 0
-        return ""
-    xx
+    if items.len == 0 => return ""
 
     return "<ul class=\"campfire-blog-list\">" + :pack(items) + "</ul>"
 xx
@@ -88,16 +78,12 @@ xx
 /// ------------------------------------------------------
 act build_blog_index(portal)
 
-    if portal.nix?
-        return ""
-    xx
+    if portal.nix? => return ""
 
     content_root | "../site/portals/{portal}/content"
     blog_root    | content_root + "/blog"
 
-    if :file_exists(blog_root) == false
-        return ""
-    xx
+    if :file_exists(blog_root) == false => return ""
 
     cards | []
 
@@ -107,9 +93,7 @@ act build_blog_index(portal)
         dir      | :dirname(rel_path)
         stem     | :stem(rel_path)
 
-        if stem == "index"
-            skip
-        xx
+        if stem == "index" => skip
 
         href | "/" + dir + "/" + stem + ".html"
 
@@ -148,9 +132,7 @@ act build_blog_index(portal)
             :update!(author_avatar, "")
         end
 
-        if title == ""
-            :update!(title, stem)
-        xx
+        if title == "" => :update!(title, stem)
 
         /// default avatar if missing
         if author_avatar == ""
@@ -160,9 +142,8 @@ act build_blog_index(portal)
         /// -------------------------------
         /// META HTML (author avatar + date)
         /// -------------------------------
-        meta_html | ""
+        meta_html, author_html, date_html, dot_html | ""
 
-        author_html | ""
         if author != ""
             :update!(author_html,
               "<a class=\"campfire-author sheriff-link\" href=\"#\">" +
@@ -172,12 +153,10 @@ act build_blog_index(portal)
             )
         xx
 
-        date_html | ""
         if post_date != ""
             :update!(date_html, "<span class=\"campfire-date\">{post_date}</span>")
         xx
 
-        dot_html | ""
         if author != "" and post_date != ""
             :update!(dot_html, "<span class=\"campfire-meta-dot\" aria-hidden=\"true\"></span>")
         xx
@@ -250,9 +229,7 @@ act build_blog_index(portal)
         :put_last!(cards, card)
     xx
 
-    if cards.len == 0
-        return ""
-    xx
+    if cards.len == 0 => return ""
 
     return "<div class=\"campfire-post-index\">" + :pack(cards) + "</div>"
 xx
@@ -263,11 +240,7 @@ xx
 /// ------------------------------------------------------
 act build_index_once(pre_ctx)
 
-    portal | pre_ctx["portal"]
-
-    if portal.nix?
-        return pre_ctx
-    xx
+    portal | pre_ctx["portal"] ?? => return pre_ctx
 
     blog_list_html  | build_blog_list(portal)
     blog_index_html | build_blog_index(portal)
@@ -283,11 +256,7 @@ xx
 /// ------------------------------------------------------
 act apply_tokens(ctx)
 
-    body | ctx["body"]
-
-    if body.nix?
-        return ctx
-    xx
+    body | ctx["body"] ?? => return ctx
 
     rendered | resolve_token(body)
     :update!(ctx["body"], rendered)

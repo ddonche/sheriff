@@ -1,13 +1,150 @@
 /// modules/markdown_core/markdown.gbln
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
+
 act render(ctx)
-    body | ctx["body"]
-    if body.nix? => return ctx
-    
-    clean | :sanitize_bom(body)
+    body | ctx["body"] ?? => return ctx
+
+    clean      | :sanitize_bom(body)
     normalized | :normalize_newlines(clean)
-    out | :md_to_html(normalized)
-    
+    protected  | normalized
+
+    /// ----------------------------------------------------------
+    /// Read highlight themes from portal config (same as brindle)
+    /// ----------------------------------------------------------
+    highlight_dark  | "base16-ocean.dark"
+    highlight_light | "InspiredGitHub"
+
+    portal | ctx["portal"]
+
+    if !portal.nix?
+        config_path | "../site/portals/{portal}/config.yall"
+        if :file_exists(config_path)
+            cfg | :yall_parse_file(config_path)
+            if !cfg.nix? and :valtype(cfg) == "map" and !cfg["theme"].nix?
+                theme_cfg | cfg["theme"]
+                if :valtype(theme_cfg) == "map"
+                    if !theme_cfg["highlight_dark"].nix?
+                        :update!(highlight_dark, :trim(theme_cfg["highlight_dark"]))
+                    xx
+                    if !theme_cfg["highlight_light"].nix?
+                        :update!(highlight_light, :trim(theme_cfg["highlight_light"]))
+                    xx
+                xx
+            xx
+        xx
+    xx
+
+    /// --------------------------------------------------------------
+    /// 1) STASH FENCED CODE BLOCKS
+    /// --------------------------------------------------------------
+    fence_stash | []
+    fn | 0
+    seg, key | ""
+
+    sweep protected
+        "```" ... "```":
+            seg |= self
+            key |= "@@TB_FENCE_{fn}@@"
+            :put_last!(fence_stash, {"k": key, "v": seg})
+            :update_where!(protected, seg, key)
+            fn += 1
+    xx
+
+    /// --------------------------------------------------------------
+    /// 2) STASH INLINE CODE
+    /// --------------------------------------------------------------
+    code_stash | []
+    cn | 0
+    inner, html | ""
+
+    sweep protected
+        "`" ... "`":
+            seg |= self
+            key |= "@@TB_CODE_{cn}@@"
+            inner |= :keep_between(seg, "`", "`") ?? ""
+            html  |= "<code>" + escape_text(inner) + "</code>"
+            :put_last!(code_stash, {"k": key, "v": html})
+            :update_where!(protected, seg, key)
+            cn += 1
+    xx
+
+    /// --------------------------------------------------------------
+    /// 3) STASH WIKILINKS
+    /// --------------------------------------------------------------
+    wikistash | []
+    wn | 0
+
+    sweep protected
+        "[[" ... "]]":
+            seg |= self
+            key |= "@@TB_WIKILINK_{wn}@@"
+            :put_last!(wikistash, {"k": key, "v": seg})
+            :update_where!(protected, seg, key)
+            wn += 1
+    xx
+
+    /// --------------------------------------------------------------
+    /// 4) MARKDOWN RENDER
+    /// --------------------------------------------------------------
+    out | :md_to_html(protected)
+
+    /// --------------------------------------------------------------
+    /// 5) RESTORE WIKILINKS
+    /// --------------------------------------------------------------
+    for item in wikistash
+        if item.nix? => skip
+        k | item["k"] ?? => skip 
+        v | item["v"] ?? => skip 
+        :update_where!(out, k, v)
+    xx
+
+    /// --------------------------------------------------------------
+    /// 6) RESTORE INLINE CODE
+    /// --------------------------------------------------------------
+    for item in code_stash
+        if item.nix? => skip
+        k | item["k"] ?? => skip
+        v | item["v"] ?? => skip
+        :update_where!(out, k, v)
+    xx
+
+    /// --------------------------------------------------------------
+    /// 7) RESTORE FENCED CODE BLOCKS — highlighted via :highlight_code
+    /// --------------------------------------------------------------
+    lang, code | ""
+
+    for item in fence_stash
+        if item.nix? => skip
+        k | item["k"] ?? => skip 
+        v | item["v"] ?? => skip 
+
+        lang, code |= ""
+
+        sweep v
+            "```" ... "```":
+                lang |= :trim(:keep_before(:keep_after(self, "```"), "\n"))
+                code |= :trim(:keep_between(self, "\n", "```"))
+        xx
+
+        fence_html | ""
+
+        if lang == ""
+            fence_html |= "<pre><code>" + escape_text(code) + "</code></pre>"
+        else
+            fence_html |= :highlight_code(code, lang, highlight_dark, highlight_light)
+        xx
+
+        :update_where!(out, k, fence_html)
+    xx
+
     :update!(ctx["body"], out)
     return ctx
+xx
+
+act escape_text(s)
+    out | s ?? => return ""
+    :update_where!(out, "&", "&amp;")
+    :update_where!(out, "<", "&lt;")
+    :update_where!(out, ">", "&gt;")
+    return out
 xx

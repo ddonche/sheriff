@@ -7,18 +7,11 @@
 /// If missing, return {} so callers don't explode.
 /// ------------------------------------------------------------------------
 act scout_load_nav_config(ctx)
-    portal | ctx["portal"]
-
-    if portal.nix?
-        return {}
-    xx
+    portal | ctx["portal"] ?? => return {}
 
     path | "../site/portals/{portal}/nav.yall"
 
-    if :file_exists(path) == false
-        return {}
-    xx
-
+    if :file_exists(path) == false => return {}
     return :yall_parse_file(path)
 xx
 
@@ -26,7 +19,7 @@ xx
 /// Turn "password_generator_recipe.md.html" into "password generator recipe"
 /// ------------------------------------------------------------------------
 act slug_to_label(slug)
-    label | "" + slug
+    label | slug
 
     /// strip common extensions
     label |= ignore_where(label, ".md.html")
@@ -50,8 +43,7 @@ xx
 act generate_toc(html_content)
     headers | []
     anchor_id, text | ""
-    has_footnotes | false
-    saw_footnotes | false
+    has_footnotes, saw_footnotes | false
 
     sweep html_content
         "<h1>" ... "</h1>" :
@@ -94,20 +86,16 @@ act generate_toc(html_content)
 
     /// Avoid duplicates if someone manually created a "footnotes" header/id already
     for h in headers
-        if h["id"] == "footnotes"
-            saw_footnotes |= true
-        xx
+        if h["id"] == "footnotes" => saw_footnotes |= true
     xx
 
     /// If the page has footnotes, add them as a TOC entry
-    if has_footnotes and saw_footnotes == false
+    if has_footnotes && saw_footnotes == false
         put_last!(headers, {"level": 2, "id": "footnotes", "text": "References & Footnotes"})
     xx
 
     /// If no headers (and no footnotes link), emit no TOC at all
-    if headers.len == 0
-        return ""
-    xx
+    if headers.len == 0 => return ""
 
     toc_parts | []
     for h in headers
@@ -142,20 +130,14 @@ xx
 /// - Uses sheriff-breadcrumb-* classes to match CSS / React mock
 /// ------------------------------------------------------------------------
 act build_breadcrumbs(ctx)
-    path   | ctx["path"]
-    portal | ctx["portal"]
-
-    if path.nix? or portal.nix?
-        return ""
-    xx
+    path   | ctx["path"] ?? => return ""
+    portal | ctx["portal"] ?? => return ""
 
     content_root | "../site/portals/{portal}/content"
     rel          | :path_relative_to(path, content_root)
 
     /// Root → no breadcrumbs
-    if rel == ""
-        return ""
-    xx
+    if rel == "" => return ""
 
     segs       | :split(rel, "/")
     clean_segs | []
@@ -167,9 +149,7 @@ act build_breadcrumbs(ctx)
         :put_last!(clean_segs, s)
     xx
 
-    if clean_segs.len == 0
-        return ""
-    xx
+    if clean_segs.len == 0 => return ""
 
     parts | []
 
@@ -184,7 +164,7 @@ act build_breadcrumbs(ctx)
 
         /// Get a label and force it to string
         label | slug_to_label(seg)
-        label |= "" + label
+        label |= label
 
         /// Escape + Title-case
         safe | :escape_html(label)
@@ -219,10 +199,7 @@ xx
 /// After layout + wire_slots, before Brindle resolves tokens.
 /// ------------------------------------------------------------------------
 act apply_tokens(ctx)
-    body | ctx["body"]
-    if body.nix?
-        return ctx
-    xx
+    body | ctx["body"] ?? => return ctx 
 
     /// Always clear first so nothing leaks between pages
     clear_token("SCOUT", "TOC")
@@ -251,29 +228,17 @@ xx
 /// ========================================================================
 
 act make_abs_href(portal, raw)
-    if raw.nix?
-        return ""
-    xx
+    if raw.nix? => return ""
 
-    href | :trim("" + raw)
+    href | :trim(raw)
 
-    if href == "" or href == "{}"
-        return ""
-    xx
+    if href == "" or href == "{}" => return ""
 
     /// Check for absolute URLs (http/https)
-    if :starts_with(href, "http://")
-        return href
-    xx
-    
-    if :starts_with(href, "https://")
-        return href
-    xx
+    if :starts_with(href, ["http://", "https://"]) => return href
     
     /// Already starts with /
-    if :starts_with(href, "/")
-        return href
-    xx
+    if :starts_with(href, "/") => return href
 
     /// Relative path - make it absolute
     return "/" + href
@@ -304,24 +269,24 @@ act scout_link_info_for_href(portal, href)
     if routes.nix? => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
     if :valtype(routes) != "array" => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
 
-    h | :trim("" + href)
+    h | :trim(href)
 
     /// 1) Exact match (href keys include leading "/")
     for meta in routes
         if meta.nix? => skip
         mh | meta["href"]
         if mh.nix? => skip
-        if ("" + mh) == h
+        if (mh) == h
             return {"class": "sheriff-link", "href": href}
         xx
     xx
 
     /// 2) Fallback: try without leading "/" (older builds / inconsistent inputs)
-    key | "" + h
+    key | h
     if :starts_with(key, "/")
         tmp | :keep_after(key, "/")
         if !tmp.nix?
-            key |= "" + tmp
+            key |= tmp
         else
             key |= ""
         xx
@@ -332,11 +297,11 @@ act scout_link_info_for_href(portal, href)
         mh | meta["href"]
         if mh.nix? => skip
 
-        mh2 | "" + mh
+        mh2 | mh
         if :starts_with(mh2, "/")
             tmp2 | :keep_after(mh2, "/")
             if !tmp2.nix?
-                mh2 |= "" + tmp2
+                mh2 |= tmp2
             else
                 mh2 |= ""
             xx
@@ -352,19 +317,13 @@ xx
 
 /// ------------------------------------------------------------------------
 act generate_nested_items(portal, items_map)
-    if items_map.nix?
-        return ""
-    xx
+    if items_map.nix? => return ""
 
     vt | :valtype(items_map)
-    if vt != "map"
-        return ""
-    xx
+    if vt != "map" => return ""
 
     keys | :keys(items_map)
-    if keys.len == 0
-        return ""
-    xx
+    if keys.len == 0 => return ""
 
     ul_items | ""
 
@@ -393,9 +352,7 @@ act generate_nested_items(portal, items_map)
             update!(ul_items, ul_items + item)
         else
             href | make_abs_href(portal, val)
-            if href == ""
-                skip
-            xx
+            if href == "" => skip
 
             info | scout_link_info_for_href(portal, href)
             cls  | info["class"]
@@ -411,9 +368,7 @@ act generate_nested_items(portal, items_map)
         xx
     xx
 
-    if ul_items == ""
-        return ""
-    xx
+    if ul_items == "" => return ""
 
     html | """
 <ul>
@@ -427,19 +382,13 @@ xx
 /// NOTE: HTML structure + CSS classes preserved from old implementation.
 /// ------------------------------------------------------------------------
 act scout_render_sidebar(portal, menu_content)
-    if menu_content.nix?
-        return ""
-    xx
+    if menu_content.nix? => return ""
 
     vt | :valtype(menu_content)
-    if vt != "map"
-        return ""
-    xx
+    if vt != "map" => return ""
 
     keys | :keys(menu_content)
-    if keys.len == 0
-        return ""
-    xx
+    if keys.len == 0 => return ""
 
     nav_items | ""
     first_key | true
@@ -450,9 +399,7 @@ act scout_render_sidebar(portal, menu_content)
 
         if first_key and val_type == "map"
             nested | generate_nested_items(portal, top_val)
-            if nested == ""
-                skip
-            xx
+            if nested == "" => skip
 
             item | """
             <div class="section-header">
@@ -465,9 +412,7 @@ act scout_render_sidebar(portal, menu_content)
 
         elif val_type == "str"
             href | make_abs_href(portal, top_val)
-            if href == ""
-                skip
-            xx
+            if href == "" => skip
 
             info | scout_link_info_for_href(portal, href)
             cls  | info["class"]
@@ -484,9 +429,7 @@ act scout_render_sidebar(portal, menu_content)
 
         elif val_type == "map"
             nested | generate_nested_items(portal, top_val)
-            if nested == ""
-                skip
-            xx
+            if nested == "" => skip
 
             item | """
             <li class="has-submenu">
@@ -505,9 +448,7 @@ act scout_render_sidebar(portal, menu_content)
         xx
     xx
 
-    if nav_items == ""
-        return ""
-    xx
+    if nav_items == "" => return ""
 
     html | """
 <aside class="sheriff-left-nav">
@@ -521,19 +462,13 @@ xx
 /// Footer flat links – dead simple & safe.
 /// ------------------------------------------------------------------------
 act scout_render_footer(portal, footer_content)
-    if footer_content.nix?
-        return ""
-    xx
+    if footer_content.nix? => return ""
 
     vt | :valtype(footer_content)
-    if vt != "map"
-        return ""
-    xx
+    if vt != "map" => return ""
 
     keys | :keys(footer_content)
-    if keys.len == 0
-        return ""
-    xx
+    if keys.len == 0 => return ""
 
     footer_links | ""
     first        | true
@@ -543,9 +478,7 @@ act scout_render_footer(portal, footer_content)
         
         /// Separator between items
         sep | ""
-        if first == false
-            update!(sep, " · ")
-        xx
+        if first == false => update!(sep, " · ")
 
         /// Decide: plain text vs link
         is_link | true
@@ -553,17 +486,16 @@ act scout_render_footer(portal, footer_content)
 
         if url.nix?
             update!(is_link, false)
+        elif :valtype(url) != "str"
+            update!(is_link, false)
         else
-            tmp | "" + url
-            tmp |= :trim(tmp)
+            tmp | :trim(url)
 
             if tmp == "" or tmp == "{}"
                 update!(is_link, false)
             else
                 update!(url_str, make_abs_href(portal, tmp))
-                if url_str == ""
-                    update!(is_link, false)
-                xx
+                if url_str == "" => update!(is_link, false)
             xx
         xx
 
@@ -578,9 +510,7 @@ act scout_render_footer(portal, footer_content)
         update!(first, false)
     xx
 
-    if footer_links == ""
-        return ""
-    xx
+    if footer_links == "" => return ""
 
     html | """
 <div class="sheriff-footer-links">
@@ -593,19 +523,13 @@ xx
 /// Header nav – CSS & structure preserved.
 /// ------------------------------------------------------------------------
 act scout_render_header_nav(portal, menu_content)
-    if menu_content.nix?
-        return ""
-    xx
+    if menu_content.nix? => return ""
 
     vt | :valtype(menu_content)
-    if vt != "map"
-        return ""
-    xx
+    if vt != "map" => return ""
 
     keys | :keys(menu_content)
-    if keys.len == 0
-        return ""
-    xx
+    if keys.len == 0 => return ""
 
     nav_items | ""
 
@@ -615,9 +539,7 @@ act scout_render_header_nav(portal, menu_content)
 
         if val_type == "str"
             href | make_abs_href(portal, top_val)
-            if href == ""
-                skip
-            xx
+            if href == "" => skip
 
             item | """
 <li>
@@ -628,9 +550,7 @@ act scout_render_header_nav(portal, menu_content)
 
         elif val_type == "map"
             dropdown_html | generate_header_dropdown(portal, top_val)
-            if dropdown_html == ""
-                skip
-            xx
+            if dropdown_html == "" => skip
 
             item | """
 <li>
@@ -644,9 +564,7 @@ act scout_render_header_nav(portal, menu_content)
         xx
     xx
 
-    if nav_items == ""
-        return ""
-    xx
+    if nav_items == "" => return ""
 
     html | """
 <nav class="sheriff-header-nav">
@@ -659,14 +577,10 @@ xx
 
 /// ------------------------------------------------------------------------
 act generate_header_dropdown(portal, dropdown_map)
-    if dropdown_map.nix?
-        return ""
-    xx
+    if dropdown_map.nix? => return ""
 
     keys | :keys(dropdown_map)
-    if keys.len == 0
-        return ""
-    xx
+    if keys.len == 0 => return ""
 
     sections_html | ""
 
@@ -676,9 +590,7 @@ act generate_header_dropdown(portal, dropdown_map)
 
         if section_type == "str"
             href | make_abs_href(portal, section_val)
-            if href == ""
-                skip
-            xx
+            if href == "" => skip
 
             section_html | """
 <div class="dropdown-section">
@@ -693,9 +605,7 @@ act generate_header_dropdown(portal, dropdown_map)
 
             for link_key in link_keys
                 link_href | make_abs_href(portal, section_val[link_key])
-                if link_href == ""
-                    skip
-                xx
+                if link_href == "" => skip
 
                 link_item | """
     <li>
@@ -729,16 +639,12 @@ xx
 /// Unknown kinds currently fall back to "sidebar".
 /// ------------------------------------------------------------------------
 act scout_render_menu_for_kind(portal, menu_map, kind)
-    if menu_map.nix?
-        return ""
-    xx
+    if menu_map.nix? => return ""
 
     vt | :valtype(menu_map)
-    if vt != "map"
-        return ""
-    xx
+    if vt != "map" => return ""
 
-    k | "" + kind
+    k | kind
 
     if k == "header"
         return scout_render_header_nav(portal, menu_map)
@@ -758,22 +664,13 @@ xx
 /// ------------------------------------------------------------------------
 act scout_active_theme_name(portal)
     cfg_path | "../site/portals/{portal}/config.yall"
-    if :file_exists(cfg_path) == false
-        return "outpost"
-    xx
+    if :file_exists(cfg_path) == false => return "outpost"
 
     cfg   | :yall_parse_file(cfg_path)
-    theme | cfg["theme"]
-    if theme.nix?
-        return "outpost"
-    xx
+    theme | cfg["theme"] ?? => return "outpost"
+    name | theme["name"] ?? => return "outpost"
 
-    name | theme["name"]
-    if name.nix?
-        return "outpost"
-    xx
-
-    return "" + name
+    return name
 xx
 
 /// ------------------------------------------------------------------------
@@ -805,13 +702,13 @@ act scout_load_theme_nav_mapping(portal)
         return nil
     xx
 
-    theme_name | "" + name
+    theme_name | name
 
     /// FIXED: theme file must be INSIDE THE PORTAL
     map_path | "../sheriff-core/themes/{theme_name}/scout_nav.yall"
 
     if :file_exists(map_path) == false
-        :say("SCOUT: Theme '{theme_name}' missing scout_nav.yall at " ++ map_path)
+        :say("SCOUT: Theme '{theme_name}' missing scout_nav.yall at" ++ map_path)
         return nil
     xx
 
@@ -874,28 +771,28 @@ act publish_nav_tokens(pre_ctx)
     for name in names
         menu_map | menus[name]
         if menu_map.nix?
-            :say("SCOUT: menu '" ++ ("" + name) ++ "' is nil, skipping.")
+            :say("SCOUT: menu '" ++ (name) ++ "' is nil, skipping.")
             skip
         xx
 
         /// 1) Header dropdown token: <name>_DROPDOWN
         header_html | scout_render_header_nav(portal, menu_map)
         if header_html != ""
-            header_token | ("" + name) + "_DROPDOWN"
+            header_token | (name) + "_DROPDOWN"
             register_token("SCOUT", header_token, header_html)
         xx
 
         /// 2) Sidebar token: <name>_SIDEBAR
         sidebar_html | scout_render_sidebar(portal, menu_map)
         if sidebar_html != ""
-            sidebar_token | ("" + name) + "_SIDEBAR"
+            sidebar_token | (name) + "_SIDEBAR"
             register_token("SCOUT", sidebar_token, sidebar_html)
         xx
 
         /// 3) Flat footer token: <name>_FLAT
         footer_html | scout_render_footer(portal, menu_map)
         if footer_html != ""
-            footer_token | ("" + name) + "_FLAT"
+            footer_token | (name) + "_FLAT"
             register_token("SCOUT", footer_token, footer_html)
         xx
     xx
