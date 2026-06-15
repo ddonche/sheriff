@@ -1,0 +1,100 @@
+goblin-repl
+===========
+
+Embeds an interactive Goblin REPL into any web page using WebAssembly.
+Readers can run live Goblin code right in the browser — no server required.
+
+
+INSTALLATION
+------------
+
+Copy the entire goblin_repl folder into your project's glams/ directory:
+
+    your-project/
+      glams/
+        goblin_repl/
+          glam.toml
+          README
+          goblin-repl.gbln
+          js/
+            goblin-repl.js
+          wasm/
+            goblin_wasm.js
+            goblin_wasm_bg.wasm
+
+
+CONFIGURATION
+-------------
+
+Open glam.toml and fill in the [needs] section with Box variables from
+your box.toml or goblin box dump:
+
+    [needs]
+    output_dir = "#site::public_dir"
+
+  output_dir   The directory where the WASM and JS files will be copied.
+               Must be publicly accessible from the browser.
+
+
+USAGE
+-----
+
+Import the glam:
+
+    use goblin_repl
+
+Copy assets to your output directory:
+
+    goblin-repl::init()
+
+Replace GOBLIN_REPL::EMBED tokens in a string:
+
+    result | goblin-repl::apply_tokens(body)
+
+Place the token anywhere in your content:
+
+    GOBLIN_REPL::EMBED
+
+
+ACTIONS
+-------
+
+  goblin-repl::init()
+    Copies goblin-repl.js, goblin_wasm.js, and goblin_wasm_bg.wasm
+    into output_dir. Call this once before serving any pages.
+
+  goblin-repl::apply_tokens(body)
+    Takes a string. Replaces every occurrence of GOBLIN_REPL::EMBED
+    with the REPL embed HTML. Returns the updated string.
+
+
+TOKENS
+------
+
+  GOBLIN_REPL::EMBED
+    Place this anywhere you want a REPL to appear.
+    Resolved by goblin-repl::apply_tokens.
+
+
+WHAT THE READER SEES
+--------------------
+
+A dark terminal panel with:
+  - Scrollable output area
+  - Single-line input with a > prompt
+  - Arrow keys for input history
+  - Multi-line block support (type a block, close with xx)
+  - A reset button to clear the session
+
+Each REPL on a page has its own independent session.
+
+
+INCLUDED FILES
+--------------
+
+  js/goblin-repl.js        The REPL UI. Mounts into the page, loads the
+                           WASM, handles all input and output.
+
+  wasm/goblin_wasm.js      WebAssembly glue. Loaded by the browser at runtime.
+
+  wasm/goblin_wasm_bg.wasm The compiled Goblin VM. Runs entirely in the browser.

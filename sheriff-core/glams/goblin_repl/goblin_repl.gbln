@@ -1,0 +1,86 @@
+/// glams/goblin_repl/goblin-repl.gbln
+/// Goblin REPL Embed GLAM
+///
+/// Provides an interactive Goblin REPL for any web page via WebAssembly.
+///
+/// Usage:
+///   use goblin_repl
+///   goblin-repl::init(pre_ctx)       /// call once at build start
+///   goblin-repl::apply_tokens(ctx)   /// call per page to resolve GOBLIN_REPL::EMBED tokens
+///
+/// In your content, place:
+///   GOBLIN_REPL::EMBED
+///
+/// apply_tokens resolves it into the embed HTML.
+
+/// ----------------------------------------------------------------------
+/// INIT: Copy WASM and JS assets into the output dir
+/// ----------------------------------------------------------------------
+act init(pre_ctx)
+    output_dir | #goblin_repl::output_dir
+    glams_dir  | #goblin_repl::glams_dir
+
+    glam_dir | "{glams_dir}/goblin_repl"
+
+    js_dir   | "{output_dir}/js"
+    wasm_dir | "{output_dir}/wasm"
+
+    if :file_exists(js_dir) == false
+        :create_dir!(js_dir)
+    xx
+
+    if :file_exists(wasm_dir) == false
+        :create_dir!(wasm_dir)
+    xx
+
+    /// Copy JS client
+    js_src | "{glam_dir}/js/goblin-repl.js"
+    js_dst | "{js_dir}/goblin-repl.js"
+
+    if :file_exists(js_src)
+        :copy_file!(js_src, js_dst)
+    else
+        :say("GOBLIN-REPL: WARNING – goblin-repl.js not found at {js_src}")
+    xx
+
+    /// Copy WASM glue JS
+    wasm_js_src | "{glam_dir}/wasm/goblin_wasm.js"
+    wasm_js_dst | "{wasm_dir}/goblin_wasm.js"
+
+    if :file_exists(wasm_js_src)
+        :copy_file!(wasm_js_src, wasm_js_dst)
+    else
+        :say("GOBLIN-REPL: WARNING – goblin_wasm.js not found at {wasm_js_src}")
+    xx
+
+    /// Copy WASM binary
+    wasm_bin_src | "{glam_dir}/wasm/goblin_wasm_bg.wasm"
+    wasm_bin_dst | "{wasm_dir}/goblin_wasm_bg.wasm"
+
+    if :file_exists(wasm_bin_src)
+        :copy_file!(wasm_bin_src, wasm_bin_dst)
+    else
+        :say("GOBLIN-REPL: WARNING – goblin_wasm_bg.wasm not found at {wasm_bin_src}")
+    xx
+
+    :say("GOBLIN-REPL: Initialized")
+    return pre_ctx
+xx
+
+/// ----------------------------------------------------------------------
+/// APPLY_TOKENS: Register and resolve GOBLIN_REPL tokens per page
+/// ----------------------------------------------------------------------
+act apply_tokens(ctx)
+    body | ctx["body"] ?? => return ctx
+
+    embed_html | """
+    <div class="goblin-repl-placeholder"></div>
+    <script src="/public/js/goblin-repl.js"></script>
+    """
+
+    register_token("GOBLIN_REPL", "EMBED", embed_html)
+
+    updated | resolve_token(body)
+    :update!(ctx["body"], updated)
+    return ctx
+xx

@@ -1,0 +1,27 @@
+[glam]
+name = "goblin-repl"
+version = "0.1.0"
+author = "Dan Donche"
+description = "Embeds an interactive Goblin REPL into any web page using WebAssembly."
+license = "MIT"
+entry = "goblin_repl.gbln"
+
+[needs]
+output_dir = "#site::public_dir"
+glams_dir  = "#site::glams_dir"
+
+[provides]
+actions = [
+    "goblin-repl::init",
+    "goblin-repl::apply_tokens"
+]
+
+tokens = [
+    "GOBLIN_REPL::EMBED"
+]
+
+files = [
+    "js/goblin-repl.js",
+    "wasm/goblin_wasm.js",
+    "wasm/goblin_wasm_bg.wasm"
+]

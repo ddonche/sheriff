@@ -11,7 +11,7 @@ act create_all_dirs(path)
     slash_positions | :find_all(path, "/")
     for slash_pos in slash_positions
         dir_part | path[0:slash_pos]
-        if dir_part != "" and :file_exists(dir_part) == false
+        if dir_part.nix? == false
             :create_dir!(dir_part)
         xx
     xx

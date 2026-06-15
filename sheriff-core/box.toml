@@ -1,3 +1,5 @@
+# box.toml
+
 [local]
 portal = "{#local::portal}"
 
@@ -5,3 +7,4 @@ portal = "{#local::portal}"
 content_dir = "../site/portals/{#local::portal}/content"
 public_dir  = "../dist/{#local::portal}/public"
 base_url    = "/"
+glams_dir   = "glams"

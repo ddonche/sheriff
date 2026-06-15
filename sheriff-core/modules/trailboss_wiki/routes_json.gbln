@@ -20,6 +20,23 @@ act load_cfg(portal)
     return :yall_parse_file(path)
 xx
 
+act get_site_url(cfg)
+    routing | get_routing_map(cfg)
+
+    if routing.nix? or :has(routing, "site_url") == false
+        return ..
+    xx
+
+    site_url | routing["site_url"]
+    :trim!(site_url)
+
+    if site_url.nix?
+        return ..
+    xx
+
+    return site_url
+xx
+
 act get_routing_map(cfg)
     if cfg.nix? => return nil
     if :valtype(cfg) != "map" => return nil
@@ -126,10 +143,31 @@ act letter_key(page_title)
     return "#"
 xx
 
+act write_sitemap_xml(path, site_url, routes)
+    lines | []
+
+    :put_last!(lines, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+    :put_last!(lines, "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">")
+
+    for route in routes
+        href | route["href"]
+        loc  | "{site_url}{href}"
+
+        :put_last!(lines, "  <url>")
+        :put_last!(lines, "    <loc>{loc}</loc>")
+        :put_last!(lines, "  </url>")
+    xx
+
+    :put_last!(lines, "</urlset>")
+
+    :write_text!(path, :join(lines, "\n"))
+xx
+
 act build_routes_json_for_portal(portal)
-    content_root | "../site/portals/{portal}/content"
-    routes_path  | "../site/portals/{portal}/routes.json"
-    report_path  | "../site/portals/{portal}/report.json"
+    content_root  | "../site/portals/{portal}/content"
+    routes_path   | "../site/portals/{portal}/routes.json"
+    report_path   | "../site/portals/{portal}/report.json"
+    sitemap_path  | "../dist/{portal}/sitemap.xml"
 
     if :file_exists(routes_path)
         :delete_path!(routes_path)
@@ -139,8 +177,13 @@ act build_routes_json_for_portal(portal)
         :delete_path!(report_path)
     xx
 
+    if :file_exists(sitemap_path)
+        :delete_path!(sitemap_path)
+    xx
+
     cfg      | load_cfg(portal)
     url_root | get_url_root(cfg)
+    site_url | get_site_url(cfg)
 
     files  | :walk(content_root, "**/*.md")
     routes | []
@@ -178,13 +221,10 @@ act build_routes_json_for_portal(portal)
     }
 
     for src in files
-        /// normalize path separators (Windows-safe)
         src_norm | src
         :update_where!(src_norm, "\\", "/")
 
         stem_name | :stem(src_norm)
-
-        /// slug stays filename-derived (portal-local canonical like [[getting-started]])
         slug | normalize_to_slug(stem_name)
 
         if slug == "index"
@@ -201,16 +241,17 @@ act build_routes_json_for_portal(portal)
 
         prefix | "../site/portals/{portal}/content/"
         rel    | :keep_after(src_norm, prefix)
+
         if rel == ""
             rel |= "{stem_name}.md"
         xx
 
         rel_no_ext | :keep_before(rel, ".md")
+
         if rel_no_ext == ""
             rel_no_ext |= rel
         xx
 
-        /// normalize rel path separators too (defensive)
         :update_where!(rel_no_ext, "\\", "/")
 
         href_abs | build_href(url_root, rel_no_ext)
@@ -218,11 +259,10 @@ act build_routes_json_for_portal(portal)
         title_src | stem_name
         :update_where!(title_src, "_", " ")
         :update_where!(title_src, "-", " ")
+
         page_title | :title(title_src)
+        canonical  | "[[{slug}]]"
 
-        canonical | "[[{slug}]]"
-
-        /// ---- Frontmatter pull ----
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
@@ -242,7 +282,6 @@ act build_routes_json_for_portal(portal)
                 summary |= fm["summary"]
             xx
 
-            /// pull gloss from frontmatter (fallback to summary)
             if :has(fm, "gloss")
                 gloss |= fm["gloss"]
             elif summary != ..
@@ -269,7 +308,6 @@ act build_routes_json_for_portal(portal)
         page_count += 1
 
         bucket | letter_key(page_title)
-
         current | letter_counts[bucket]
         current += 1
 
@@ -285,12 +323,17 @@ act build_routes_json_for_portal(portal)
     report_payload | {
         "portal":   portal,
         "url_root": url_root,
+        "site_url": site_url,
         "pages":    page_count,
         "letters":  letter_counts
     }
 
     :write_json!(routes_path, payload)
     :write_json!(report_path, report_payload)
+
+    if site_url != ..
+        write_sitemap_xml(sitemap_path, site_url, routes)
+    xx
 
     return nil
 xx

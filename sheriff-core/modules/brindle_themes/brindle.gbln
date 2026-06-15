@@ -195,6 +195,8 @@ xx
 /// ------------------------------------------------------
 act build_seo_meta(page_title, page_summary, page_thumb, brand_name)
     full_title | "{page_title} | {brand_name}"
+    lb | "\{"
+    rb | "\}"
 
     html | """
     <title>{full_title}</title>
@@ -205,6 +207,24 @@ act build_seo_meta(page_title, page_summary, page_thumb, brand_name)
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="{full_title}">
     <meta name="twitter:description" content="{page_summary}">
+
+    <script type="application/ld+json">
+    \{
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "{full_title}",
+      "description": "{page_summary}",
+      "about": \{
+        "@type": "ComputerLanguage",
+        "name": "Goblin",
+        "alternateName": [
+          "Goblin Lang",
+          "Goblin Programming Language"
+        ],
+        "url": "https://goblinlang.org"
+      \}
+    \}
+    </script>
     """
 
     if page_thumb != ""
