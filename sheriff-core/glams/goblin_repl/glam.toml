@@ -6,7 +6,7 @@ description = "Embeds an interactive Goblin REPL into any web page using WebAsse
 license = "MIT"
 entry = "goblin_repl.gbln"
 
-[needs]
+[needs.values]
 output_dir = "#site::public_dir"
 glams_dir  = "#site::glams_dir"
 

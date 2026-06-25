@@ -7,21 +7,22 @@
 /// ----------------------------------------------------------------------
 /// INIT: Clear search index at start of portal build + copy JS
 /// ----------------------------------------------------------------------
-act init(pre_ctx)
-    output_dir  | #prospector::output_dir
-    index_file  | #prospector::index_file
-    client_file | #prospector::client_file
 
-    if :file_exists(output_dir) == false
-        :create_dir!(output_dir)
+#prospector::index_file  | "search-index.json"
+#prospector::client_file | "prospector.js"
+
+act init(pre_ctx)
+
+    if :file_exists(#need::output_dir) == false
+        :create_dir!(#need::output_dir)
     xx
 
-    index_path | "{output_dir}/{index_file}"
+    index_path | "{#need::output_dir}/{#prospector::index_file}"
     :write_text!(index_path, "")
 
-    js_src | "glams/prospector/{client_file}"
+    js_src | "glams/prospector/{#prospector::client_file}"
     if :file_exists(js_src)
-        js_dst  | "{output_dir}/{client_file}"
+        js_dst  | "{#need::output_dir}/{#prospector::client_file}"
         js_code | :read_text(js_src)
         :write_text!(js_dst, js_code)
     else
@@ -56,8 +57,7 @@ act index_page(ctx)
     if layout != "docs" => return ctx
 
     /// -------- href from source path --------
-    content_root | #prospector::source_dir
-    rel_path     | :path_relative_to(path, content_root)
+    rel_path     | :path_relative_to(path, #need::source_dir)
 
     rel_no_ext | rel_path
     if :ends_with(rel_no_ext, ".md")
@@ -88,14 +88,14 @@ act index_page(ctx)
         h1   | :keep_between(text, "# ", "\n")
         if !h1.nix?
             t2 | :trim(h1)
-            if t2 != ""
+            if t2 != ..
                 :update!(title, t2)
             xx
         xx
     xx
 
     /// -------- summary --------
-    summary | ""
+    summary | ..
 
     if !fm.nix?
         attempt
@@ -111,7 +111,7 @@ act index_page(ctx)
         xx
     xx
 
-    if summary == ""
+    if summary == ..
         text2 | :normalize_newlines(body)
         if :len(text2) > 200
             :update!(summary, text2[0:200])
@@ -128,12 +128,11 @@ act index_page(ctx)
     }
 
     /// write JSON safely to temp
-    output_dir | #prospector::output_dir
-    tmp_path   | "{output_dir}/.prospector.tmp.json"
+    tmp_path   | "{#need::output_dir}/.prospector.tmp.json"
     :write_json!(tmp_path, entry)
 
     json_text  | :read_text(tmp_path)
-    index_path | "{output_dir}/{#prospector::index_file}"
+    index_path | "{#need::output_dir}/{#prospector::index_file}"
     :append_file!(index_path, json_text + "\n")
 
     return ctx

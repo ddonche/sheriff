@@ -17,13 +17,10 @@
 /// INIT: Copy WASM and JS assets into the output dir
 /// ----------------------------------------------------------------------
 act init(pre_ctx)
-    output_dir | #goblin_repl::output_dir
-    glams_dir  | #goblin_repl::glams_dir
+    glam_dir | "{#need::glams_dir}/goblin_repl"
 
-    glam_dir | "{glams_dir}/goblin_repl"
-
-    js_dir   | "{output_dir}/js"
-    wasm_dir | "{output_dir}/wasm"
+    js_dir   | "{#need::output_dir}/js"
+    wasm_dir | "{#need::output_dir}/wasm"
 
     if :file_exists(js_dir) == false
         :create_dir!(js_dir)

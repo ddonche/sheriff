@@ -18,10 +18,10 @@ act resolve_theme_name(portal)
 
     if :file_exists(config_path)
         cfg|:yall_parse_file(config_path)
-        if !cfg.nix? && :valtype(cfg)=="map" && !cfg["theme"].nix?
-            theme_cfg|cfg["theme"]
-            if :valtype(theme_cfg)=="map" && !theme_cfg["name"].nix?
-                :update!(theme_name,:trim(theme_cfg["name"]))
+        if !cfg.nix? && :valtype(cfg)=="map" && !cfg{"theme"}.nix?
+            theme_cfg|cfg{"theme"}
+            if :valtype(theme_cfg)=="map" && !theme_cfg{"name"}.nix?
+                :update!(theme_name,:trim(theme_cfg{"name"}))
             xx
         xx
     xx
@@ -30,7 +30,7 @@ act resolve_theme_name(portal)
 xx
 
 act copy_assets(pre_ctx)
-    portal | pre_ctx["portal"]
+    portal | pre_ctx{"portal"}
 
     if portal.nix?
         :say("STAGEHAND: No portal in pre_ctx; skipping copy_assets")
@@ -44,11 +44,11 @@ act copy_assets(pre_ctx)
     if :file_exists(config_path)
         cfg | :yall_parse_file(config_path)
 
-        if !cfg.nix? && !cfg["theme"].nix?
-            theme_cfg | cfg["theme"]
+        if !cfg.nix? && !cfg{"theme"}.nix?
+            theme_cfg | cfg{"theme"}
 
-            if !theme_cfg["name"].nix?
-                :update!(theme_name, :trim(theme_cfg["name"]))
+            if !theme_cfg{"name"}.nix?
+                :update!(theme_name, :trim(theme_cfg{"name"}))
             xx
         xx
     xx
@@ -168,17 +168,17 @@ xx
 ///    (module tokens remain for their own apply_tokens steps).
 /// ----------------------------------------------------------------------
 act wire_slots(ctx)
-    portal | ctx["portal"] ?? => return ctx
-    fm     | ctx["frontmatter"]
-    body   | ctx["body"] ?? => return ctx
+    portal | ctx{"portal"} ?? => return ctx
+    fm     | ctx{"frontmatter"}
+    body   | ctx{"body"} ?? => return ctx
 
     /// SAFETY: ensure fm is actually a map
     if !fm.nix? && :valtype(fm) != "map" => fm | {}
 
     /// 1) Determine layout name (default "docs")
     layout_name | "docs"
-    if :valtype(fm) == "map" && !fm["layout"].nix?
-        :update!(layout_name, :trim(fm["layout"]))
+    if :valtype(fm) == "map" && !fm{"layout"}.nix?
+        :update!(layout_name, :trim(fm{"layout"}))
     xx
 
     /// 2) Load templates.yall and locate slots for this layout
@@ -187,14 +187,14 @@ act wire_slots(ctx)
     if :file_exists(templates_path) == false => return ctx
 
     templates | :yall_parse_file(templates_path)
-    if templates.nix? or templates["layouts"].nix? => return ctx
+    if templates.nix? or templates{"layouts"}.nix? => return ctx
 
-    layouts_cfg | templates["layouts"]
-    if layouts_cfg[layout_name].nix? or layouts_cfg[layout_name]["slots"].nix?
+    layouts_cfg | templates{"layouts"}
+    if layouts_cfg{layout_name}.nix? or layouts_cfg{layout_name}{"slots"}.nix?
         return ctx
     xx
 
-    slots_cfg | layouts_cfg[layout_name]["slots"]
+    slots_cfg | layouts_cfg{layout_name}{"slots"}
 
     /// 3) For each slot [name, tokens], build the raw token string
     ///    and register SLOT::slot_name = "{{{MOD::TOKEN}}}..."
@@ -209,6 +209,6 @@ act wire_slots(ctx)
 
     /// 4) Apply SLOT tokens into the layout HTML.
     rendered | resolve_token(body)
-    :update!(ctx["body"], rendered)
+    :update!(ctx{"body"}, rendered)
     return ctx
 xx

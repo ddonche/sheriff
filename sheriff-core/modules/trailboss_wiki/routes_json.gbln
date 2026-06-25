@@ -27,7 +27,7 @@ act get_site_url(cfg)
         return ..
     xx
 
-    site_url | routing["site_url"]
+    site_url | routing{"site_url"}
     :trim!(site_url)
 
     if site_url.nix?
@@ -41,7 +41,7 @@ act get_routing_map(cfg)
     if cfg.nix? => return nil
     if :valtype(cfg) != "map" => return nil
 
-    routing | cfg["routing"]
+    routing | cfg{"routing"}
     if routing.nix? => return nil
     if :valtype(routing) != "map" => return nil
 
@@ -150,7 +150,7 @@ act write_sitemap_xml(path, site_url, routes)
     :put_last!(lines, "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">")
 
     for route in routes
-        href | route["href"]
+        href | route{"href"}
         loc  | "{site_url}{href}"
 
         :put_last!(lines, "  <url>")
@@ -271,19 +271,19 @@ act build_routes_json_for_portal(portal)
         if fm.nix? == false and :valtype(fm) == "map"
 
             if :has(fm, "meta_kind")
-                meta_kind |= fm["meta_kind"]
+                meta_kind |= fm{"meta_kind"}
             xx
 
             if :has(fm, "meta_type")
-                meta_type |= fm["meta_type"]
+                meta_type |= fm{"meta_type"}
             xx
 
             if :has(fm, "summary")
-                summary |= fm["summary"]
+                summary |= fm{"summary"}
             xx
 
             if :has(fm, "gloss")
-                gloss |= fm["gloss"]
+                gloss |= fm{"gloss"}
             elif summary != ..
                 gloss |= summary
             xx
@@ -308,7 +308,7 @@ act build_routes_json_for_portal(portal)
         page_count += 1
 
         bucket | letter_key(page_title)
-        current | letter_counts[bucket]
+        current | letter_counts{bucket}
         current += 1
 
         :update!(letter_counts[bucket], current)
@@ -343,7 +343,7 @@ act build_all_pages_once(pre_ctx)
         send pre_ctx
     xx
 
-    portal | pre_ctx["portal"]
+    portal | pre_ctx{"portal"}
 
     if portal.nix?
         send pre_ctx
@@ -359,7 +359,7 @@ act build_all_pages_once(pre_ctx)
 
     if parsed.nix? => return pre_ctx
 
-    routes | parsed["routes"]
+    routes | parsed{"routes"}
 
     if routes.nix? => return pre_ctx
 
@@ -383,10 +383,10 @@ act build_all_pages_once(pre_ctx)
     current_letter | ""
 
     for route in sorted
-        slug | route["slug"]
+        slug | route{"slug"}
 
         if slug != "all-pages"
-            route_title | route["title"]
+            route_title | route{"title"}
 
             bucket | letter_key(route_title)
 

@@ -1,8 +1,8 @@
-# site/portals/default/config.yaml
+# site/portals/default/config.yall
 
 id: default
 name: "Sheriff"
-version: "0.14.0"
+version: "0.16.0"
 
 repo:
   url: "https://github.com/ddonche/sheriff"
@@ -15,10 +15,12 @@ theme:
   brand_name: "SHERIFF"
   logo: "logo.png"
   favicon: "favicon.ico"
+  highlight_dark: "base16-ocean.dark"
+  highlight_light: "InspiredGitHub"
   overrides: {}
 
 routing:
   dist_root: "sheriff"   
   url_root: ""    
   content_dir: "content"     
-  public_dir: "public"       
+  public_dir: "public"      

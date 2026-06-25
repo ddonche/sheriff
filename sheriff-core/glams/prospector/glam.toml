@@ -6,14 +6,10 @@ description = "Builds a static search index and search UI tokens."
 license = "MIT"
 entry = "prospector.gbln"
 
-[needs]
+[needs.values]
 source_dir = "#site::content_dir"
 output_dir = "#site::public_dir"
 base_url   = "#site::base_url"
-
-[values]
-index_file  = "search-index.json"
-client_file = "prospector.js"
 
 [provides]
 actions = [
@@ -23,7 +19,9 @@ actions = [
 ]
 
 values = [
-    "#prospector::search_index"
+    "#prospector::search_index",
+    "#prospector::index_file",
+    "#prospector::client_file",
 ]
 
 tokens = [
