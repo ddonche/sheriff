@@ -12,7 +12,6 @@
 /// Returns map (assumed valid by contract)
 /// ------------------------------------------------------
 act campfire_extract_frontmatter(md_text)
-
     fm_map | nil
 
     sweep md_text

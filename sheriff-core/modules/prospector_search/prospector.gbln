@@ -143,7 +143,6 @@ act index_page(ctx)
     /// append to NDJSON file
     index_path | "../dist/{portal}/public/search-index.json"
     :append_file!(index_path, json_text + "\n")
-
     return ctx
 xx
 

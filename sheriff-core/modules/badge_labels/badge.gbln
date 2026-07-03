@@ -240,55 +240,25 @@ act build_util_icons_html()
 """
 xx
 
-/// Compute "~N min read" label from an HTML body, or "" if empty.
-/// Uses ~250 wpm and strips decimals by string-mangling the float.
+/// Compute "~N min read" label from body.
+/// Fast estimate: use body length, no split, no char loop.
 act compute_readtime_label(body)
     if body.nix? => return ""
 
-    /// Normalize & split into words
-    norm | ""
-    :update!(norm, :normalize_newlines("" + body))
-    :update_where!(norm, "\t", " ")
+    char_count | body.len
+    if char_count == 0 => return ""
 
-    parts | :split(norm, " ")
+    mins | char_count / 5000
 
-    word_count | 0
-    for p in parts
-        t | :trim(p)
-        if t != ""
-            :update!(word_count, word_count + 1)
-        xx
+    if char_count % 5000 != 0
+        mins++
     xx
 
-    if word_count == 0 => return ""
-
-    /// Get minutes as float
-    mins_f | word_count / 250
-
-    /// Convert to string & strip everything after '.'
-    mins_str   | "" + mins_f
-    mins_whole | :keep_before(mins_str, ".")
-
-    if mins_whole.nix? or :trim(mins_whole) == ""
-        :update!(mins_whole, mins_str)
+    if mins <= 1
+        return "~ 1 min read"
     xx
-
-    mins_whole |= :trim(mins_whole)
-
-    /// Guard: if we somehow got "0" but have words, bump to "1"
-    if mins_whole == "0"
-        :update!(mins_whole, "1")
-    xx
-
-    /// Build final label as plain lowercase text
-    label | ""
-    if mins_whole == "1"
-        :update!(label, "~ 1 min read")
-    else
-        :update!(label, "~ {mins_whole} min read")
-    xx
-
-    return label
+    mins |= mins_
+    return "~ {mins} min read"
 xx
 
 /// MAIN ENTRY
@@ -372,6 +342,7 @@ act apply_tokens(ctx)
     ////
 
     rendered | :resolve_token(body)
+
     :update!(ctx["body"], rendered)
 
     /// THEN clear for next page

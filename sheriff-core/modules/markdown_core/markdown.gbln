@@ -136,7 +136,6 @@ act render(ctx)
 
         :update_where!(out, k, fence_html)
     xx
-
     :update!(ctx["body"], out)
     return ctx
 xx
