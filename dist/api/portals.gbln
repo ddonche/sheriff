@@ -1,0 +1,24 @@
+root | :trim(:env("SHERIFF_ROOT"))
+
+if root == ""
+    root |= ".."
+xx
+
+dir | "{root}/site/portals"
+
+if :file_exists(dir) == false
+    out | {
+      "portals": []
+    }
+
+    :say(:json_stringify(out))
+
+else
+    portals | :list_dirs(dir)
+
+    out | {
+      "portals": portals
+    }
+
+    :say(:json_stringify(out))
+xx
