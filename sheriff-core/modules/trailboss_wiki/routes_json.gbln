@@ -163,11 +163,29 @@ act write_sitemap_xml(path, site_url, routes)
     :write_text!(path, :join(lines, "\n"))
 xx
 
+act write_robots_txt(path, site_url, url_root)
+    sitemap_href | "/sitemap.xml"
+
+    if url_root != ..
+        sitemap_href |= "/{url_root}/sitemap.xml"
+    xx
+
+    lines | []
+
+    :put_last!(lines, "User-agent: *")
+    :put_last!(lines, "Allow: /")
+    :put_last!(lines, "")
+    :put_last!(lines, "Sitemap: {site_url}{sitemap_href}")
+
+    :write_text!(path, :join(lines, "\n"))
+xx
+
 act build_routes_json_for_portal(portal)
     content_root  | "../site/portals/{portal}/content"
     routes_path   | "../site/portals/{portal}/routes.json"
     report_path   | "../site/portals/{portal}/report.json"
     sitemap_path  | "../dist/{portal}/sitemap.xml"
+    robots_path  | "../dist/{portal}/robots.txt"
 
     if :file_exists(routes_path)
         :delete_path!(routes_path)
@@ -179,6 +197,10 @@ act build_routes_json_for_portal(portal)
 
     if :file_exists(sitemap_path)
         :delete_path!(sitemap_path)
+    xx
+
+    if :file_exists(robots_path)
+        :delete_path!(robots_path)
     xx
 
     cfg      | load_cfg(portal)
@@ -333,6 +355,7 @@ act build_routes_json_for_portal(portal)
 
     if site_url != ..
         write_sitemap_xml(sitemap_path, site_url, routes)
+        write_robots_txt(robots_path, site_url, url_root)
     xx
 
     return nil

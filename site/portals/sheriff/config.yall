@@ -20,7 +20,8 @@ theme:
   overrides: {}
 
 routing:
-  dist_root: "sheriff"   
+  dist_root: "sheriff" 
+  site_url: "https://sheriff.sheriffcloud.com"  
   url_root: ""    
   content_dir: "content"     
   public_dir: "public"      

@@ -33,8 +33,7 @@
     dashboard:  { el: 'view-dashboard' },
     content:    { el: 'view-content' },
     portals:    { el: 'view-portals' },
-    media:      { el: 'view-placeholder', title: 'Media',
-                  text: 'The media manager isn\u2019t built yet. Uploads, browsing, and inserting file paths into the editor land here.' },
+    media:      { el: 'view-media' },
     navigation: { el: 'view-placeholder', title: 'Navigation',
                   text: 'The navigation editor isn\u2019t built yet. It will edit nav.yall per portal.' },
     themes:     { el: 'view-placeholder', title: 'Themes',
@@ -73,6 +72,7 @@
 
     if (key === 'content') editorEnter();
     if (key === 'portals') renderManageList();
+    if (key === 'media') mediaEnter();
   }
 
   window.addEventListener('hashchange', showView);
@@ -868,6 +868,378 @@
     } catch (err) {
       say('API unreachable');
     }
+  });
+
+  // ============================================================
+  // Media manager
+  // ============================================================
+  const mdPortal = document.getElementById('md-portal');
+  const mdFolder = document.getElementById('md-folder');
+  const mdUploadBtn = document.getElementById('md-upload-btn');
+  const mdFileInput = document.getElementById('md-file-input');
+  const mdGrid = document.getElementById('md-grid');
+  const mdDrop = document.getElementById('md-drop');
+  const mdCrumbs = document.getElementById('md-crumbs');
+  const mdView = document.getElementById('md-view');
+
+  const lightbox = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lb-img');
+  const lbPath = document.getElementById('lb-path');
+  const lbCopy = document.getElementById('lb-copy');
+  const lbDelete = document.getElementById('lb-delete');
+  const lbClose = document.getElementById('lb-close');
+
+  let mediaFiles = [];
+  let mediaDirs = [];
+  let mediaCwd = 'public';
+  let mediaViewMode = localStorage.getItem('desk.mediaView') || 'small';
+  let lbCurrent = null;
+
+  function mediaPortalUrl(subpath) {
+    return 'http://' + mdPortal.value + '.localhost:' + PORT + '/' + subpath;
+  }
+
+  function sitePath(subpath) {
+    return '/' + subpath;
+  }
+
+  function mediaCopyText(f) {
+    if (IMAGE_EXTS.has(fileExt(f))) {
+      const rel = f.slice('public/'.length);
+      return '[[image:' + rel + '|SIZE|ALIGN|CAPTION]]';
+    }
+    return sitePath(f);
+  }
+
+  function mediaCopyLabel(f) {
+    return IMAGE_EXTS.has(fileExt(f)) ? 'Copy tag' : 'Copy path';
+  }
+
+  function parentOf(p) {
+    return p.split('/').slice(0, -1).join('/');
+  }
+
+  function mediaEnter() {
+    if (mdPortal.options.length === 0 && portalNames.length > 0) {
+      portalNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        mdPortal.appendChild(opt);
+      });
+    }
+    if (mdPortal.value) loadMedia();
+  }
+
+  mdPortal.addEventListener('change', () => {
+    mediaCwd = 'public';
+    mdFolder.value = mediaCwd;
+    loadMedia();
+  });
+
+  async function loadMedia() {
+    if (!mdPortal.value) return;
+    mdGrid.innerHTML = '<div class="portal-empty">Loading media\u2026</div>';
+    try {
+      const res = await fetch('/api/list_files?' + encodeURIComponent(mdPortal.value));
+      const data = await res.json();
+      if (data.ok === false) {
+        mdGrid.innerHTML = '<div class="portal-empty">' + (data.stderr || 'Could not load media.') + '</div>';
+        return;
+      }
+      const files = Array.isArray(data.files) ? data.files.map(String) : [];
+      const dirs = Array.isArray(data.dirs) ? data.dirs.map(String) : [];
+      mediaFiles = files.filter(f => f.startsWith('public/')).sort();
+
+      // Union of reported dirs and dirs implied by file paths.
+      const dirSet = new Set(dirs.filter(d => d === 'public' || d.startsWith('public/')));
+      mediaFiles.forEach(f => {
+        let p = parentOf(f);
+        while (p && p !== 'public') { dirSet.add(p); p = parentOf(p); }
+      });
+      dirSet.add('public');
+      mediaDirs = Array.from(dirSet).sort();
+
+      if (!mediaDirs.includes(mediaCwd)) mediaCwd = 'public';
+      renderMedia();
+    } catch (err) {
+      mdGrid.innerHTML = '<div class="portal-empty">API unreachable.</div>';
+    }
+  }
+
+  function renderCrumbs() {
+    mdCrumbs.innerHTML = '';
+    const parts = mediaCwd.split('/');
+    parts.forEach((part, i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'crumb-sep';
+        sep.textContent = '\u203a';
+        mdCrumbs.appendChild(sep);
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'crumb' + (i === parts.length - 1 ? ' current' : '');
+      btn.textContent = part;
+      const target = parts.slice(0, i + 1).join('/');
+      btn.addEventListener('click', () => {
+        mediaCwd = target;
+        mdFolder.value = mediaCwd;
+        renderMedia();
+      });
+      mdCrumbs.appendChild(btn);
+    });
+  }
+
+  function renderViewToggle() {
+    mdView.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mv === mediaViewMode);
+    });
+  }
+
+  mdView.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-mv]');
+    if (!btn) return;
+    mediaViewMode = btn.dataset.mv;
+    localStorage.setItem('desk.mediaView', mediaViewMode);
+    renderMedia();
+  });
+
+  function renderMedia() {
+    renderCrumbs();
+    renderViewToggle();
+    mdGrid.className = 'media-grid ' + mediaViewMode;
+    mdGrid.innerHTML = '';
+
+    const folders = mediaDirs.filter(d => parentOf(d) === mediaCwd);
+    const files = mediaFiles.filter(f => parentOf(f) === mediaCwd);
+
+    if (folders.length === 0 && files.length === 0) {
+      mdGrid.innerHTML = '<div class="portal-empty">Empty folder. Upload something.</div>';
+      return;
+    }
+
+    folders.forEach(d => {
+      const name = d.split('/').pop();
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'media-card folder';
+      card.innerHTML = '<div class="media-thumb">'
+        + '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+        + '</div><div class="media-name"></div>';
+      card.querySelector('.media-name').textContent = name;
+      card.title = d;
+      card.addEventListener('click', () => {
+        mediaCwd = d;
+        mdFolder.value = mediaCwd;
+        renderMedia();
+      });
+      mdGrid.appendChild(card);
+    });
+
+    files.forEach(f => {
+      const name = f.split('/').pop();
+      const isImg = IMAGE_EXTS.has(fileExt(f));
+
+      const card = document.createElement('div');
+      card.className = 'media-card';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'media-thumb';
+      if (isImg) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = name;
+        img.src = mediaPortalUrl(f);
+        img.addEventListener('error', () => {
+          thumb.innerHTML = '<span class="thumb-msg">not built yet</span>';
+        });
+        thumb.appendChild(img);
+        thumb.addEventListener('click', () => openLightbox(f));
+        thumb.classList.add('clickable');
+      } else {
+        thumb.innerHTML = fileIconSvg(name);
+      }
+      card.appendChild(thumb);
+
+      const label = document.createElement('div');
+      label.className = 'media-name';
+      label.textContent = name;
+      label.title = f;
+      card.appendChild(label);
+
+      const acts = document.createElement('div');
+      acts.className = 'media-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn small';
+      copyBtn.textContent = mediaCopyLabel(f);
+      copyBtn.addEventListener('click', () => copyMediaPath(f));
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn small portal-delete';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteMedia(f));
+      acts.appendChild(copyBtn);
+      acts.appendChild(delBtn);
+      card.appendChild(acts);
+
+      mdGrid.appendChild(card);
+    });
+  }
+
+  function copyMediaPath(f) {
+    const p = mediaCopyText(f);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(p).then(
+        () => say('Copied ' + p),
+        () => say(p)
+      );
+    } else {
+      say(p);
+    }
+  }
+
+  async function deleteMedia(f) {
+    if (!window.confirm('Delete "' + f + '"? This cannot be undone.')) return;
+    try {
+      const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(f);
+      const res = await fetch('/api/delete_file?' + q);
+      const data = await res.json();
+      if (data.ok === false) {
+        say(data.stderr || 'Delete failed');
+        return;
+      }
+      say('Deleted ' + f);
+      if (lbCurrent === f) closeLightbox();
+      await loadMedia();
+    } catch (err) {
+      say('API unreachable');
+    }
+  }
+
+  // ---------- uploads ----------
+  function cleanFolder() {
+    let folder = mdFolder.value.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    if (!folder) folder = 'public';
+    if (folder !== 'public' && !folder.startsWith('public/')) {
+      return null;
+    }
+    if (folder.includes('..')) return null;
+    return folder;
+  }
+
+  async function uploadFiles(fileList) {
+    if (!mdPortal.value) { say('Pick a portal first'); return; }
+    const folder = cleanFolder();
+    if (folder === null) { say('Upload folder must be public/ or a subfolder of it'); return; }
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
+    let done = 0;
+    for (const file of files) {
+      const subpath = folder + '/' + file.name;
+      try {
+        const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(subpath);
+        const res = await fetch('/api/upload_file?' + q, {
+          method: 'POST',
+          body: file
+        });
+        const data = await res.json();
+        if (data.ok === false) {
+          say(file.name + ': ' + (data.stderr || 'upload failed'));
+          continue;
+        }
+        done++;
+      } catch (err) {
+        say('API unreachable');
+        break;
+      }
+    }
+
+    if (done > 0) {
+      say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded \u2014 building\u2026');
+      await loadMedia();
+      const ok = await buildPortal(mdPortal.value, null);
+      if (ok) {
+        say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded and live');
+        renderMedia();
+      }
+    }
+  }
+
+  mdUploadBtn.addEventListener('click', () => mdFileInput.click());
+  mdFileInput.addEventListener('change', () => {
+    uploadFiles(mdFileInput.files);
+    mdFileInput.value = '';
+  });
+
+  mdDrop.addEventListener('dragover', e => {
+    e.preventDefault();
+    mdDrop.classList.add('drag');
+  });
+  mdDrop.addEventListener('dragleave', () => mdDrop.classList.remove('drag'));
+  mdDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    mdDrop.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      uploadFiles(e.dataTransfer.files);
+    }
+  });
+
+  // ---------- lightbox ----------
+  function openLightbox(f) {
+    lbCurrent = f;
+    lbImg.src = mediaPortalUrl(f);
+    lbPath.textContent = mediaCopyText(f);
+    lbCopy.textContent = mediaCopyLabel(f);
+    lightbox.hidden = false;
+  }
+
+  function closeLightbox() {
+    lightbox.hidden = true;
+    lbImg.src = '';
+    lbCurrent = null;
+  }
+
+  lbClose.addEventListener('click', closeLightbox);
+  lbCopy.addEventListener('click', () => { if (lbCurrent) copyMediaPath(lbCurrent); });
+  lbDelete.addEventListener('click', () => { if (lbCurrent) deleteMedia(lbCurrent); });
+  lightbox.addEventListener('click', e => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
+  });
+
+  // ---------- resizable file tree ----------
+  const resizer = document.getElementById('ed-resizer');
+  const editorShell = document.querySelector('.editor-shell');
+
+  const savedW = parseInt(localStorage.getItem('desk.treeWidth'), 10);
+  if (savedW >= 180 && savedW <= 560) {
+    editorShell.style.setProperty('--tree-w', savedW + 'px');
+  }
+
+  resizer.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    resizer.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = editorShell.querySelector('.editor-side').getBoundingClientRect().width;
+
+    function onMove(ev) {
+      const w = Math.min(560, Math.max(180, Math.round(startW + (ev.clientX - startX))));
+      editorShell.style.setProperty('--tree-w', w + 'px');
+    }
+    function onUp(ev) {
+      resizer.releasePointerCapture(e.pointerId);
+      resizer.removeEventListener('pointermove', onMove);
+      resizer.removeEventListener('pointerup', onUp);
+      const w = editorShell.querySelector('.editor-side').getBoundingClientRect().width;
+      localStorage.setItem('desk.treeWidth', String(Math.round(w)));
+    }
+    resizer.addEventListener('pointermove', onMove);
+    resizer.addEventListener('pointerup', onUp);
   });
 
   // warn on tab close with unsaved changes

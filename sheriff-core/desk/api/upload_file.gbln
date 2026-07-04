@@ -1,0 +1,109 @@
+/// api/upload_file.gbln
+/// /api/upload_file?{portal}&{subpath}
+/// Body arrives via GOBLIN_REQUEST_FILE. Uploads restricted to public/.
+
+act normalize_rel_path(p)
+    if p.nix?
+        return ""
+    xx
+
+    out | :trim("" + p)
+    :update_where!(out, "\\", "/")
+    :update_where!(out, "%2F", "/")
+    :update_where!(out, "%2f", "/")
+    :update_where!(out, "%20", " ")
+    return out
+xx
+
+query | :env("GOBLIN_QUERY_STRING")
+parts | :split(query, "&")
+
+portal  | :trim(parts[0])
+subpath | normalize_rel_path(parts[1])
+src     | :env("GOBLIN_REQUEST_FILE")
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+portals_dir | "{root_base}/site/portals"
+known | :list_dirs(portals_dir)
+
+portal_found | false
+
+for name in known
+    if name == portal
+        portal_found |= true
+    xx
+xx
+
+if portal == ""
+    out | {
+      "ok": false,
+      "stderr": "missing portal"
+    }
+    :say(:json_stringify(out))
+
+elif portal_found == false
+    out | {
+      "ok": false,
+      "stderr": "unknown portal: {portal}"
+    }
+    :say(:json_stringify(out))
+
+elif subpath == ""
+    out | {
+      "ok": false,
+      "stderr": "missing path"
+    }
+    :say(:json_stringify(out))
+
+elif :starts_with(subpath, "/")
+    out | {
+      "ok": false,
+      "stderr": "absolute paths not allowed"
+    }
+    :say(:json_stringify(out))
+
+elif :has(subpath, "..")
+    out | {
+      "ok": false,
+      "stderr": "path traversal not allowed"
+    }
+    :say(:json_stringify(out))
+
+elif :starts_with(subpath, "public/") == false
+    out | {
+      "ok": false,
+      "stderr": "uploads must go under public/"
+    }
+    :say(:json_stringify(out))
+
+elif src == ""
+    out | {
+      "ok": false,
+      "stderr": "missing upload body"
+    }
+    :say(:json_stringify(out))
+
+else
+    root     | :path_join(root_base, "site/portals/{portal}")
+    dest     | :path_join(root, subpath)
+    dest_dir | :dirname(dest)
+
+    :create_dir!(dest_dir)
+    :copy_file!(src, dest)
+
+    filename | :basename(subpath)
+
+    out | {
+      "ok": true,
+      "filename": filename,
+      "path": subpath,
+      "url": "/{subpath}"
+    }
+
+    :say(:json_stringify(out))
+xx

@@ -330,7 +330,7 @@ else
             for p in portals
                 :say("")
                 :say("=== BUILD ALL:" ++ p ++ "===")
-                #local::portal | p
+                #local::portal |= p
                 build()
             xx
         xx

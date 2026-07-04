@@ -256,6 +256,8 @@
           <button class="btn block" type="button" id="ed-new">New page</button>
         </aside>
 
+        <div class="v-resizer" id="ed-resizer" title="Drag to resize"></div>
+
         <div class="editor-main">
           <div class="editor-bar">
             <span class="ed-path" id="ed-path">No file open</span>
@@ -305,6 +307,52 @@
       </template>
     </section>
 
+    <!-- ============ MEDIA VIEW ============ -->
+    <section class="view" id="view-media" hidden>
+      <div class="media-wrap">
+        <h2 class="bracket">Media</h2>
+
+        <div class="panel media-bar">
+          <div class="media-controls">
+            <div class="media-field">
+              <label class="ed-label" for="md-portal">Portal</label>
+              <select id="md-portal" class="ed-select"></select>
+            </div>
+            <div class="media-field grow">
+              <label class="ed-label" for="md-folder">Upload to</label>
+              <input id="md-folder" class="ed-filter" type="text" value="public" spellcheck="false">
+            </div>
+            <div class="media-field">
+              <label class="ed-label">&nbsp;</label>
+              <button class="btn primary" type="button" id="md-upload-btn">Upload files</button>
+              <input type="file" id="md-file-input" multiple hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-drop" id="md-drop">
+          <div class="media-toolbar">
+            <div class="crumbs" id="md-crumbs"></div>
+            <div class="view-toggle" id="md-view">
+              <button type="button" data-mv="large" title="Large thumbnails">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+              </button>
+              <button type="button" data-mv="small" title="Small thumbnails">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5"/><rect x="10" y="3" width="5" height="5"/><rect x="17" y="3" width="4" height="5"/><rect x="3" y="10" width="5" height="5"/><rect x="10" y="10" width="5" height="5"/><rect x="17" y="10" width="4" height="5"/><rect x="3" y="17" width="5" height="4"/><rect x="10" y="17" width="5" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
+              </button>
+              <button type="button" data-mv="list" title="List view">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="media-grid" id="md-grid">
+            <div class="portal-empty">Pick a portal to load media.</div>
+          </div>
+          <div class="drop-hint">or drag &amp; drop files anywhere in this area</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ PLACEHOLDER VIEW ============ -->
     <section class="view" id="view-placeholder" hidden>
       <div class="placeholder-wrap">
@@ -316,6 +364,18 @@
     </section>
 
   </main>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-inner">
+    <img id="lb-img" alt="">
+    <div class="lb-bar">
+      <span class="lb-path" id="lb-path"></span>
+      <button class="btn small" type="button" id="lb-copy">Copy</button>
+      <button class="btn small" type="button" id="lb-delete">Delete</button>
+      <button class="btn small" type="button" id="lb-close">Close</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" role="status">Not wired up yet</div>
