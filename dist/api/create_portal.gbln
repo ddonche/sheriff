@@ -56,6 +56,14 @@ elif is_bad_name(portal)
 
     :say(:json_stringify(out))
 
+elif portal == "admin"
+    out | {
+      "ok": false,
+      "stderr": "\"admin\" is reserved by Sheriff Desk"
+    }
+
+    :say(:json_stringify(out))
+
 elif portal == "api"
     out | {
       "ok": false,

@@ -31,78 +31,60 @@ xx
 
 act copy_assets(pre_ctx)
     portal | pre_ctx{"portal"}
-
     if portal.nix?
         :say("STAGEHAND: No portal in pre_ctx; skipping copy_assets")
         return pre_ctx
     xx
-
     /// ----- 1) Determine active theme name from config.yall -----
     config_path | "../site/portals/{portal}/config.yall"
     theme_name  | "outpost"   /// sensible default
-
     if :file_exists(config_path)
         cfg | :yall_parse_file(config_path)
-
         if !cfg.nix? && !cfg{"theme"}.nix?
             theme_cfg | cfg{"theme"}
-
             if !theme_cfg{"name"}.nix?
                 :update!(theme_name, :trim(theme_cfg{"name"}))
             xx
         xx
     xx
-
     :say("STAGEHAND: Active theme for portal '{portal}' is '{theme_name}'")
-
     /// ----- 2) Copy theme CSS (single file) from sheriff-core into dist/{portal}/public/css -----
     theme_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}.css"
     theme_header_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}-header.css"
     public_css_dest | "../dist/{portal}/public/css"
-
     if :file_exists(theme_css_src)
         :create_dir!(public_css_dest)
-
         dest  | "{public_css_dest}/{theme_name}.css"
         dest2 | "{public_css_dest}/{theme_name}-header.css"
         :copy_file!(theme_css_src, dest)
         :copy_file!(theme_header_css_src, dest2)
-
         :say("STAGEHAND: Copied theme CSS '{theme_name}.css' from sheriff-core")
     else
         :say("STAGEHAND: Theme CSS NOT FOUND for theme '{theme_name}' at {theme_css_src}")
     xx
-
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
     public_src  | "../site/portals/{portal}/public"
     public_dest | "../dist/{portal}/public"
-
     assets_copied | 0
-
     if :file_exists(public_src)
         :create_dir!(public_dest)
-
         for asset in :walk(public_src, "**/*.*")
             rel_path | :path_relative_to(asset, public_src)
             dir      | :dirname(rel_path)
             dest     | "{public_dest}/{rel_path}"
-
             if dir != ""
                 dest_dir | "{public_dest}/{dir}"
                 if :file_exists(dest_dir) == false
                     :create_dir!(dest_dir)
                 xx
             xx
-
             :copy_file!(asset, dest)
             :update!(assets_copied, assets_copied + 1)
         xx
-
         :say("STAGEHAND: Copied {assets_copied} public assets")
     else
         :say("STAGEHAND: No public/ folder for portal '{portal}', skipping")
     xx
-
     /// ------------------------------------------------------------
     /// Theme override.css (portal-scoped, theme-scoped)
     /// If present in portal theme folder, copy it to dist as override.css
@@ -110,9 +92,7 @@ act copy_assets(pre_ctx)
     /// ------------------------------------------------------------
     override_src  | "../site/portals/{portal}/themes/{theme_name}/override.css"
     override_dest | "../dist/{portal}/public/css/override.css"
-
     :create_dir!("../dist/{portal}/public/css")
-
     if :file_exists(override_src)
         :copy_file!(override_src, override_dest)
         :say("STAGEHAND: Copied override.css from portal theme folder")
@@ -124,16 +104,46 @@ act copy_assets(pre_ctx)
             :say("STAGEHAND: override.css already exists; leaving as-is")
         xx
     xx
-
     /// ----- 4) Copy index.html from content/ to dist/{portal} if it exists -----
     index_src  | "../site/portals/{portal}/content/index.html"
     index_dest | "../dist/{portal}/index.html"
-
     if :file_exists(index_src)
         :copy_file!(index_src, index_dest)
         :say("STAGEHAND: Copied custom index.html to dist/{portal}/index.html")
     xx
-
+    /// ------------------------------------------------------------
+    /// 5) Sync Sheriff Desk (local admin) from sheriff-core → dist root
+    /// desk/index.html → dist/index.html, desk/admin/ → dist/admin/
+    /// dist/admin is cleared first so removed/renamed desk files do
+    /// not linger in dist as live .gbln endpoints
+    /// ------------------------------------------------------------
+    desk_src  | "../sheriff-core/desk"
+    dist_root | "../dist"
+    if :file_exists(desk_src)
+        if :file_exists("{dist_root}/admin")
+            :delete_path!("{dist_root}/admin")
+        xx
+        if :file_exists("{dist_root}/api")
+            :delete_path!("{dist_root}/api")
+        xx
+        desk_copied | 0
+        for asset in :walk(desk_src, "**/*.*")
+            rel_path | :path_relative_to(asset, desk_src)
+            dir      | :dirname(rel_path)
+            dest     | "{dist_root}/{rel_path}"
+            if dir != ""
+                dest_dir | "{dist_root}/{dir}"
+                if :file_exists(dest_dir) == false
+                    :create_dir!(dest_dir)
+                xx
+            xx
+            :copy_file!(asset, dest)
+            :update!(desk_copied, desk_copied + 1)
+        xx
+        :say("STAGEHAND: Synced Sheriff Desk ({desk_copied} files) to dist")
+    else
+        :say("STAGEHAND: sheriff-core/desk not found; skipping Desk sync")
+    xx
     return pre_ctx
 xx
 

@@ -1,0 +1,131 @@
+act normalize_rel_path(p)
+    if p.nix?
+        return ""
+    xx
+
+    out | :trim("" + p)
+    :update_where!(out, "\\", "/")
+    :update_where!(out, "%2F", "/")
+    :update_where!(out, "%2f", "/")
+    :update_where!(out, "%20", " ")
+    return out
+xx
+
+act has_traversal(p)
+    if :has(p, "..")
+        return true
+    xx
+
+    return false
+xx
+
+act is_managed_path(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "content/")
+        return true
+    xx
+
+    if :starts_with(p, "blog/")
+        return true
+    xx
+
+    if :starts_with(p, "public/")
+        return true
+    xx
+
+    return false
+xx
+
+query | :trim(:env("GOBLIN_QUERY_STRING"))
+parts | :split(query, "&")
+
+portal | :trim(parts[0])
+path   | normalize_rel_path(parts[1])
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+portals_dir | "{root_base}/site/portals"
+known | :list_dirs(portals_dir)
+
+portal_found | false
+
+for name in known
+    if name == portal
+        portal_found |= true
+    xx
+xx
+
+root | "{root_base}/site/portals/{portal}"
+full_path | "{root}/{path}"
+
+if portal == ""
+    out | {
+      "ok": false,
+      "stderr": "missing portal"
+    }
+
+    :say(:json_stringify(out))
+
+elif portal_found == false
+    out | {
+      "ok": false,
+      "stderr": "unknown portal: {portal}"
+    }
+
+    :say(:json_stringify(out))
+
+elif path == ""
+    out | {
+      "ok": false,
+      "stderr": "missing path"
+    }
+
+    :say(:json_stringify(out))
+
+elif :starts_with(path, "/")
+    out | {
+      "ok": false,
+      "stderr": "absolute paths not allowed"
+    }
+
+    :say(:json_stringify(out))
+
+elif has_traversal(path)
+    out | {
+      "ok": false,
+      "stderr": "path traversal not allowed"
+    }
+
+    :say(:json_stringify(out))
+
+elif is_managed_path(path) == false
+    out | {
+      "ok": false,
+      "stderr": "file not deletable"
+    }
+
+    :say(:json_stringify(out))
+
+elif :file_exists(full_path) == false
+    out | {
+      "ok": false,
+      "stderr": "file not found"
+    }
+
+    :say(:json_stringify(out))
+
+else
+    :delete_path!(full_path)
+
+    out | {
+      "ok": true,
+      "path": path
+    }
+
+    :say(:json_stringify(out))
+xx
