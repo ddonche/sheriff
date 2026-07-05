@@ -160,6 +160,7 @@ theme:
 
 routing:
   dist_root: "{portal}"
+  site_url: ""
   url_root: ""
   content_dir: "content"
   public_dir: "public"

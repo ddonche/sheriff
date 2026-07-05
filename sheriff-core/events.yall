@@ -9,6 +9,7 @@ pre:
 
 schedule:
   - "frontier::strip_frontmatter"
+  - "badge::publish_readtime"
   - "trailboss::attach_href"
   - "prospector::index_page"
   - "markdown_core::render"

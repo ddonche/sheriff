@@ -213,16 +213,7 @@ act build_seo_meta(page_title, page_summary, page_thumb, brand_name)
       "@context": "https://schema.org",
       "@type": "TechArticle",
       "headline": "{full_title}",
-      "description": "{page_summary}",
-      "about": \{
-        "@type": "ComputerLanguage",
-        "name": "Goblin",
-        "alternateName": [
-          "Goblin Lang",
-          "Goblin Programming Language"
-        ],
-        "url": "https://goblinlang.org"
-      \}
+      "description": "{page_summary}"
     \}
     </script>
     """

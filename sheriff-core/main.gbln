@@ -190,6 +190,7 @@ xx
 
 /// MAIN BUILD FUNCTION
 act build()
+    :clear_all_tokens()
     :say("Building portal:")
     :say(#local::portal)
 
@@ -252,6 +253,7 @@ xx
 /// SINGLE PAGE BUILD
 /// target can be: "judge" or "docs/judge.md"
 act build_one_page(target)
+    :clear_all_tokens()
     :say("Building ONE page:")
     :say(#local::portal ++ " :: " ++ target)
 
