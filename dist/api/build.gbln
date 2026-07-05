@@ -1,0 +1,47 @@
+portal | :trim(:env("GOBLIN_QUERY_STRING"))
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+if portal == ""
+    out | {
+      "ok": false,
+      "code": nil,
+      "stdout": "",
+      "stderr": "missing portal"
+    }
+
+    :say(:json_stringify(out))
+
+else
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    found | false
+
+    for name in known
+        if name == portal
+            found |= true
+        xx
+    xx
+
+    if found == false
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "unknown portal: {portal}"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        core_root | "{root_base}/sheriff-core"
+
+        result | :run_cmd("goblin run main.gbln {portal}", core_root)
+        :say(result)
+    xx
+xx

@@ -1,8 +1,25 @@
+# Visual Studio
+.vs/
+
 # Build output — ignore everything in dist EXCEPT Sheriff Desk source
-dist/
+dist/*
+
+# Keep Sheriff Desk boot files
+!dist/index.html
+!dist/admin/
+!dist/admin/**
+!dist/api/
+!dist/api/**
+
+# But never include Visual Studio junk
+dist/admin/.vs/
+
+# Backup archives
+data/
 
 # Ignore ALL portals
 site/portals/*
+
 # Re-include sheriff portal
 !site/portals/sheriff/
 !site/portals/sheriff/**

@@ -1,0 +1,27 @@
+/// api/list_themes.gbln
+/// Lists available themes from sheriff-core/themes
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+themes_dir | "{root_base}/sheriff-core/themes"
+
+if :file_exists(themes_dir) == false
+    out | {
+      "themes": []
+    }
+
+    :say(:json_stringify(out))
+
+else
+    themes | :list_dirs(themes_dir)
+
+    out | {
+      "themes": themes
+    }
+
+    :say(:json_stringify(out))
+xx

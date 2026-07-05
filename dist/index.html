@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sheriff Desk</title>
+<link rel="icon" href="/admin/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/admin.css?v=3">
+</head>
+<body>
+
+<!-- six-point star symbol (logo badge), reused as portal marker -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="badge-star" viewBox="0 0 100 100">
+      <path d="M50 4 L63 28 L91 28 L77 52 L91 76 L63 76 L50 100 L37 76 L9 76 L23 52 L9 28 L37 28 Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="shell">
+
+  <!-- brand -->
+  <div class="brand">
+    <img src="/admin/logo.png" alt="Sheriff logo">
+    <span class="word">Sheriff</span>
+  </div>
+
+  <!-- header -->
+  <header>
+    <span class="env-tag">LOCAL ADMIN</span>
+    <span class="header-host">localhost:5173</span>
+    <div class="header-actions">
+      <a class="btn ghost" href="#" data-dead>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        View Docs
+      </a>
+      <a class="btn teal" href="http://sheriff.localhost:5173" id="open-default" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open Default Portal
+      </a>
+    </div>
+  </header>
+
+  <!-- sidebar -->
+  <nav>
+    <div class="nav-label">Manage</div>
+    <a href="#dashboard" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Dashboard
+    </a>
+    <a href="#portals" data-view="portals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Portals
+    </a>
+    <a href="#content" data-view="content">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Content
+    </a>
+    <a href="#media" data-view="media">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Media
+    </a>
+    <a href="#navigation" data-view="navigation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      Navigation
+    </a>
+    <a href="#themes" data-view="themes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 10-10c0 1.38-1.12 2.5-2.5 2.5H17a2 2 0 0 0-2 2v.5c0 1.38-1.12 2.5-2.5 2.5z"/></svg>
+      Themes
+    </a>
+    <div class="nav-label">Deploy</div>
+    <a href="#build" data-view="build">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Build
+    </a>
+    <a href="#cloud" data-view="cloud">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+      Cloud Sync
+    </a>
+    <div class="nav-label">System</div>
+    <a href="#settings" data-view="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </a>
+    <div class="foot">sheriff · local · v0</div>
+  </nav>
+
+  <!-- main -->
+  <main>
+
+    <!-- ============ DASHBOARD VIEW ============ -->
+    <section class="view" id="view-dashboard" hidden>
+      <div class="main-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="col">
+
+          <!-- welcome + status -->
+          <div class="welcome">
+            <h1>Welcome to Sheriff Desk</h1>
+            <p>This is your local admin. Everything below runs against the local workspace — build portals, manage content, and push to Sheriff Cloud when you're ready.</p>
+            <div class="status-row">
+              <div class="stat">
+                <div class="k">Workspace</div>
+                <div class="v">Local Sheriff</div>
+              </div>
+              <div class="stat">
+                <div class="k">Portals</div>
+                <div class="v placeholder" id="stat-portals">Detecting…</div>
+              </div>
+              <div class="stat">
+                <div class="k">Build status</div>
+                <div class="v placeholder">Idle</div>
+              </div>
+              <div class="stat">
+                <div class="k">Cloud</div>
+                <div class="v placeholder">Not connected</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- portals -->
+          <div>
+            <h2 class="bracket">Portals</h2>
+            <div class="portal-list" id="portal-list">
+              <div class="portal-empty" id="portal-loading">Detecting portals…</div>
+            </div>
+          </div>
+
+          <!-- quick actions -->
+          <div>
+            <h2 class="bracket">Quick actions</h2>
+            <div class="qa-grid">
+              <a class="qa" href="#content">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span class="t">New page</span>
+                <span class="d">Add a page to any portal</span>
+              </a>
+              <a class="qa" href="#media">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span class="t">Upload media</span>
+                <span class="d">Images, files, and assets</span>
+              </a>
+              <a class="qa" href="#" id="qa-build-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span class="t">Build all</span>
+                <span class="d">Rebuild every portal now</span>
+              </a>
+              <a class="qa" href="#themes">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span class="t">Edit theme</span>
+                <span class="d">Colors, fonts, and layout</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col">
+
+          <!-- build panel -->
+          <div class="panel">
+            <h2 class="bracket">Build</h2>
+            <div class="stack">
+              <button class="btn primary block" type="button" id="build-all">Build all portals</button>
+            </div>
+            <div class="build-log" id="build-log"><span class="dim">Build status: idle</span></div>
+          </div>
+
+          <!-- cloud panel -->
+          <div class="panel">
+            <h2 class="bracket">Sheriff Cloud</h2>
+            <div class="cloud-state">
+              <span class="dot"></span> Not connected
+            </div>
+            <div class="stack">
+              <a class="btn teal block" href="#" data-dead>Connect Sheriff Cloud</a>
+              <a class="btn block disabled" href="#" data-dead aria-disabled="true">Push to Cloud</a>
+              <a class="btn block disabled" href="#" data-dead aria-disabled="true">Pull from Cloud</a>
+            </div>
+          </div>
+
+          <!-- getting started -->
+          <div class="panel">
+            <h2 class="bracket">Getting started</h2>
+            <ul class="steps">
+              <li>
+                <span class="box"></span>
+                <span>Set site name</span>
+                <a class="go" href="#" data-dead>go →</a>
+              </li>
+              <li>
+                <span class="box"></span>
+                <span>Upload logo</span>
+                <a class="go" href="#" data-dead>go →</a>
+              </li>
+              <li>
+                <span class="box"></span>
+                <span>Pick theme</span>
+                <a class="go" href="#" data-dead>go →</a>
+              </li>
+              <li>
+                <span class="box"></span>
+                <span>Create first page</span>
+                <a class="go" href="#content">go →</a>
+              </li>
+              <li>
+                <span class="box"></span>
+                <span>Build site</span>
+                <a class="go" href="#" id="gs-build">go →</a>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+      <template id="portal-card">
+        <article class="portal">
+          <div class="name">
+            <svg class="star teal"><use href="#badge-star"/></svg>
+            <span class="portal-name"></span>
+            <span class="pill portal-pill">detected</span>
+          </div>
+          <div class="host">View: <a class="portal-host" href="#"></a></div>
+          <div class="actions">
+            <a class="btn small portal-edit" href="#content">Edit content</a>
+            <button class="btn small primary portal-build" type="button">Build portal</button>
+          </div>
+        </article>
+      </template>
+    </section>
+
+    <!-- ============ PAGES / EDITOR VIEW ============ -->
+    <section class="view" id="view-content" hidden>
+      <div class="editor-shell">
+
+        <aside class="editor-side">
+          <label class="ed-label" for="ed-portal">Portal</label>
+          <select id="ed-portal" class="ed-select"></select>
+
+          <input id="ed-filter" class="ed-filter" type="text" placeholder="Filter files…" spellcheck="false">
+
+          <div class="file-tree" id="file-tree">
+            <div class="tree-msg">Pick a portal to load files.</div>
+          </div>
+
+          <div class="newpage" id="newpage-row" hidden>
+            <input id="newpage-path" class="ed-filter" type="text" placeholder="content/guides/intro.md" spellcheck="false">
+          </div>
+          <button class="btn block" type="button" id="ed-new">New page</button>
+        </aside>
+
+        <div class="v-resizer" id="ed-resizer" title="Drag to resize"></div>
+
+        <div class="editor-main">
+          <div class="editor-bar">
+            <span class="ed-path" id="ed-path">No file open</span>
+            <span class="ed-dirty" id="ed-dirty" hidden>● unsaved</span>
+            <span class="ed-status" id="ed-status"></span>
+            <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
+            <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
+          </div>
+          <textarea id="ed-text" class="ed-text" spellcheck="false" disabled placeholder="Select a file from the left to start editing."></textarea>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ PORTALS VIEW ============ -->
+    <section class="view" id="view-portals" hidden>
+      <div class="portals-wrap">
+        <h2 class="bracket">Portals</h2>
+
+        <div class="panel newportal-panel">
+          <label class="ed-label" for="np-name">New portal</label>
+          <div class="newportal-row">
+            <input id="np-name" class="ed-filter" type="text" placeholder="portal-name" spellcheck="false" autocomplete="off">
+            <button class="btn primary" type="button" id="np-create">Create portal</button>
+            <button class="btn" type="button" id="np-wizard">Guided setup</button>
+          </div>
+          <p class="np-hint">Lowercase letters, numbers, and hyphens. Lives at <span class="mono-hint" id="np-preview">name</span>.localhost:5173 once built.</p>
+        </div>
+
+        <div class="portal-list" id="portal-manage-list">
+          <div class="portal-empty">Detecting portals…</div>
+        </div>
+      </div>
+
+      <template id="portal-manage-card">
+        <article class="portal">
+          <div class="name">
+            <svg class="star teal"><use href="#badge-star"/></svg>
+            <span class="portal-name"></span>
+          </div>
+          <div class="host">View: <a class="portal-host" href="#"></a></div>
+          <div class="actions">
+            <a class="btn small portal-edit" href="#content">Edit content</a>
+            <button class="btn small primary portal-build" type="button">Build portal</button>
+            <button class="btn small portal-delete" type="button">Delete</button>
+          </div>
+        </article>
+      </template>
+    </section>
+
+    <!-- ============ MEDIA VIEW ============ -->
+    <section class="view" id="view-media" hidden>
+      <div class="media-wrap">
+        <h2 class="bracket">Media</h2>
+
+        <div class="panel media-bar">
+          <div class="media-controls">
+            <div class="media-field">
+              <label class="ed-label" for="md-portal">Portal</label>
+              <select id="md-portal" class="ed-select"></select>
+            </div>
+            <div class="media-field grow">
+              <label class="ed-label" for="md-folder">Upload to</label>
+              <input id="md-folder" class="ed-filter" type="text" value="public" spellcheck="false">
+            </div>
+            <div class="media-field">
+              <label class="ed-label">&nbsp;</label>
+              <button class="btn primary" type="button" id="md-upload-btn">Upload files</button>
+              <input type="file" id="md-file-input" multiple hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-drop" id="md-drop">
+          <div class="media-toolbar">
+            <div class="crumbs" id="md-crumbs"></div>
+            <div class="view-toggle" id="md-view">
+              <button type="button" data-mv="large" title="Large thumbnails">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+              </button>
+              <button type="button" data-mv="small" title="Small thumbnails">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5"/><rect x="10" y="3" width="5" height="5"/><rect x="17" y="3" width="4" height="5"/><rect x="3" y="10" width="5" height="5"/><rect x="10" y="10" width="5" height="5"/><rect x="17" y="10" width="4" height="5"/><rect x="3" y="17" width="5" height="4"/><rect x="10" y="17" width="5" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
+              </button>
+              <button type="button" data-mv="list" title="List view">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="media-grid" id="md-grid">
+            <div class="portal-empty">Pick a portal to load media.</div>
+          </div>
+          <div class="drop-hint">or drag &amp; drop files anywhere in this area</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PLACEHOLDER VIEW ============ -->
+    <section class="view" id="view-placeholder" hidden>
+      <div class="placeholder-wrap">
+        <h2 class="bracket"><span id="ph-title">Section</span></h2>
+        <div class="panel">
+          <p class="ph-text" id="ph-text">This section isn't built yet.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="wizard" id="wizard" hidden>
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">Set up a new site</span>
+      <button class="wiz-x" type="button" id="wiz-close" title="Close">&times;</button>
+    </div>
+
+    <div class="wiz-dots" id="wiz-dots"></div>
+
+    <div class="wiz-body">
+
+      <section class="wiz-step" data-step="1">
+        <h3>Name your site</h3>
+        <p class="wiz-sub">What should this site be called?</p>
+        <input id="wz-name" class="wiz-input" type="text" placeholder="Goblin Docs" spellcheck="false" autocomplete="off">
+        <label class="ed-label" for="wz-slug" style="margin-top:14px">Address</label>
+        <input id="wz-slug" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
+        <p class="wiz-hint">Your site will run at <span class="mono-hint" id="wz-slug-preview">name</span>.localhost:5173</p>
+        <p class="wiz-err" id="wz-name-err" hidden></p>
+      </section>
+
+      <section class="wiz-step" data-step="2" hidden>
+        <h3>Pick a theme</h3>
+        <p class="wiz-sub">You can change this later.</p>
+        <div class="theme-cards" id="wz-themes"></div>
+      </section>
+
+      <section class="wiz-step" data-step="3" hidden>
+        <h3>Add a logo</h3>
+        <p class="wiz-sub">Optional — drop an image or skip for now.</p>
+        <div class="logo-drop" id="wz-logo-drop">
+          <input type="file" id="wz-logo-input" accept="image/*" hidden>
+          <div id="wz-logo-empty">
+            <span>Drop an image here or</span>
+            <button class="btn small" type="button" id="wz-logo-browse">browse</button>
+          </div>
+          <div id="wz-logo-preview" hidden>
+            <img id="wz-logo-img" alt="Logo preview">
+            <button class="btn small" type="button" id="wz-logo-clear">Remove</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wiz-step" data-step="4" hidden>
+        <h3>Write your first page</h3>
+        <p class="wiz-sub">This becomes your home page. Keep it short — you can edit it any time.</p>
+        <input id="wz-page-title" class="wiz-input" type="text" placeholder="Welcome" spellcheck="false">
+        <textarea id="wz-page-body" class="wiz-textarea" spellcheck="false" placeholder="A few lines about what this site is."></textarea>
+      </section>
+
+      <section class="wiz-step" data-step="5" hidden>
+        <h3 id="wz-run-title">Building your site</h3>
+        <ul class="wiz-progress" id="wz-progress">
+          <li data-task="create"><span class="wp-mark"></span>Create portal</li>
+          <li data-task="logo"><span class="wp-mark"></span>Upload logo</li>
+          <li data-task="page"><span class="wp-mark"></span>Write first page</li>
+          <li data-task="build"><span class="wp-mark"></span>Build site</li>
+        </ul>
+        <div class="wiz-done" id="wz-done" hidden>
+          <a class="btn teal" id="wz-view-site" href="#" target="_blank" rel="noopener">View site ↗</a>
+          <button class="btn" type="button" id="wz-finish">Open Desk</button>
+        </div>
+        <p class="wiz-err" id="wz-run-err" hidden></p>
+      </section>
+
+    </div>
+
+    <div class="wiz-foot" id="wiz-foot">
+      <button class="btn" type="button" id="wz-back" hidden>Back</button>
+      <span class="wiz-skip"><button class="btn ghost" type="button" id="wz-skip" hidden>Skip</button></span>
+      <button class="btn primary" type="button" id="wz-next">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-inner">
+    <img id="lb-img" alt="">
+    <div class="lb-bar">
+      <span class="lb-path" id="lb-path"></span>
+      <button class="btn small" type="button" id="lb-copy">Copy</button>
+      <button class="btn small" type="button" id="lb-delete">Delete</button>
+      <button class="btn small" type="button" id="lb-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status">Not wired up yet</div>
+
+<script src="/admin/admin.js?v=3"></script>
+</body>
+</html>
