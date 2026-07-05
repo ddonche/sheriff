@@ -1,5 +1,5 @@
 # Build output — ignore everything in dist EXCEPT Sheriff Desk source
-dist/*
+dist/
 
 # Ignore ALL portals
 site/portals/*
