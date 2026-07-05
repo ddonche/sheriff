@@ -47,9 +47,11 @@
     media:      { el: 'view-media' },
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
+    config:     { el: 'view-config' },
     cloud:      { el: 'view-placeholder', title: 'Cloud Sync',
                   text: 'Sheriff Cloud sync isn\u2019t built yet. Push, pull, and backups land here.' },
-    settings:   { el: 'view-settings' }
+    settings:   { el: 'view-placeholder', title: 'Settings',
+                  text: 'Desk settings \u2014 nothing to set yet. Your site\u2019s configuration lives under Config.' }
   };
 
   const phTitle = document.getElementById('ph-title');
@@ -80,7 +82,7 @@
     if (key === 'portals') renderManageList();
     if (key === 'media') mediaEnter();
     if (key === 'navigation') nvEditor.enter();
-    if (key === 'settings') cfEditor.enter();
+    if (key === 'config') cfEditor.enter();
     if (key === 'themes') themesEnter();
   }
 
@@ -807,7 +809,7 @@
       const k = currentViewKey();
       if (k === 'content') { e.preventDefault(); saveFile(); }
       if (k === 'navigation') { e.preventDefault(); nvEditor.save(); }
-      if (k === 'settings') { e.preventDefault(); cfEditor.save(); }
+      if (k === 'config') { e.preventDefault(); cfEditor.save(); }
       if (k === 'themes') { e.preventDefault(); thSave(); }
     }
   });
@@ -1460,6 +1462,92 @@
     thCurrentTheme = await detectCurrentTheme(thPortal.value);
     renderThemeCards();
     if (thCurrentTheme) thEditor.load();
+  });
+
+  // ---------- help drawer ----------
+  const helpDrawer = document.getElementById('help-drawer');
+  const hdTitle = document.getElementById('hd-title');
+  const hdBody = document.getElementById('hd-body');
+  const hdDocs = document.getElementById('hd-docs');
+
+  function openHelp(key) {
+    const help = window.DESK_HELP && window.DESK_HELP[key];
+    if (!help) { say('No help written for this section yet'); return; }
+    hdTitle.textContent = help.title;
+    hdDocs.href = help.docs || 'https://sheriff.sheriffcloud.com';
+    hdBody.innerHTML = '';
+    help.sections.forEach((s, i) => {
+      const d = document.createElement('details');
+      if (i === 0) d.open = true;
+      const sum = document.createElement('summary');
+      sum.textContent = s.title;
+      d.appendChild(sum);
+      const div = document.createElement('div');
+      div.className = 'hd-section';
+      div.innerHTML = s.html;
+      d.appendChild(div);
+      hdBody.appendChild(d);
+    });
+    helpDrawer.hidden = false;
+  }
+
+  function closeHelp() { helpDrawer.hidden = true; }
+
+  // draggable: grab the header, position persists
+  (function () {
+    const head = helpDrawer.querySelector('.hd-head');
+
+    function clampPos(left, top) {
+      const w = helpDrawer.offsetWidth || 480;
+      const h = helpDrawer.offsetHeight || 400;
+      return {
+        left: Math.min(Math.max(8, left), window.innerWidth - Math.min(w, 200)),
+        top: Math.min(Math.max(8, top), window.innerHeight - 60)
+      };
+    }
+
+    function applyPos(left, top) {
+      const p = clampPos(left, top);
+      helpDrawer.style.left = p.left + 'px';
+      helpDrawer.style.top = p.top + 'px';
+      helpDrawer.style.right = 'auto';
+    }
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('desk.helpPos') || 'null');
+      if (saved && typeof saved.left === 'number') applyPos(saved.left, saved.top);
+    } catch (e) { /* default CSS position */ }
+
+    head.addEventListener('pointerdown', e => {
+      if (e.target.closest('.wiz-x')) return;
+      e.preventDefault();
+      head.setPointerCapture(e.pointerId);
+      const rect = helpDrawer.getBoundingClientRect();
+      const offX = e.clientX - rect.left;
+      const offY = e.clientY - rect.top;
+
+      function onMove(ev) {
+        applyPos(ev.clientX - offX, ev.clientY - offY);
+      }
+      function onUp() {
+        head.releasePointerCapture(e.pointerId);
+        head.removeEventListener('pointermove', onMove);
+        head.removeEventListener('pointerup', onUp);
+        const r = helpDrawer.getBoundingClientRect();
+        localStorage.setItem('desk.helpPos', JSON.stringify({ left: r.left, top: r.top }));
+      }
+      head.addEventListener('pointermove', onMove);
+      head.addEventListener('pointerup', onUp);
+    });
+  })();
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.help-btn');
+    if (btn) openHelp(btn.dataset.help);
+  });
+  document.getElementById('hd-close').addEventListener('click', closeHelp);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !helpDrawer.hidden) closeHelp();
   });
 
   // ---------- resizable file tree ----------

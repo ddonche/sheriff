@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=7">
+<link rel="stylesheet" href="/admin/admin.css?v=10">
 </head>
 <body>
 
@@ -71,6 +71,10 @@
     <a href="#themes" data-view="themes">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 10-10c0 1.38-1.12 2.5-2.5 2.5H17a2 2 0 0 0-2 2v.5c0 1.38-1.12 2.5-2.5 2.5z"/></svg>
       Themes
+    </a>
+    <a href="#config" data-view="config">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      Config
     </a>
     <div class="nav-label">Deploy</div>
     <a href="#cloud" data-view="cloud">
@@ -234,6 +238,7 @@
             <span class="ed-path" id="ed-path">No file open</span>
             <span class="ed-dirty" id="ed-dirty" hidden>● unsaved</span>
             <span class="ed-status" id="ed-status"></span>
+            <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
             <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
           </div>
@@ -246,7 +251,7 @@
     <!-- ============ PORTALS VIEW ============ -->
     <section class="view" id="view-portals" hidden>
       <div class="portals-wrap">
-        <h2 class="bracket">Portals</h2>
+        <div class="view-head"><h2 class="bracket">Portals</h2><button class="help-btn" type="button" data-help="portals" title="Help">?</button></div>
 
         <div class="panel newportal-panel">
           <label class="ed-label" for="np-name">New portal</label>
@@ -282,7 +287,7 @@
     <!-- ============ MEDIA VIEW ============ -->
     <section class="view" id="view-media" hidden>
       <div class="media-wrap">
-        <h2 class="bracket">Media</h2>
+        <div class="view-head"><h2 class="bracket">Media</h2><button class="help-btn" type="button" data-help="media" title="Help">?</button></div>
 
         <div class="panel media-bar">
           <div class="media-controls">
@@ -328,7 +333,7 @@
     <!-- ============ NAVIGATION VIEW ============ -->
     <section class="view" id="view-navigation" hidden>
       <div class="cfg-wrap">
-        <h2 class="bracket">Navigation</h2>
+        <div class="view-head"><h2 class="bracket">Navigation</h2><button class="help-btn" type="button" data-help="navigation" title="Help">?</button></div>
         <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Saving rebuilds the portal.</p>
         <div class="cfg-bar">
           <div class="media-field">
@@ -350,7 +355,7 @@
     <!-- ============ THEMES VIEW ============ -->
     <section class="view" id="view-themes" hidden>
       <div class="cfg-wrap">
-        <h2 class="bracket">Themes</h2>
+        <div class="view-head"><h2 class="bracket">Themes</h2><button class="help-btn" type="button" data-help="themes" title="Help">?</button></div>
         <div class="cfg-bar">
           <div class="media-field">
             <label class="ed-label" for="th-portal">Portal</label>
@@ -375,10 +380,10 @@
       </div>
     </section>
 
-    <!-- ============ SETTINGS VIEW ============ -->
-    <section class="view" id="view-settings" hidden>
+    <!-- ============ CONFIG VIEW ============ -->
+    <section class="view" id="view-config" hidden>
       <div class="cfg-wrap">
-        <h2 class="bracket">Settings</h2>
+        <div class="view-head"><h2 class="bracket">Config</h2><button class="help-btn" type="button" data-help="config" title="Help">?</button></div>
         <p class="np-hint" style="margin-bottom:4px">Your site's configuration (config.yall). Saving rebuilds the portal.</p>
         <div class="cfg-bar">
           <div class="media-field">
@@ -409,6 +414,18 @@
 
   </main>
 </div>
+
+<aside class="help-drawer" id="help-drawer" hidden>
+  <div class="hd-head">
+    <span class="hd-title" id="hd-title">Help</span>
+    <button class="wiz-x" type="button" id="hd-close" title="Close">&times;</button>
+  </div>
+  <div class="hd-body" id="hd-body"></div>
+  <div class="hd-foot">
+    <a id="hd-docs" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">Full docs →</a>
+    <a id="hd-forum" href="https://sheriff.sheriffcloud.com/forum" target="_blank" rel="noopener">Ask on the forum →</a>
+  </div>
+</aside>
 
 <div class="wizard" id="wizard" hidden>
   <div class="wiz-card">
@@ -499,6 +516,7 @@
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/admin.js?v=7"></script>
+<script src="/admin/help.js?v=2"></script>
+<script src="/admin/admin.js?v=10"></script>
 </body>
 </html>
