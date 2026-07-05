@@ -24,7 +24,8 @@
       return JSON.parse(text);
     } catch (e) {
       console.error('API returned non-JSON (HTTP ' + res.status + '):', text.slice(0, 800));
-      throw new Error('API error (HTTP ' + res.status + ') \u2014 see browser console');
+      const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+      throw new Error('HTTP ' + res.status + ': ' + (snippet || 'empty response'));
     }
   }
 
@@ -44,16 +45,11 @@
     content:    { el: 'view-content' },
     portals:    { el: 'view-portals' },
     media:      { el: 'view-media' },
-    navigation: { el: 'view-placeholder', title: 'Navigation',
-                  text: 'The navigation editor isn\u2019t built yet. It will edit nav.yall per portal.' },
-    themes:     { el: 'view-placeholder', title: 'Themes',
-                  text: 'The theme panel isn\u2019t built yet. Theme overrides can already be edited under Content \u2192 themes/.' },
-    build:      { el: 'view-placeholder', title: 'Build',
-                  text: 'The full build panel isn\u2019t built yet. Build all and per-portal builds are on the Dashboard.' },
+    navigation: { el: 'view-navigation' },
+    themes:     { el: 'view-themes' },
     cloud:      { el: 'view-placeholder', title: 'Cloud Sync',
                   text: 'Sheriff Cloud sync isn\u2019t built yet. Push, pull, and backups land here.' },
-    settings:   { el: 'view-placeholder', title: 'Settings',
-                  text: 'Settings aren\u2019t built yet.' }
+    settings:   { el: 'view-settings' }
   };
 
   const phTitle = document.getElementById('ph-title');
@@ -83,6 +79,9 @@
     if (key === 'content') editorEnter();
     if (key === 'portals') renderManageList();
     if (key === 'media') mediaEnter();
+    if (key === 'navigation') nvEditor.enter();
+    if (key === 'settings') cfEditor.enter();
+    if (key === 'themes') themesEnter();
   }
 
   window.addEventListener('hashchange', showView);
@@ -218,10 +217,7 @@
     e.preventDefault();
     runBuildAll();
   });
-  document.getElementById('gs-build').addEventListener('click', e => {
-    e.preventDefault();
-    runBuildAll();
-  });
+
 
   // ============================================================
   // Portal management
@@ -791,7 +787,8 @@
         return;
       }
       const secs = ((Date.now() - started) / 1000).toFixed(1);
-      setStatus('✓ saved & built in ' + secs + 's', 'ok');
+      const isPage = openFile.startsWith('content/') && openFile.endsWith('.md');
+      setStatus('✓ saved · ' + (isPage ? 'page built' : 'portal rebuilt') + ' in ' + secs + 's', 'ok');
       setDirty(false);
     } catch (err) {
       setStatus('API unreachable', 'err');
@@ -807,10 +804,11 @@
 
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-      if (currentViewKey() === 'content') {
-        e.preventDefault();
-        saveFile();
-      }
+      const k = currentViewKey();
+      if (k === 'content') { e.preventDefault(); saveFile(); }
+      if (k === 'navigation') { e.preventDefault(); nvEditor.save(); }
+      if (k === 'settings') { e.preventDefault(); cfEditor.save(); }
+      if (k === 'themes') { e.preventDefault(); thSave(); }
     }
   });
 
@@ -1224,6 +1222,246 @@
     if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
   });
 
+  // ============================================================
+  // Single-file editors (Navigation, Settings) + Themes panel
+  // ============================================================
+  function fillPortalSel(sel) {
+    if (sel.options.length === 0 && portalNames.length > 0) {
+      portalNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    }
+  }
+
+  function fileEditor(ids, getPath, opts) {
+    const sel = document.getElementById(ids.portal);
+    const text = document.getElementById(ids.text);
+    const dirtyEl = document.getElementById(ids.dirty);
+    const statusEl = document.getElementById(ids.status);
+    const saveBtn = document.getElementById(ids.save);
+
+    const ed = { path: null, dirty: false, missing: false };
+
+    function setDirty(v) {
+      ed.dirty = v;
+      dirtyEl.hidden = !v;
+      saveBtn.disabled = !v || !ed.path;
+    }
+    function setStatus(msg, cls) {
+      statusEl.textContent = msg || '';
+      statusEl.className = 'ed-status' + (cls ? ' ' + cls : '');
+    }
+
+    ed.load = async function () {
+      if (!sel.value) return;
+      ed.path = getPath(sel.value);
+      setStatus('loading\u2026');
+      try {
+        const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
+        const res = await fetch('/api/read_file?' + q);
+        const data = await apiJson(res);
+        if (data.ok === false) {
+          ed.missing = true;
+          text.value = '';
+          text.disabled = false;
+          setStatus('(new file \u2014 Save creates it)');
+        } else {
+          ed.missing = false;
+          text.value = data.content || '';
+          text.disabled = false;
+          setStatus('');
+        }
+        setDirty(false);
+      } catch (err) {
+        setStatus(err.message || 'API unreachable', 'err');
+      }
+    };
+
+    ed.save = async function () {
+      if (!ed.path || saveBtn.disabled) return;
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving\u2026';
+      setStatus('rebuilding\u2026');
+      const started = Date.now();
+      try {
+        const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
+        const res = await fetch('/api/write_file?' + q, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text.value
+        });
+        const data = await apiJson(res);
+        if (buildFailed(data)) {
+          setStatus('build failed \u2014 ' + String(data.stderr || '').trim().slice(0, 120), 'err');
+          setDirty(true);
+          return;
+        }
+        const secs = ((Date.now() - started) / 1000).toFixed(1);
+        setStatus('✓ saved · portal rebuilt in ' + secs + 's', 'ok');
+        setDirty(false);
+      } catch (err) {
+        setStatus(err.message || 'API unreachable', 'err');
+        setDirty(true);
+      } finally {
+        saveBtn.textContent = 'Save & rebuild';
+        saveBtn.disabled = !ed.dirty;
+      }
+    };
+
+    ed.enter = function () {
+      fillPortalSel(sel);
+      if (sel.value && !ed.dirty) ed.load();
+    };
+
+    text.addEventListener('input', () => setDirty(true));
+    saveBtn.addEventListener('click', ed.save);
+    if (!opts || opts.autoChange !== false) {
+      sel.addEventListener('change', () => {
+        if (ed.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
+        ed.load();
+      });
+    }
+
+    return ed;
+  }
+
+  const nvEditor = fileEditor(
+    { portal: 'nv-portal', text: 'nv-text', dirty: 'nv-dirty', status: 'nv-status', save: 'nv-save' },
+    () => 'nav.yall'
+  );
+
+  const cfEditor = fileEditor(
+    { portal: 'cf-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
+    () => 'config.yall'
+  );
+
+  // ---------- Themes panel ----------
+  const thPortal = document.getElementById('th-portal');
+  const thCards = document.getElementById('th-cards');
+  const thTabs = document.getElementById('th-tabs');
+  let thCurrentTheme = null;
+  let thFile = 'templates.yall';
+
+  const thEditor = fileEditor(
+    { portal: 'th-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
+    () => 'themes/' + thCurrentTheme + '/' + thFile,
+    { autoChange: false }
+  );
+
+  function thSave() { thEditor.save(); }
+
+  function renderThTabs() {
+    thTabs.innerHTML = '';
+    ['templates.yall', 'override.css'].forEach(f => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cfg-tab' + (f === thFile ? ' active' : '');
+      b.textContent = f;
+      b.addEventListener('click', () => {
+        if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
+        thFile = f;
+        renderThTabs();
+        if (thCurrentTheme) thEditor.load();
+      });
+      thTabs.appendChild(b);
+    });
+  }
+
+  async function detectCurrentTheme(portal) {
+    try {
+      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
+      const res = await fetch('/api/read_file?' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) return null;
+      const m = String(data.content || '').match(/theme:\s*\r?\n\s*name:\s*"([^"]+)"/);
+      return m ? m[1] : null;
+    } catch (err) { return null; }
+  }
+
+  async function renderThemeCards() {
+    thCards.innerHTML = '<div class="tree-msg">Loading themes\u2026</div>';
+    let themes = [];
+    try {
+      const res = await fetch('/api/list_themes');
+      const data = await apiJson(res);
+      themes = Array.isArray(data.themes) ? data.themes : [];
+    } catch (err) {
+      thCards.innerHTML = '<div class="tree-msg">Could not load themes.</div>';
+      return;
+    }
+
+    thCards.innerHTML = '';
+    themes.forEach(t => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'theme-card' + (t === thCurrentTheme ? ' selected' : '');
+      card.innerHTML = '<svg class="star teal"><use href="#badge-star"/></svg>'
+        + '<span class="theme-name"></span>'
+        + (t === thCurrentTheme ? '<span class="pill ok">current</span>' : '');
+      card.querySelector('.theme-name').textContent = t;
+      if (t !== thCurrentTheme) {
+        card.addEventListener('click', () => switchTheme(t));
+      }
+      thCards.appendChild(card);
+    });
+  }
+
+  async function switchTheme(theme) {
+    const portal = thPortal.value;
+    if (!portal) return;
+    if (!window.confirm('Switch ' + portal + ' to the "' + theme + '" theme and rebuild?')) return;
+
+    try {
+      // 1. make sure the portal has the theme's files
+      let res = await fetch('/api/ensure_theme?' + encodeURIComponent(portal) + '&' + encodeURIComponent(theme));
+      let data = await apiJson(res);
+      if (data.ok === false) { say(data.stderr || 'Theme prep failed'); return; }
+
+      // 2. rewrite the theme name line in config.yall
+      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
+      res = await fetch('/api/read_file?' + q);
+      data = await apiJson(res);
+      if (data.ok === false) { say('Could not read config.yall'); return; }
+      const cfg = String(data.content || '');
+      const updated = cfg.replace(/(theme:\s*\r?\n\s*name:\s*")[^"]+(")/, '$1' + theme + '$2');
+      if (updated === cfg && !cfg.includes('"' + theme + '"')) {
+        say('Could not find theme name in config.yall');
+        return;
+      }
+
+      say('Switching theme \u2014 rebuilding\u2026');
+      res = await fetch('/api/write_file?' + q, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
+      });
+      data = await apiJson(res);
+      if (buildFailed(data)) { say('Rebuild failed \u2014 ' + String(data.stderr || '').slice(0, 120)); return; }
+
+      thCurrentTheme = theme;
+      renderThemeCards();
+      thEditor.load();
+      say(portal + ' now uses ' + theme);
+    } catch (err) {
+      say(err.message || 'API unreachable');
+    }
+  }
+
+  async function themesEnter() {
+    fillPortalSel(thPortal);
+    if (!thPortal.value) return;
+    thCurrentTheme = await detectCurrentTheme(thPortal.value);
+    renderThemeCards();
+    renderThTabs();
+    if (thCurrentTheme && !thEditor.dirty) thEditor.load();
+  }
+
+  thPortal.addEventListener('change', async () => {
+    if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
+    thCurrentTheme = await detectCurrentTheme(thPortal.value);
+    renderThemeCards();
+    if (thCurrentTheme) thEditor.load();
+  });
+
   // ---------- resizable file tree ----------
   const resizer = document.getElementById('ed-resizer');
   const editorShell = document.querySelector('.editor-shell');
@@ -1283,7 +1521,7 @@
   const wzRunTitle = document.getElementById('wz-run-title');
   const wzDone = document.getElementById('wz-done');
   const wzViewSite = document.getElementById('wz-view-site');
-  const wzFinish = document.getElementById('wz-finish');
+  const wizFoot = document.getElementById('wiz-foot');
   const wzRunErr = document.getElementById('wz-run-err');
   const wzBack = document.getElementById('wz-back');
   const wzSkip = document.getElementById('wz-skip');
@@ -1338,6 +1576,7 @@
 
   wizClose.addEventListener('click', closeWizard);
   npWizard.addEventListener('click', openWizard);
+  document.getElementById('dash-wizard').addEventListener('click', openWizard);
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !wizard.hidden) closeWizard();
   });
@@ -1353,9 +1592,9 @@
       d.className = 'wiz-dot' + (i === step ? ' on' : i < step ? ' done' : '');
       wizDots.appendChild(d);
     }
-    wzBack.hidden = step === 1 || step === 5;
+    wizFoot.hidden = step === 5;
+    wzBack.hidden = step === 1;
     wzSkip.hidden = step !== 3;
-    wzNext.hidden = step === 5;
     wzNext.textContent = step === 4 ? 'Create my site' : 'Next';
   }
 
@@ -1556,12 +1795,6 @@
       wzProgress.querySelectorAll('li.doing').forEach(li => { li.className = 'fail'; });
     }
   }
-
-  wzFinish.addEventListener('click', () => {
-    wiz.running = false;
-    closeWizard();
-    location.hash = '#dashboard';
-  });
 
   // ---------- boot ----------
   loadPortals().then(showView);

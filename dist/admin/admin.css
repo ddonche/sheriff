@@ -863,3 +863,49 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   padding:0;
 }
 .linklike:hover{ color:var(--teal); }
+
+#toast{ max-width:min(720px, 90vw); white-space:normal; text-align:center; }
+
+/* [hidden] beats any display rule (.btn's inline-flex was overriding it) */
+[hidden]{ display:none !important; }
+
+/* ---------- config editors (Navigation / Settings / Themes files) ---------- */
+.cfg-wrap{ max-width:860px; display:flex; flex-direction:column; gap:12px; }
+.cfg-bar{ display:flex; gap:14px; align-items:flex-end; }
+.cfg-tabs{ display:flex; gap:4px; }
+.cfg-tab{
+  border:1px solid var(--line);
+  border-radius:5px 5px 0 0;
+  border-bottom:none;
+  background:var(--canvas);
+  font-family:var(--mono); font-size:12px;
+  color:var(--muted);
+  padding:7px 13px;
+  cursor:pointer;
+}
+.cfg-tab:hover{ color:var(--ink); }
+.cfg-tab.active{
+  background:var(--card); color:var(--ink);
+  font-weight:500;
+}
+.cfg-editor{
+  background:var(--card);
+  border:1px solid var(--line); border-radius:6px;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.cfg-text{
+  min-height:46vh;
+  resize:vertical;
+}
+.cfg-foot{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 12px;
+  border-top:1px solid var(--line);
+  background:#FAFBFA;
+}
+.cfg-foot .ed-status{ margin-left:0; flex:1; }
+.theme-card{ position:relative; }
+.theme-card .pill.ok{
+  position:absolute; top:8px; right:8px;
+}

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=3">
+<link rel="stylesheet" href="/admin/admin.css?v=7">
 </head>
 <body>
 
@@ -34,13 +34,13 @@
     <span class="env-tag">LOCAL ADMIN</span>
     <span class="header-host">localhost:5173</span>
     <div class="header-actions">
-      <a class="btn ghost" href="#" data-dead>
+      <a class="btn ghost" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        View Docs
+        Docs
       </a>
-      <a class="btn teal" href="http://sheriff.localhost:5173" id="open-default" target="_blank" rel="noopener">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Open Default Portal
+      <a class="btn teal" href="https://sheriff.sheriffcloud.com/forum" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Forum
       </a>
     </div>
   </header>
@@ -73,10 +73,6 @@
       Themes
     </a>
     <div class="nav-label">Deploy</div>
-    <a href="#build" data-view="build">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Build
-    </a>
     <a href="#cloud" data-view="cloud">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
       Cloud Sync
@@ -185,36 +181,11 @@
             </div>
           </div>
 
-          <!-- getting started -->
+          <!-- new site -->
           <div class="panel">
-            <h2 class="bracket">Getting started</h2>
-            <ul class="steps">
-              <li>
-                <span class="box"></span>
-                <span>Set site name</span>
-                <a class="go" href="#" data-dead>go →</a>
-              </li>
-              <li>
-                <span class="box"></span>
-                <span>Upload logo</span>
-                <a class="go" href="#" data-dead>go →</a>
-              </li>
-              <li>
-                <span class="box"></span>
-                <span>Pick theme</span>
-                <a class="go" href="#" data-dead>go →</a>
-              </li>
-              <li>
-                <span class="box"></span>
-                <span>Create first page</span>
-                <a class="go" href="#content">go →</a>
-              </li>
-              <li>
-                <span class="box"></span>
-                <span>Build site</span>
-                <a class="go" href="#" id="gs-build">go →</a>
-              </li>
-            </ul>
+            <h2 class="bracket">New site</h2>
+            <p class="np-hint" style="margin-bottom:12px">Name it, pick a theme, drop a logo, write a page — done in about a minute.</p>
+            <button class="btn primary block" type="button" id="dash-wizard">Set up a new site</button>
           </div>
 
         </div>
@@ -324,7 +295,7 @@
               <input id="md-folder" class="ed-filter" type="text" value="public" spellcheck="false">
             </div>
             <div class="media-field">
-              <label class="ed-label">&nbsp;</label>
+              <span class="ed-label" aria-hidden="true">&nbsp;</span>
               <button class="btn primary" type="button" id="md-upload-btn">Upload files</button>
               <input type="file" id="md-file-input" multiple hidden>
             </div>
@@ -350,6 +321,78 @@
             <div class="portal-empty">Pick a portal to load media.</div>
           </div>
           <div class="drop-hint">or drag &amp; drop files anywhere in this area</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NAVIGATION VIEW ============ -->
+    <section class="view" id="view-navigation" hidden>
+      <div class="cfg-wrap">
+        <h2 class="bracket">Navigation</h2>
+        <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Saving rebuilds the portal.</p>
+        <div class="cfg-bar">
+          <div class="media-field">
+            <label class="ed-label" for="nv-portal">Portal</label>
+            <select id="nv-portal" class="ed-select"></select>
+          </div>
+        </div>
+        <div class="cfg-editor">
+          <textarea id="nv-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a portal."></textarea>
+          <div class="cfg-foot">
+            <span class="ed-status" id="nv-status"></span>
+            <span class="ed-dirty" id="nv-dirty" hidden>● unsaved</span>
+            <button class="btn primary small" type="button" id="nv-save" disabled>Save &amp; rebuild</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ THEMES VIEW ============ -->
+    <section class="view" id="view-themes" hidden>
+      <div class="cfg-wrap">
+        <h2 class="bracket">Themes</h2>
+        <div class="cfg-bar">
+          <div class="media-field">
+            <label class="ed-label" for="th-portal">Portal</label>
+            <select id="th-portal" class="ed-select"></select>
+          </div>
+        </div>
+
+        <div class="theme-cards" id="th-cards">
+          <div class="tree-msg">Pick a portal.</div>
+        </div>
+
+        <h2 class="bracket" style="margin-top:10px">Theme files</h2>
+        <div class="cfg-tabs" id="th-tabs"></div>
+        <div class="cfg-editor">
+          <textarea id="th-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a file above."></textarea>
+          <div class="cfg-foot">
+            <span class="ed-status" id="th-status"></span>
+            <span class="ed-dirty" id="th-dirty" hidden>● unsaved</span>
+            <button class="btn primary small" type="button" id="th-save" disabled>Save &amp; rebuild</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS VIEW ============ -->
+    <section class="view" id="view-settings" hidden>
+      <div class="cfg-wrap">
+        <h2 class="bracket">Settings</h2>
+        <p class="np-hint" style="margin-bottom:4px">Your site's configuration (config.yall). Saving rebuilds the portal.</p>
+        <div class="cfg-bar">
+          <div class="media-field">
+            <label class="ed-label" for="cf-portal">Portal</label>
+            <select id="cf-portal" class="ed-select"></select>
+          </div>
+        </div>
+        <div class="cfg-editor">
+          <textarea id="cf-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a file above."></textarea>
+          <div class="cfg-foot">
+            <span class="ed-status" id="cf-status"></span>
+            <span class="ed-dirty" id="cf-dirty" hidden>● unsaved</span>
+            <button class="btn primary small" type="button" id="cf-save" disabled>Save &amp; rebuild</button>
+          </div>
         </div>
       </div>
     </section>
@@ -428,7 +471,6 @@
         </ul>
         <div class="wiz-done" id="wz-done" hidden>
           <a class="btn teal" id="wz-view-site" href="#" target="_blank" rel="noopener">View site ↗</a>
-          <button class="btn" type="button" id="wz-finish">Open Desk</button>
         </div>
         <p class="wiz-err" id="wz-run-err" hidden></p>
       </section>
@@ -457,6 +499,6 @@
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/admin.js?v=3"></script>
+<script src="/admin/admin.js?v=7"></script>
 </body>
 </html>
