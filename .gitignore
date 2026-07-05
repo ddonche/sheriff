@@ -1,8 +1,5 @@
 # Build output — ignore everything in dist EXCEPT Sheriff Desk source
 dist/*
-!dist/index.html
-!dist/api/
-!dist/public/
 
 # Ignore ALL portals
 site/portals/*
