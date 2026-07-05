@@ -18,6 +18,16 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
   }
 
+  async function apiJson(res) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('API returned non-JSON (HTTP ' + res.status + '):', text.slice(0, 800));
+      throw new Error('API error (HTTP ' + res.status + ') \u2014 see browser console');
+    }
+  }
+
   function wireDead(root) {
     root.querySelectorAll('[data-dead]').forEach(el => {
       el.addEventListener('click', e => {
@@ -175,6 +185,7 @@
       if (portalNames.length === 0) {
         emptyState('No portals found in site/portals. Create one to get started.');
         statPortals.textContent = '0';
+        maybeAutoWizard();
       } else {
         renderPortals(portalNames);
         statPortals.textContent = String(portalNames.length) + ' detected';
@@ -285,8 +296,9 @@
     npCreate.disabled = true;
     npCreate.textContent = 'Creating\u2026';
     try {
-      const res = await fetch('/api/create_portal?' + encodeURIComponent(name));
-      const data = await res.json();
+      const res = await fetch('/api/create_portal?' + encodeURIComponent(name)
+        + '&outpost&' + encodeURIComponent(name));
+      const data = await apiJson(res);
       if (data.ok === false) {
         say(data.stderr || 'Create failed');
         return;
@@ -297,9 +309,9 @@
       await loadPortals();
       renderManageList();
       const ok = await buildPortal(name, null);
-      if (ok) say(name + ' is live at ' + name + '.localhost:' + PORT);
+      if (ok) say(name + ' is ready at ' + name + '.localhost:' + PORT);
     } catch (err) {
-      say('API unreachable');
+      say(err.message || 'API unreachable');
     } finally {
       npCreate.disabled = false;
       npCreate.textContent = 'Create portal';
@@ -1245,6 +1257,310 @@
   // warn on tab close with unsaved changes
   window.addEventListener('beforeunload', e => {
     if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ============================================================
+  // First-run wizard
+  // ============================================================
+  const wizard = document.getElementById('wizard');
+  const wizClose = document.getElementById('wiz-close');
+  const wizDots = document.getElementById('wiz-dots');
+  const wzName = document.getElementById('wz-name');
+  const wzSlug = document.getElementById('wz-slug');
+  const wzSlugPreview = document.getElementById('wz-slug-preview');
+  const wzNameErr = document.getElementById('wz-name-err');
+  const wzThemes = document.getElementById('wz-themes');
+  const wzLogoDrop = document.getElementById('wz-logo-drop');
+  const wzLogoInput = document.getElementById('wz-logo-input');
+  const wzLogoBrowse = document.getElementById('wz-logo-browse');
+  const wzLogoEmpty = document.getElementById('wz-logo-empty');
+  const wzLogoPreview = document.getElementById('wz-logo-preview');
+  const wzLogoImg = document.getElementById('wz-logo-img');
+  const wzLogoClear = document.getElementById('wz-logo-clear');
+  const wzPageTitle = document.getElementById('wz-page-title');
+  const wzPageBody = document.getElementById('wz-page-body');
+  const wzProgress = document.getElementById('wz-progress');
+  const wzRunTitle = document.getElementById('wz-run-title');
+  const wzDone = document.getElementById('wz-done');
+  const wzViewSite = document.getElementById('wz-view-site');
+  const wzFinish = document.getElementById('wz-finish');
+  const wzRunErr = document.getElementById('wz-run-err');
+  const wzBack = document.getElementById('wz-back');
+  const wzSkip = document.getElementById('wz-skip');
+  const wzNext = document.getElementById('wz-next');
+  const npWizard = document.getElementById('np-wizard');
+
+  const WIZ_STEPS = 5;
+  let wiz = null;
+  let wizAutoShown = false;
+
+  function maybeAutoWizard() {
+    if (wizAutoShown) return;
+    wizAutoShown = true;
+    openWizard();
+  }
+
+  function slugify(s) {
+    return s.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function openWizard() {
+    wiz = {
+      step: 1, running: false,
+      name: '', slug: '', slugEdited: false,
+      theme: 'outpost',
+      logoFile: null,
+      pageTitle: '', pageBody: ''
+    };
+    wzName.value = '';
+    wzSlug.value = '';
+    wzSlugPreview.textContent = 'name';
+    wzNameErr.hidden = true;
+    wzPageTitle.value = '';
+    wzPageBody.value = '';
+    clearWizLogo();
+    resetProgress();
+    wzDone.hidden = true;
+    wzRunErr.hidden = true;
+    loadWizThemes();
+    wizGoto(1);
+    wizard.hidden = false;
+    setTimeout(() => wzName.focus(), 50);
+  }
+
+  function closeWizard() {
+    if (wiz && wiz.running) return;
+    wizard.hidden = true;
+    wiz = null;
+  }
+
+  wizClose.addEventListener('click', closeWizard);
+  npWizard.addEventListener('click', openWizard);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !wizard.hidden) closeWizard();
+  });
+
+  function wizGoto(step) {
+    wiz.step = step;
+    document.querySelectorAll('.wiz-step').forEach(s => {
+      s.hidden = Number(s.dataset.step) !== step;
+    });
+    wizDots.innerHTML = '';
+    for (let i = 1; i <= WIZ_STEPS; i++) {
+      const d = document.createElement('span');
+      d.className = 'wiz-dot' + (i === step ? ' on' : i < step ? ' done' : '');
+      wizDots.appendChild(d);
+    }
+    wzBack.hidden = step === 1 || step === 5;
+    wzSkip.hidden = step !== 3;
+    wzNext.hidden = step === 5;
+    wzNext.textContent = step === 4 ? 'Create my site' : 'Next';
+  }
+
+  wzBack.addEventListener('click', () => { if (wiz.step > 1) wizGoto(wiz.step - 1); });
+  wzSkip.addEventListener('click', () => {
+    clearWizLogo();
+    wizGoto(4);
+  });
+
+  wzNext.addEventListener('click', () => {
+    if (wiz.step === 1) {
+      if (!validateWizName()) return;
+      wizGoto(2);
+    } else if (wiz.step === 2) {
+      wizGoto(3);
+    } else if (wiz.step === 3) {
+      wizGoto(4);
+    } else if (wiz.step === 4) {
+      wiz.pageTitle = wzPageTitle.value.trim() || 'Welcome';
+      wiz.pageBody = wzPageBody.value.trim();
+      wizGoto(5);
+      runWizard();
+    }
+  });
+
+  // step 1: name/slug
+  wzName.addEventListener('input', () => {
+    wiz.name = wzName.value.trim();
+    if (!wiz.slugEdited) {
+      wiz.slug = slugify(wiz.name);
+      wzSlug.value = wiz.slug;
+    }
+    wzSlugPreview.textContent = wiz.slug || 'name';
+    wzNameErr.hidden = true;
+  });
+  wzSlug.addEventListener('input', () => {
+    wiz.slugEdited = true;
+    wiz.slug = wzSlug.value.trim();
+    wzSlugPreview.textContent = wiz.slug || 'name';
+    wzNameErr.hidden = true;
+  });
+
+  function wizErr(msg) {
+    wzNameErr.textContent = msg;
+    wzNameErr.hidden = false;
+  }
+
+  function validateWizName() {
+    if (!wiz.name) { wizErr('Give your site a name.'); return false; }
+    if (!wiz.slug) { wizErr('The address can\u2019t be empty.'); return false; }
+    if (!PORTAL_NAME_RE.test(wiz.slug)) {
+      wizErr('Address may only use lowercase letters, numbers, and hyphens.');
+      return false;
+    }
+    if (RESERVED_PORTALS.has(wiz.slug)) {
+      wizErr('"' + wiz.slug + '" is reserved by Sheriff Desk.');
+      return false;
+    }
+    if (portalNames.includes(wiz.slug)) {
+      wizErr('A portal named "' + wiz.slug + '" already exists.');
+      return false;
+    }
+    return true;
+  }
+
+  // step 2: themes
+  async function loadWizThemes() {
+    wzThemes.innerHTML = '<div class="tree-msg">Loading themes\u2026</div>';
+    let themes = ['outpost'];
+    try {
+      const res = await fetch('/api/list_themes');
+      const data = await res.json();
+      if (Array.isArray(data.themes) && data.themes.length) themes = data.themes;
+    } catch (err) { /* fall back to outpost */ }
+
+    if (!themes.includes(wiz.theme)) wiz.theme = themes[0];
+    wzThemes.innerHTML = '';
+    themes.forEach(t => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'theme-card' + (t === wiz.theme ? ' selected' : '');
+      card.innerHTML = '<svg class="star teal"><use href="#badge-star"/></svg><span class="theme-name"></span>';
+      card.querySelector('.theme-name').textContent = t;
+      card.addEventListener('click', () => {
+        wiz.theme = t;
+        wzThemes.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+      });
+      wzThemes.appendChild(card);
+    });
+  }
+
+  // step 3: logo
+  function clearWizLogo() {
+    if (wiz) wiz.logoFile = null;
+    wzLogoImg.src = '';
+    wzLogoPreview.hidden = true;
+    wzLogoEmpty.hidden = false;
+  }
+  function setWizLogo(file) {
+    if (!file || !file.type.startsWith('image/')) { say('Pick an image file'); return; }
+    wiz.logoFile = file;
+    wzLogoImg.src = URL.createObjectURL(file);
+    wzLogoEmpty.hidden = true;
+    wzLogoPreview.hidden = false;
+  }
+  wzLogoBrowse.addEventListener('click', () => wzLogoInput.click());
+  wzLogoInput.addEventListener('change', () => {
+    if (wzLogoInput.files.length) setWizLogo(wzLogoInput.files[0]);
+    wzLogoInput.value = '';
+  });
+  wzLogoClear.addEventListener('click', clearWizLogo);
+  wzLogoDrop.addEventListener('dragover', e => { e.preventDefault(); wzLogoDrop.classList.add('drag'); });
+  wzLogoDrop.addEventListener('dragleave', () => wzLogoDrop.classList.remove('drag'));
+  wzLogoDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    wzLogoDrop.classList.remove('drag');
+    if (e.dataTransfer.files.length) setWizLogo(e.dataTransfer.files[0]);
+  });
+
+  // step 5: run
+  function resetProgress() {
+    wzProgress.querySelectorAll('li').forEach(li => {
+      li.className = '';
+    });
+  }
+  function markTask(task, state) {
+    const li = wzProgress.querySelector('li[data-task="' + task + '"]');
+    if (li) li.className = state;
+  }
+
+  async function runWizard() {
+    wiz.running = true;
+    wzRunTitle.textContent = 'Building your site';
+    wzRunErr.hidden = true;
+    wzDone.hidden = true;
+    resetProgress();
+
+    try {
+      // 1. create portal
+      markTask('create', 'doing');
+      const brand = wiz.name.replace(/["']/g, '');
+      let res = await fetch('/api/create_portal?' + encodeURIComponent(wiz.slug)
+        + '&' + encodeURIComponent(wiz.theme)
+        + '&' + encodeURIComponent(brand));
+      let data = await apiJson(res);
+      if (data.ok === false) throw new Error(data.stderr || 'create failed');
+      markTask('create', 'done');
+
+      // 2. logo (optional)
+      if (wiz.logoFile) {
+        markTask('logo', 'doing');
+        const ext = (wiz.logoFile.name.split('.').pop() || 'png').toLowerCase();
+        const logoPath = 'public/logo.' + (ext === 'png' ? 'png' : ext);
+        res = await fetch('/api/upload_file?' + encodeURIComponent(wiz.slug)
+          + '&' + encodeURIComponent('public/logo.png'), {
+          method: 'POST', body: wiz.logoFile
+        });
+        data = await apiJson(res);
+        if (data.ok === false) throw new Error(data.stderr || 'logo upload failed');
+        markTask('logo', 'done');
+      } else {
+        markTask('logo', 'skip');
+      }
+
+      // 3. first page
+      markTask('page', 'doing');
+      const fm = '^^^^\ntitle: ' + wiz.pageTitle
+        + '\nauthor: Sheriff\nlayout: docs\nmeta_kind: overview\nmeta_type: docs\nsummary: \n^^^^\n\n';
+      const body = fm + '# ' + wiz.pageTitle + '\n\n' + (wiz.pageBody || 'Welcome to ' + wiz.name + '.') + '\n';
+      res = await fetch('/api/write_file?portal=' + encodeURIComponent(wiz.slug)
+        + '&path=' + encodeURIComponent('content/index.md'), {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
+      });
+      data = await apiJson(res);
+      if (buildFailed(data)) throw new Error(data.stderr || 'page write failed');
+      markTask('page', 'done');
+
+      // 4. full build
+      markTask('build', 'doing');
+      res = await fetch('/api/build?' + encodeURIComponent(wiz.slug));
+      data = await apiJson(res);
+      if (buildFailed(data)) throw new Error(data.stderr || 'build failed');
+      markTask('build', 'done');
+
+      wzRunTitle.textContent = 'Your site is ready';
+      wzViewSite.href = 'http://' + wiz.slug + '.localhost:' + PORT;
+      wzDone.hidden = false;
+      wiz.running = false;
+
+      await loadPortals();
+      renderManageList();
+    } catch (err) {
+      wiz.running = false;
+      wzRunTitle.textContent = 'Something went wrong';
+      wzRunErr.textContent = String(err.message || err).slice(0, 200);
+      wzRunErr.hidden = false;
+      wzProgress.querySelectorAll('li.doing').forEach(li => { li.className = 'fail'; });
+    }
+  }
+
+  wzFinish.addEventListener('click', () => {
+    wiz.running = false;
+    closeWizard();
+    location.hash = '#dashboard';
   });
 
   // ---------- boot ----------

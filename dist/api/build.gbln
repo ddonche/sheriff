@@ -42,6 +42,6 @@ else
         core_root | "{root_base}/sheriff-core"
 
         result | :run_cmd("goblin run main.gbln {portal}", core_root)
-        :say(:json_stringify(result))
+        :say(result)
     xx
 xx

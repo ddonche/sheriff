@@ -14,8 +14,8 @@ act is_bad_name(p)
     if :has(p, ">") => return true
     if :has(p, "(") => return true
     if :has(p, ")") => return true
-    if :has(p, "{") => return true
-    if :has(p, "}") => return true
+    if :has(p, "\{") => return true
+    if :has(p, "\}") => return true
     if :has(p, "*") => return true
     if :has(p, "?") => return true
     if :has(p, "!") => return true
@@ -31,11 +31,50 @@ act is_bad_name(p)
     return false
 xx
 
-portal | :trim(:env("GOBLIN_QUERY_STRING"))
+query | :trim(:env("GOBLIN_QUERY_STRING"))
+parts | :split(query, "&")
+
+portal | :trim(parts[0])
+
+theme_req | ""
+p1 | parts[1]
+if p1.nix? == false
+    theme_req |= :trim(p1)
+xx
+
+brand | ""
+p2 | parts[2]
+if p2.nix? == false
+    brand |= :trim(p2)
+    :update_where!(brand, "%20", " ")
+xx
+
+if brand == ""
+    brand |= portal
+xx
+
 root_base | :trim(:env("SHERIFF_ROOT"))
 
 if root_base == ""
     root_base |= ".."
+xx
+
+theme_pick | "outpost"
+themes_dir | "{root_base}/sheriff-core/themes"
+
+if theme_req != ""
+    if :file_exists(themes_dir)
+        available_themes | :list_dirs(themes_dir)
+        theme_ok | false
+        for t in available_themes
+            if t == theme_req
+                theme_ok |= true
+            xx
+        xx
+        if theme_ok
+            theme_pick |= theme_req
+        xx
+    xx
 xx
 
 root | "{root_base}/site/portals/{portal}"
@@ -89,7 +128,7 @@ elif :file_exists(root)
     :say(:json_stringify(out))
 
 else
-    theme_name | "outpost"
+    theme_name | theme_pick
 
     :create_dir!(root)
     :create_dir!("{root}/content")
@@ -101,7 +140,7 @@ else
     "{root}/config.yall",
     """
 id: {portal}
-name: "{portal}"
+name: "{brand}"
 version: "0.0.1"
 
 repo:
@@ -111,8 +150,8 @@ repo:
   forks: ""
 
 theme:
-  name: "outpost"
-  brand_name: "{portal}"
+  name: "{theme_name}"
+  brand_name: "{brand}"
   logo: "logo.png"
   favicon: "favicon.ico"
   highlight_dark: "base16-ocean.dark"
@@ -340,6 +379,12 @@ layouts:
 """
     )
 
+    theme_templates_src | "{root_base}/sheriff-core/themes/{theme_name}/templates.yall"
+
+    if :file_exists(theme_templates_src)
+        :copy_file!(theme_templates_src, "{root}/themes/{theme_name}/templates.yall")
+    xx
+
     :write_text!(
     "{root}/themes/{theme_name}/override.css",
     """/* portal/theme overrides */
@@ -366,10 +411,10 @@ author: Sheriff
 layout: docs
 meta_kind: overview
 meta_type: docs
-summary: Starter page for {portal}.
+summary: Starter page for {brand}.
 ^^^^
 
-# {portal}
+# {brand}
 
 Your Sheriff site is ready.
 

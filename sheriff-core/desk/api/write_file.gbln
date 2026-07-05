@@ -41,13 +41,6 @@ act has_unsafe_chars(p)
     if :has(p, ">") => return true
     if :has(p, "(") => return true
     if :has(p, ")") => return true
-    if :has(p, "{") => return true
-    if :has(p, "}") => return true
-    if :has(p, "*") => return true
-    if :has(p, "?") => return true
-    if :has(p, "!") => return true
-    if :has(p, "~") => return true
-    if :has(p, "#") => return true
     if :has(p, "%") => return true
     if :has(p, "^") => return true
 
@@ -233,14 +226,14 @@ else
 
             if has_unsafe_chars(rel)
                 result | :run_cmd("goblin run main.gbln {portal}", core_root)
-                :say(:json_stringify(result))
+                :say(result)
             else
                 result | :run_cmd("goblin run main.gbln {portal} page {rel}", core_root)
-                :say(:json_stringify(result))
+                :say(result)
             xx
         else
             result | :run_cmd("goblin run main.gbln {portal}", core_root)
-            :say(:json_stringify(result))
+            :say(result)
         xx
     xx
 xx

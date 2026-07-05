@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css">
+<link rel="stylesheet" href="/admin/admin.css?v=3">
 </head>
 <body>
 
@@ -282,6 +282,7 @@
           <div class="newportal-row">
             <input id="np-name" class="ed-filter" type="text" placeholder="portal-name" spellcheck="false" autocomplete="off">
             <button class="btn primary" type="button" id="np-create">Create portal</button>
+            <button class="btn" type="button" id="np-wizard">Guided setup</button>
           </div>
           <p class="np-hint">Lowercase letters, numbers, and hyphens. Lives at <span class="mono-hint" id="np-preview">name</span>.localhost:5173 once built.</p>
         </div>
@@ -366,6 +367,82 @@
   </main>
 </div>
 
+<div class="wizard" id="wizard" hidden>
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">Set up a new site</span>
+      <button class="wiz-x" type="button" id="wiz-close" title="Close">&times;</button>
+    </div>
+
+    <div class="wiz-dots" id="wiz-dots"></div>
+
+    <div class="wiz-body">
+
+      <section class="wiz-step" data-step="1">
+        <h3>Name your site</h3>
+        <p class="wiz-sub">What should this site be called?</p>
+        <input id="wz-name" class="wiz-input" type="text" placeholder="Goblin Docs" spellcheck="false" autocomplete="off">
+        <label class="ed-label" for="wz-slug" style="margin-top:14px">Address</label>
+        <input id="wz-slug" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
+        <p class="wiz-hint">Your site will run at <span class="mono-hint" id="wz-slug-preview">name</span>.localhost:5173</p>
+        <p class="wiz-err" id="wz-name-err" hidden></p>
+      </section>
+
+      <section class="wiz-step" data-step="2" hidden>
+        <h3>Pick a theme</h3>
+        <p class="wiz-sub">You can change this later.</p>
+        <div class="theme-cards" id="wz-themes"></div>
+      </section>
+
+      <section class="wiz-step" data-step="3" hidden>
+        <h3>Add a logo</h3>
+        <p class="wiz-sub">Optional — drop an image or skip for now.</p>
+        <div class="logo-drop" id="wz-logo-drop">
+          <input type="file" id="wz-logo-input" accept="image/*" hidden>
+          <div id="wz-logo-empty">
+            <span>Drop an image here or</span>
+            <button class="btn small" type="button" id="wz-logo-browse">browse</button>
+          </div>
+          <div id="wz-logo-preview" hidden>
+            <img id="wz-logo-img" alt="Logo preview">
+            <button class="btn small" type="button" id="wz-logo-clear">Remove</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wiz-step" data-step="4" hidden>
+        <h3>Write your first page</h3>
+        <p class="wiz-sub">This becomes your home page. Keep it short — you can edit it any time.</p>
+        <input id="wz-page-title" class="wiz-input" type="text" placeholder="Welcome" spellcheck="false">
+        <textarea id="wz-page-body" class="wiz-textarea" spellcheck="false" placeholder="A few lines about what this site is."></textarea>
+      </section>
+
+      <section class="wiz-step" data-step="5" hidden>
+        <h3 id="wz-run-title">Building your site</h3>
+        <ul class="wiz-progress" id="wz-progress">
+          <li data-task="create"><span class="wp-mark"></span>Create portal</li>
+          <li data-task="logo"><span class="wp-mark"></span>Upload logo</li>
+          <li data-task="page"><span class="wp-mark"></span>Write first page</li>
+          <li data-task="build"><span class="wp-mark"></span>Build site</li>
+        </ul>
+        <div class="wiz-done" id="wz-done" hidden>
+          <a class="btn teal" id="wz-view-site" href="#" target="_blank" rel="noopener">View site ↗</a>
+          <button class="btn" type="button" id="wz-finish">Open Desk</button>
+        </div>
+        <p class="wiz-err" id="wz-run-err" hidden></p>
+      </section>
+
+    </div>
+
+    <div class="wiz-foot" id="wiz-foot">
+      <button class="btn" type="button" id="wz-back" hidden>Back</button>
+      <span class="wiz-skip"><button class="btn ghost" type="button" id="wz-skip" hidden>Skip</button></span>
+      <button class="btn primary" type="button" id="wz-next">Next</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" hidden>
   <div class="lb-inner">
     <img id="lb-img" alt="">
@@ -380,6 +457,6 @@
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/admin.js"></script>
+<script src="/admin/admin.js?v=3"></script>
 </body>
 </html>
