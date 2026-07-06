@@ -31,11 +31,24 @@ act frontier_extract_into_ctx(ctx)
     body | ctx["body"]
     
     if body.nix?
-        :update!(ctx["frontmatter"], nil)
+        :update!(ctx["frontmatter"], {"categories": []})
         return ctx
     xx
     
     fm_map | frontier_extract_frontmatter(body)
+    if fm_map.nix? or :valtype(fm_map) != "map"
+        fm_map |= {}
+    xx
+
+    if :has(fm_map, "categories") == false
+        :update!(fm_map["categories"], [])
+    else
+        cats | fm_map["categories"]
+        if cats.nix? or :valtype(cats) != "array"
+            :update!(fm_map["categories"], [])
+        xx
+    xx
+
     :update!(ctx["frontmatter"], fm_map)
     return ctx
 xx
@@ -48,6 +61,19 @@ act strip_frontmatter(ctx)
         
     /// 1) Extract frontmatter map from the current body
     fm_map | frontier_extract_frontmatter(body)
+    if fm_map.nix? or :valtype(fm_map) != "map"
+        fm_map |= {}
+    xx
+
+    if :has(fm_map, "categories") == false
+        :update!(fm_map["categories"], [])
+    else
+        cats | fm_map["categories"]
+        if cats.nix? or :valtype(cats) != "array"
+            :update!(fm_map["categories"], [])
+        xx
+    xx
+
     :update!(ctx["frontmatter"], fm_map)
     
     /// 2) Remove the ^^^^ ... ^^^^ block (fences + contents)

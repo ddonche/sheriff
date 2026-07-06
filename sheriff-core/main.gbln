@@ -218,6 +218,11 @@ act build()
     pre_ctx | run_pre_schedule(cfg)
     :update!(pre_ctx["schedule"], schedule)
 
+    md_files |= []
+    for f in :walk(content_root, "**/*.md")
+        :put_last!(md_files, f)
+    xx
+
     /// BUILD EACH MARKDOWN FILE
     for md_path in md_files
         raw | :read_text(md_path)

@@ -160,7 +160,6 @@ theme:
 
 routing:
   dist_root: "{portal}"
-  site_url: ""
   url_root: ""
   content_dir: "content"
   public_dir: "public"
@@ -401,6 +400,29 @@ layouts:
 
     if :file_exists(favicon_src)
         :copy_file!(favicon_src, "{root}/public/favicon.ico")
+    xx
+
+    js_src | "{root_base}/site/portals/sheriff/public/js"
+
+    if :file_exists(js_src)
+        :create_dir!("{root}/public/js")
+
+        for asset in :walk(js_src, "**/*.js")
+            asset_norm | asset
+            :update_where!(asset_norm, "\\", "/")
+
+            prefix | js_src
+            :update_where!(prefix, "\\", "/")
+            prefix |= "{prefix}/"
+
+            rel | :keep_after(asset_norm, prefix)
+
+            if rel == ..
+                rel |= asset_norm
+            xx
+
+            :copy_file!(asset, "{root}/public/js/{rel}")
+        xx
     xx
 
     :write_text!(

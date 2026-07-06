@@ -242,8 +242,16 @@ related [[Scope]]
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"</pre>
-<p>Editing a template means rearranging tokens between slots — remove one to hide it, reorder to rearrange. Keep a copy of the default so you can revert. Each theme has its own templates.yall in your portal, so if you use both themes, maintain both files.</p>
+<p>Editing a template means rearranging tokens between slots, or reordering the list within a slot. Keep a copy of the default so you can revert. Each theme has its own templates.yall in your portal, so if you use both themes, maintain both files.</p>
 <p><a href="${'' + D}/guides/templates.html" target="_blank" rel="noopener">Templates →</a></p>`
+      },
+      {
+        title: 'Hiding a slot',
+        html: `
+<p>To hide something, <strong>do not delete its slot</strong> — a missing slot is treated as an unresolved layout placeholder and breaks the page. Instead, replace the token with the built-in <code>GOBLIN::EMPTY</code>:</p>
+<pre>VERSION:
+  - "GOBLIN::EMPTY"</pre>
+<p>The slot stays in the layout but renders nothing — e.g. a wiki with no version badge. This keeps the layout contract intact while producing no output.</p>`
       },
       {
         title: 'override.css',

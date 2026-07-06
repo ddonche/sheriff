@@ -121,10 +121,32 @@ act index_page(ctx)
     xx
 
     /// -------- build JSON entry --------
+    categories | []
+    if !fm.nix?
+        attempt
+            fm_categories | fm["categories"]
+            if :valtype(fm_categories) == "array"
+                for category in fm_categories
+                    if category.nix? => skip
+
+                    category_name | :trim(category)
+                    if category_name.nix? => skip
+
+                    if :has(categories, category_name) == false
+                        :put_last!(categories, category_name)
+                    xx
+                xx
+            xx
+        rescue err
+            /// missing key or not an array - ignore
+        xx
+    xx
+
     entry | {
         "href":    href,
         "title":   title,
-        "summary": summary
+        "summary": summary,
+        "categories": categories
     }
 
     /// write JSON safely to temp

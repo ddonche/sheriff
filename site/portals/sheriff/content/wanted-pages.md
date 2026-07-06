@@ -1,7 +1,7 @@
 ^^^^
 title: Wanted Pages
 author: Sheriff
-layout: docs
+layout: admin
 meta_kind: docs
 meta_type: generated
 summary: Missing wiki pages linked from this site.
@@ -9,6 +9,49 @@ summary: Missing wiki pages linked from this site.
 
 
 <div class="sheriff-wanted-list">
+
+<details class="sheriff-wanted-item">
+  <summary class="sheriff-wanted-summary">
+    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
+    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Trailboss (module)</a></span>
+    <span class="sheriff-wanted-count">3 incoming links</span>
+    <span class="sheriff-wanted-sources">3 source pages</span>
+  </summary>
+  <div class="sheriff-wanted-source-panel">
+<a class="sheriff-link" href="/docs/changelog.html">Changelog</a>
+<a class="sheriff-link" href="/docs/guides/categories.html">Categories</a>
+<a class="sheriff-link" href="/docs/guides/redirects.html">Redirects</a>
+  </div>
+</details>
+
+
+<details class="sheriff-wanted-item">
+  <summary class="sheriff-wanted-summary">
+    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
+    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Frontier (module)</a></span>
+    <span class="sheriff-wanted-count">2 incoming links</span>
+    <span class="sheriff-wanted-sources">2 source pages</span>
+  </summary>
+  <div class="sheriff-wanted-source-panel">
+<a class="sheriff-link" href="/docs/changelog.html">Changelog</a>
+<a class="sheriff-link" href="/docs/guides/categories.html">Categories</a>
+  </div>
+</details>
+
+
+<details class="sheriff-wanted-item">
+  <summary class="sheriff-wanted-summary">
+    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
+    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Routes JSON</a></span>
+    <span class="sheriff-wanted-count">2 incoming links</span>
+    <span class="sheriff-wanted-sources">2 source pages</span>
+  </summary>
+  <div class="sheriff-wanted-source-panel">
+<a class="sheriff-link" href="/docs/guides/categories.html">Categories</a>
+<a class="sheriff-link" href="/docs/guides/redirects.html">Redirects</a>
+  </div>
+</details>
+
 
 <details class="sheriff-wanted-item">
   <summary class="sheriff-wanted-summary">
@@ -91,19 +134,6 @@ summary: Missing wiki pages linked from this site.
 <details class="sheriff-wanted-item">
   <summary class="sheriff-wanted-summary">
     <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
-    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Frontier (module)</a></span>
-    <span class="sheriff-wanted-count">1 incoming link</span>
-    <span class="sheriff-wanted-sources">1 source page</span>
-  </summary>
-  <div class="sheriff-wanted-source-panel">
-<a class="sheriff-link" href="/docs/changelog.html">Changelog</a>
-  </div>
-</details>
-
-
-<details class="sheriff-wanted-item">
-  <summary class="sheriff-wanted-summary">
-    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
     <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Frontmatter</a></span>
     <span class="sheriff-wanted-count">1 incoming link</span>
     <span class="sheriff-wanted-sources">1 source page</span>
@@ -149,19 +179,6 @@ summary: Missing wiki pages linked from this site.
   </summary>
   <div class="sheriff-wanted-source-panel">
 <a class="sheriff-link" href="/docs/guides/navigation.html">Navigation</a>
-  </div>
-</details>
-
-
-<details class="sheriff-wanted-item">
-  <summary class="sheriff-wanted-summary">
-    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
-    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">Trailboss (module)</a></span>
-    <span class="sheriff-wanted-count">1 incoming link</span>
-    <span class="sheriff-wanted-sources">1 source page</span>
-  </summary>
-  <div class="sheriff-wanted-source-panel">
-<a class="sheriff-link" href="/docs/changelog.html">Changelog</a>
   </div>
 </details>
 

@@ -30,11 +30,11 @@ act apply_layout(ctx)
 
     /// SAFETY: if frontmatter exists but is NOT a map → wipe it.
     if !fm.nix? and :valtype(fm) != "map"
-        fm | {}
+        fm |= {}
     xx
 
     layout_name | "docs"
-    if :valtype(fm) == "map" and !fm["layout"].nix?
+    if :valtype(fm) == "map" and :has(fm, "layout") and !fm["layout"].nix?
         :update!(layout_name, fm["layout"].trim)
     xx
 
@@ -52,12 +52,12 @@ act apply_layout(ctx)
     /// PAGE TITLE / AUTHOR / META / SEO
     /// ----------------------------------------------
     page_title | "Untitled"
-    if :valtype(fm) == "map" and !fm["title"].nix?
+    if :valtype(fm) == "map" and :has(fm, "title") and !fm["title"].nix?
         :update!(page_title, fm["title"].trim)
     xx
 
     page_author | "Unknown"
-    if :valtype(fm) == "map" and !fm["author"].nix?
+    if :valtype(fm) == "map" and :has(fm, "author") and !fm["author"].nix?
         :update!(page_author, fm["author"].trim)
     xx
 
@@ -154,12 +154,12 @@ act build_page_meta(fm)
 
     kind, type | ""
 
-    if !fm["meta_kind"].nix?
+    if :has(fm, "meta_kind") and !fm["meta_kind"].nix?
         tmp | fm["meta_kind"].trim
         if tmp != "" => :update!(kind, tmp)
     xx
 
-    if !fm["meta_type"].nix?
+    if :has(fm, "meta_type") and !fm["meta_type"].nix?
         tmp | fm["meta_type"].trim
         if tmp != "" => :update!(type, tmp)
     xx
@@ -250,11 +250,20 @@ act apply_tokens(ctx)
         theme_cfg | cfg["theme"] ?? nil
 
         if :valtype(theme_cfg) == "map"
-            judge_all
-                !theme_cfg["name"].nix?:        :update!(theme_name,   theme_cfg["name"].trim)
-                !theme_cfg["brand_name"].nix?:  :update!(brand_name,   theme_cfg["brand_name"].trim)
-                !theme_cfg["logo"].nix?:        :update!(logo_name,    theme_cfg["logo"].trim)
-                !theme_cfg["favicon"].nix?:     :update!(favicon_name, theme_cfg["favicon"].trim)
+            if :has(theme_cfg, "name") and !theme_cfg["name"].nix?
+                :update!(theme_name, theme_cfg["name"].trim)
+            xx
+
+            if :has(theme_cfg, "brand_name") and !theme_cfg["brand_name"].nix?
+                :update!(brand_name, theme_cfg["brand_name"].trim)
+            xx
+
+            if :has(theme_cfg, "logo") and !theme_cfg["logo"].nix?
+                :update!(logo_name, theme_cfg["logo"].trim)
+            xx
+
+            if :has(theme_cfg, "favicon") and !theme_cfg["favicon"].nix?
+                :update!(favicon_name, theme_cfg["favicon"].trim)
             xx
         xx
     xx

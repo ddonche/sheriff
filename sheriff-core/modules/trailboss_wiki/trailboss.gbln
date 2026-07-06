@@ -83,7 +83,7 @@ act init_wanted_pages(pre_ctx)
     body | """^^^^
 title: Wanted Pages
 author: Sheriff
-layout: docs
+layout: admin
 meta_kind: docs
 meta_type: generated
 summary: Missing wiki pages linked from this site.
@@ -664,6 +664,16 @@ act lookup_href_by_slug(ctx, portal, slug)
             href_abs | meta["href"]
             if !href_abs.nix? => send href_abs
         xx
+
+        if :has(meta, "aliases") and :valtype(meta["aliases"]) == "array"
+            for alias in meta["aliases"]
+                alias_slug | rjson::normalize_to_slug(alias)
+                if alias_slug == slug
+                    href_abs | meta["href"]
+                    if !href_abs.nix? => send href_abs
+                xx
+            xx
+        xx
     xx
 
     return ..
@@ -684,6 +694,19 @@ act lookup_gloss_by_slug(ctx, portal, slug)
                 if !g.nix? => send g
             xx
             send ..
+        xx
+
+        if :has(meta, "aliases") and :valtype(meta["aliases"]) == "array"
+            for alias in meta["aliases"]
+                alias_slug | rjson::normalize_to_slug(alias)
+                if alias_slug == slug
+                    if :has(meta, "gloss")
+                        g | meta["gloss"]
+                        if !g.nix? => send g
+                    xx
+                    send ..
+                xx
+            xx
         xx
     xx
 
@@ -1299,6 +1322,76 @@ act publish_canonical_link(ctx)
     return ctx
 xx
 
+act publish_categories(ctx)
+    portal | ctx["portal"] ?? => send ctx
+    body   | ctx["body"] ?? => send ctx
+
+    categories | []
+
+    href | ctx["href"] ?? ..
+    if !href.nix?
+        routes | load_routes_for_portal(ctx, portal)
+        if :valtype(routes) == "array"
+            for meta in routes
+                if meta.nix? => skip
+
+                route_href | meta["href"] ?? ..
+                if route_href == href
+                    if :has(meta, "categories") and :valtype(meta["categories"]) == "array"
+                        categories |= meta["categories"]
+                    xx
+                    stop
+                xx
+            xx
+        xx
+    xx
+
+    if :has(ctx, "frontmatter") and :valtype(ctx["frontmatter"]) == "map"
+        fm | ctx["frontmatter"]
+        if categories.nix? and :has(fm, "categories") and :valtype(fm["categories"]) == "array"
+            categories |= fm["categories"]
+        xx
+    xx
+
+    html | ""
+
+    if categories.nix? == false
+        cfg | rjson::load_cfg(portal)
+        url_root | rjson::get_url_root(cfg)
+        links_html | ""
+
+        for category in categories
+            if category.nix? => skip
+
+            category_name | :trim(category)
+            if category_name.nix? => skip
+
+            category_slug | rjson::normalize_to_slug(category_name)
+            if category_slug.nix? => skip
+
+            if links_html != ""
+                links_html |= links_html + """<span class="sheriff-category-separator" aria-hidden="true">|</span>"""
+            xx
+
+            category_href | rjson::build_href(url_root, "categories/{category_slug}")
+            href_safe | escape_attr(category_href)
+            name_safe | escape_text(category_name)
+
+            links_html |= links_html + """<a class="sheriff-link sheriff-category-link" href="{href_safe}">{name_safe}</a>"""
+        xx
+
+        if links_html != ""
+            html |= """<nav class="sheriff-page-categories" aria-label="Categories"><span class="sheriff-page-categories-label">Categories</span><span class="sheriff-page-categories-list">{links_html}</span></nav>"""
+        xx
+    xx
+
+    updated | body
+    :update_where!(updated, "{{{TRAILBOSS::CATEGORIES}}}", html)
+    :update!(ctx["body"], updated)
+
+    return ctx
+xx
+
 act build_wanted_pages_once(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
@@ -1314,16 +1407,17 @@ act build_wanted_pages_once(pre_ctx)
     md_path  | "../site/portals/{portal}/content/wanted-pages.md"
     out_file | "../dist/{portal}/wanted-pages.html"
 
-    lines | []
-    :put_last!(lines, "^^^^")
-    :put_last!(lines, "title: Wanted Pages")
-    :put_last!(lines, "author: Sheriff")
-    :put_last!(lines, "layout: docs")
-    :put_last!(lines, "meta_kind: docs")
-    :put_last!(lines, "meta_type: generated")
-    :put_last!(lines, "summary: Missing wiki pages linked from this site.")
-    :put_last!(lines, "^^^^")
-    :put_last!(lines, "")
+    frontmatter | """^^^^
+title: Wanted Pages
+author: Sheriff
+layout: admin
+meta_kind: docs
+meta_type: generated
+summary: Missing wiki pages linked from this site.
+^^^^
+"""
+
+    lines | [frontmatter]
 
     if wanted.nix?
         :put_last!(lines, "No wanted pages.")

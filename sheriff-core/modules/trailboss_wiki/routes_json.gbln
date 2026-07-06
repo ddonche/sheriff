@@ -109,6 +109,61 @@ act extract_frontmatter_map(md_text)
     return parsed
 xx
 
+act extract_frontmatter_list(md_text, fm, field)
+    values | []
+
+    if md_text.nix? == false and :starts_with(md_text, "^^^^")
+        block | :keep_between(md_text, "^^^^", "^^^^")
+
+        if block.nix? == false
+            for line in :split(block, "\n")
+                t | :trim(line)
+
+                if :starts_with(t, "{field}:")
+                    raw_values | :trim(:keep_after(t, "{field}:")) ?? ..
+
+                    if :starts_with(raw_values, "[") and :ends_with(raw_values, "]")
+                        inner | :keep_between(raw_values, "[", "]") ?? ..
+
+                        for part in :split(inner, ",")
+                            item_name | :trim(part)
+
+                            if :starts_with(item_name, "\"") and :ends_with(item_name, "\"")
+                                item_name |= :keep_between(item_name, "\"", "\"") ?? item_name
+                            xx
+
+                            if item_name.nix? => skip
+
+                            if :has(values, item_name) == false
+                                :put_last!(values, item_name)
+                            xx
+                        xx
+
+                        return values
+                    xx
+                xx
+            xx
+        xx
+    xx
+
+    if fm.nix? == false and :valtype(fm) == "map"
+        if :has(fm, field) and :valtype(fm{field}) == "array"
+            for item in fm{field}
+                if item.nix? => skip
+
+                item_name | :trim(item)
+                if item_name.nix? => skip
+
+                if :has(values, item_name) == false
+                    :put_last!(values, item_name)
+                xx
+            xx
+        xx
+    xx
+
+    return values
+xx
+
 act letter_key(page_title)
     t | :trim(page_title)
     low | :lower(t)
@@ -289,8 +344,14 @@ act build_routes_json_for_portal(portal)
         fm      | extract_frontmatter_map(md_text)
 
         gloss, meta_kind, meta_type, summary | ..
+        categories | extract_frontmatter_list(md_text, fm, "categories")
+        aliases    | extract_frontmatter_list(md_text, fm, "aliases")
 
         if fm.nix? == false and :valtype(fm) == "map"
+
+            if :has(fm, "title")
+                page_title |= fm{"title"}
+            xx
 
             if :has(fm, "meta_kind")
                 meta_kind |= fm{"meta_kind"}
@@ -309,6 +370,7 @@ act build_routes_json_for_portal(portal)
             elif summary != ..
                 gloss |= summary
             xx
+
         xx
 
         meta | {
@@ -316,13 +378,14 @@ act build_routes_json_for_portal(portal)
             "href":      href_abs,
             "rel":       rel_no_ext,
             "title":     page_title,
-            "aliases":   [],
+            "aliases":   aliases,
             "canonical": canonical,
             "gloss":     gloss,
 
             "meta_kind": meta_kind,
             "meta_type": meta_type,
-            "summary":   summary
+            "summary":   summary,
+            "categories": categories
         }
 
         :put_last!(routes, meta)
@@ -361,6 +424,312 @@ act build_routes_json_for_portal(portal)
     return nil
 xx
 
+act clean_category_pages_once(pre_ctx)
+    if pre_ctx.nix?
+        send pre_ctx
+    xx
+
+    portal | pre_ctx{"portal"}
+
+    if portal.nix?
+        send pre_ctx
+    xx
+
+    content_root | "../site/portals/{portal}/content"
+    categories_index_path | "{content_root}/categories.md"
+    categories_root       | "{content_root}/categories"
+
+    if :file_exists(categories_index_path)
+        old_index_text | :read_text(categories_index_path)
+        if :has(old_index_text, "generated_by: categories")
+            :delete_path!(categories_index_path)
+        xx
+    xx
+
+    if :file_exists(categories_root)
+        for old_category_page in :walk(categories_root, "**/*.md")
+            old_category_text | :read_text(old_category_page)
+            if :has(old_category_text, "generated_by: categories")
+                :delete_path!(old_category_page)
+            xx
+        xx
+    xx
+
+    return pre_ctx
+xx
+
+act build_category_pages_once(pre_ctx)
+    if pre_ctx.nix?
+        send pre_ctx
+    xx
+
+    portal | pre_ctx{"portal"}
+
+    if portal.nix?
+        send pre_ctx
+    xx
+
+    routes_path  | "../site/portals/{portal}/routes.json"
+    content_root | "../site/portals/{portal}/content"
+    category_root | "{content_root}/categories"
+    index_path | "{content_root}/categories.md"
+
+    if :file_exists(routes_path) == false => return pre_ctx
+
+    parsed | :read_json(routes_path)
+
+    if parsed.nix? => return pre_ctx
+
+    routes | parsed{"routes"}
+
+    if routes.nix? => return pre_ctx
+
+    :create_dir!(category_root)
+
+    if :file_exists(index_path)
+        old_index_text | :read_text(index_path)
+        if :has(old_index_text, "generated_by: categories")
+            :delete_path!(index_path)
+        xx
+    xx
+
+    for old_category_page in :walk(category_root, "**/*.md")
+        old_category_text | :read_text(old_category_page)
+        if :has(old_category_text, "generated_by: categories")
+            :delete_path!(old_category_page)
+        xx
+    xx
+
+    category_keys | []
+    category_rows | []
+
+    for route in routes
+        if route.nix? => skip
+
+        route_categories | route{"categories"} ?? []
+        if :valtype(route_categories) != "array" => skip
+
+        for category in route_categories
+            if category.nix? => skip
+
+            category_name | :trim(category)
+            if category_name.nix? => skip
+
+            category_slug | normalize_to_slug(category_name)
+            if category_slug.nix? => skip
+
+            if :has(category_keys, category_slug) == false
+                :put_last!(category_keys, category_slug)
+                :put_last!(category_rows, "{category_slug}|||{category_name}")
+            xx
+        xx
+    xx
+
+    index_frontmatter | """^^^^
+title: Categories
+author: Sheriff
+layout: admin
+meta_kind: docs
+meta_type: generated
+generated_by: categories
+summary: Index of all categories.
+categories: []
+^^^^
+"""
+
+    index_lines | [index_frontmatter]
+
+    sorted_category_rows | :sort(category_rows)
+
+    if sorted_category_rows.nix?
+        :put_last!(index_lines, "")
+        :put_last!(index_lines, "No categories.")
+    else
+        for row in sorted_category_rows
+            category_slug | :keep_before(row, "|||") ?? => skip
+            category_name | :keep_after(row, "|||") ?? => skip
+            category_link | "[[{category_name}]]"
+            category_count | 0
+
+            for route in routes
+                if route.nix? => skip
+
+                route_categories | route{"categories"} ?? []
+                if :valtype(route_categories) != "array" => skip
+
+                for route_category in route_categories
+                    route_category_slug | normalize_to_slug(route_category)
+                    if route_category_slug == category_slug
+                        category_count += 1
+                    xx
+                xx
+            xx
+
+            page_word | "pages"
+            if category_count == 1
+                page_word |= "page"
+            xx
+
+            :put_last!(index_lines, "* {category_link} - {category_count} {page_word}")
+        xx
+    xx
+
+    :write_text!(index_path, :join(index_lines, "\n"))
+
+    for row in sorted_category_rows
+        category_slug | :keep_before(row, "|||") ?? => skip
+        category_name | :keep_after(row, "|||") ?? => skip
+        category_path | "{category_root}/{category_slug}.md"
+
+        page_rows | []
+
+        for route in routes
+            if route.nix? => skip
+
+            route_categories | route{"categories"} ?? []
+            if :valtype(route_categories) != "array" => skip
+
+            route_has_category | false
+
+            for route_category in route_categories
+                route_category_slug | normalize_to_slug(route_category)
+                if route_category_slug == category_slug
+                    route_has_category |= true
+                xx
+            xx
+
+            if route_has_category
+                route_title | route{"title"} ?? route{"slug"} ?? "Untitled"
+                :put_last!(page_rows, route_title)
+            xx
+        xx
+
+        category_frontmatter | """^^^^
+title: {category_name}
+author: Sheriff
+layout: admin
+meta_kind: docs
+meta_type: generated
+generated_by: categories
+summary: Pages in the {category_name} category.
+categories: []
+^^^^
+"""
+
+        category_lines | [category_frontmatter]
+
+        sorted_page_rows | :sort(page_rows)
+
+        if sorted_page_rows.nix?
+            :put_last!(category_lines, "")
+            :put_last!(category_lines, "No pages in this category.")
+        else
+            for page_row in sorted_page_rows
+                route_title | page_row ?? => skip
+                :put_last!(category_lines, "* [[{route_title}]]")
+            xx
+        xx
+
+        :write_text!(category_path, :join(category_lines, "\n"))
+    xx
+
+    return pre_ctx
+xx
+
+act build_redirect_pages_once(pre_ctx)
+    if pre_ctx.nix?
+        send pre_ctx
+    xx
+
+    portal | pre_ctx{"portal"}
+
+    if portal.nix?
+        send pre_ctx
+    xx
+
+    routes_path | "../site/portals/{portal}/routes.json"
+    dist_root   | "../dist/{portal}"
+
+    if :file_exists(routes_path) == false => return pre_ctx
+
+    parsed | :read_json(routes_path)
+
+    if parsed.nix? => return pre_ctx
+
+    routes | parsed{"routes"}
+
+    if routes.nix? => return pre_ctx
+
+    seen_aliases | []
+
+    for route in routes
+        if route.nix? => skip
+
+        route_aliases | route{"aliases"} ?? []
+        if :valtype(route_aliases) != "array" => skip
+
+        target_href | route{"href"} ?? => skip
+        target_title | route{"title"} ?? target_href
+
+        for alias in route_aliases
+            if alias.nix? => skip
+
+            alias_title | :trim(alias)
+            if alias_title.nix? => skip
+
+            alias_slug | normalize_to_slug(alias_title)
+            if alias_slug.nix? => skip
+
+            if :has(seen_aliases, alias_slug)
+                skip
+            xx
+
+            collides | false
+
+            for check_route in routes
+                if check_route.nix? => skip
+
+                check_slug | check_route{"slug"} ?? ..
+                if check_slug == alias_slug
+                    collides |= true
+                xx
+            xx
+
+            if collides
+                skip
+            xx
+
+            :put_last!(seen_aliases, alias_slug)
+
+            redirect_path | "{dist_root}/{alias_slug}.html"
+            redirect_dir  | :dirname(redirect_path)
+
+            if redirect_dir.nix? == false
+                :create_dir!(redirect_dir)
+            xx
+
+            redirect_html | """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url={target_href}">
+  <link rel="canonical" href="{target_href}">
+  <title>Redirecting to {target_title}</title>
+</head>
+<body>
+  <p>Redirecting to <a href="{target_href}">{target_title}</a>.</p>
+  <script>window.location.replace("{target_href}");</script>
+</body>
+</html>
+"""
+
+            :write_text!(redirect_path, redirect_html)
+        xx
+    xx
+
+    return pre_ctx
+xx
+
 act build_all_pages_once(pre_ctx)
     if pre_ctx.nix?
         send pre_ctx
@@ -390,16 +759,17 @@ act build_all_pages_once(pre_ctx)
         :delete_path!(out_path)
     xx
 
-    lines | []
+    frontmatter | """^^^^
+title: All Pages
+author: Sheriff
+layout: admin
+meta_kind: docs
+meta_type: generated
+summary: Alphabetical index of all pages.
+^^^^
+"""
 
-    :put_last!(lines, "^^^^")
-    :put_last!(lines, "title: All Pages")
-    :put_last!(lines, "author: Sheriff")
-    :put_last!(lines, "layout: docs")
-    :put_last!(lines, "meta_kind: docs")
-    :put_last!(lines, "meta_type: generated")
-    :put_last!(lines, "summary: Alphabetical index of all pages.")
-    :put_last!(lines, "^^^^")
+    lines | [frontmatter]
 
     sorted | :sort(routes)
 

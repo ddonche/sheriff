@@ -1,39 +1,45 @@
 ^^^^
 title: All Pages
 author: Sheriff
-layout: docs
+layout: admin
 meta_kind: docs
 meta_type: generated
 summary: Alphabetical index of all pages.
 ^^^^
 
+
 ## A
-* [[admonitions|Admonitions]]
+* [[admonitions|Admonitions & Spoilers]]
 
 ## B
 * [[building-sites|Building Sites]]
 
 ## C
+* [[categories|Categories]]
+* [[categories|Categories]]
 * [[changelog|Changelog]]
 
 ## F
 * [[focus-panels|Focus Panels]]
-* [[footnotes|Footnotes]]
+* [[footnotes|Footnotes & References]]
 
 ## G
-* [[glossary|Glossary]]
+* [[glossary|Glossary Tooltips]]
 
-## M
-* [[mtg-horde-format|Mtg Horde Format]]
+## H
+* [[houses|Houses]]
+* [[mtg-horde-format|Horde Format Official Rules]]
 
 ## N
 * [[navigation|Navigation]]
 
 ## R
+* [[redirects|Redirects]]
 * [[roadmap|Roadmap]]
+* [[royal-houses|Royal Houses]]
 
 ## T
-* [[themes-layout|Themes Layout]]
+* [[themes-layout|Themes in Sheriff]]
 
 ## W
 * [[wanted-pages|Wanted Pages]]

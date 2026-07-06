@@ -113,7 +113,7 @@ layouts:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::CATEGORIES_NAV"
       WIKI_CATEGORIES:
-        - "SCOUT::CATEGORY_TAGS"
+        - "TRAILBOSS::CATEGORIES"
       WIKI_PAGETABS:
       
       FOOTER_LEFT:

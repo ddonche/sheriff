@@ -47,6 +47,8 @@ menus:
         Images: docs/guides/images.html
         Videos: docs/guides/videos.html
         Links: docs/guides/links.html
+        Redirects: docs/guides/redirects.html
+        Categories: docs/guides/categories.html
         Glossary Tooltips: docs/guides/glossary.html
         Focus Panels: docs/guides/focus_panels.html
         Infoboxes: docs/guides/infoboxes.html

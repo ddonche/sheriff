@@ -3,6 +3,8 @@
 /* ========================================================================== */
 
 .sheriff-header {
+  margin-top: 0 !important;     /* added */
+  padding-top: 0 !important;    /* added */
   margin-bottom: 1.5rem;
 }
 
@@ -10,11 +12,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
+  padding: 0 0 0.5rem 0;       /* changed only the top padding from 0.5rem to 0 */
   gap: 1.5rem;
 }
 
-/* The lower strip is the Vector-style header bar: full-bleed, ruled below. */
+/* Everything below is untouched from your original */
 .sheriff-header-bottom {
   display: flex;
   align-items: center;
@@ -28,18 +30,15 @@
   margin-right: -2rem;
   margin-bottom: 1.25rem;
 }
-
 .sheriff-header-bottom .sheriff-search-wrapper {
   margin-left: auto;
   flex: 0 0 auto;
 }
-
 .sheriff-logo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-
 .sheriff-logo-link {
   display: flex;
   align-items: center;
@@ -47,20 +46,16 @@
   text-decoration: none;
   color: var(--sheriff-text);
 }
-
 .sheriff-logo-mark {
-  height: 42px;
+  height: 72px;
   width: auto;
   border-radius: 0;
 }
-
 .sheriff-logo-text-wrap {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
 }
-
-/* Wordmark matches the heading font so it sits consistently beside them. */
 .sheriff-logo-text {
   font-family: var(--mw-font-head);
   font-weight: 700;

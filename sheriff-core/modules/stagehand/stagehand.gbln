@@ -183,11 +183,11 @@ act wire_slots(ctx)
     body   | ctx{"body"} ?? => return ctx
 
     /// SAFETY: ensure fm is actually a map
-    if !fm.nix? && :valtype(fm) != "map" => fm | {}
+    if !fm.nix? && :valtype(fm) != "map" => fm |= {}
 
     /// 1) Determine layout name (default "docs")
     layout_name | "docs"
-    if :valtype(fm) == "map" && !fm{"layout"}.nix?
+    if :valtype(fm) == "map" && :has(fm, "layout") && !fm{"layout"}.nix?
         :update!(layout_name, :trim(fm{"layout"}))
     xx
 

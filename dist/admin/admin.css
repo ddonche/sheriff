@@ -355,11 +355,11 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   padding:10px 8px;
 }
 .tree-item{
-  display:flex; align-items:center; gap:9px;
-  font-family:var(--mono); font-size:12px;
+  display:flex; align-items:center; gap:10px;
+  font-family:var(--mono); font-size:13px;
   text-align:left;
   border:0; background:transparent; color:var(--ink);
-  padding:8px 10px; border-radius:3px;
+  padding:9px 10px; border-radius:4px;
   cursor:pointer;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
@@ -423,18 +423,19 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
 
 /* ---------- file tree (hierarchical, ported from Cloud DocsPanel) ---------- */
 .tree-folder{
-  display:flex; align-items:center; gap:9px;
+  display:flex; align-items:center; gap:10px;
   width:100%;
   border:0; background:transparent;
-  font-family:var(--sans); font-size:13px; font-weight:600;
+  font-family:var(--mono); font-size:13px; font-weight:400;
   color:var(--ink);
-  padding:8px 10px;
-  border-radius:3px;
+  padding:9px 10px;
+  border-radius:4px;
   cursor:pointer;
   text-align:left;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .tree-folder:hover{ background:var(--canvas); }
-.tree-folder .caret{
+.tree-folder .caret, .tree-item .caret{
   width:10px; flex:none;
   font-size:10px; color:var(--muted);
 }
@@ -1050,3 +1051,8 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   color:#A6ADAB;
 }
 #npm-blog{ display:flex; flex-direction:column; gap:6px; }
+
+/* Tree rows must never compress: .file-tree is a flex column, and
+   flex-shrink:1 (the default) squashes rows when the tree overflows —
+   row height was varying with visible row count. */
+.tree-item, .tree-folder, .tree-msg{ flex-shrink:0; }
