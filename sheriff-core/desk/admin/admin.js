@@ -362,8 +362,6 @@
   const edText = document.getElementById('ed-text');
   const edOpenPortal = document.getElementById('ed-open-portal');
   const newBtn = document.getElementById('ed-new');
-  const newRow = document.getElementById('newpage-row');
-  const newInput = document.getElementById('newpage-path');
 
   let editorPendingPortal = null;   // set by dashboard "Edit content"
   let edFiles = [];
@@ -828,61 +826,149 @@
 
   edFilter.addEventListener('input', renderTree);
 
-  // ---------- new page ----------
-  newBtn.addEventListener('click', () => {
-    if (newRow.hidden) {
-      newRow.hidden = false;
-      newInput.value = 'content/';
-      newInput.focus();
-    } else {
-      newRow.hidden = true;
-    }
+  // ---------- new page modal ----------
+  const npModal = document.getElementById('np-modal');
+  const npmTitle = document.getElementById('npm-title');
+  const npmPath = document.getElementById('npm-path');
+  const npmLayout = document.getElementById('npm-layout');
+  const npmAuthor = document.getElementById('npm-author');
+  const npmSummary = document.getElementById('npm-summary');
+  const npmGloss = document.getElementById('npm-gloss');
+  const npmBlog = document.getElementById('npm-blog');
+  const npmAvatar = document.getElementById('npm-avatar');
+  const npmThumb = document.getElementById('npm-thumb');
+  const npmDate = document.getElementById('npm-date');
+  const npmErr = document.getElementById('npm-err');
+  const npmCreate = document.getElementById('npm-create');
+
+  let npmPathEdited = false;
+
+  function pageSlug(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function npmFolder() {
+    return localStorage.getItem('desk.newPageFolder') || 'content/';
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+      + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function npmError(msg) {
+    npmErr.textContent = msg;
+    npmErr.hidden = false;
+  }
+
+  function openNewPage() {
+    if (!edPortal.value) { say('Pick a portal first'); return; }
+    npmTitle.value = '';
+    npmPath.value = npmFolder();
+    npmPathEdited = false;
+    npmLayout.value = 'docs';
+    npmAuthor.value = localStorage.getItem('desk.author') || 'Sheriff';
+    npmSummary.value = '';
+    npmGloss.value = '';
+    npmAvatar.value = '';
+    npmThumb.value = '';
+    npmDate.value = todayStr();
+    npmBlog.hidden = true;
+    npmErr.hidden = true;
+    npModal.hidden = false;
+    setTimeout(() => npmTitle.focus(), 50);
+  }
+
+  function closeNewPage() { npModal.hidden = true; }
+
+  newBtn.addEventListener('click', openNewPage);
+  document.getElementById('npm-close').addEventListener('click', closeNewPage);
+  document.getElementById('npm-cancel').addEventListener('click', closeNewPage);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !npModal.hidden) closeNewPage();
   });
 
-  newInput.addEventListener('keydown', async e => {
-    if (e.key === 'Escape') { newRow.hidden = true; return; }
-    if (e.key !== 'Enter') return;
+  npmTitle.addEventListener('input', () => {
+    if (!npmPathEdited) {
+      const slug = pageSlug(npmTitle.value);
+      npmPath.value = npmFolder() + (slug ? slug + '.md' : '');
+    }
+    npmErr.hidden = true;
+  });
+  npmPath.addEventListener('input', () => { npmPathEdited = true; npmErr.hidden = true; });
+  npmLayout.addEventListener('input', () => {
+    npmBlog.hidden = npmLayout.value.trim() !== 'blog';
+  });
 
-    const path = newInput.value.trim();
+  npmTitle.addEventListener('keydown', e => { if (e.key === 'Enter') createNewPage(); });
+  npmPath.addEventListener('keydown', e => { if (e.key === 'Enter') createNewPage(); });
+
+  async function createNewPage() {
+    const title = npmTitle.value.trim();
+    const path = npmPath.value.trim();
+    const layout = npmLayout.value.trim() || 'docs';
+    const author = npmAuthor.value.trim() || 'Sheriff';
+
+    if (!title) { npmError('Give the page a title.'); return; }
     const okContent = path.startsWith('content/') && (path.endsWith('.md') || path.endsWith('.html'));
-    const okOther = path.startsWith('blog/') || path.startsWith('public/');
-    if (!path || (!okContent && !okOther)) {
-      say('Path must be under content/ (.md or .html), blog/, or public/');
-      return;
+    if (!okContent) { npmError('Path must be under content/ and end in .md or .html'); return; }
+    if (edFiles.includes(path)) { npmError('That file already exists.'); return; }
+
+    let fm = '^^^^\n'
+      + 'title: ' + title + '\n'
+      + 'author: ' + author + '\n'
+      + 'layout: ' + layout + '\n'
+      + 'meta_kind: docs\n'
+      + 'meta_type: entry\n'
+      + 'summary: ' + npmSummary.value.trim() + '\n'
+      + 'gloss: ' + npmGloss.value.trim() + '\n';
+
+    if (layout === 'blog') {
+      if (!npmAvatar.value.trim() || !npmThumb.value.trim() || !npmDate.value.trim()) {
+        npmError('The blog layout requires author avatar, thumb, and date.');
+        return;
+      }
+      fm += 'author_avatar: ' + npmAvatar.value.trim() + '\n'
+        + 'thumb: ' + npmThumb.value.trim() + '\n'
+        + 'date: ' + npmDate.value.trim() + '\n';
     }
-    if (edFiles.includes(path)) {
-      say('That file already exists');
-      return;
-    }
+
+    fm += '^^^^\n\n';
+    const body = fm + '# ' + title + '\n\nWrite your page here.\n';
+
     if (!confirmDiscard()) return;
 
-    const name = path.split('/').pop().replace(/\.md$/, '');
-    const starter = path.startsWith('content/') && path.endsWith('.md')
-      ? '^^^^\ntitle: ' + name + '\nauthor: Sheriff\nlayout: docs\nmeta_kind: overview\nmeta_type: docs\nsummary: \n^^^^\n\n# ' + name + '\n\nWrite your page here.\n'
-      : '\n';
-
+    npmCreate.disabled = true;
+    npmCreate.textContent = 'Creating\u2026';
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(path);
       const res = await fetch('/api/write_file?' + q, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: starter
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
       });
-      const data = await res.json();
+      const data = await apiJson(res);
       if (buildFailed(data)) {
-        say(data.stderr ? String(data.stderr).trim().slice(0, 120) : 'Could not create page');
+        npmError(String(data.stderr || 'Could not create page').trim().slice(0, 160));
         return;
       }
-      newRow.hidden = true;
+      localStorage.setItem('desk.author', author);
+      const folder = path.split('/').slice(0, -1).join('/') + '/';
+      localStorage.setItem('desk.newPageFolder', folder);
+      closeNewPage();
       say('Page created');
       await loadFiles();
       openPath(path);
     } catch (err) {
-      say('API unreachable');
+      npmError(err.message || 'API unreachable');
+    } finally {
+      npmCreate.disabled = false;
+      npmCreate.textContent = 'Create page';
     }
-  });
+  }
 
-  // ============================================================
+  npmCreate.addEventListener('click', createNewPage);
+
+    // ============================================================
   // Media manager
   // ============================================================
   const mdPortal = document.getElementById('md-portal');
@@ -951,7 +1037,7 @@
 
   async function loadMedia() {
     if (!mdPortal.value) return;
-    mdGrid.innerHTML = '<div class="portal-empty">Loading media\u2026</div>';
+    mdGrid.innerHTML = '<div class="portal-empty">Loading media…</div>';
     try {
       const res = await fetch('/api/list_files?' + encodeURIComponent(mdPortal.value));
       const data = await res.json();
@@ -963,7 +1049,6 @@
       const dirs = Array.isArray(data.dirs) ? data.dirs.map(String) : [];
       mediaFiles = files.filter(f => f.startsWith('public/')).sort();
 
-      // Union of reported dirs and dirs implied by file paths.
       const dirSet = new Set(dirs.filter(d => d === 'public' || d.startsWith('public/')));
       mediaFiles.forEach(f => {
         let p = parentOf(f);
@@ -1170,7 +1255,7 @@
     }
 
     if (done > 0) {
-      say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded \u2014 building\u2026');
+      say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded — building…');
       await loadMedia();
       const ok = await buildPortal(mdPortal.value, null);
       if (ok) {
@@ -1225,7 +1310,7 @@
   });
 
   // ============================================================
-  // Single-file editors (Navigation, Settings) + Themes panel
+  // Single-file editors (Navigation, Config) + Themes panel
   // ============================================================
   function fillPortalSel(sel) {
     if (sel.options.length === 0 && portalNames.length > 0) {
@@ -1260,7 +1345,7 @@
     ed.load = async function () {
       if (!sel.value) return;
       ed.path = getPath(sel.value);
-      setStatus('loading\u2026');
+      setStatus('loading…');
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
         const res = await fetch('/api/read_file?' + q);
@@ -1269,7 +1354,7 @@
           ed.missing = true;
           text.value = '';
           text.disabled = false;
-          setStatus('(new file \u2014 Save creates it)');
+          setStatus('(new file — Save creates it)');
         } else {
           ed.missing = false;
           text.value = data.content || '';
@@ -1285,8 +1370,8 @@
     ed.save = async function () {
       if (!ed.path || saveBtn.disabled) return;
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving\u2026';
-      setStatus('rebuilding\u2026');
+      saveBtn.textContent = 'Saving…';
+      setStatus('rebuilding…');
       const started = Date.now();
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
@@ -1295,7 +1380,7 @@
         });
         const data = await apiJson(res);
         if (buildFailed(data)) {
-          setStatus('build failed \u2014 ' + String(data.stderr || '').trim().slice(0, 120), 'err');
+          setStatus('build failed — ' + String(data.stderr || '').trim().slice(0, 120), 'err');
           setDirty(true);
           return;
         }
@@ -1382,7 +1467,7 @@
   }
 
   async function renderThemeCards() {
-    thCards.innerHTML = '<div class="tree-msg">Loading themes\u2026</div>';
+    thCards.innerHTML = '<div class="tree-msg">Loading themes…</div>';
     let themes = [];
     try {
       const res = await fetch('/api/list_themes');
@@ -1415,12 +1500,10 @@
     if (!window.confirm('Switch ' + portal + ' to the "' + theme + '" theme and rebuild?')) return;
 
     try {
-      // 1. make sure the portal has the theme's files
       let res = await fetch('/api/ensure_theme?' + encodeURIComponent(portal) + '&' + encodeURIComponent(theme));
       let data = await apiJson(res);
       if (data.ok === false) { say(data.stderr || 'Theme prep failed'); return; }
 
-      // 2. rewrite the theme name line in config.yall
       const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
       res = await fetch('/api/read_file?' + q);
       data = await apiJson(res);
@@ -1432,12 +1515,12 @@
         return;
       }
 
-      say('Switching theme \u2014 rebuilding\u2026');
+      say('Switching theme — rebuilding…');
       res = await fetch('/api/write_file?' + q, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
       });
       data = await apiJson(res);
-      if (buildFailed(data)) { say('Rebuild failed \u2014 ' + String(data.stderr || '').slice(0, 120)); return; }
+      if (buildFailed(data)) { say('Rebuild failed — ' + String(data.stderr || '').slice(0, 120)); return; }
 
       thCurrentTheme = theme;
       renderThemeCards();
@@ -1499,7 +1582,6 @@
 
     function clampPos(left, top) {
       const w = helpDrawer.offsetWidth || 480;
-      const h = helpDrawer.offsetHeight || 400;
       return {
         left: Math.min(Math.max(8, left), window.innerWidth - Math.min(w, 200)),
         top: Math.min(Math.max(8, top), window.innerHeight - 60)
@@ -1569,7 +1651,7 @@
       const w = Math.min(560, Math.max(180, Math.round(startW + (ev.clientX - startX))));
       editorShell.style.setProperty('--tree-w', w + 'px');
     }
-    function onUp(ev) {
+    function onUp() {
       resizer.releasePointerCapture(e.pointerId);
       resizer.removeEventListener('pointermove', onMove);
       resizer.removeEventListener('pointerup', onUp);

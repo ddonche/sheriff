@@ -1,72 +1,97 @@
 /* ========================================================================== */
-/* SHERIFF – VEKKE THEME                                                      */
+/* SHERIFF – COMPENDIUM THEME                                                  */
+/* MediaWiki / Vector-2022 flavored. Dark = MediaWiki night mode (default),   */
+/* [data-theme="light"] = classic Wikipedia day mode.                         */
 /* ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
-
 :root {
-  /* ── Vekke palette ─────────────────────────────────── */
-  --vk-bg-base:       #0a0a0c;
-  --vk-bg-surface:    #282c30;
-  --vk-bg-elevated:   #13131a;
-  --vk-bg-header:     #0d0d10;
-  --vk-border-subtle: rgba(255,255,255,0.07);
-  --vk-border-mid:    rgba(255,255,255,0.12);
-  --vk-border-strong: rgba(255,255,255,0.20);
-  --vk-text-primary:  #c4bfb0;
-  --vk-text-secondary:#b0aa9e;
-  --vk-text-muted:    #6b6558;
-  --vk-text-faint:    #3a3830;
-  --vk-gold:          #b8966a;
-  --vk-gold-bright:   #d4af7a;
-  --vk-gold-dim:      #8a6e4a;
-  --vk-cyan:          #5de8f7;
-  --vk-cyan-dim:      rgba(93,232,247,0.15);
-  --vk-red:           #ee484c;
-  --vk-font-display:  'Cinzel', serif;
-  --vk-font-label:    'Cinzel', serif;
-  --vk-font-body:     'EB Garamond', Georgia, serif;
-  --vk-font-mono:     SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  /* ── Compendium palette : NIGHT MODE (Codex dark) ──────────────── */
+  --mw-canvas:        #101418;   /* page background            */
+  --mw-surface:       #1b1e21;   /* elevated panels            */
+  --mw-surface-2:     #27292d;   /* interactive subtle fill    */
+  --mw-ink:           #eaecf0;   /* primary text               */
+  --mw-ink-muted:     #a2a9b1;   /* secondary text             */
+  --mw-ink-faint:     #72777d;   /* placeholder / faint        */
+  --mw-border:        #54595d;   /* base border                */
+  --mw-border-subtle: #404244;   /* subtle divider             */
+  --mw-progressive:   #88a3e8;   /* link blue (dark, lighter)  */
+  --mw-progressive-h: #b0c1f0;   /* link hover                 */
+  --mw-visited:       #b397e8;   /* visited purple             */
+  --mw-red:           #fd7865;   /* red / destructive          */
 
-  /* ── Sheriff token mapping ─────────────────────────── */
-  --sheriff-bg:                var(--vk-bg-base);
-  --sheriff-text:              var(--vk-text-primary);
-  --sheriff-muted:             var(--vk-text-secondary);
-  --sheriff-border:            var(--vk-border-mid);
-  --sheriff-accent:            var(--vk-cyan);
-  --sheriff-danger:            var(--vk-red);
-  --sheriff-link:              #3296ab;
-  --sheriff-link-hover:        var(--vk-cyan);
-  --sheriff-missing-link-color:#e64f54;
-  --sheriff-panel:             var(--vk-bg-surface);
-  --sheriff-input-bg:          var(--vk-bg-base);
-  --sheriff-inline-code-bg:    var(--vk-bg-elevated);
-  --sheriff-codeblock-bg:      var(--vk-bg-header);
-  --sheriff-blockquote-bg:     var(--vk-bg-surface);
-  --sheriff-tablehead-bg:      var(--vk-bg-elevated);
-  --sheriff-row-hover-bg:      var(--vk-bg-elevated);
-  --sheriff-video-border:      var(--vk-border-subtle);
+  --mw-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mw-font-head: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mw-font-serif: "Linux Libertine", Georgia, "Times New Roman", serif;
+  --mw-font-mono: "DejaVu Sans Mono", SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  /* ── Sheriff token mapping ─────────────────────────────────────── */
+  --sheriff-bg:                var(--mw-canvas);
+  --sheriff-text:              var(--mw-ink);
+  --sheriff-muted:             var(--mw-ink-muted);
+  --sheriff-border:            var(--mw-border);
+  --sheriff-accent:            var(--mw-progressive);
+  --sheriff-danger:            var(--mw-red);
+  --sheriff-link:              var(--mw-progressive);
+  --sheriff-link-hover:        var(--mw-progressive-h);
+  --sheriff-visited:           var(--mw-visited);
+  --sheriff-missing-link-color:var(--mw-red);
+  --sheriff-missing-link-hover:#ff9d8f;
+  --sheriff-panel:             var(--mw-surface-2);
+  --sheriff-input-bg:          var(--mw-surface);
+  --sheriff-inline-code-bg:    var(--mw-surface);
+  --sheriff-codeblock-bg:      #0d1013;
+  --sheriff-blockquote-bg:     var(--mw-surface);
+  --sheriff-tablehead-bg:      var(--mw-surface-2);
+  --sheriff-row-hover-bg:      var(--mw-surface);
+  --sheriff-video-border:      var(--mw-border-subtle);
+
+  /* Content surface sits on the canvas like the Vector content area */
+  --mw-content-surface: var(--mw-surface);
+  --mw-content-border:  var(--mw-border-subtle);
 }
 
 :root[data-theme="light"] {
-  --sheriff-bg:                #f5f2ec;
-  --sheriff-text:              #1a1710;
-  --sheriff-muted:             #7a7165;
-  --sheriff-border:            rgba(0,0,0,0.12);
-  --sheriff-danger:            #c93737;
-  --sheriff-link:              #3296ab;
-  --sheriff-link-hover:        #1a9baa;
-  --sheriff-missing-link-color:#e64f54;
-  --sheriff-panel:             #ede9df;
-  --sheriff-input-bg:          #faf8f3;
-  --sheriff-inline-code-bg:    #e8e4da;
-  --sheriff-codeblock-bg:      #dedad0;
-  --sheriff-blockquote-bg:     #faf8f3;
-  --sheriff-tablehead-bg:      #ede9df;
-  --sheriff-row-hover-bg:      #f0ece3;
+  /* ── Compendium palette : DAY MODE (classic Wikipedia) ─────────── */
+  --mw-canvas:        #f8f9fa;
+  --mw-surface:       #ffffff;
+  --mw-surface-2:     #eaecf0;
+  --mw-ink:           #202122;
+  --mw-ink-muted:     #54595d;
+  --mw-ink-faint:     #72777d;
+  --mw-border:        #a2a9b1;
+  --mw-border-subtle: #c8ccd1;
+  --mw-progressive:   #3366cc;
+  --mw-progressive-h: #2a4b8d;
+  --mw-visited:       #6b4ba1;
+  --mw-red:           #ba0000;
+
+  --sheriff-bg:                var(--mw-canvas);
+  --sheriff-text:              var(--mw-ink);
+  --sheriff-muted:             var(--mw-ink-muted);
+  --sheriff-border:            var(--mw-border);
+  --sheriff-danger:            #d33;
+  --sheriff-link:              var(--mw-progressive);
+  --sheriff-link-hover:        var(--mw-progressive-h);
+  --sheriff-visited:           var(--mw-visited);
+  --sheriff-missing-link-color:var(--mw-red);
+  --sheriff-missing-link-hover:#8b0000;
+  --sheriff-panel:             var(--mw-surface-2);
+  --sheriff-input-bg:          var(--mw-surface);
+  --sheriff-inline-code-bg:    var(--mw-canvas);
+  --sheriff-codeblock-bg:      var(--mw-canvas);
+  --sheriff-blockquote-bg:     var(--mw-canvas);
+  --sheriff-tablehead-bg:      var(--mw-surface-2);
+  --sheriff-row-hover-bg:      var(--mw-canvas);
   --sheriff-video-border:      rgba(0,0,0,0.10);
+
+  --mw-content-surface: var(--mw-surface);
+  --mw-content-border:  var(--mw-border);
 }
 
+/* Code highlight switch (unchanged contract with the layout) */
 .hl-light { display: none; }
 .hl-dark  { display: block; }
 
@@ -85,20 +110,18 @@
 
 html {
   scroll-behavior: smooth;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 body {
   margin: 0;
   padding: 0;
-}
-
-body {
   min-height: 100vh;
   background: var(--sheriff-bg);
   color: var(--sheriff-text);
-  font-family: var(--vk-font-body);
-  font-size: 1.25rem;
+  font-family: var(--mw-font-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
 }
 
 /* External link indicator */
@@ -113,9 +136,9 @@ a[href^="https://"]::after {
   content: "";
   display: inline-block;
 
-  width: 0.8em;
-  height: 0.8em;
-  margin-left: 0.25em;
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: 0.2em;
 
   vertical-align: baseline;
 
@@ -133,55 +156,47 @@ button a::after {
 
 /* ========================================================================== */
 /* PAGE SHELL & LAYOUT                                                        */
+/* Vector-style: a bordered content surface floating on the page canvas.      */
 /* ========================================================================== */
 
 .sheriff-shell {
   width: 100%;
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 2.5rem 1.75rem 2.75rem 1.75rem;
+  max-width: 75rem;
+  margin: 1.5rem auto;
+  padding: 1.75rem 2rem 2.5rem 2rem;
+
+  background: var(--mw-content-surface);
+  border: 1px solid var(--mw-content-border);
+}
+
+@media (max-width: 820px) {
+  .sheriff-shell {
+    margin: 0 auto;
+    border-left: none;
+    border-right: none;
+    padding: 1.25rem 1rem 2rem 1rem;
+  }
 }
 
 /* ========================================================================== */
-/* SHARD (::: shard) – contextual insert, not an admonition                   */
+/* SHARD (::: shard)                                                          */
 /* ========================================================================== */
 
 .sheriff-shard {
   margin: 1.15rem 0 1.5rem 0;
   padding: 0.85rem 1rem 0.9rem 1rem;
 
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
 
   position: relative;
 }
 
-[data-theme="light"] .sheriff-shard {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.10);
-}
-
 .sheriff-shard-body {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1.05rem;
-  line-height: 1.65;
-  color: #b0aa9e;
-}
-
-[data-theme="light"] .sheriff-shard-body {
-  color: var(--sheriff-muted);
-}
-
-[data-theme="light"] .sheriff-shard-body strong {
+  font-family: var(--mw-font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
   color: var(--sheriff-text);
-}
-
-[data-theme="light"] .sheriff-shard-body a {
-  color: var(--sheriff-link);
-}
-
-[data-theme="light"] .sheriff-shard-body a:hover {
-  color: var(--sheriff-link-hover);
 }
 
 .sheriff-shard-body p {
@@ -193,32 +208,29 @@ button a::after {
 }
 
 .sheriff-shard-body strong {
-  color: #c4bfb0;
+  color: var(--sheriff-text);
   font-weight: 600;
 }
 
 .sheriff-shard-body a {
-  color: #b8966a;
+  color: var(--sheriff-link);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .sheriff-shard-body a:hover {
-  color: #5de8f7;
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 /* ========================================================================== */
-/* ARTICLE NAV BLOCKS (::: nav) — VEKKE THEME                                 */
+/* ARTICLE NAV BLOCKS (::: nav)                                               */
 /* ========================================================================== */
 
 .sheriff-nextprev {
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid var(--sheriff-border);
   padding: 1rem 0;
   margin: 0.5rem 0 0 0;
-}
-
-[data-theme="light"] .sheriff-nextprev {
-  border-top-color: var(--sheriff-border);
 }
 
 .sheriff-nextprev-row {
@@ -241,61 +253,37 @@ button a::after {
   display: inline-flex;
   flex-direction: column;
   text-decoration: none;
-  color: #b8966a;
-  transition: color 0.15s ease;
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.92rem;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
-[data-theme="light"] .sheriff-nav-prev,
-[data-theme="light"] .sheriff-nav-next {
   color: var(--sheriff-link);
+  transition: color 0.15s ease;
 }
 
 .sheriff-nav-prev:hover,
 .sheriff-nav-next:hover {
-  color: #5de8f7;
-}
-
-[data-theme="light"] .sheriff-nav-prev:hover,
-[data-theme="light"] .sheriff-nav-next:hover {
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-nav-prev::before,
 .sheriff-nav-next::before {
   display: block;
-  font-family: 'Cinzel', serif;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6b6558;
-  margin-bottom: 0.3rem;
-  transition: color 0.15s ease;
-}
-
-[data-theme="light"] .sheriff-nav-prev::before,
-[data-theme="light"] .sheriff-nav-next::before {
   color: var(--sheriff-muted);
+  margin-bottom: 0.25rem;
 }
 
 .sheriff-nav-prev::before { content: "← Previous"; }
 .sheriff-nav-next::before { content: "Next →"; }
 
-.sheriff-nav-prev:hover::before,
-.sheriff-nav-next:hover::before {
-  color: #5de8f7;
+.sheriff-nav-prev,
+.sheriff-nav-next {
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
-[data-theme="light"] .sheriff-nav-prev:hover::before,
-[data-theme="light"] .sheriff-nav-next:hover::before {
-  color: var(--sheriff-link-hover);
-}
-
-/* single-side edge cases */
 .sheriff-nextprev-row:has(.sheriff-nextprev-prev):not(:has(.sheriff-nextprev-next)) {
   justify-content: flex-start;
 }
@@ -306,25 +294,6 @@ button a::after {
 /* -------------------------------------------------------------------------- */
 /* RELATED                                                                    */
 /* -------------------------------------------------------------------------- */
-
-.sheriff-related {
-  padding-top: 1rem;
-  margin-top: 0.25rem;
-}
-
-.sheriff-related-title {
-  font-family: 'Cinzel', serif;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: #6b6558;
-  margin-bottom: 0.65rem;
-}
-
-[data-theme="light"] .sheriff-related-title {
-  color: var(--sheriff-muted);
-}
 
 .sheriff-related-list {
   list-style: none;
@@ -338,6 +307,20 @@ button a::after {
 .sheriff-article .sheriff-related-list {
   padding-left: 0;
   margin: 0;
+}
+
+.sheriff-related {
+  padding-top: 1rem;
+  margin-top: 0.25rem;
+}
+
+.sheriff-related-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sheriff-muted);
+  margin-bottom: 0.65rem;
 }
 
 .sheriff-related-item {
@@ -356,31 +339,20 @@ button a::after {
 .sheriff-nav-related {
   display: block;
   padding: 0.85rem 2.5rem 0.8rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--sheriff-border);
   text-decoration: none;
-  color: #b8966a;
-  font-family: 'EB Garamond', Georgia, serif;
+  color: var(--sheriff-link);
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.3;
   position: relative;
+  background: var(--sheriff-panel);
   transition: border-color 0.18s ease, background 0.18s ease, color 0.15s ease;
 }
 
-[data-theme="light"] .sheriff-nav-related {
-  border-color: var(--sheriff-border);
-  color: var(--sheriff-link);
-}
-
 .sheriff-nav-related:hover {
-  border-color: rgba(93, 232, 247, 0.35);
-  background: rgba(93, 232, 247, 0.04);
-  color: #5de8f7;
-}
-
-[data-theme="light"] .sheriff-nav-related:hover {
-  border-color: var(--sheriff-link-hover);
-  background: rgba(50, 150, 171, 0.05);
+  border-color: var(--sheriff-link);
+  background: var(--sheriff-row-hover-bg);
   color: var(--sheriff-link-hover);
 }
 
@@ -390,24 +362,15 @@ button a::after {
   top: 0.85rem;
   right: 0.9rem;
   font-size: 0.85rem;
-  color: #6b6558;
+  color: var(--sheriff-muted);
   transition: color 0.15s ease, transform 0.15s ease;
 }
 
-[data-theme="light"] .sheriff-nav-related::after {
-  color: var(--sheriff-muted);
-}
-
 .sheriff-nav-related:hover::after {
-  color: #5de8f7;
+  color: var(--sheriff-link-hover);
   transform: translateX(3px);
 }
 
-[data-theme="light"] .sheriff-nav-related:hover::after {
-  color: var(--sheriff-link-hover);
-}
-
-/* full card treatment — when renderer emits tag/desc spans */
 .sheriff-nav-related:has(.sheriff-related-tag) {
   display: flex;
   flex-direction: column;
@@ -415,78 +378,34 @@ button a::after {
 
 .sheriff-related-tag {
   display: block;
-  font-family: 'Cinzel', serif;
-  font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: 0.3em;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #6b6558;
-  margin-bottom: 0.4rem;
-  transition: color 0.15s ease;
-}
-
-[data-theme="light"] .sheriff-related-tag {
   color: var(--sheriff-muted);
-}
-
-.sheriff-nav-related:hover .sheriff-related-tag {
-  color: rgba(93, 232, 247, 0.6);
-}
-
-[data-theme="light"] .sheriff-nav-related:hover .sheriff-related-tag {
-  color: var(--sheriff-link-hover);
+  margin-bottom: 0.4rem;
 }
 
 .sheriff-related-name {
   display: block;
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #b8966a;
+  color: var(--sheriff-link);
   line-height: 1.3;
   margin-bottom: 0.35rem;
-  transition: color 0.15s ease;
 }
 
-[data-theme="light"] .sheriff-related-name {
-  color: var(--sheriff-link);
-}
-
-.sheriff-nav-related:hover .sheriff-related-name {
-  color: #5de8f7;
-}
-
-[data-theme="light"] .sheriff-nav-related:hover .sheriff-related-name {
+.sheriff-nav-related:hover .sheriff-related-name,
+.sheriff-nav-related:hover .sheriff-related-tag {
   color: var(--sheriff-link-hover);
 }
 
 .sheriff-related-desc {
   display: block;
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 0.9rem;
-  font-style: italic;
-  color: #6b6558;
+  font-size: 0.8rem;
+  color: var(--sheriff-muted);
   line-height: 1.6;
 }
-
-[data-theme="light"] .sheriff-related-desc {
-  color: var(--sheriff-muted);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Tag accent stubs                                                           */
-/* -------------------------------------------------------------------------- */
-/*
-.sheriff-related-item[data-tag="reference"] .sheriff-nav-related { border-top: 2px solid #5de8f7; }
-.sheriff-related-item[data-tag="guide"]     .sheriff-nav-related { border-top: 2px solid #b8966a; }
-.sheriff-related-item[data-tag="lore"]      .sheriff-nav-related { border-top: 2px solid #4B2A7A; }
-.sheriff-related-item[data-tag="strategy"]  .sheriff-nav-related { border-top: 2px solid #0047AB; }
-.sheriff-related-item[data-tag="warning"]   .sheriff-nav-related { border-top: 2px solid #ee484c; }
-*/
-
-/* -------------------------------------------------------------------------- */
-/* Mobile                                                                     */
-/* -------------------------------------------------------------------------- */
 
 @media (max-width: 560px) {
   .sheriff-nextprev-row {
@@ -508,87 +427,84 @@ button a::after {
 }
 
 /* ========================================================================== */
-/* FOOTNOTES (Comrak) */
-/* 15px main, 14.4px paragraphs, tighter line-height */
+/* FOOTNOTES                                                                  */
 /* ========================================================================== */
 
 section.footnotes,
 section.sheriff-footnotes {
   margin-top: 2.25rem;
-  font-family: var(--vk-font-body);
-  font-size: 0.9375rem;                  /* 15px */
+  font-family: var(--mw-font-body);
+  font-size: 0.85rem;
   line-height: 1.6;
-  color: var(--vk-text-secondary);
+  color: var(--sheriff-muted);
 }
 
-/* Section label */
 section.footnotes::before,
 section.sheriff-footnotes::before {
-  content: "References & Footnotes";
+  content: "References";
   display: block;
-  margin: 0 0 0.75rem 0;
-  font-family: var(--vk-font-label);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--vk-gold-dim);
-  opacity: 0.9;
+  margin: 0 0 0.5rem 0;
+
+  font-family: var(--mw-font-head);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--sheriff-text);
+
+  border-bottom: 1px solid var(--sheriff-border);
+  padding-bottom: 0.2em;
 }
 
-/* Divider if present */
 section.footnotes > hr,
 section.sheriff-footnotes > hr {
-  border: none;
-  border-top: 1px solid var(--sheriff-border);
-  margin: 0.75rem 0 1rem 0;
+  display: none;
 }
 
-/* Footnote list */
 section.footnotes ol,
 section.sheriff-footnotes ol {
-  margin: 0;
-  padding-left: 1.75rem;
+  margin: 0.75rem 0 0 0;
+  padding-left: 1.6rem;
 }
 
 section.footnotes li,
 section.sheriff-footnotes li {
-  margin: 0.65rem 0;
-  font-size: inherit;
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
   line-height: 1.6;
+  color: var(--sheriff-muted);
 }
 
-/* Paragraphs inside footnotes */
 section.footnotes li p,
 section.sheriff-footnotes li p {
   margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;                     /* 14.4px */
-  color: inherit;
+  color: var(--sheriff-muted);
 }
 
-/* Footnote marker ([1], [2], etc.) */
 section.footnotes li::marker,
 section.sheriff-footnotes li::marker {
-  color: var(--vk-text-muted);
+  color: var(--sheriff-muted);
 }
 
-/* Inline superscript references in body text */
 sup.footnote-ref,
 sup.sheriff-footnote-ref {
-  font-size: 0.625em;                    /* ~10px */
+  font-size: 0.75em;
   vertical-align: super;
   line-height: 0;
-  margin-left: 0.1rem;
+  margin-left: 0.06rem;
 }
 
+/* MediaWiki-style bracketed footnote reference */
 sup.footnote-ref a,
 sup.sheriff-footnote-ref a {
   text-decoration: none;
   color: var(--sheriff-link);
-  font-family: var(--vk-font-label);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-family: var(--mw-font-body);
+  font-weight: 400;
 }
+
+sup.footnote-ref a::before,
+sup.sheriff-footnote-ref a::before { content: "["; }
+sup.footnote-ref a::after,
+sup.sheriff-footnote-ref a::after { content: "]"; }
 
 sup.footnote-ref a:hover,
 sup.sheriff-footnote-ref a:hover {
@@ -596,187 +512,184 @@ sup.sheriff-footnote-ref a:hover {
   text-decoration: underline;
 }
 
-/* Back-to-text link – use native Comrak arrow */
 a.footnote-backref,
 a.sheriff-footnote-backref {
   text-decoration: none;
-  margin-left: 0.4rem;
-  font-size: 0.75rem;
+  margin-left: 0.35rem;
+  position: relative;
+  font-size: 0;
   color: var(--sheriff-link);
-  opacity: 0.9;
-  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
-a.footnote-backref:hover,
-a.sheriff-footnote-backref:hover {
+a.footnote-backref::before,
+a.sheriff-footnote-backref::before {
+  content: "↑";
+  font-size: 12px;
+  line-height: 1;
+  transition: color 0.15s ease;
+  color: var(--sheriff-link);
+}
+
+a.footnote-backref:hover::before,
+a.sheriff-footnote-backref:hover::before {
   color: var(--sheriff-link-hover);
-  opacity: 1;
 }
 
 /* ========================================================================== */
-/* ADMONITIONS (Flat margin-note style)                                       */
-/* Muted background wash + colored title + simple left border                 */
+/* ADMONITIONS  (styled as MediaWiki message boxes)                          */
 /* ========================================================================== */
 
 :root {
-  --admon-note:      #b8966a;  /* gold */
-  --admon-tip:       #c77a2c;  /* burnt orange */
-  --admon-warning:   #ee484c;  /* red */
-  --admon-important: #355e3b;  /* hunter green */
-  --admon-example:   #9a9487;  /* parchment neutral */
-  --admon-strategy:  #2f4f6b;  /* slate/navy */
-  --admon-lore: #1f5c5b;  /* deep teal */
+  --admon-note:      var(--mw-progressive);
+  --admon-tip:       #71d1b3;
+  --admon-warning:   #f0bb00;
+  --admon-important: var(--mw-red);
+  --admon-example:   var(--mw-ink-faint);
+  --admon-strategy:  #6ec1d9;
+  --admon-lore:      var(--mw-visited);
 
-  --admon-note-bg:      rgba(184,150,106,0.10);
-  --admon-tip-bg:       rgba(199,122,44,0.10);
-  --admon-warning-bg:   rgba(238,72,76,0.09);
-  --admon-important-bg: rgba(53,94,59,0.12);
-  --admon-example-bg:   rgba(154,148,135,0.08);
-  --admon-strategy-bg:  rgba(47,79,107,0.11);
-  --admon-lore-bg: rgba(31,92,91,0.14);
+  --admon-note-bg:      rgba(136, 163, 232, 0.10);
+  --admon-tip-bg:       rgba(113, 209, 179, 0.10);
+  --admon-warning-bg:   rgba(240, 187,   0, 0.10);
+  --admon-important-bg: rgba(253, 120, 101, 0.10);
+  --admon-example-bg:   rgba(162, 169, 177, 0.08);
+  --admon-strategy-bg:  rgba(110, 193, 217, 0.10);
+  --admon-lore-bg:      rgba(179, 151, 232, 0.10);
 
-  --admon-left-w: 5px;
-  --admon-divider: rgba(255,255,255,0.08);
+  --admon-left-w: 8px;
 }
 
 :root[data-theme="light"] {
-  --admon-note:      #b8966a;
-  --admon-tip:       #c06f20;
-  --admon-warning:   #c93737;
-  --admon-important: #2f5333;
-  --admon-example:   #7d776c;
-  --admon-strategy:  #2c4a63;
-  --admon-lore:      #7a5c3a;
+  --admon-note:      var(--mw-progressive);
+  --admon-tip:       #14866d;
+  --admon-warning:   #edab00;
+  --admon-important: #d33;
+  --admon-example:   #72777d;
+  --admon-strategy:  #2e7d9a;
+  --admon-lore:      #6b4ba1;
 
-  --admon-note-bg:      rgba(184,150,106,0.18);
-  --admon-tip-bg:       rgba(192,111,32,0.14);
-  --admon-warning-bg:   rgba(201,55,55,0.14);
-  --admon-important-bg: rgba(47,83,51,0.14);
-  --admon-example-bg:   rgba(125,119,108,0.10);
-  --admon-strategy-bg:  rgba(44,74,99,0.14);
-  --admon-lore-bg:      rgba(122,92,58,0.12);
-
-  --admon-divider: rgba(0,0,0,0.10);
+  --admon-note-bg:      #eaf3ff;
+  --admon-tip-bg:       #eef8f4;
+  --admon-warning-bg:   #fef6e7;
+  --admon-important-bg: #fee7e6;
+  --admon-example-bg:   #f8f9fa;
+  --admon-strategy-bg:  #e9f4f8;
+  --admon-lore-bg:      #f3eefb;
 }
 
 .sheriff-admon {
-  margin: 1.4rem 0 1.7rem 0;
+  margin: 1.25rem 0 1.5rem 0;
 
-  background: var(--admon-bg);
-  border: none;
+  border: 1px solid var(--sheriff-border);
   border-left: var(--admon-left-w) solid var(--admon-accent);
   border-radius: 0;
   box-shadow: none;
+  overflow: hidden;
+
+  background:
+    linear-gradient(0deg, var(--admon-bg), var(--admon-bg)),
+    var(--sheriff-panel);
 }
 
 .sheriff-admon-head {
-  padding: 0.85rem 1rem 0.55rem 1rem;
-  border-bottom: 1px solid var(--admon-divider);
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--sheriff-border);
   background: transparent;
+
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
 .sheriff-admon-title {
-  font-family: var(--vk-font-label);
+  font-family: var(--mw-font-head);
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  font-size: 0.95rem;
-  line-height: 1.15;
   color: var(--admon-accent);
+  line-height: 1.2;
 }
 
 .sheriff-admon-body {
-  padding: 0.85rem 1rem 1rem 1rem;
-  font-family: var(--vk-font-body);
-  font-size: 1.05rem;
-  line-height: 1.75;
+  padding: 0.7rem 0.85rem 0.8rem 0.85rem;
+
+  font-family: var(--mw-font-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--sheriff-text);
 }
 
 .sheriff-admon-body p {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.85rem 0;
 }
-
 .sheriff-admon-body p:last-child {
   margin-bottom: 0;
 }
 
 .sheriff-admon-body ul,
 .sheriff-admon-body ol {
-  margin: 0.7rem 0 0.9rem 0;
+  margin: 0.75rem 0 1rem 0;
   padding-left: 2rem;
 }
 
 .sheriff-admon-body li {
-  margin: 0.25rem 0;
-  line-height: 1.7;
+  margin: 0.2rem 0;
+  line-height: 1.6;
 }
 
-.sheriff-admon pre {
-  margin: 0.85rem 0 0.95rem 0;
+.sheriff-admon-body code {
+  background-color: var(--sheriff-inline-code-bg);
+  border: 1px solid var(--sheriff-border);
 }
 
-.sheriff-admon-note {
-  --admon-accent: var(--admon-note);
-  --admon-bg: var(--admon-note-bg);
+.sheriff-admon-body pre {
+  background: var(--sheriff-codeblock-bg);
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0.1rem;
+  padding: 0.75rem 0.9rem;
+  margin: 0.85rem 0 0.25rem 0;
 }
 
-.sheriff-admon-tip {
-  --admon-accent: var(--admon-tip);
-  --admon-bg: var(--admon-tip-bg);
-}
-
-.sheriff-admon-warning {
-  --admon-accent: var(--admon-warning);
-  --admon-bg: var(--admon-warning-bg);
-}
-
-.sheriff-admon-important {
-  --admon-accent: var(--admon-important);
-  --admon-bg: var(--admon-important-bg);
-}
-
-.sheriff-admon-example {
-  --admon-accent: var(--admon-example);
-  --admon-bg: var(--admon-example-bg);
-}
-
-.sheriff-admon-strategy {
-  --admon-accent: var(--admon-strategy);
-  --admon-bg: var(--admon-strategy-bg);
-}
-
-.sheriff-admon-lore {
-  --admon-accent: var(--admon-lore);
-  --admon-bg: var(--admon-lore-bg);
-}
+.sheriff-admon-note      { --admon-accent: var(--admon-note);      --admon-bg: var(--admon-note-bg); }
+.sheriff-admon-tip       { --admon-accent: var(--admon-tip);       --admon-bg: var(--admon-tip-bg); }
+.sheriff-admon-warning   { --admon-accent: var(--admon-warning);   --admon-bg: var(--admon-warning-bg); }
+.sheriff-admon-important { --admon-accent: var(--admon-important); --admon-bg: var(--admon-important-bg); }
+.sheriff-admon-example   { --admon-accent: var(--admon-example);   --admon-bg: var(--admon-example-bg); }
+.sheriff-admon-strategy  { --admon-accent: var(--admon-strategy);  --admon-bg: var(--admon-strategy-bg); }
+.sheriff-admon-lore      { --admon-accent: var(--admon-lore);      --admon-bg: var(--admon-lore-bg); }
 
 /* ========================================================================== */
-/* SPOILER (Matches Admonitions)                                              */
+/* SPOILER                                                                    */
 /* ========================================================================== */
 
 :root {
-  --admon-spoiler: #9a9487;
-  --admon-spoiler-bg: rgba(154,148,135,0.08);
+  --spoiler-accent: var(--sheriff-muted);
+  --spoiler-bg: rgba(162,169,177,0.08);
 }
 
 :root[data-theme="light"] {
-  --admon-spoiler: #7d776c;
-  --admon-spoiler-bg: rgba(125,119,108,0.10);
+  --spoiler-accent: var(--sheriff-muted);
+  --spoiler-bg: #f8f9fa;
 }
 
 details.sheriff-spoiler {
-  margin: 1.4rem 0 1.7rem 0;
+  margin: 1.25rem 0 1.5rem 0;
 
-  background: var(--admon-spoiler-bg);
-  border: none;
-  border-left: var(--admon-left-w) solid var(--admon-spoiler);
+  background:
+    linear-gradient(0deg, var(--spoiler-bg), var(--spoiler-bg)),
+    var(--sheriff-panel);
+
+  border: 1px solid var(--sheriff-border);
+  border-left: var(--admon-left-w) solid var(--spoiler-accent);
   border-radius: 0;
   box-shadow: none;
+  overflow: hidden;
 }
 
 details.sheriff-spoiler > summary.sheriff-spoiler-head {
-  padding: 0.85rem 1rem 0.55rem 1rem;
-  border-bottom: 1px solid var(--admon-divider);
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--sheriff-border);
   background: transparent;
 
   cursor: pointer;
@@ -796,9 +709,8 @@ details.sheriff-spoiler > summary::before {
   content: "▸";
   display: inline-block;
   transform: translateY(-1px);
-  transition: transform 120ms ease;
-  opacity: 0.9;
-  color: var(--admon-spoiler);
+  transition: transform 120ms ease, color 0.15s ease;
+  color: var(--spoiler-accent);
 }
 
 details.sheriff-spoiler[open] > summary::before {
@@ -806,43 +718,43 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-spoiler-title {
-  font-family: var(--vk-font-label);
+  font-family: var(--mw-font-head);
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  font-size: 0.95rem;
-  line-height: 1.15;
-  color: var(--admon-spoiler);
+  color: var(--spoiler-accent);
+  line-height: 1.2;
 }
 
 .sheriff-spoiler-body {
-  padding: 0.85rem 1rem 1rem 1rem;
-  font-family: var(--vk-font-body);
-  font-size: 1.05rem;
-  line-height: 1.75;
+  padding: 0.7rem 0.85rem 0.8rem 0.85rem;
+
+  font-family: var(--mw-font-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--sheriff-text);
 }
 
 .sheriff-spoiler-body p {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.85rem 0;
 }
-
 .sheriff-spoiler-body p:last-child {
   margin-bottom: 0;
 }
 
 .sheriff-spoiler-body ul,
 .sheriff-spoiler-body ol {
-  margin: 0.7rem 0 0.9rem 0;
+  margin: 0.75rem 0 1rem 0;
   padding-left: 2rem;
 }
 
-.sheriff-spoiler-body li {
-  margin: 0.25rem 0;
-  line-height: 1.7;
-}
-
 .sheriff-spoiler-body pre {
-  margin: 0.85rem 0 0.95rem 0;
+  background: var(--sheriff-codeblock-bg);
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0.1rem;
+  padding: 0.75rem 0.9rem;
+  margin: 0.85rem 0 0.25rem 0;
 }
 
 /* ========================================================================== */
@@ -853,40 +765,35 @@ details.sheriff-spoiler[open] > summary::before {
   position: fixed;
   z-index: 9999;
   max-width: 420px;
-  background: #1a130d;
-  border: 1px solid rgba(184,150,106,0.30);
-  border-radius: 4px;
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
   padding: 10px 12px;
-  box-shadow: 0 14px 40px rgba(0,0,0,0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   pointer-events: none;
 }
 
 .sheriff-gloss-text {
   margin: 0;
-  font-family: "EB Garamond", Georgia, serif;
-  font-size: 20px;
-  font-style: italic;
+  font-family: var(--mw-font-body);
+  font-size: 13px;
   font-weight: 400;
-  color: #b0aa9e;
+  color: var(--sheriff-text);
   text-transform: none;
-  letter-spacing: 0.01em;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .sheriff-gloss-hint {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid rgba(184,150,106,0.15);
+  border-top: 1px solid var(--sheriff-border);
   display: block;
   text-align: right;
-  font-family: "Cinzel", serif;
+  font-family: var(--mw-font-body);
   font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #7a5c3a;
+  color: var(--sheriff-muted);
 }
 
 @media (max-width: 560px) {
@@ -899,7 +806,7 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 /* ========================================================================== */
-/* SHERIFF WIKI IMAGES                                                         */
+/* IMAGES                                                                     */
 /* ========================================================================== */
 
 .sheriff-image-block {
@@ -907,9 +814,9 @@ details.sheriff-spoiler[open] > summary::before {
   width: fit-content;
   max-width: 100%;
   margin: 1.25rem 0;
-  padding: 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  padding: 0.4rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0;
   background: var(--sheriff-panel);
 }
 
@@ -919,7 +826,7 @@ details.sheriff-spoiler[open] > summary::before {
   max-width: 100%;
   height: auto;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
@@ -927,9 +834,9 @@ details.sheriff-spoiler[open] > summary::before {
 .sheriff-image-block .sheriff-image-caption {
   display: block;
   margin-top: 0.4rem;
-  font-size: 0.9375rem;
-  line-height: 1.25;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--sheriff-muted);
 }
 
 .sheriff-image-half {
@@ -981,7 +888,7 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 /* ========================================================================== */
-/* SHERIFF WIKI VIDEOS                                                         */
+/* VIDEOS                                                                     */
 /* ========================================================================== */
 
 .sheriff-video{
@@ -989,25 +896,25 @@ details.sheriff-spoiler[open] > summary::before {
   width: fit-content;
   max-width: 100%;
   margin: 1.25rem 0;
-  padding: 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  padding: 0.4rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0;
   background: var(--sheriff-panel);
 }
 
 .sheriff-video-caption{
   display: block;
   margin-top: 0.4rem;
-  font-size: 0.9375rem;
-  line-height: 1.25;
-  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--sheriff-muted);
 }
 
 .sheriff-video-frame{
   margin-top: 0;
   position: relative;
   padding-top: 56.25%;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -1054,13 +961,16 @@ details.sheriff-spoiler[open] > summary::before {
   width: 14.5rem;
   max-width: 40vw;
 
-  padding: 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  padding: 0.4rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0;
   background: var(--sheriff-panel);
 
   overflow: hidden;
   z-index: 100;
+
+  float: right;
+  margin: 0.35rem 0 1.25rem 1.25rem;
 }
 
 .sheriff-focus-panel img,
@@ -1068,9 +978,8 @@ details.sheriff-spoiler[open] > summary::before {
   display: block;
   width: 100%;
   height: auto;
-
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
@@ -1081,14 +990,9 @@ details.sheriff-spoiler[open] > summary::before {
   padding-top: 0;
   border-top: 0;
 
-  font-size: 0.9375rem;
-  line-height: 1.25;
-  color: var(--text-muted);
-}
-
-.sheriff-focus-panel {
-  float: right;
-  margin: 0.35rem 0 1.25rem 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--sheriff-muted);
 }
 
 .sheriff-focus-slot .sheriff-focus-panel {
@@ -1121,13 +1025,13 @@ details.sheriff-spoiler[open] > summary::before {
 
 .sheriff-main-layout-three {
   display: flex;
-  gap: 2.3rem;
+  gap: 2.25rem;
   align-items: flex-start;
 }
 
 .sheriff-main-layout-two {
   display: flex;
-  gap: 2.3rem;
+  gap: 2.25rem;
   align-items: flex-start;
 }
 
@@ -1142,37 +1046,37 @@ details.sheriff-spoiler[open] > summary::before {
 
 .sheriff-toc {
   width: 15rem;
-  padding-left: 1.75rem;
+  padding-left: 1.5rem;
   border-left: 1px solid var(--sheriff-border);
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
 .sheriff-sidebar {
   width: 15rem;
   flex: 0 0 15rem;
-  padding-left: 1.75rem;
+  padding-left: 1.5rem;
   border-left: 1px solid var(--sheriff-border);
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
 /* -------------------------------------------------------------------------- */
-/* SCOUT TOC (REAL HTML OUTPUT)                                               */
+/* SCOUT TOC                                                                  */
 /* -------------------------------------------------------------------------- */
 
 .sheriff-toc .toc {
   margin-top: 0.5rem;
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
 .sheriff-toc .toc-summary {
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--sheriff-muted);
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   margin-bottom: 0.75rem;
   list-style: none;
 }
@@ -1188,17 +1092,18 @@ details.sheriff-spoiler[open] > summary::before {
   padding-left: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .sheriff-toc .toc-item {
   margin: 0;
+  position: relative;
 }
 
 .sheriff-toc .toc-item > a {
   text-decoration: none;
   color: var(--sheriff-link);
-  font-size: 1rem;
+  font-size: 0.85rem;
   display: block;
   line-height: 1.4;
   transition: color 0.15s ease;
@@ -1206,26 +1111,30 @@ details.sheriff-spoiler[open] > summary::before {
 
 .sheriff-toc .toc-item > a:hover {
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-toc .toc-item > a.toc-link-active {
-  color: var(--sheriff-link-hover);
+  color: var(--sheriff-text);
   font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--sheriff-link);
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
 }
 
 .sheriff-toc .toc-level-2 {
   padding-left: 0;
-  font-size: 1rem;
+  font-size: 0.85rem;
 }
 
 .sheriff-toc .toc-level-3 {
   padding-left: 0.85rem;
-  font-size: 0.9375rem;
+  font-size: 0.82rem;
 }
 
 .sheriff-toc .toc-level-4 {
   padding-left: 1.7rem;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   opacity: 0.9;
 }
 
@@ -1237,11 +1146,8 @@ details.sheriff-spoiler[open] > summary::before {
   top: 0.4rem;
   bottom: 0.4rem;
   width: 1px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.sheriff-toc .toc-item {
-  position: relative;
+  background: var(--sheriff-border);
+  opacity: 0.5;
 }
 
 /* ========================================================================== */
@@ -1252,7 +1158,7 @@ details.sheriff-spoiler[open] > summary::before {
   border-top: 1px solid var(--sheriff-border);
   margin-top: 2rem;
   padding-top: 1.25rem;
-  font-size: 1rem;
+  font-size: 0.8rem;
   color: var(--sheriff-muted);
   display: flex;
   justify-content: space-between;
@@ -1274,6 +1180,7 @@ details.sheriff-spoiler[open] > summary::before {
 
 .sheriff-footer a:hover {
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-footer ul {
@@ -1291,6 +1198,7 @@ details.sheriff-spoiler[open] > summary::before {
 
 /* ========================================================================== */
 /* GLOBAL LINK STYLE                                                          */
+/* MediaWiki behavior: no underline at rest, underline on hover.             */
 /* ========================================================================== */
 
 .sheriff-link,
@@ -1303,16 +1211,16 @@ details.sheriff-spoiler[open] > summary::before {
 .sheriff-link:hover,
 .sheriff-article a:hover {
   color: var(--sheriff-link-hover);
-}
-
-a.sheriff-missing-link {
-  color: var(--sheriff-missing-link-color);
-}
-
-a.sheriff-missing-link:hover {
-  color: var(--sheriff-missing-link-color);
   text-decoration: underline;
 }
+
+.sheriff-article a:visited {
+  color: var(--sheriff-visited);
+}
+
+/* Missing-page (red) links are defined authoritatively at the END of this   */
+/* file, so they win in every container (article, wiki, sidebar, nav, toc)   */
+/* by source order without needing !important.                               */
 
 .sheriff-footer a {
   color: var(--sheriff-link);
@@ -1324,54 +1232,62 @@ a.sheriff-missing-link:hover {
 
 /* ========================================================================== */
 /* ARTICLE TYPOGRAPHY                                                         */
+/* MediaWiki: h1/h2 large, normal-weight, underlined; h3+ bold, no rule.     */
 /* ========================================================================== */
 
 .sheriff-article h1,
 .sheriff-article h2,
 .sheriff-article h3,
 .sheriff-article h4 {
-  font-family: var(--vk-font-label);
-  margin-top: 1.9rem;
-  margin-bottom: 0.6rem;
+  font-family: var(--mw-font-head);
 }
 
 .sheriff-article h1 {
-  font-family: var(--vk-font-display);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  font-size: 2.75rem;
-  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-size: 1.85rem;
+  line-height: 1.25;
   margin-top: 0;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.15em;
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
+/* The little accent bar the layout emits after the title is redundant here */
 .sheriff-title-underline {
-  width: 5rem;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--vk-gold), transparent);
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
+  display: none;
 }
 
 .sheriff-article h2 {
-  font-weight: 600;
-  font-size: 1.875rem;
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin-top: 1.9rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.15em;
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
 .sheriff-article h3 {
-  font-weight: 600;
-  font-size: 1.5rem;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  margin-top: 1.6rem;
+  margin-bottom: 0.45rem;
 }
 
 .sheriff-article h4 {
-  font-weight: 600;
-  font-size: 1.25rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  margin-top: 1.4rem;
+  margin-bottom: 0.4rem;
 }
 
 .sheriff-article p {
-  font-size: 1.25rem;
-  line-height: 1.85;
-  margin: 0 0 1rem 0;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  margin: 0 0 0.75rem 0;
   color: var(--sheriff-text);
 }
 
@@ -1380,34 +1296,18 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-article strong {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sheriff-article ul,
 .sheriff-article ol {
-  padding-left: 2.2rem;
-  margin: 1.25rem 0 2.1rem 0;
-  font-size: inherit;
+  padding-left: 1.9rem;
+  margin: 0.4rem 0 0.9rem 0;
+  line-height: 1.65;
 }
 
 .sheriff-article li {
-  margin: 0.25rem 0;
-  font-size: 1.25rem;
-  line-height: 1.85;
-}
-
-.sheriff-article p,
-.sheriff-article li,
-.sheriff-article {
-  opacity: 0.94;
-}
-
-.sheriff-muted,
-.sheriff-text-muted,
-.sheriff-toc a:not(:hover),
-.sheriff-sidebar a:not(:hover),
-.sheriff-left-nav a:not(:hover) {
-  opacity: 0.88;
+  margin: 0.15rem 0;
 }
 
 .sheriff-article a.anchor {
@@ -1420,37 +1320,34 @@ a.sheriff-missing-link:hover {
 /* INLINE CODE & CODE BLOCKS                                                  */
 /* ========================================================================== */
 
-.sheriff-article code,
-.sheriff-article pre{
-  font-family: var(--vk-font-mono);
+.sheriff-article code {
+  font-family: var(--mw-font-mono);
+  font-size: 0.85em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.1rem;
+  background-color: var(--sheriff-inline-code-bg);
+  border: 1px solid var(--sheriff-border);
+}
+
+.sheriff-article pre {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
   background: var(--sheriff-codeblock-bg);
-  border: 1px solid var(--sheriff-code-border);
-  color: #cd5858;
-}
-
-.sheriff-article code{
-  font-size: 0.9em;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-}
-
-.sheriff-article pre{
-  margin-top: 1.2rem;
-  margin-bottom: 2rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  line-height: 1.65;
+  color: var(--sheriff-text);
+  border-radius: 0.1rem;
+  border: 1px solid var(--sheriff-border);
+  font-family: var(--mw-font-mono);
+  font-size: 0.88rem;
+  line-height: 1.55;
   overflow-x: auto;
-  padding: 1rem 1.1rem;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+  padding: 0.85rem 0.95rem;
 }
 
-.sheriff-article pre code{
+.sheriff-article pre code {
   background: transparent;
   border: none;
   padding: 0;
   font-size: 1em;
-  color: inherit;
 }
 
 /* ========================================================================== */
@@ -1458,14 +1355,11 @@ a.sheriff-missing-link:hover {
 /* ========================================================================== */
 
 .sheriff-article blockquote {
-  border-left: 2px solid var(--vk-gold);
-  padding-left: 1.1rem;
-  margin: 1rem 2rem 1.75rem 2rem;
-  font-style: italic;
+  border-left: 4px solid var(--sheriff-border);
+  padding: 0.6rem 1.1rem;
+  margin: 1rem 0 1.5rem 0;
   color: var(--sheriff-muted);
   background: var(--sheriff-blockquote-bg);
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
 }
 
 .sheriff-article blockquote p {
@@ -1473,31 +1367,37 @@ a.sheriff-missing-link:hover {
 }
 
 /* ========================================================================== */
-/* TABLES                                                                     */
+/* TABLES  (styled as .wikitable — full grid, grey header)                    */
 /* ========================================================================== */
 
 .sheriff-article table {
-  width: 100%;
   border-collapse: collapse;
-  margin: 1.5rem 0 2rem 0;
-  font-size: 1rem;
+  margin: 1.25rem 0 1.5rem 0;
+  font-size: 0.9rem;
+  background: var(--sheriff-input-bg);
+  border: 1px solid var(--sheriff-border);
 }
 
 .sheriff-article th,
 .sheriff-article td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--sheriff-border);
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--sheriff-border);
+  line-height: 1.5;
 }
 
-.sheriff-article thead th {
-  border-bottom: 2px solid var(--sheriff-border);
-  text-align: left;
-  font-weight: 600;
+.sheriff-article thead th,
+.sheriff-article th {
+  text-align: center;
+  font-weight: 700;
   font-size: 0.9rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--sheriff-muted);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--sheriff-text);
   background-color: var(--sheriff-tablehead-bg);
+}
+
+.sheriff-article td {
+  text-align: left;
 }
 
 .table-row:hover {
@@ -1532,21 +1432,22 @@ a.sheriff-missing-link:hover {
 }
 
 .campfire-post-title{
-  font-size: 1.55rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-
-  margin: 0 0 0.85rem 0;
+  font-family: var(--mw-font-head);
+  font-size: 1.4rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0 0 0.75rem 0;
 }
 
 .campfire-post-title a{
-  color: var(--sheriff-text);
+  color: var(--sheriff-link);
   text-decoration: none;
 }
 
 .campfire-post-title a:hover{
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .campfire-post-meta{
@@ -1556,18 +1457,17 @@ a.sheriff-missing-link:hover {
   gap: 0.55rem;
   margin: 0 0 0.75rem 0;
 
-  font-size: 1rem;
+  font-size: 0.82rem;
   color: var(--sheriff-muted);
   letter-spacing: normal;
   text-transform: none;
-
   font-weight: 400;
 }
 
 .campfire-author{
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   text-decoration: none;
   color: var(--sheriff-muted);
 }
@@ -1587,8 +1487,8 @@ a.sheriff-missing-link:hover {
 }
 
 .campfire-author-avatar{
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border-radius: 999px;
   object-fit: cover;
   display: block;
@@ -1607,8 +1507,8 @@ a.sheriff-missing-link:hover {
 .campfire-post-preview{
   margin: 0 0 0.75rem 0;
   color: var(--sheriff-text);
-  font-size: 1.125rem;
-  line-height: 1.7;
+  font-size: 0.95rem;
+  line-height: 1.6;
   max-width: 44rem;
 }
 
@@ -1627,21 +1527,22 @@ a.sheriff-missing-link:hover {
 }
 
 .campfire-tag{
-  font-size: 0.9375rem;
-  padding: 0.18rem 0.55rem;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.5rem;
   border: 1px solid var(--sheriff-border);
-  border-radius: 999px;
+  border-radius: 0;
+  background: var(--sheriff-panel);
   color: var(--sheriff-muted);
   text-decoration: none;
 }
 
 .campfire-tag:hover{
   color: var(--sheriff-link-hover);
-  border-color: var(--sheriff-link-hover);
+  border-color: var(--sheriff-link);
 }
 
 .campfire-post-readmore{
-  font-size: 1rem;
+  font-size: 0.88rem;
   margin: 0;
 }
 
@@ -1652,12 +1553,13 @@ a.sheriff-missing-link:hover {
 
 .campfire-post-readmore a:hover{
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .campfire-thumb{
   width: 100%;
   height: 7.25rem;
-  border-radius: 0.4rem;
+  border-radius: 0;
   border: 1px solid var(--sheriff-border);
 
   display: grid;
@@ -1713,7 +1615,7 @@ a.sheriff-missing-link:hover {
 .sheriff-article hr {
   border: none;
   border-top: 1px solid var(--sheriff-border);
-  margin: 2rem 0;
+  margin: 1.5rem 0;
 }
 
 /* ========================================================================== */
@@ -1721,19 +1623,18 @@ a.sheriff-missing-link:hover {
 /* ========================================================================== */
 
 .sheriff-left-nav {
-  width: 13.5rem;
-  padding-right: 1.75rem;
+  width: 13rem;
+  padding-right: 1.5rem;
   border-right: 1px solid var(--sheriff-border);
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .sheriff-left-nav .section-header > span {
-  font-family: var(--vk-font-label);
-  font-weight: 600;
-  letter-spacing: 0.25em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--vk-gold);
-  font-size: 0.9rem;
+  color: var(--sheriff-muted);
+  font-size: 0.72rem;
   margin-bottom: 0.75rem;
   display: block;
 }
@@ -1743,8 +1644,8 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-left-nav .submenu-header {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--sheriff-text);
   margin-top: 0.2rem;
   margin-bottom: 0.2rem;
@@ -1769,22 +1670,24 @@ a.sheriff-missing-link:hover {
   text-decoration: none;
   display: block;
   padding: 0.1rem 0;
-  font-size: 1rem;
+  font-size: 0.86rem;
   color: var(--sheriff-link);
   transition: color 0.15s ease;
 }
 
 .sheriff-left-nav a:hover {
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-left-nav a.active {
-  color: var(--sheriff-link-hover);
+  color: var(--sheriff-text);
+  font-weight: 600;
 }
 
-/* ========================================================================== */
+/* -------------------------------------------------------------------------- */
 /* LEFT NAV – COLLAPSIBLE ADDON                                               */
-/* ========================================================================== */
+/* -------------------------------------------------------------------------- */
 
 .sheriff-left-nav summary { list-style: none; }
 .sheriff-left-nav summary::-webkit-details-marker { display: none; }
@@ -1823,25 +1726,26 @@ a.sheriff-missing-link:hover {
 .sheriff-sidebar h1,
 .sheriff-sidebar h2,
 .sheriff-sidebar h3 {
-  font-family: var(--vk-font-label);
-  font-weight: 600;
-  letter-spacing: 0.25em;
+  font-family: var(--mw-font-head);
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--vk-gold);
-  font-size: 0.9rem;
+  color: var(--sheriff-muted);
+  font-size: 0.72rem;
   margin: 0 0 0.75rem 0;
+  border: none;
+  padding: 0;
 }
 
 .sheriff-toc nav,
 .sheriff-sidebar nav {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .sheriff-toc a,
 .sheriff-sidebar a {
   text-decoration: none;
-  font-size: 1rem;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1850,10 +1754,11 @@ a.sheriff-missing-link:hover {
 
 .sheriff-breadcrumbs {
   margin-bottom: 1.25rem;
-  padding: 0.6rem 0.8rem;
+  padding: 0.5rem 0.75rem;
   background-color: var(--sheriff-panel);
-  border-radius: 0.35rem;
-  font-size: 1rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 0;
+  font-size: 0.8rem;
   color: var(--sheriff-muted);
   display: flex;
   flex-direction: column;
@@ -1871,7 +1776,7 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-breadcrumb-arrow {
-  font-size: 1rem;
+  font-size: 0.8rem;
   line-height: 1;
   color: var(--sheriff-muted);
 }
@@ -1892,6 +1797,7 @@ a.sheriff-missing-link:hover {
 
 .sheriff-breadcrumbs .sheriff-link:hover {
   color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 /* ========================================================================== */
@@ -1905,7 +1811,7 @@ a.sheriff-missing-link:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.9375rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--sheriff-link);
   transition: color 0.15s ease;
@@ -1917,13 +1823,13 @@ a.sheriff-missing-link:hover {
 
 .code-tab {
   padding: 0.35rem 0.75rem;
-  font-size: 0.9375rem;
+  font-size: 0.75rem;
   font-weight: 500;
   border: none;
   background: transparent;
   color: var(--sheriff-muted);
   cursor: pointer;
-  border-radius: 0.25rem;
+  border-radius: 0;
   transition: all 0.15s ease;
 }
 
@@ -1939,9 +1845,9 @@ a.sheriff-missing-link:hover {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.9375rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .sheriff-canon-text {
@@ -1984,31 +1890,32 @@ a.sheriff-missing-link:hover {
 }
 
 /* ========================================================================== */
-/* BACK TO TOP BUTTON                                                         */
+/* BACK TO TOP                                                                */
 /* ========================================================================== */
 
 .sheriff-back-to-top {
   position: fixed;
-  right: 1.75rem;
-  bottom: 1.75rem;
+  right: 1.5rem;
+  bottom: 1.5rem;
   z-index: 50;
 
   width: 2rem;
   height: 2rem;
-  border-radius: 999px;
+  border-radius: 0;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  background: var(--vk-gold);
-  border: none;
+  background: var(--sheriff-panel);
+  border: 1px solid var(--sheriff-border);
   cursor: pointer;
 
   text-decoration: none;
 
   transition:
     background-color 0.15s ease,
+    border-color 0.15s ease,
     transform 0.15s ease;
 }
 
@@ -2016,13 +1923,13 @@ a.sheriff-missing-link:hover {
   content: "";
   width: 0;
   height: 0;
-  border-left: 0.4rem solid transparent;
-  border-right: 0.4rem solid transparent;
-  border-bottom: 0.55rem solid #ffffff;
+  border-left: 0.35rem solid transparent;
+  border-right: 0.35rem solid transparent;
+  border-bottom: 0.5rem solid var(--sheriff-link);
 }
 
 .sheriff-back-to-top:hover {
-  background: var(--vk-gold-bright);
+  border-color: var(--sheriff-link);
   transform: translateY(-1px);
 }
 
@@ -2041,13 +1948,12 @@ a.sheriff-missing-link:hover {
   justify-content: space-between !important;
 
   background: var(--sheriff-panel) !important;
-
-  border: none !important;
+  border: 1px solid var(--sheriff-border) !important;
   outline: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
 
-  padding: 0.65rem 0.85rem !important;
+  padding: 0.55rem 0.85rem !important;
   margin: 0.75rem 0 1rem 0 !important;
 }
 
@@ -2108,43 +2014,6 @@ a.sheriff-missing-link:hover {
 }
 
 /* ========================================================================== */
-/* SCROLLBAR                                                                  */
-/* ========================================================================== */
-
-:root {
-  color-scheme: dark;
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(184, 150, 106, 0.45) rgba(19, 19, 26, 0.9);
-}
-
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: rgba(19, 19, 26, 0.9);
-  border-radius: 999px;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: rgba(184, 150, 106, 0.35);
-  border-radius: 999px;
-  border: 2px solid rgba(19, 19, 26, 0.9);
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(184, 150, 106, 0.55);
-}
-
-*::-webkit-scrollbar-corner {
-  background: rgba(19, 19, 26, 0.9);
-}
-
-/* ========================================================================== */
 /* WIKI PAGE LAYOUT                                                           */
 /* ========================================================================== */
 
@@ -2175,60 +2044,44 @@ a.sheriff-missing-link:hover {
 
 .sheriff-wiki-infobox {
   width: 100%;
-  border: 1px solid var(--vk-border-mid);
-  border-top: 2px solid var(--vk-gold-dim);
-  background: var(--vk-bg-elevated);
-  font-family: var(--vk-font-body);
-  font-size: 0.9rem;
-  line-height: 1.55;
-}
-
-[data-theme="light"] .sheriff-wiki-infobox {
-  background: #f0ece3;
-  border-color: rgba(0,0,0,0.12);
-  border-top-color: var(--vk-gold-dim);
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-panel);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .sheriff-wiki-infobox-title {
   display: block;
-  padding: 0.55rem 0.75rem;
-  background: var(--vk-bg-header);
-  border-bottom: 1px solid var(--vk-border-mid);
-  color: var(--vk-gold);
-  font-family: var(--vk-font-display);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  padding: 0.5rem 0.75rem;
+  background: var(--sheriff-tablehead-bg);
+  color: var(--sheriff-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
   text-align: center;
-}
-
-[data-theme="light"] .sheriff-wiki-infobox-title {
-  background: #dedad0;
-  color: var(--vk-gold-dim);
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
 .sheriff-wiki-infobox-image {
   display: block;
   width: 100%;
   height: auto;
-  border-bottom: 1px solid var(--vk-border-mid);
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
 .sheriff-wiki-infobox-image-caption {
   display: block;
   padding: 0.35rem 0.75rem 0.5rem;
-  font-family: var(--vk-font-body);
-  font-style: italic;
-  font-size: 0.8rem;
-  color: var(--vk-text-muted);
+  font-size: 0.78rem;
+  color: var(--sheriff-muted);
   text-align: center;
-  border-bottom: 1px solid var(--vk-border-subtle);
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
 .sheriff-wiki-infobox-row {
   display: flex;
-  border-bottom: 1px solid var(--vk-border-subtle);
+  border-bottom: 1px solid var(--sheriff-border);
 }
 
 .sheriff-wiki-infobox-row:last-child {
@@ -2236,57 +2089,42 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-infobox-label {
-  flex: 0 0 40%;
+  flex: 0 0 38%;
   padding: 0.35rem 0.6rem;
-  font-family: var(--vk-font-label);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--vk-text-muted);
-  border-right: 1px solid var(--vk-border-subtle);
-  background: rgba(0,0,0,0.15);
-}
-
-[data-theme="light"] .sheriff-wiki-infobox-label {
-  background: rgba(0,0,0,0.05);
-  color: var(--vk-text-muted);
+  font-weight: 700;
+  color: var(--sheriff-text);
+  font-size: 0.78rem;
+  border-right: 1px solid var(--sheriff-border);
+  background: var(--sheriff-tablehead-bg);
 }
 
 .sheriff-wiki-infobox-value {
   flex: 1;
   padding: 0.35rem 0.6rem;
-  font-family: var(--vk-font-body);
-  font-size: 0.9rem;
-  color: var(--vk-text-primary);
+  color: var(--sheriff-text);
 }
 
 .sheriff-wiki-infobox-value a {
   color: var(--sheriff-link);
   text-decoration: none;
-  transition: color 0.15s ease;
 }
 
 .sheriff-wiki-infobox-value a:hover {
-  color: var(--vk-cyan);
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-wiki-infobox-section {
   display: block;
   padding: 0.3rem 0.75rem;
-  font-family: var(--vk-font-label);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--vk-gold-dim);
-  background: rgba(0,0,0,0.2);
-  border-bottom: 1px solid var(--vk-border-subtle);
+  color: var(--sheriff-muted);
+  background: var(--sheriff-tablehead-bg);
+  border-bottom: 1px solid var(--sheriff-border);
   text-align: center;
-}
-
-[data-theme="light"] .sheriff-wiki-infobox-section {
-  background: rgba(0,0,0,0.06);
 }
 
 /* ========================================================================== */
@@ -2295,21 +2133,22 @@ a.sheriff-missing-link:hover {
 
 .sheriff-wiki-categories {
   margin-top: 2.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--vk-border-mid);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-panel);
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.4rem;
+  font-size: 0.8rem;
 }
 
 .sheriff-wiki-categories-label {
-  font-family: var(--vk-font-label);
-  font-size: 0.625rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--vk-text-muted);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--sheriff-text);
   margin-right: 0.25rem;
   flex-shrink: 0;
 }
@@ -2317,33 +2156,20 @@ a.sheriff-missing-link:hover {
 .sheriff-wiki-category-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.65rem;
-  border: 1px solid var(--vk-border-mid);
-  background: var(--vk-bg-elevated);
-  color: var(--vk-gold-dim);
-  font-family: var(--vk-font-label);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-input-bg);
+  color: var(--sheriff-link);
   text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 400;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .sheriff-wiki-category-tag:hover {
-  border-color: var(--vk-gold);
-  color: var(--vk-gold);
-  background: rgba(184, 150, 106, 0.08);
-}
-
-[data-theme="light"] .sheriff-wiki-category-tag {
-  background: #e8e4da;
-  border-color: rgba(0,0,0,0.12);
-}
-
-[data-theme="light"] .sheriff-wiki-category-tag:hover {
-  background: rgba(184, 150, 106, 0.12);
-  border-color: var(--vk-gold-dim);
+  border-color: var(--sheriff-link);
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 /* ========================================================================== */
@@ -2355,12 +2181,12 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-backlinks-title {
-  font-family: var(--vk-font-label);
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  font-family: var(--mw-font-head);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--vk-text-muted);
+  color: var(--sheriff-muted);
   margin: 0 0 0.65rem 0;
 }
 
@@ -2370,7 +2196,7 @@ a.sheriff-missing-link:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .sheriff-wiki-backlinks-list li {
@@ -2379,8 +2205,7 @@ a.sheriff-missing-link:hover {
 
 .sheriff-wiki-backlinks-list a {
   display: block;
-  font-family: var(--vk-font-body);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--sheriff-link);
   text-decoration: none;
   line-height: 1.4;
@@ -2388,14 +2213,14 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-backlinks-list a:hover {
-  color: var(--vk-cyan);
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-wiki-backlinks-empty {
-  font-family: var(--vk-font-body);
+  font-size: 0.78rem;
+  color: var(--sheriff-muted);
   font-style: italic;
-  font-size: 0.875rem;
-  color: var(--vk-text-muted);
 }
 
 /* ========================================================================== */
@@ -2407,12 +2232,12 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-categories-nav-title {
-  font-family: var(--vk-font-label);
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
+  font-family: var(--mw-font-head);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--vk-text-muted);
+  color: var(--sheriff-muted);
   margin: 0 0 0.65rem 0;
 }
 
@@ -2422,7 +2247,7 @@ a.sheriff-missing-link:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .sheriff-wiki-categories-nav-list li {
@@ -2431,8 +2256,7 @@ a.sheriff-missing-link:hover {
 
 .sheriff-wiki-categories-nav-list a {
   display: block;
-  font-family: var(--vk-font-body);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--sheriff-link);
   text-decoration: none;
   line-height: 1.4;
@@ -2440,11 +2264,12 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-categories-nav-list a:hover {
-  color: var(--vk-cyan);
+  color: var(--sheriff-link-hover);
+  text-decoration: underline;
 }
 
 .sheriff-wiki-categories-nav-list a.active {
-  color: var(--vk-gold);
+  color: var(--sheriff-text);
   font-weight: 600;
 }
 
@@ -2488,7 +2313,7 @@ a.sheriff-missing-link:hover {
 
 .sheriff-wanted-item[open] .sheriff-wanted-toggle::before {
   transform: rotate(90deg);
-  color: var(--sheriff-link-hover);
+  color: var(--sheriff-link);
 }
 
 .sheriff-wanted-title {
@@ -2499,7 +2324,7 @@ a.sheriff-missing-link:hover {
 .sheriff-wanted-count,
 .sheriff-wanted-sources {
   color: var(--sheriff-muted);
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
@@ -2538,9 +2363,7 @@ a.sheriff-missing-link:hover {
     width: 100%;
     flex: none;
   }
-}
 
-@media (max-width: 960px) {
   .sheriff-main-layout-three,
   .sheriff-main-layout-two {
     flex-direction: column;
@@ -2562,4 +2385,22 @@ a.sheriff-missing-link:hover {
   .sheriff-sidebar {
     margin-top: 2rem;
   }
+}
+
+/* ========================================================================== */
+/* MISSING-PAGE LINKS  (red links — authoritative, must win everywhere)      */
+/* Last block in the file on purpose: at equal specificity it beats every    */
+/* container link rule (.sheriff-left-nav a, .sheriff-toc a, .sheriff-article */
+/* a, backlinks, etc.) by source order, so no !important override is needed.  */
+/* ========================================================================== */
+
+a.sheriff-missing-link,
+a.sheriff-missing-link:link,
+a.sheriff-missing-link:visited {
+  color: var(--sheriff-missing-link-color);
+}
+
+a.sheriff-missing-link:hover {
+  color: var(--sheriff-missing-link-hover);
+  text-decoration: underline;
 }

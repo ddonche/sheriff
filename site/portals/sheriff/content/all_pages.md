@@ -36,4 +36,5 @@ summary: Alphabetical index of all pages.
 * [[themes-layout|Themes Layout]]
 
 ## W
+* [[wanted-pages|Wanted Pages]]
 * [[why-i-made-sheriff|Why I Made Sheriff]]

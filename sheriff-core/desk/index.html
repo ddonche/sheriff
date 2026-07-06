@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=10">
+<link rel="stylesheet" href="/admin/admin.css?v=12">
 </head>
 <body>
 
@@ -225,9 +225,6 @@
             <div class="tree-msg">Pick a portal to load files.</div>
           </div>
 
-          <div class="newpage" id="newpage-row" hidden>
-            <input id="newpage-path" class="ed-filter" type="text" placeholder="content/guides/intro.md" spellcheck="false">
-          </div>
           <button class="btn block" type="button" id="ed-new">New page</button>
         </aside>
 
@@ -423,7 +420,7 @@
   <div class="hd-body" id="hd-body"></div>
   <div class="hd-foot">
     <a id="hd-docs" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">Full docs →</a>
-    <a id="hd-forum" href="https://sheriff.sheriffcloud.com/forum" target="_blank" rel="noopener">Ask on the forum →</a>
+    <a id="hd-forum" href="https://sheriff.sheriffcloud.com/forum/help-support" target="_blank" rel="noopener">Ask on the forum →</a>
   </div>
 </aside>
 
@@ -502,6 +499,65 @@
   </div>
 </div>
 
+<div class="wizard" id="np-modal" hidden>
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">New page</span>
+      <button class="wiz-x" type="button" id="npm-close" title="Close">&times;</button>
+    </div>
+    <div class="wiz-body npm-body">
+
+      <label class="ed-label" for="npm-title">Title</label>
+      <input id="npm-title" class="wiz-input" type="text" placeholder="What is money?" spellcheck="false" autocomplete="off">
+
+      <label class="ed-label" for="npm-path">File path</label>
+      <input id="npm-path" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
+      <p class="wiz-hint">Under <code>content/</code>, ending in <code>.md</code>. Sheriff prefers underscores.</p>
+
+      <div class="npm-row">
+        <div class="npm-col">
+          <label class="ed-label" for="npm-layout">Layout</label>
+          <input id="npm-layout" class="wiz-input mono" type="text" value="docs" list="npm-layouts" spellcheck="false" autocomplete="off">
+          <datalist id="npm-layouts">
+            <option value="docs"></option>
+            <option value="blog"></option>
+            <option value="wiki"></option>
+            <option value="index"></option>
+          </datalist>
+        </div>
+        <div class="npm-col">
+          <label class="ed-label" for="npm-author">Author</label>
+          <input id="npm-author" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
+        </div>
+      </div>
+
+      <label class="ed-label" for="npm-summary">Summary <span class="npm-opt">(search results)</span></label>
+      <input id="npm-summary" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
+
+      <label class="ed-label" for="npm-gloss">Gloss <span class="npm-opt">(link hover preview)</span></label>
+      <input id="npm-gloss" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
+
+      <div id="npm-blog" hidden>
+        <p class="wiz-hint" style="margin-top:10px">The <code>blog</code> layout requires these:</p>
+        <label class="ed-label" for="npm-avatar">Author avatar</label>
+        <input id="npm-avatar" class="wiz-input mono" type="text" placeholder="/public/avatars/dan.png" spellcheck="false" autocomplete="off">
+        <label class="ed-label" for="npm-thumb">Thumb</label>
+        <input id="npm-thumb" class="wiz-input mono" type="text" placeholder="/public/images/blog/post.png" spellcheck="false" autocomplete="off">
+        <label class="ed-label" for="npm-date">Date</label>
+        <input id="npm-date" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
+      </div>
+
+      <p class="wiz-err" id="npm-err" hidden></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn" type="button" id="npm-cancel">Cancel</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn primary" type="button" id="npm-create">Create page</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" hidden>
   <div class="lb-inner">
     <img id="lb-img" alt="">
@@ -516,7 +572,7 @@
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=2"></script>
-<script src="/admin/admin.js?v=10"></script>
+<script src="/admin/help.js?v=5"></script>
+<script src="/admin/admin.js?v=11"></script>
 </body>
 </html>

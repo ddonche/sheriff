@@ -1015,3 +1015,38 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   color:var(--teal-deep);
 }
 .hd-foot a:hover{ color:var(--teal); }
+
+.hd-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+  margin:4px 0 8px;
+}
+.hd-table td{
+  padding:6px 8px;
+  border-bottom:1px solid var(--line);
+  vertical-align:top;
+}
+.hd-table td:first-child{
+  color:var(--muted);
+  white-space:nowrap;
+  width:1%;
+  padding-right:14px;
+}
+.hd-table tr:last-child td{ border-bottom:none; }
+.hd-section a{
+  font-family:var(--mono); font-size:11.5px;
+  color:var(--teal-deep);
+}
+.hd-section a:hover{ color:var(--teal); }
+
+/* ---------- new page modal ---------- */
+.npm-body{ display:flex; flex-direction:column; gap:6px; padding-bottom:14px; }
+.npm-body .ed-label{ margin-top:8px; }
+.npm-row{ display:flex; gap:12px; }
+.npm-col{ flex:1; display:flex; flex-direction:column; gap:6px; }
+.npm-opt{
+  font-weight:400; text-transform:none; letter-spacing:0;
+  color:#A6ADAB;
+}
+#npm-blog{ display:flex; flex-direction:column; gap:6px; }

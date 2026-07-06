@@ -55,10 +55,13 @@ act is_allowed_path(path)
     if p == "assets.yall" => return true
     if p == "widgets.yall" => return true
 
-    if p == "themes/outpost/override.css" => return true
-    if p == "themes/outpost/templates.yall" => return true
-    if p == "themes/siegemate/override.css" => return true
-    if p == "themes/siegemate/templates.yall" => return true
+    if :starts_with(p, "themes/") and :ends_with(p, "/override.css")
+        return true
+    xx
+
+    if :starts_with(p, "themes/") and :ends_with(p, "/templates.yall")
+        return true
+    xx
 
     if :starts_with(p, "content/") and :ends_with(p, ".md")
         return true

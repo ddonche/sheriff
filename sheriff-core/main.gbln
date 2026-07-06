@@ -40,7 +40,11 @@ xx
 
 /// --- helper: run pre schedule once, return the final pre_ctx
 act run_pre_schedule(cfg)
-    pre_ctx | { "portal": #local::portal }
+    pre_ctx | { 
+        "portal": #local::portal, 
+        "wanted_pages": [],
+        "schedule": []
+    }
 
     pre_schedule | cfg["pre"]
     if pre_schedule.nix?
@@ -66,8 +70,12 @@ act run_pre_schedule(cfg)
 xx
 
 /// --- helper: run post schedule once after all pages are built
-act run_post_schedule(cfg)
-    post_ctx | { "portal": #local::portal }
+act run_post_schedule(cfg, pre_ctx)
+    post_ctx | { 
+        "portal": #local::portal,
+        "wanted_pages": pre_ctx["wanted_pages"],
+        "schedule": pre_ctx["schedule"]
+    }
 
     post_schedule | cfg["post"] ?? => return post_ctx
 
@@ -208,6 +216,7 @@ act build()
 
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
+    :update!(pre_ctx["schedule"], schedule)
 
     /// BUILD EACH MARKDOWN FILE
     for md_path in md_files
@@ -219,7 +228,9 @@ act build()
             "tokens": {},
             "path": md_path,
             "portal": #local::portal,
-            "href": ""
+            "href": "",
+            "wanted_pages": pre_ctx["wanted_pages"],
+            "schedule": schedule
         }
 
         /// merge any pre_ctx fields into ctx
@@ -228,6 +239,7 @@ act build()
         :clear_tokens("SLOT")
 
         ctx |= :summon(ctx, schedule)
+        :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
 
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
         dir      | :dirname(rel_path)                        /// "docs"
@@ -239,7 +251,7 @@ act build()
     xx
 
     /// Run post-build schedule once
-    run_post_schedule(cfg)
+    run_post_schedule(cfg, pre_ctx)
 
     :say("Portal build finished:")
     :say(#local::portal)
@@ -278,6 +290,7 @@ act build_one_page(target)
 
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
+    :update!(pre_ctx["schedule"], schedule)
 
     raw | :read_text(md_path)
 
@@ -287,7 +300,9 @@ act build_one_page(target)
         "tokens": {},
         "path": md_path,
         "portal": #local::portal,
-        "href": ""
+        "href": "",
+        "wanted_pages": pre_ctx["wanted_pages"],
+        "schedule": schedule
     }
 
     ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
