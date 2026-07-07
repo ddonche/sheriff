@@ -43,6 +43,7 @@ act run_pre_schedule(cfg)
     pre_ctx | { 
         "portal": #local::portal, 
         "wanted_pages": [],
+        "backlinks": [],
         "schedule": []
     }
 
@@ -74,6 +75,7 @@ act run_post_schedule(cfg, pre_ctx)
     post_ctx | { 
         "portal": #local::portal,
         "wanted_pages": pre_ctx["wanted_pages"],
+        "backlinks": pre_ctx["backlinks"],
         "schedule": pre_ctx["schedule"]
     }
 
@@ -235,6 +237,7 @@ act build()
             "portal": #local::portal,
             "href": "",
             "wanted_pages": pre_ctx["wanted_pages"],
+            "backlinks": pre_ctx["backlinks"],
             "schedule": schedule
         }
 
@@ -245,6 +248,7 @@ act build()
 
         ctx |= :summon(ctx, schedule)
         :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
+        :update!(pre_ctx["backlinks"], ctx["backlinks"])
 
         rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
         dir      | :dirname(rel_path)                        /// "docs"
@@ -307,6 +311,7 @@ act build_one_page(target)
         "portal": #local::portal,
         "href": "",
         "wanted_pages": pre_ctx["wanted_pages"],
+        "backlinks": pre_ctx["backlinks"],
         "schedule": schedule
     }
 
@@ -315,6 +320,8 @@ act build_one_page(target)
     :clear_tokens("SLOT")
 
     ctx |= :summon(ctx, schedule)
+    :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
+    :update!(pre_ctx["backlinks"], ctx["backlinks"])
 
     rel_path | :path_relative_to(md_path, content_root)
     dir      | :dirname(rel_path)

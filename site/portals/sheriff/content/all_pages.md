@@ -27,7 +27,6 @@ summary: Alphabetical index of all pages.
 * [[glossary|Glossary Tooltips]]
 
 ## H
-* [[houses|Houses]]
 * [[mtg-horde-format|Horde Format Official Rules]]
 
 ## N
@@ -36,7 +35,6 @@ summary: Alphabetical index of all pages.
 ## R
 * [[redirects|Redirects]]
 * [[roadmap|Roadmap]]
-* [[royal-houses|Royal Houses]]
 
 ## T
 * [[themes-layout|Themes in Sheriff]]

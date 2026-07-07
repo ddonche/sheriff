@@ -765,23 +765,9 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   color:var(--ink);
 }
 .wiz-textarea:focus{ outline:none; border-color:var(--teal); }
-.theme-cards{
-  display:grid; grid-template-columns:1fr 1fr; gap:12px;
-}
-.theme-card{
-  display:flex; flex-direction:column; align-items:center; gap:10px;
-  padding:22px 12px;
-  border:1.5px solid var(--line); border-radius:8px;
-  background:var(--card);
-  cursor:pointer;
-  transition:border-color .12s;
-}
-.theme-card:hover{ border-color:var(--teal); }
-.theme-card.selected{
-  border-color:var(--teal);
-  background:color-mix(in srgb, var(--teal) 7%, white);
-}
-.theme-card .star{ width:22px; height:22px; }
+
+
+
 .theme-name{
   font-family:var(--slab); font-weight:700; font-size:15px;
 }
@@ -906,10 +892,7 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   background:#FAFBFA;
 }
 .cfg-foot .ed-status{ margin-left:0; flex:1; }
-.theme-card{ position:relative; }
-.theme-card .pill.ok{
-  position:absolute; top:8px; right:8px;
-}
+
 
 /* ---------- help drawer ---------- */
 .view-head{
@@ -1056,3 +1039,101 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
    flex-shrink:1 (the default) squashes rows when the tree overflows —
    row height was varying with visible row count. */
 .tree-item, .tree-folder, .tree-msg{ flex-shrink:0; }
+
+/* ---------- theme card: apply button ---------- */
+.theme-apply-wrap{ margin-top:10px; }
+.theme-apply{
+  /* rendered as a span styled like a button, click handled on the card */
+  display:inline-flex; cursor:pointer;
+}
+
+/* ---------- themes view: two-column ---------- */
+.th-wrap{
+  display:flex; flex-direction:column;
+  height:calc(100vh - 56px - 52px);
+  max-width:1280px;
+}
+.th-grid{
+  flex:1; min-height:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 300px;
+  gap:18px;
+}
+.th-editor-col{
+  display:flex; flex-direction:column;
+  min-width:0; min-height:0;
+}
+.th-editor{
+  flex:1; min-height:0;
+}
+.th-editor .cfg-text{
+  flex:1;
+  min-height:0;
+  height:100%;
+  resize:none;
+}
+.th-side{
+  display:flex; flex-direction:column; gap:8px;
+  min-height:0;
+  overflow-y:auto;
+}
+.th-side .theme-cards{
+  display:flex; flex-direction:column; gap:12px;
+  grid-template-columns:none;
+}
+
+/* ---------- theme cards with preview ---------- */
+.theme-card{
+  display:flex; flex-direction:column;
+  align-items:stretch; gap:0;
+  padding:0; overflow:hidden;
+  border:1.5px solid var(--line); border-radius:8px;
+  background:var(--card);
+  cursor:pointer;
+  transition:border-color .12s;
+  text-align:left;
+}
+.theme-card:hover{ border-color:var(--teal); }
+.theme-card.selected{
+  border-color:var(--teal);
+  background:var(--card);
+  box-shadow:0 0 0 1px var(--teal);
+}
+.theme-preview{
+  height:130px;
+  background:var(--canvas);
+  display:grid; place-items:center;
+  overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.theme-preview img{
+  width:100%; height:100%; object-fit:cover;
+}
+.theme-preview.noimg .star{ width:30px; height:30px; opacity:.6; }
+.theme-body{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px;
+}
+.theme-body .theme-name{
+  font-family:var(--slab); font-weight:700; font-size:15px;
+}
+.theme-body .pill.ok{ position:static; margin-left:auto; }
+.theme-apply-wrap{
+  padding:0 12px 12px;
+}
+.theme-apply-wrap .btn{ width:100%; justify-content:center; }
+
+/* ---------- wizard theme step: compact cards ---------- */
+#wz-themes{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+}
+#wz-themes .theme-card{
+  flex-direction:column; align-items:center; gap:10px;
+  padding:22px 12px;
+  overflow:visible;
+}
+#wz-themes .theme-card .star{ width:22px; height:22px; }
+#wz-themes .theme-card.selected{
+  background:color-mix(in srgb, var(--teal) 7%, white);
+  box-shadow:none;
+}

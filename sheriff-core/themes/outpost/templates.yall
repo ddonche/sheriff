@@ -108,7 +108,7 @@ layouts:
         - "SCOUT::left_wiki_SIDEBAR"
       
       SIDEBAR_TOP:
-        - "SCOUT::WHATLINKSHERE"
+        - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::CATEGORIES_NAV"

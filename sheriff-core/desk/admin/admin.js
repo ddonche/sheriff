@@ -1427,12 +1427,13 @@
   const thPortal = document.getElementById('th-portal');
   const thCards = document.getElementById('th-cards');
   const thTabs = document.getElementById('th-tabs');
-  let thCurrentTheme = null;
+  let thCurrentTheme = null;   // the theme the portal actually uses
+  let thSelected = null;       // the theme whose files are shown below
   let thFile = 'templates.yall';
 
   const thEditor = fileEditor(
     { portal: 'th-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
-    () => 'themes/' + thCurrentTheme + '/' + thFile,
+    () => 'themes/' + thSelected + '/' + thFile,
     { autoChange: false }
   );
 
@@ -1480,18 +1481,64 @@
 
     thCards.innerHTML = '';
     themes.forEach(t => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'theme-card' + (t === thCurrentTheme ? ' selected' : '');
-      card.innerHTML = '<svg class="star teal"><use href="#badge-star"/></svg>'
-        + '<span class="theme-name"></span>'
-        + (t === thCurrentTheme ? '<span class="pill ok">current</span>' : '');
-      card.querySelector('.theme-name').textContent = t;
-      if (t !== thCurrentTheme) {
-        card.addEventListener('click', () => switchTheme(t));
+      const card = document.createElement('div');
+      card.className = 'theme-card' + (t === thSelected ? ' selected' : '');
+
+      // Preview: served from the current portal's built public if this theme
+      // ships a preview.png; falls back to a star placeholder otherwise.
+      const preview = document.createElement('div');
+      preview.className = 'theme-preview';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = t + ' preview';
+      img.src = '/admin/theme-previews/' + t + '.png';
+      img.addEventListener('error', () => {
+        preview.classList.add('noimg');
+        preview.innerHTML = '<svg class="star teal"><use href="#badge-star"/></svg>';
+      });
+      preview.appendChild(img);
+      card.appendChild(preview);
+
+      const body = document.createElement('div');
+      body.className = 'theme-body';
+      let badges = '';
+      if (t === thCurrentTheme) badges += '<span class="pill ok">current</span>';
+      body.innerHTML = '<span class="theme-name"></span>' + badges;
+      body.querySelector('.theme-name').textContent = t;
+      card.appendChild(body);
+
+      if (t !== thCurrentTheme && t === thSelected) {
+        const wrap = document.createElement('div');
+        wrap.className = 'theme-apply-wrap';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn small primary theme-apply';
+        btn.textContent = 'Apply & rebuild';
+        btn.addEventListener('click', e => { e.stopPropagation(); switchTheme(t); });
+        wrap.appendChild(btn);
+        card.appendChild(wrap);
       }
+
+      card.addEventListener('click', () => selectTheme(t));
       thCards.appendChild(card);
     });
+  }
+
+  function selectTheme(t) {
+    if (t === thSelected) return;
+    if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
+    thSelected = t;
+    ensureAndLoadTheme(t);
+    renderThemeCards();
+  }
+
+  async function ensureAndLoadTheme(theme) {
+    // A theme the portal has never used has no files yet; seed them so the
+    // editor can show templates.yall / override.css without an Apply.
+    try {
+      await fetch('/api/ensure_theme?' + encodeURIComponent(thPortal.value) + '&' + encodeURIComponent(theme));
+    } catch (err) { /* editor will show (new file) if this fails */ }
+    thEditor.load();
   }
 
   async function switchTheme(theme) {
@@ -1523,6 +1570,7 @@
       if (buildFailed(data)) { say('Rebuild failed — ' + String(data.stderr || '').slice(0, 120)); return; }
 
       thCurrentTheme = theme;
+      thSelected = theme;
       renderThemeCards();
       thEditor.load();
       say(portal + ' now uses ' + theme);
@@ -1535,16 +1583,18 @@
     fillPortalSel(thPortal);
     if (!thPortal.value) return;
     thCurrentTheme = await detectCurrentTheme(thPortal.value);
+    thSelected = thCurrentTheme;
     renderThemeCards();
     renderThTabs();
-    if (thCurrentTheme && !thEditor.dirty) thEditor.load();
+    if (thSelected && !thEditor.dirty) thEditor.load();
   }
 
   thPortal.addEventListener('change', async () => {
     if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
     thCurrentTheme = await detectCurrentTheme(thPortal.value);
+    thSelected = thCurrentTheme;
     renderThemeCards();
-    if (thCurrentTheme) thEditor.load();
+    if (thSelected) thEditor.load();
   });
 
   // ---------- help drawer ----------

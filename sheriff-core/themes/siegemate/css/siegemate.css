@@ -2296,7 +2296,7 @@ a.sheriff-missing-link:hover {
 .sheriff-wiki-categories {
   margin-top: 2.5rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--vk-border-mid);
+  border-top: 1px solid var(--sheriff-border);
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -2355,13 +2355,40 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-backlinks-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  list-style: none;
   font-family: var(--vk-font-label);
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--vk-text-muted);
-  margin: 0 0 0.65rem 0;
+  margin: 0;
+}
+
+.sheriff-wiki-backlinks-title::-webkit-details-marker {
+  display: none;
+}
+
+.sheriff-wiki-backlinks-title::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 0.25rem solid transparent;
+  border-bottom: 0.25rem solid transparent;
+  border-left: 0.35rem solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title {
+  margin-bottom: 0.65rem;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title::before {
+  transform: rotate(90deg);
 }
 
 .sheriff-wiki-backlinks-list {

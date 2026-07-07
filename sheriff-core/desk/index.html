@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=16">
+<link rel="stylesheet" href="/admin/admin.css?v=18">
 </head>
 <body>
 
@@ -351,28 +351,31 @@
 
     <!-- ============ THEMES VIEW ============ -->
     <section class="view" id="view-themes" hidden>
-      <div class="cfg-wrap">
+      <div class="th-wrap">
         <div class="view-head"><h2 class="bracket">Themes</h2><button class="help-btn" type="button" data-help="themes" title="Help">?</button></div>
-        <div class="cfg-bar">
-          <div class="media-field">
+
+        <div class="th-grid">
+
+          <div class="th-editor-col">
+            <div class="cfg-tabs" id="th-tabs"></div>
+            <div class="cfg-editor th-editor">
+              <textarea id="th-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a theme on the right, then a file above."></textarea>
+              <div class="cfg-foot">
+                <span class="ed-status" id="th-status"></span>
+                <span class="ed-dirty" id="th-dirty" hidden>● unsaved</span>
+                <button class="btn primary small" type="button" id="th-save" disabled>Save &amp; rebuild</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="th-side">
             <label class="ed-label" for="th-portal">Portal</label>
             <select id="th-portal" class="ed-select"></select>
-          </div>
-        </div>
+            <div class="theme-cards" id="th-cards">
+              <div class="tree-msg">Pick a portal.</div>
+            </div>
+          </aside>
 
-        <div class="theme-cards" id="th-cards">
-          <div class="tree-msg">Pick a portal.</div>
-        </div>
-
-        <h2 class="bracket" style="margin-top:10px">Theme files</h2>
-        <div class="cfg-tabs" id="th-tabs"></div>
-        <div class="cfg-editor">
-          <textarea id="th-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a file above."></textarea>
-          <div class="cfg-foot">
-            <span class="ed-status" id="th-status"></span>
-            <span class="ed-dirty" id="th-dirty" hidden>● unsaved</span>
-            <button class="btn primary small" type="button" id="th-save" disabled>Save &amp; rebuild</button>
-          </div>
         </div>
       </div>
     </section>
@@ -573,6 +576,6 @@
 <div id="toast" role="status">Not wired up yet</div>
 
 <script src="/admin/help.js?v=6"></script>
-<script src="/admin/admin.js?v=14"></script>
+<script src="/admin/admin.js?v=16"></script>
 </body>
 </html>

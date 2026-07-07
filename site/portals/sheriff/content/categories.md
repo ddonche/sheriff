@@ -9,5 +9,5 @@ summary: Index of all categories.
 categories: []
 ^^^^
 
-* [[Houses]] - 1 page
-* [[Royal Houses]] - 1 page
+
+No categories.

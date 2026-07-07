@@ -2106,20 +2106,19 @@ a.sheriff-missing-link:hover {
 .sheriff-wiki-category-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.6rem;
+  padding: 0.18rem 0.55rem;
   border: 1px solid var(--sheriff-border);
-  background: var(--sheriff-panel);
-  color: var(--sheriff-link);
+  border-radius: 999px;
+  color: var(--sheriff-muted);
   text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  font-size: 0.78rem;
+  font-weight: 400;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .sheriff-wiki-category-tag:hover {
   border-color: var(--sheriff-link-hover);
   color: var(--sheriff-link-hover);
-  background: rgba(77, 184, 176, 0.06);
 }
 
 /* ========================================================================== */
@@ -2131,12 +2130,39 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-wiki-backlinks-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  list-style: none;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--sheriff-muted);
-  margin: 0 0 0.65rem 0;
+  margin: 0;
+}
+
+.sheriff-wiki-backlinks-title::-webkit-details-marker {
+  display: none;
+}
+
+.sheriff-wiki-backlinks-title::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 0.28rem solid transparent;
+  border-bottom: 0.28rem solid transparent;
+  border-left: 0.38rem solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title {
+  margin-bottom: 0.65rem;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title::before {
+  transform: rotate(90deg);
 }
 
 .sheriff-wiki-backlinks-list {

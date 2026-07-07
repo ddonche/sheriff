@@ -2181,13 +2181,40 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-wiki-backlinks-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
   font-family: var(--mw-font-head);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--sheriff-muted);
-  margin: 0 0 0.65rem 0;
+  margin: 0;
+}
+
+.sheriff-wiki-backlinks-title::-webkit-details-marker {
+  display: none;
+}
+
+.sheriff-wiki-backlinks-title::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 0.25rem solid transparent;
+  border-bottom: 0.25rem solid transparent;
+  border-left: 0.35rem solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title {
+  margin-bottom: 0.65rem;
+}
+
+.sheriff-wiki-backlinks[open] .sheriff-wiki-backlinks-title::before {
+  transform: rotate(90deg);
 }
 
 .sheriff-wiki-backlinks-list {

@@ -11,7 +11,7 @@ repo:
   forks: "0"
 
 theme:
-  name: "outpost"
+  name: "compendium"
   brand_name: "SHERIFF"
   logo: "logo.png"
   favicon: "favicon.ico"

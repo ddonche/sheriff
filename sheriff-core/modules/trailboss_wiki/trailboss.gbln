@@ -96,6 +96,28 @@ Wanted pages are collected while Sheriff renders missing wikilinks."""
     return pre_ctx
 xx
 
+act init_backlinks(pre_ctx)
+    if pre_ctx.nix? => send pre_ctx
+
+    :update!(pre_ctx["backlinks"], [])
+
+    portal | pre_ctx["portal"] ?? => send pre_ctx
+
+    public_dir | "../dist/{portal}/public"
+    if :file_exists(public_dir) == false
+        :create_dir!(public_dir)
+    xx
+
+    js_src | "modules/trailboss_wiki/sheriff-backlinks.js"
+    if :file_exists(js_src)
+        js_dst  | "{public_dir}/sheriff-backlinks.js"
+        js_code | :read_text(js_src)
+        :write_text!(js_dst, js_code)
+    xx
+
+    return pre_ctx
+xx
+
 /// Handles:
 /// - ::: nav       -> next/prev/related nav block
 /// - ::: shard     -> shard notice card
@@ -889,13 +911,12 @@ act resolve_wikilink(inner, ctx, portal)
         filename | parts[0]
         size     | parts[1]
         align    | parts[2]
-        caption  | parts[3]
+        caption  | parts[3] ?? => caption |= ..
 
         if filename.nix? => send ..
 
         if size.nix?  => size |= "full"
         if align.nix? => align |= "center"
-        if caption.nix? => caption |= ..
 
         /// mount-aware src
         m | portal_mount(portal)
@@ -928,18 +949,14 @@ act resolve_wikilink(inner, ctx, portal)
 
         parts | :split(body, "|") ?? => send ..
 
-        /// STRICT: must be exactly 4 segments
-        if parts.len < 4 => send ..
-
         filename | parts[0]
         size     | parts[1]
         align    | parts[2]
-        caption  | parts[3]
+        caption  | parts[3] ?? => caption |= ..
 
         if filename.nix? => send ..
         if size.nix?     => send ..
         if align.nix?    => send ..
-        if caption.nix?  => caption | ..
 
         /// mount-aware src
         m | portal_mount(portal)
@@ -1000,7 +1017,7 @@ act resolve_wikilink(inner, ctx, portal)
         vid      | parts[1] ?? => send ..
         size     | parts[2] ?? => size |= "full"
         align    | parts[3] ?? => align |= "center"
-        caption  | parts[4] ?? => send ..
+        caption  | parts[4] ?? => caption |= ..
 
         /// see if we can refactor these 
         provider |= :lower(:trim(provider))
@@ -1243,6 +1260,112 @@ act sweep_wikilinks(wl)
                         "source_title": source_title
                     })
                 xx
+            else
+                if :has(ctx, "backlinks") and :valtype(ctx["backlinks"]) == "array" and :has(repl, "href=\"")
+                    link_part, lower_link, target_portal, target_text, target_s, slug |= ..
+                    portal_name, rest, parts |= ..
+                    source_href, source_title, source_fm, source_path |= ..
+                    backlink_ok | true
+
+                    link_part |= :trim(:keep_before(core, "|")) ?? core
+                    link_part |= :trim(link_part)
+                    lower_link |= :lower(link_part)
+
+                    if :starts_with(lower_link, ["http://", "https:"])
+                        backlink_ok |= false
+                    xx
+
+                    if :starts_with(link_part, "u/")
+                        backlink_ok |= false
+                    xx
+
+                    target_portal |= portal
+                    target_text   |= link_part
+
+                    if backlink_ok and :starts_with(link_part, "p/")
+                        portal_name |= :keep_between(link_part, "p/", "/")
+                        rest        |= :keep_after(link_part, "p/{portal_name}/")
+
+                        if portal_name.nix? or rest.nix?
+                            backlink_ok |= false
+                        else
+                            target_portal |= portal_name
+                            parts         |= split_anchor(rest)
+                            target_text   |= parts["page"]
+                        xx
+                    elif backlink_ok
+                        parts       |= split_anchor(link_part)
+                        target_text |= parts["page"]
+                    xx
+
+                    if backlink_ok and target_portal != portal
+                        backlink_ok |= false
+                    xx
+
+                    target_href | ..
+                    if backlink_ok
+                        target_href |= :keep_between(repl, "href=\"", "\"") ?? ..
+                        if target_href.nix?
+                            backlink_ok |= false
+                        else
+                            target_base | :keep_before(target_href, "#") ?? target_href
+                            target_href |= target_base
+                        xx
+                    xx
+
+                    if backlink_ok and target_href == missing_page_href()
+                        backlink_ok |= false
+                    xx
+
+                    if backlink_ok
+                        source_href  |= ctx["href"] ?? ..
+                        if source_href.nix?
+                            backlink_ok |= false
+                        xx
+                    xx
+
+                    if backlink_ok and source_href == target_href
+                        backlink_ok |= false
+                    xx
+
+                    if backlink_ok
+                        source_title |= source_href
+
+                        if :has(ctx, "frontmatter") and :valtype(ctx["frontmatter"]) == "map"
+                            source_fm |= ctx["frontmatter"]
+                            if :has(source_fm, "title")
+                                source_title |= source_fm["title"]
+                            xx
+                        xx
+
+                        if source_title.nix?
+                            source_path  |= ctx["path"] ?? ..
+                            source_title |= :stem(source_path) ?? source_href
+                        xx
+
+                        backlink_seen | false
+                        for existing in ctx["backlinks"]
+                            if existing.nix? => skip
+
+                            existing_target | existing["target_href"] ?? ..
+                            existing_source | existing["source_href"] ?? ..
+
+                            if existing_target == target_href and existing_source == source_href
+                                backlink_seen |= true
+                                stop
+                            xx
+                        xx
+
+                        if backlink_seen == false
+                            :put_last!(ctx["backlinks"], {
+                                "target_href":  target_href,
+                                "target_title": target_text,
+                                "source_href":  source_href,
+                                "source_title": source_title
+                            })
+                        xx
+                    xx
+                xx
             xx
 
             :update_where!(result, self, repl)
@@ -1369,19 +1492,15 @@ act publish_categories(ctx)
             category_slug | rjson::normalize_to_slug(category_name)
             if category_slug.nix? => skip
 
-            if links_html != ""
-                links_html |= links_html + """<span class="sheriff-category-separator" aria-hidden="true">|</span>"""
-            xx
-
             category_href | rjson::build_href(url_root, "categories/{category_slug}")
             href_safe | escape_attr(category_href)
             name_safe | escape_text(category_name)
 
-            links_html |= links_html + """<a class="sheriff-link sheriff-category-link" href="{href_safe}">{name_safe}</a>"""
+            links_html |= links_html + """<a class="sheriff-link sheriff-wiki-category-tag" href="{href_safe}">{name_safe}</a>"""
         xx
 
         if links_html != ""
-            html |= """<nav class="sheriff-page-categories" aria-label="Categories"><span class="sheriff-page-categories-label">Categories</span><span class="sheriff-page-categories-list">{links_html}</span></nav>"""
+            html |= """<span class="sheriff-wiki-categories-label">Categories</span>{links_html}"""
         xx
     xx
 
@@ -1390,6 +1509,112 @@ act publish_categories(ctx)
     :update!(ctx["body"], updated)
 
     return ctx
+xx
+
+act publish_what_links_here(ctx)
+    portal | ctx["portal"] ?? => send ctx
+    body   | ctx["body"] ?? => send ctx
+    href   | ctx["href"] ?? ..
+
+    slug | ..
+
+    if !href.nix?
+        routes | load_routes_for_portal(ctx, portal)
+        if :valtype(routes) == "array"
+            for meta in routes
+                if meta.nix? => skip
+
+                route_href | meta["href"] ?? ..
+                if route_href == href
+                    slug |= meta["slug"] ?? ..
+                    stop
+                xx
+            xx
+        xx
+    xx
+
+    html | ..
+
+    if !slug.nix?
+        src | "/public/backlinks/{slug}.json"
+        src_safe | escape_attr(src)
+
+        html |= """
+<details class="sheriff-wiki-backlinks" data-sheriff-backlinks="{src_safe}">
+  <summary class="sheriff-wiki-backlinks-title">What Links Here</summary>
+  <div class="sheriff-wiki-backlinks-body">
+    <p class="sheriff-wiki-backlinks-empty">Loading...</p>
+  </div>
+</details>
+<script src="/public/sheriff-backlinks.js" defer></script>
+"""
+    xx
+
+    updated | body
+    :update_where!(updated, "{{{TRAILBOSS::WHAT_LINKS_HERE}}}", html)
+    :update!(ctx["body"], updated)
+
+    return ctx
+xx
+
+act write_backlinks_once(pre_ctx)
+    if pre_ctx.nix? => send pre_ctx
+
+    portal | pre_ctx["portal"] ?? => send pre_ctx
+
+    backlinks | []
+    if :has(pre_ctx, "backlinks") and :valtype(pre_ctx["backlinks"]) == "array"
+        backlinks |= pre_ctx["backlinks"]
+    xx
+
+    out_dir | "../dist/{portal}/public/backlinks"
+    if :file_exists(out_dir) == false
+        :create_dir!(out_dir)
+    xx
+
+    routes | rjson::load_routes_json(portal)
+    if :valtype(routes) != "array" => send pre_ctx
+
+    for meta in routes
+        if meta.nix? => skip
+
+        href | meta["href"] ?? => skip
+        slug | meta["slug"] ?? => skip
+
+        seen | []
+        sources | []
+
+        for entry in backlinks
+            if entry.nix? => skip
+
+            target_href | entry["target_href"] ?? ..
+            if target_href != href
+                skip
+            xx
+
+            source_href | entry["source_href"] ?? => skip
+            if source_href == href
+                skip
+            xx
+
+            if :has(seen, source_href)
+                skip
+            xx
+
+            source_title | entry["source_title"] ?? source_href
+
+            :put_last!(seen, source_href)
+            :put_last!(sources, {
+                "href":  source_href,
+                "title": source_title
+            })
+        xx
+
+        out_path | "{out_dir}/{slug}.json"
+        :write_json!(out_path, sources)
+    xx
+
+    return pre_ctx
 xx
 
 act build_wanted_pages_once(pre_ctx)

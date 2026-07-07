@@ -3,6 +3,7 @@ pre:
   - "stagehand::copy_assets"
   - "goblin_repl::init"
   - "trailboss::init_wanted_pages"
+  - "trailboss::init_backlinks"
   - "rjson::clean_category_pages_once"
   - "trailboss::build_routes_once"
   - "rjson::build_category_pages_once"
@@ -23,6 +24,7 @@ schedule:
   - "trailboss::render_footnotes"
   - "trailboss::process_wikilinks"
   - "stagehand::wire_slots"
+  - "trailboss::publish_what_links_here"
   - "trailboss::publish_categories"
   - "trailboss::publish_canonical_link"
   - "scout::apply_tokens"
@@ -34,4 +36,5 @@ schedule:
 
 post:
   - "trailboss::build_wanted_pages_once"
+  - "trailboss::write_backlinks_once"
   - "brindle::export_header_partial"
