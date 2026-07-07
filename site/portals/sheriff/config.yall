@@ -2,7 +2,7 @@
 
 id: default
 name: "Sheriff"
-version: "0.16.0"
+version: "0.17.1"
 
 repo:
   url: "https://github.com/ddonche/sheriff"
@@ -11,7 +11,7 @@ repo:
   forks: "0"
 
 theme:
-  name: "compendium"
+  name: "outpost"
   brand_name: "SHERIFF"
   logo: "logo.png"
   favicon: "favicon.ico"

@@ -1,1 +1,47 @@
 /* portal/theme overrides */
+
+.sheriff-logo-mark {
+  height: 100px;
+}
+
+/* Dark (default) */
+:root{
+  --sheriff-accent: #3296ab !important;
+  --sheriff-link: #3296ab !important;
+  --sheriff-link-hover: #74b8c6 !important;
+}
+
+/* Light */
+:root[data-theme="light"]{
+  --sheriff-accent: #3296ab !important;
+  --sheriff-link: #3296ab !important;
+  --sheriff-link-hover: #74b8c6 !important;
+}
+
+/* site/portals/vekke/override.css (or goblin/override.css) */
+
+/* Missing-page links — apply everywhere (sidebar, nav, article) */
+a.sheriff-missing-link{
+  color: #ee484c !important;
+}
+
+a.sheriff-missing-link:hover{
+  color: #9775a7 !important;
+  text-decoration: underline;
+}
+
+/*
+body {
+  background: url("/public/background-image.jpg") center top / cover fixed no-repeat;
+}
+
+.sheriff-shell {
+  background:
+    url("/public/tile_background.png") repeat,
+    var(--sheriff-input-bg);
+
+    background-repeat: repeat;
+    background-size: 900px 506px;
+    background-color: var(--sheriff-input-bg);
+}
+*/

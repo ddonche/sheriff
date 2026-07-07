@@ -2290,6 +2290,155 @@ a.sheriff-missing-link:hover {
 }
 
 /* ========================================================================== */
+/* SHERIFF PATTERNS                                                           */
+/* ========================================================================== */
+
+.sheriff-pattern {
+  border: 1px solid var(--sheriff-border);
+  border-top: 2px solid var(--vk-gold-dim);
+  background: var(--vk-bg-elevated);
+  color: var(--vk-text-primary);
+  font-family: var(--vk-font-body);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+[data-theme="light"] .sheriff-pattern {
+  background: #f0ece3;
+  border-color: var(--sheriff-border);
+  border-top-color: var(--vk-gold-dim);
+}
+
+.sheriff-pattern-vertical {
+  float: right;
+  clear: right;
+  width: min(18rem, 42%);
+  margin: 0.15rem 0 1.25rem 1.5rem;
+}
+
+.sheriff-pattern-horizontal {
+  clear: both;
+  width: 100%;
+  margin: 1.5rem 0 2rem 0;
+}
+
+.sheriff-pattern-title {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--sheriff-border);
+  background: var(--vk-bg-header);
+  color: var(--vk-gold);
+  font-family: var(--vk-font-display);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .sheriff-pattern-title {
+  background: #dedad0;
+  color: var(--vk-gold-dim);
+}
+
+.sheriff-pattern-fields {
+  margin: 0;
+}
+
+.sheriff-pattern-row {
+  display: grid;
+  grid-template-columns: 40% 1fr;
+  border-bottom: 1px solid var(--vk-border-subtle);
+}
+
+[data-theme="light"] .sheriff-pattern-row {
+  border-bottom-color: var(--sheriff-border);
+}
+
+.sheriff-pattern-horizontal .sheriff-pattern-row {
+  grid-template-columns: minmax(10rem, 18%) 1fr;
+}
+
+.sheriff-pattern-label,
+.sheriff-pattern-value {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+}
+
+.sheriff-pattern-label {
+  color: var(--vk-text-muted);
+  background: rgba(0,0,0,0.15);
+  border-right: 1px solid var(--vk-border-subtle);
+  font-family: var(--vk-font-label);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .sheriff-pattern-label {
+  background: rgba(0,0,0,0.05);
+  border-right-color: var(--sheriff-border);
+}
+
+.sheriff-pattern-value {
+  min-width: 0;
+  color: var(--vk-text-primary);
+}
+
+[data-theme="light"] .sheriff-pattern-value {
+  color: var(--sheriff-text);
+}
+
+.sheriff-pattern-value:empty::after {
+  content: "—";
+  color: var(--vk-text-muted);
+}
+
+.sheriff-pattern-value .sheriff-image-block {
+  margin: 0;
+}
+
+.sheriff-pattern-value img {
+  max-width: 100%;
+  height: auto;
+}
+
+.sheriff-pattern-canonical {
+  padding: 0.35rem 0.6rem;
+  border-top: 1px solid var(--vk-border-subtle);
+  color: var(--vk-text-muted);
+  font-family: var(--vk-font-mono);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+[data-theme="light"] .sheriff-pattern-canonical {
+  border-top-color: var(--sheriff-border);
+}
+
+.sheriff-pattern-canonical code {
+  font-size: 0.65rem;
+}
+
+@media (max-width: 760px) {
+  .sheriff-pattern-vertical {
+    float: none;
+    width: 100%;
+    margin: 1.25rem 0 1.75rem 0;
+  }
+
+  .sheriff-pattern-row,
+  .sheriff-pattern-horizontal .sheriff-pattern-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sheriff-pattern-label {
+    border-right: none;
+    border-bottom: 1px solid var(--sheriff-border);
+  }
+}
+
+/* ========================================================================== */
 /* WIKI CATEGORIES                                                            */
 /* ========================================================================== */
 

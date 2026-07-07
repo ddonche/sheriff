@@ -1,0 +1,237 @@
+/// modules/sheriff_patterns/patterns.gbln
+/// Portal-local reusable content patterns.
+///
+/// Pattern source files live outside content:
+///   site/portals/{portal}/patterns/*.txt
+///
+/// A file can define one or more patterns:
+///
+/// ::: pattern vertical Region
+/// image =
+/// government = Monarchy
+/// leadership = [[House Andergard]]
+/// :::
+///
+/// Each pattern registers a SHERIFF token:
+///   {{{SHERIFF::PATTERN_REGION}}}
+
+act s_trim(v)
+    if v.nix? => send ..
+    return :trim(v)
+xx
+
+act escape_text(s)
+    out | s ?? => send ..
+    :update_where!(out, "&", "&amp;")
+    :update_where!(out, "<", "&lt;")
+    :update_where!(out, ">", "&gt;")
+    return out
+xx
+
+act pattern_slug(name)
+    if name.nix? => send ..
+
+    slug | :trim(name)
+    :update_where!(slug, " (pattern)", "")
+    :update_where!(slug, "(pattern)", "")
+    :update_where!(slug, "(", "")
+    :update_where!(slug, ")", "")
+    :update_where!(slug, "-", "_")
+    :update_where!(slug, " ", "_")
+    slug |= :upper(slug)
+
+    return slug
+xx
+
+act pattern_class(name)
+    if name.nix? => send ..
+
+    slug | :trim(name)
+    slug |= :lower(slug)
+    :update_where!(slug, " (pattern)", "")
+    :update_where!(slug, "(pattern)", "")
+    :update_where!(slug, "(", "")
+    :update_where!(slug, ")", "")
+    :update_where!(slug, "_", "-")
+    :update_where!(slug, " ", "-")
+
+    return slug
+xx
+
+act canonical_token_html(token_name)
+    safe | escape_text(token_name)
+    return "<code>&#123;&#123;&#123;SHERIFF::{safe}&#125;&#125;&#125;</code>"
+xx
+
+act render_pattern_block(orientation, name, raw_fields)
+    if name.nix? => send ..
+
+    orient | s_trim(orientation) ?? "vertical"
+    orient |= :lower(orient)
+    if orient.nix? => orient |= "vertical"
+
+    if orient != "horizontal"
+        orient |= "vertical"
+    xx
+
+    name_clean | s_trim(name) ?? => send ..
+    class_slug | pattern_class(name_clean)
+    token_slug | pattern_slug(name_clean)
+    token_name | "PATTERN_{token_slug}"
+
+    name_safe | escape_text(name_clean)
+    token_html | canonical_token_html(token_name)
+
+    rows | []
+    fields_text | raw_fields ?? ..
+    lines | :split(fields_text, "\n")
+
+    for line in lines
+        if line.nix? => skip
+
+        t | s_trim(line) ?? => skip
+        if t.nix? => skip
+
+        label | s_trim(:keep_before(t, "=")) ?? t
+        value | s_trim(:keep_after(t, "=")) ?? ..
+
+        if label.nix? => skip
+
+        label_safe | escape_text(label)
+
+        :put_last!(rows, """
+  <div class="sheriff-pattern-row">
+    <dt class="sheriff-pattern-label">{label_safe}</dt>
+    <dd class="sheriff-pattern-value">{value}</dd>
+  </div>""")
+    xx
+
+    rows_html | :join(rows, "\n")
+
+    return """
+<aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}">
+  <div class="sheriff-pattern-title">{name_safe}</div>
+  <dl class="sheriff-pattern-fields">
+{rows_html}
+  </dl>
+  <div class="sheriff-pattern-canonical">{token_html}</div>
+</aside>
+"""
+xx
+
+act render_patterns_in_text(text)
+    out | text ?? => send ..
+
+    sweep out
+        "::: pattern" ... ":::": 
+            block | self
+            if block.nix? => skip
+
+            header | :keep_between(block, "::: pattern", "\n") ?? ..
+            header |= s_trim(header)
+            if header.nix? => skip
+
+            orientation | s_trim(:keep_before(header, " ")) ?? header
+            name | s_trim(:keep_after(header, " ")) ?? ..
+            if name.nix? => skip
+
+            inner | :keep_after(block, "\n") ?? ..
+            inner |= :keep_before(inner, "\n:::") ?? :keep_before(inner, ":::") ?? ..
+
+            html | render_pattern_block(orientation, name, inner)
+            if html.nix? => skip
+
+            :update_where!(out, block, html)
+    xx
+
+    return out
+xx
+
+act stash_pattern_code_segments(text)
+    out | text ?? => send {"text": .., "stash": []}
+    stash | []
+    n | 0
+    seg, key | ..
+
+    sweep out
+        "```" ... "```":
+            seg |= self
+            key |= "@@SHERIFF_PATTERN_CODE_{n}@@"
+            :put_last!(stash, {"k": key, "v": seg})
+            :update_where!(out, seg, key)
+            n += 1
+    xx
+
+    return {"text": out, "stash": stash}
+xx
+
+act restore_pattern_code_segments(text, stash)
+    out | text ?? => send ..
+
+    if stash.nix? => send out
+    if :valtype(stash) != "array" => send out
+
+    for item in stash
+        if item.nix? => skip
+
+        k | item["k"] ?? => skip
+        v | item["v"] ?? => skip
+
+        :update_where!(out, k, v)
+    xx
+
+    return out
+xx
+
+act publish_patterns(pre_ctx)
+    if pre_ctx.nix? => send pre_ctx
+
+    portal | pre_ctx["portal"] ?? => send pre_ctx
+
+    patterns_dir | "../site/portals/{portal}/patterns"
+    if :file_exists(patterns_dir) == false
+        :create_dir!(patterns_dir)
+    xx
+
+    for path in :walk(patterns_dir, "**/*.txt")
+        raw | :read_text(path)
+        if raw.nix? => skip
+
+        sweep raw
+            "::: pattern" ... ":::": 
+                block | self
+                if block.nix? => skip
+
+                header | :keep_between(block, "::: pattern", "\n") ?? ..
+                header |= s_trim(header)
+                if header.nix? => skip
+
+                orientation | s_trim(:keep_before(header, " ")) ?? header
+                name | s_trim(:keep_after(header, " ")) ?? ..
+                if name.nix? => skip
+
+                token_slug | pattern_slug(name)
+                if token_slug.nix? => skip
+
+                token_name | "PATTERN_{token_slug}"
+                html | render_patterns_in_text(block)
+                if html.nix? => skip
+
+                register_token("SHERIFF", token_name, html)
+        xx
+    xx
+
+    return pre_ctx
+xx
+
+act apply_patterns(ctx)
+    body | ctx["body"] ?? => send ctx
+
+    stashed | stash_pattern_code_segments(body)
+    rendered | resolve_token(stashed["text"])
+    rendered |= render_patterns_in_text(rendered)
+    rendered |= restore_pattern_code_segments(rendered, stashed["stash"])
+
+    :update!(ctx["body"], rendered)
+    return ctx
+xx

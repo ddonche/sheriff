@@ -10,11 +10,13 @@ pre:
   - "trailboss::build_routes_once"
   - "rjson::build_redirect_pages_once"
   - "rjson::build_all_pages_once"
+  - "sheriff::publish_patterns"
   - "scout::publish_nav_tokens"
   - "campfire::build_index_once"
 
 schedule:
   - "frontier::strip_frontmatter"
+  - "sheriff::apply_patterns"
   - "badge::publish_readtime"
   - "trailboss::attach_href"
   - "prospector::index_page"

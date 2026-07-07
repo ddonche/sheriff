@@ -1405,6 +1405,118 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 /* ========================================================================== */
+/* SHERIFF PATTERNS                                                           */
+/* ========================================================================== */
+
+.sheriff-pattern {
+  border: 1px solid var(--sheriff-border);
+  background: var(--sheriff-input-bg);
+  color: var(--sheriff-text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.sheriff-pattern-vertical {
+  float: right;
+  clear: right;
+  width: min(18rem, 42%);
+  margin: 0.15rem 0 1.25rem 1.5rem;
+}
+
+.sheriff-pattern-horizontal {
+  clear: both;
+  width: 100%;
+  margin: 1.25rem 0 1.5rem 0;
+}
+
+.sheriff-pattern-title {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--sheriff-border);
+  background: var(--sheriff-tablehead-bg);
+  color: var(--sheriff-text);
+  font-family: var(--mw-font-head);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sheriff-pattern-fields {
+  margin: 0;
+}
+
+.sheriff-pattern-row {
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  border-bottom: 1px solid var(--sheriff-border);
+}
+
+.sheriff-pattern-horizontal .sheriff-pattern-row {
+  grid-template-columns: minmax(9rem, 18%) 1fr;
+}
+
+.sheriff-pattern-label,
+.sheriff-pattern-value {
+  margin: 0;
+  padding: 0.35rem 0.55rem;
+}
+
+.sheriff-pattern-label {
+  color: var(--sheriff-text);
+  background: var(--sheriff-tablehead-bg);
+  border-right: 1px solid var(--sheriff-border);
+  font-weight: 700;
+  text-align: left;
+}
+
+.sheriff-pattern-value {
+  min-width: 0;
+}
+
+.sheriff-pattern-value:empty::after {
+  content: "—";
+  color: var(--sheriff-muted);
+}
+
+.sheriff-pattern-value .sheriff-image-block {
+  margin: 0;
+}
+
+.sheriff-pattern-value img {
+  max-width: 100%;
+  height: auto;
+}
+
+.sheriff-pattern-canonical {
+  padding: 0.35rem 0.55rem;
+  border-top: 1px solid var(--sheriff-border);
+  color: var(--sheriff-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.sheriff-pattern-canonical code {
+  font-size: 0.72rem;
+}
+
+@media (max-width: 760px) {
+  .sheriff-pattern-vertical {
+    float: none;
+    width: 100%;
+    margin: 1.25rem 0 1.5rem 0;
+  }
+
+  .sheriff-pattern-row,
+  .sheriff-pattern-horizontal .sheriff-pattern-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sheriff-pattern-label {
+    border-right: none;
+    border-bottom: 1px solid var(--sheriff-border);
+  }
+}
+
+/* ========================================================================== */
 /* CAMPFIRE INDEX                                                              */
 /* ========================================================================== */
 

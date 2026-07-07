@@ -18,6 +18,7 @@
 <tr><td>Heading</td><td><code># H1</code> <code>## H2</code> <code>### H3</code></td></tr>
 <tr><td>Bold</td><td><code>**bold text**</code></td></tr>
 <tr><td>Italic</td><td><code>*italicized text*</code></td></tr>
+<tr><td>Strikethrough</td><td><code>~~struck text~~</code></td></tr>
 <tr><td>Blockquote</td><td><code>&gt; blockquote</code></td></tr>
 <tr><td>Ordered list</td><td><code>1. First item</code></td></tr>
 <tr><td>Unordered list</td><td><code>- First item</code></td></tr>

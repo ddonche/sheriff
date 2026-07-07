@@ -15,7 +15,9 @@ layouts:
         - "SCOUT::left_docs_SIDEBAR"
 
       SIDEBAR_TOP:
+        - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
+        - "TRAILBOSS::WHAT_LINKS_HERE"
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
 
@@ -63,6 +65,7 @@ layouts:
         - "SCOUT::left_docs_SIDEBAR"
       
       SIDEBAR_TOP:
+        - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
