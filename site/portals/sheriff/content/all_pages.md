@@ -8,6 +8,9 @@ summary: Alphabetical index of all pages.
 ^^^^
 
 
+## N
+* [[navigation|Navigation]]
+
 ## A
 * [[admonitions|Admonitions & Spoilers]]
 

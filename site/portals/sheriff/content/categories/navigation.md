@@ -1,12 +1,12 @@
 ^^^^
-title: Categories
+title: Navigation
 author: Sheriff
 layout: admin
 meta_kind: docs
 meta_type: generated
 generated_by: categories
-summary: Index of all categories.
+summary: Pages in the Navigation category.
 categories: []
 ^^^^
 
-* [[Navigation]] - 1 page
+* [[Navigation]]

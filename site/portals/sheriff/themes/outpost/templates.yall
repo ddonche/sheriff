@@ -15,11 +15,11 @@ layouts:
         - "SCOUT::left_docs_SIDEBAR"
 
       SIDEBAR_TOP:
-        - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
-        - "TRAILBOSS::WHAT_LINKS_HERE"
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
+      CATEGORIES:
+        - "TRAILBOSS::CATEGORIES"
 
       # FOOTERS: use footer_* menus as FLAT
       FOOTER_LEFT:
@@ -48,7 +48,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "BADGE::VERSION"
+        - "GOBLIN::EMPTY"
       PAGECOUNT:
         - "BADGE::PAGE_COUNT"
       THEMESWITCHER:
@@ -65,10 +65,11 @@ layouts:
         - "SCOUT::left_docs_SIDEBAR"
       
       SIDEBAR_TOP:
-        - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
+      CATEGORIES:
+        - "TRAILBOSS::CATEGORIES"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
@@ -96,7 +97,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "BADGE::VERSION"
+        - "GOBLIN::EMPTY"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -108,14 +109,14 @@ layouts:
         - "PROSPECTOR::SEARCH_INPUT"
       
       LEFT_NAV:
-        - "SCOUT::left_wiki_SIDEBAR"
+        - "SCOUT::left_docs_SIDEBAR"
       
       SIDEBAR_TOP:
         - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
-        - "SCOUT::CATEGORIES_NAV"
-      WIKI_CATEGORIES:
+        - "SCOUT::TOC"
+      CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
       WIKI_PAGETABS:
       
@@ -144,7 +145,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "BADGE::VERSION"
+        - "GOBLIN::EMPTY"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -161,6 +162,8 @@ layouts:
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "CAMPFIRE::BLOG_LIST"
+      CATEGORIES:
+        - "TRAILBOSS::CATEGORIES"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
@@ -188,7 +191,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "BADGE::VERSION"
+        - "GOBLIN::EMPTY"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -219,7 +222,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "BADGE::VERSION"
+        - "GOBLIN::EMPTY"
       PAGECOUNT:
         - "BADGE::PAGE_COUNT"
       THEMESWITCHER:
@@ -239,6 +242,8 @@ layouts:
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
         - "SCOUT::TOC"
+      CATEGORIES:
+        - "TRAILBOSS::CATEGORIES"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"

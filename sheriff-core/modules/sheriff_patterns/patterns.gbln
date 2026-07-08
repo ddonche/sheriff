@@ -97,10 +97,32 @@ act render_pattern_block(orientation, name, raw_fields)
 
         if label.nix? => skip
 
+        wide_row | false
+
+        if :starts_with(value, "[[_image:")
+            :update_where!(value, "[[_image:", "[[image:")
+            wide_row |= true
+        xx
+
+        if :starts_with(label, "_")
+            :update_where!(label, "_", "")
+            wide_row |= true
+        xx
+
+        label_class | pattern_class(label)
         label_safe | escape_text(label)
 
+        if wide_row
+            :put_last!(rows, """
+  <div class="sheriff-pattern-row sheriff-pattern-row-wide sheriff-pattern-row-{label_class}">
+    <dt class="sheriff-pattern-label">{label_safe}</dt>
+    <dd class="sheriff-pattern-value">{value}</dd>
+  </div>""")
+            skip
+        xx
+
         :put_last!(rows, """
-  <div class="sheriff-pattern-row">
+  <div class="sheriff-pattern-row sheriff-pattern-row-{label_class}">
     <dt class="sheriff-pattern-label">{label_safe}</dt>
     <dd class="sheriff-pattern-value">{value}</dd>
   </div>""")

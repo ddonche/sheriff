@@ -806,6 +806,16 @@ details.sheriff-spoiler[open] > summary::before {
   max-width: 50vw;
 }
 
+.sheriff-image-mini {
+  width: 48px;
+  max-width: 100%;
+}
+
+.sheriff-image-icon {
+  width: 32px;
+  max-width: 100%;
+}
+
 .sheriff-image-thumb {
   width: 260px;
   max-width: 100%;
@@ -1409,6 +1419,10 @@ a.sheriff-missing-link:hover {
   border-bottom: 1px solid var(--sheriff-border);
 }
 
+.sheriff-pattern-row-wide {
+  display: block;
+}
+
 .sheriff-pattern-horizontal .sheriff-pattern-row {
   grid-template-columns: minmax(9rem, 18%) 1fr;
 }
@@ -1437,6 +1451,19 @@ a.sheriff-missing-link:hover {
   min-width: 0;
 }
 
+.sheriff-pattern-row-wide .sheriff-pattern-value {
+  display: block;
+  padding: 0.6rem;
+  text-align: center;
+}
+
+.sheriff-pattern-row-wide .sheriff-pattern-label {
+  display: block;
+  border-right: 0;
+  border-bottom: 1px solid var(--sheriff-border);
+  text-align: center;
+}
+
 .sheriff-pattern-value:empty::after {
   content: "—";
   color: var(--sheriff-muted);
@@ -1444,6 +1471,17 @@ a.sheriff-missing-link:hover {
 
 .sheriff-pattern-value .sheriff-image-block {
   margin: 0;
+}
+
+.sheriff-pattern-row-wide .sheriff-pattern-value .sheriff-image-block {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.sheriff-pattern-row-wide .sheriff-pattern-value .sheriff-image-block .sheriff-image {
+  width: 100%;
 }
 
 .sheriff-pattern-value img {
