@@ -1,0 +1,75 @@
+/// api/list_patterns.gbln
+/// /api/list_patterns?{portal}
+/// Returns every pattern scaffold in site/portals/{portal}/patterns/*.txt
+/// with its raw body. Token is derived client-side from the block header.
+
+portal | :trim(:env("GOBLIN_QUERY_STRING"))
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+portals_dir | "{root_base}/site/portals"
+known | :list_dirs(portals_dir)
+
+portal_found | false
+
+for name in known
+    if name == portal
+        portal_found |= true
+    xx
+xx
+
+if portal == ""
+    out | {
+      "ok": false,
+      "stderr": "missing portal",
+      "patterns": []
+    }
+    :say(:json_stringify(out))
+
+elif portal_found == false
+    out | {
+      "ok": false,
+      "stderr": "unknown portal: {portal}",
+      "patterns": []
+    }
+    :say(:json_stringify(out))
+
+else
+    patterns_dir | "{root_base}/site/portals/{portal}/patterns"
+    patterns | []
+
+    if :file_exists(patterns_dir)
+        for file in :walk(patterns_dir, "**/*.txt")
+            file_norm | file
+            :update_where!(file_norm, "\\", "/")
+
+            prefix | patterns_dir
+            :update_where!(prefix, "\\", "/")
+            prefix |= "{prefix}/"
+
+            rel | :keep_after(file_norm, prefix)
+            if rel == ..
+                rel |= file_norm
+            xx
+
+            body | :read_text(file)
+
+            entry | {
+              "filename": rel,
+              "body": body
+            }
+
+            :put_last!(patterns, entry)
+        xx
+    xx
+
+    out | {
+      "ok": true,
+      "patterns": patterns
+    }
+    :say(:json_stringify(out))
+xx

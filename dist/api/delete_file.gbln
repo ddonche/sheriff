@@ -34,6 +34,10 @@ act is_managed_path(path)
         return true
     xx
 
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
     return false
 xx
 

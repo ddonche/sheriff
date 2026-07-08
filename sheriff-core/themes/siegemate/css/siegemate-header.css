@@ -73,9 +73,10 @@
   align-items: center;
 
   margin-left: .5rem;
+  margin-right: .5rem;
   padding: .15rem .5rem;
 
-  border-radius: 999px;
+  border-radius: 0.35rem;
 
   font-size: .75rem;
   font-weight: 600;

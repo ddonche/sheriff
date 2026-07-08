@@ -9,4 +9,6 @@ summary: Index of all categories.
 categories: []
 ^^^^
 
+* [[Images]] - 1 page
 * [[Navigation]] - 1 page
+* [[Patterns]] - 1 page

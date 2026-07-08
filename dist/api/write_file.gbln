@@ -79,6 +79,20 @@ act is_allowed_path(path)
         return true
     xx
 
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
+    return false
+xx
+
+act is_no_build(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
     return false
 xx
 
@@ -224,7 +238,15 @@ else
 
         :write_text!(full, content)
 
-        if is_page_build(path)
+        if is_no_build(path)
+            out | {
+              "ok": true,
+              "code": 0,
+              "stdout": "",
+              "stderr": ""
+            }
+            :say(:json_stringify(out))
+        elif is_page_build(path)
             rel | page_rel_path(path)
 
             if has_unsafe_chars(rel)

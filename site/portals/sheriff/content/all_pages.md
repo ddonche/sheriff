@@ -29,11 +29,19 @@ summary: Alphabetical index of all pages.
 ## G
 * [[glossary|Glossary Tooltips]]
 
+## I
+* [[images|Images]]
+* [[images|Images]]
+
 ## H
 * [[mtg-horde-format|Horde Format Official Rules]]
 
 ## N
 * [[navigation|Navigation]]
+
+## P
+* [[patterns|Patterns]]
+* [[patterns|Patterns]]
 
 ## R
 * [[redirects|Redirects]]

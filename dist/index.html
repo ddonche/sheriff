@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=18">
+<link rel="stylesheet" href="/admin/admin.css?v=22">
 </head>
 <body>
 
@@ -63,6 +63,10 @@
     <a href="#media" data-view="media">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       Media
+    </a>
+    <a href="#patterns" data-view="patterns">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Patterns
     </a>
     <a href="#navigation" data-view="navigation">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
@@ -307,6 +311,10 @@
         <div class="media-drop" id="md-drop">
           <div class="media-toolbar">
             <div class="crumbs" id="md-crumbs"></div>
+            <button class="btn small" type="button" id="md-newfolder">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              New folder
+            </button>
             <div class="view-toggle" id="md-view">
               <button type="button" data-mv="large" title="Large thumbnails">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
@@ -323,6 +331,42 @@
             <div class="portal-empty">Pick a portal to load media.</div>
           </div>
           <div class="drop-hint">or drag &amp; drop files anywhere in this area</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PATTERNS VIEW ============ -->
+    <section class="view" id="view-patterns" hidden>
+      <div class="th-wrap">
+        <div class="view-head"><h2 class="bracket">Patterns</h2><button class="help-btn" type="button" data-help="patterns" title="Help">?</button></div>
+
+        <div class="th-grid">
+          <div class="th-editor-col">
+            <div class="pat-bar">
+              <span class="pat-name" id="pat-name">No pattern selected</span>
+              <span class="pat-token" id="pat-token"></span>
+              <button class="btn small" type="button" id="pat-copy-scaffold" disabled>Copy scaffold</button>
+              <button class="btn small" type="button" id="pat-copy-token" disabled>Copy token</button>
+            </div>
+            <div class="cfg-editor th-editor">
+              <textarea id="pat-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a pattern on the right to preview it, or make a new one."></textarea>
+              <div class="cfg-foot">
+                <span class="ed-status" id="pat-status"></span>
+                <span class="ed-dirty" id="pat-dirty" hidden>● unsaved</span>
+                <button class="btn small portal-delete" type="button" id="pat-delete" disabled>Delete</button>
+                <button class="btn primary small" type="button" id="pat-save" disabled>Save</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="th-side">
+            <label class="ed-label" for="pat-portal">Portal</label>
+            <select id="pat-portal" class="ed-select"></select>
+            <div class="pat-list" id="pat-list">
+              <div class="tree-msg">Pick a portal.</div>
+            </div>
+            <button class="btn block" type="button" id="pat-new">New pattern</button>
+          </aside>
         </div>
       </div>
     </section>
@@ -561,6 +605,42 @@
   </div>
 </div>
 
+<div class="wizard" id="patnew-modal" hidden>
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">New pattern</span>
+      <button class="wiz-x" type="button" id="patnew-close" title="Close">&times;</button>
+    </div>
+    <div class="wiz-body npm-body">
+      <label class="ed-label" for="patnew-name">Pattern name</label>
+      <input id="patnew-name" class="wiz-input" type="text" placeholder="Region" spellcheck="false" autocomplete="off">
+      <p class="wiz-hint">Token: <span class="mono-hint" id="patnew-token">{{{SHERIFF::PATTERN_NAME}}}</span></p>
+
+      <label class="ed-label">Orientation</label>
+      <div class="patnew-orient">
+        <label class="patnew-radio"><input type="radio" name="patnew-orient" value="vertical" checked> vertical <span class="patnew-hint">infobox beside the article</span></label>
+        <label class="patnew-radio"><input type="radio" name="patnew-orient" value="horizontal"> horizontal <span class="patnew-hint">full-width navbox</span></label>
+      </div>
+
+      <div class="patnew-note">
+        <p>A blank block will open in the editor. Add fields as <code>label = value</code>, one per line.</p>
+        <p>Prefix a label with <code>_</code> to make it a full-width row instead of a two-column row — good for images or section headers:</p>
+        <pre>_image = [[image:map.png|full|center|]]
+government = monarchy
+leadership = [[House Andergard]]</pre>
+      </div>
+
+      <p class="wiz-err" id="patnew-err" hidden></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn" type="button" id="patnew-cancel">Cancel</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn primary" type="button" id="patnew-create">Create pattern</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" hidden>
   <div class="lb-inner">
     <img id="lb-img" alt="">
@@ -576,6 +656,6 @@
 <div id="toast" role="status">Not wired up yet</div>
 
 <script src="/admin/help.js?v=7"></script>
-<script src="/admin/admin.js?v=17"></script>
+<script src="/admin/admin.js?v=22"></script>
 </body>
 </html>

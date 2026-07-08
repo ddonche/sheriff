@@ -45,6 +45,7 @@
     content:    { el: 'view-content' },
     portals:    { el: 'view-portals' },
     media:      { el: 'view-media' },
+    patterns:   { el: 'view-patterns' },
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
     config:     { el: 'view-config' },
@@ -84,6 +85,7 @@
     if (key === 'navigation') nvEditor.enter();
     if (key === 'config') cfEditor.enter();
     if (key === 'themes') themesEnter();
+    if (key === 'patterns') patternsEnter();
   }
 
   window.addEventListener('hashchange', showView);
@@ -809,6 +811,7 @@
       if (k === 'navigation') { e.preventDefault(); nvEditor.save(); }
       if (k === 'config') { e.preventDefault(); cfEditor.save(); }
       if (k === 'themes') { e.preventDefault(); thSave(); }
+      if (k === 'patterns') { e.preventDefault(); savePattern(); }
     }
   });
 
@@ -1003,7 +1006,14 @@
 
   function mediaCopyText(f) {
     if (IMAGE_EXTS.has(fileExt(f))) {
-      const rel = f.slice('public/'.length);
+      // trailboss resolves image tags against public/images/, so the tag
+      // path must be relative to public/images/, not public/.
+      let rel = f;
+      if (rel.startsWith('public/images/')) {
+        rel = rel.slice('public/images/'.length);
+      } else if (rel.startsWith('public/')) {
+        rel = rel.slice('public/'.length);
+      }
       return '[[image:' + rel + '|SIZE|ALIGN|CAPTION]]';
     }
     return sitePath(f);
@@ -1047,7 +1057,10 @@
       }
       const files = Array.isArray(data.files) ? data.files.map(String) : [];
       const dirs = Array.isArray(data.dirs) ? data.dirs.map(String) : [];
-      mediaFiles = files.filter(f => f.startsWith('public/')).sort();
+      mediaFiles = files
+        .filter(f => f.startsWith('public/'))
+        .filter(f => !f.endsWith('/.gitkeep'))
+        .sort();
 
       const dirSet = new Set(dirs.filter(d => d === 'public' || d.startsWith('public/')));
       mediaFiles.forEach(f => {
@@ -1084,6 +1097,7 @@
         mdFolder.value = mediaCwd;
         renderMedia();
       });
+      wireFolderDrop(btn, target);
       mdCrumbs.appendChild(btn);
     });
   }
@@ -1102,6 +1116,24 @@
     renderMedia();
   });
 
+  function wireFolderDrop(card, destFolder) {
+    card.addEventListener('dragover', e => {
+      if (!e.dataTransfer.types.includes('text/desk-media')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      card.classList.add('drop-target');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drop-target'));
+    card.addEventListener('drop', e => {
+      const from = e.dataTransfer.getData('text/desk-media');
+      if (!from) return;
+      e.preventDefault();
+      e.stopPropagation();
+      card.classList.remove('drop-target');
+      moveMedia(from, destFolder);
+    });
+  }
+
   function renderMedia() {
     renderCrumbs();
     renderViewToggle();
@@ -1114,6 +1146,25 @@
     if (folders.length === 0 && files.length === 0) {
       mdGrid.innerHTML = '<div class="portal-empty">Empty folder. Upload something.</div>';
       return;
+    }
+
+    // ".." up-one-level target when nested
+    if (mediaCwd !== 'public') {
+      const up = parentOf(mediaCwd);
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'media-card folder up';
+      card.innerHTML = '<div class="media-thumb">'
+        + '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4"/><path d="M10 18l-6-6 6-6"/></svg>'
+        + '</div><div class="media-name">..</div>';
+      card.title = 'Up to ' + up;
+      card.addEventListener('click', () => {
+        mediaCwd = up;
+        mdFolder.value = mediaCwd;
+        renderMedia();
+      });
+      wireFolderDrop(card, up);
+      mdGrid.appendChild(card);
     }
 
     folders.forEach(d => {
@@ -1131,6 +1182,7 @@
         mdFolder.value = mediaCwd;
         renderMedia();
       });
+      wireFolderDrop(card, d);
       mdGrid.appendChild(card);
     });
 
@@ -1140,6 +1192,14 @@
 
       const card = document.createElement('div');
       card.className = 'media-card';
+      card.draggable = true;
+      card.addEventListener('dragstart', e => {
+        e.stopPropagation();
+        e.dataTransfer.setData('text/desk-media', f);
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
 
       const thumb = document.createElement('div');
       thumb.className = 'media-thumb';
@@ -1265,6 +1325,50 @@
     }
   }
 
+  // ---------- new folder ----------
+  document.getElementById('md-newfolder').addEventListener('click', async () => {
+    if (!mdPortal.value) { say('Pick a portal first'); return; }
+    const name = window.prompt('New folder in ' + mediaCwd + ':', '');
+    if (!name) return;
+    const clean = name.trim().replace(/[\\/]/g, '');
+    if (!clean) { say('Invalid folder name'); return; }
+
+    const target = mediaCwd + '/' + clean;
+    try {
+      const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(target);
+      const res = await fetch('/api/create_dir?' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) { say(data.stderr || 'Could not create folder'); return; }
+      say('Created ' + clean);
+      await loadMedia();
+      mediaCwd = target;
+      mdFolder.value = mediaCwd;
+      renderMedia();
+    } catch (err) {
+      say(err.message || 'API unreachable');
+    }
+  });
+
+  // ---------- move a file into a folder ----------
+  async function moveMedia(from, toFolder) {
+    const name = from.split('/').pop();
+    const to = toFolder + '/' + name;
+    if (from === to) return;
+    try {
+      const q = encodeURIComponent(mdPortal.value)
+        + '&' + encodeURIComponent(from)
+        + '&' + encodeURIComponent(to);
+      const res = await fetch('/api/move_file?' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) { say(data.stderr || 'Move failed'); return; }
+      say('Moved ' + name + ' to ' + toFolder.replace(/^public\/?/, '') || 'public');
+      await loadMedia();
+      renderMedia();
+    } catch (err) {
+      say(err.message || 'API unreachable');
+    }
+  }
+
   mdUploadBtn.addEventListener('click', () => mdFileInput.click());
   mdFileInput.addEventListener('change', () => {
     uploadFiles(mdFileInput.files);
@@ -1272,11 +1376,13 @@
   });
 
   mdDrop.addEventListener('dragover', e => {
+    if (e.dataTransfer.types.includes('text/desk-media')) return;
     e.preventDefault();
     mdDrop.classList.add('drag');
   });
   mdDrop.addEventListener('dragleave', () => mdDrop.classList.remove('drag'));
   mdDrop.addEventListener('drop', e => {
+    if (e.dataTransfer.types.includes('text/desk-media')) return;
     e.preventDefault();
     mdDrop.classList.remove('drag');
     if (e.dataTransfer.files && e.dataTransfer.files.length) {
@@ -2015,6 +2121,296 @@
       wzProgress.querySelectorAll('li.doing').forEach(li => { li.className = 'fail'; });
     }
   }
+
+  // ============================================================
+  // Patterns panel (read-only browse + copy)
+  // ============================================================
+  const patPortal = document.getElementById('pat-portal');
+  const patList = document.getElementById('pat-list');
+  const patText = document.getElementById('pat-text');
+  const patName = document.getElementById('pat-name');
+  const patTokenEl = document.getElementById('pat-token');
+  const patCopyScaffold = document.getElementById('pat-copy-scaffold');
+  const patCopyToken = document.getElementById('pat-copy-token');
+
+  const patStatus = document.getElementById('pat-status');
+  const patDirty = document.getElementById('pat-dirty');
+  const patSave = document.getElementById('pat-save');
+  const patDelete = document.getElementById('pat-delete');
+  const patNewBtn = document.getElementById('pat-new');
+
+  let patItems = [];
+  let patSelected = null;
+  let patDirtyFlag = false;
+
+  // "::: pattern vertical Region"  -> { orientation:'vertical', name:'Region' }
+  // "::: pattern horizontal Outrider Characters" -> name:'Outrider Characters'
+  function parsePatternHeader(body) {
+    const lines = String(body || '').split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^:::\s*pattern\s+(\S+)\s+(.+?)\s*$/);
+      if (m) return { orientation: m[1], name: m[2].trim() };
+    }
+    return null;
+  }
+
+  function patternToken(name) {
+    const up = name.toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+    return '{{{SHERIFF::PATTERN_' + up + '}}}';
+  }
+
+  function patternsEnter() {
+    fillPortalSel(patPortal);
+    if (patPortal.value) loadPatterns();
+  }
+
+  patPortal.addEventListener('change', loadPatterns);
+
+  async function loadPatterns() {
+    if (!patPortal.value) return;
+    patList.innerHTML = '<div class="tree-msg">Loading…</div>';
+    patSelected = null;
+    clearPatternPreview();
+    try {
+      const res = await fetch('/api/list_patterns?' + encodeURIComponent(patPortal.value));
+      const data = await apiJson(res);
+      if (data.ok === false) {
+        patList.innerHTML = '<div class="tree-msg">' + (data.stderr || 'Could not load patterns.') + '</div>';
+        return;
+      }
+      patItems = Array.isArray(data.patterns) ? data.patterns : [];
+      renderPatternList();
+    } catch (err) {
+      patList.innerHTML = '<div class="tree-msg">' + (err.message || 'API unreachable') + '</div>';
+    }
+  }
+
+  function renderPatternList() {
+    if (patItems.length === 0) {
+      patList.innerHTML = '<div class="tree-msg">No patterns yet. Add .txt scaffolds in this portal\u2019s patterns/ folder.</div>';
+      return;
+    }
+    patList.innerHTML = '';
+    patItems.forEach((p, i) => {
+      const header = parsePatternHeader(p.body);
+      const name = header ? header.name : p.filename.replace(/\.txt$/, '');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pat-item' + (i === patSelected ? ' active' : '');
+      btn.innerHTML = '<span class="pat-item-name"></span>'
+        + (header ? '<span class="pat-item-orient">' + header.orientation + '</span>' : '');
+      btn.querySelector('.pat-item-name').textContent = name;
+      btn.title = p.filename;
+      btn.addEventListener('click', () => selectPattern(i));
+      patList.appendChild(btn);
+    });
+  }
+
+  function clearPatternPreview() {
+    patText.value = '';
+    patText.disabled = true;
+    patName.textContent = 'No pattern selected';
+    patTokenEl.textContent = '';
+    patCopyScaffold.disabled = true;
+    patCopyToken.disabled = true;
+    patSave.disabled = true;
+    patDelete.disabled = true;
+    setPatDirty(false);
+  }
+
+  function setPatDirty(v) {
+    patDirtyFlag = v;
+    patDirty.hidden = !v;
+    patSave.disabled = !v || patSelected === null;
+  }
+
+  function setPatStatus(msg, cls) {
+    patStatus.textContent = msg || '';
+    patStatus.className = 'ed-status' + (cls ? ' ' + cls : '');
+  }
+
+  function selectPattern(i) {
+    if (patDirtyFlag && !window.confirm('Unsaved changes will be lost. Continue?')) return;
+    patSelected = i;
+    const p = patItems[i];
+    patText.value = p.body;
+    patText.disabled = false;
+    refreshPatternMeta();
+    patCopyScaffold.disabled = false;
+    patDelete.disabled = false;
+    setPatDirty(false);
+    setPatStatus('');
+    renderPatternList();
+  }
+
+  function refreshPatternMeta() {
+    const header = parsePatternHeader(patText.value);
+    patName.textContent = header ? header.name : '(no pattern header)';
+    patTokenEl.textContent = header ? patternToken(header.name) : '(add ::: pattern header)';
+    patCopyToken.disabled = !header;
+  }
+
+  patText.addEventListener('input', () => {
+    setPatDirty(true);
+    refreshPatternMeta();
+  });
+
+  async function savePattern() {
+    if (patSelected === null || patSave.disabled) return;
+    const p = patItems[patSelected];
+    patSave.disabled = true;
+    patSave.textContent = 'Saving…';
+    setPatStatus('saving…');
+    try {
+      const q = 'portal=' + encodeURIComponent(patPortal.value)
+        + '&path=' + encodeURIComponent('patterns/' + p.filename);
+      const res = await fetch('/api/write_file?' + q, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: patText.value
+      });
+      const data = await apiJson(res);
+      if (data.ok === false) {
+        setPatStatus(data.stderr || 'save failed', 'err');
+        setPatDirty(true);
+        return;
+      }
+      p.body = patText.value;
+      setPatStatus('✓ saved', 'ok');
+      setPatDirty(false);
+      renderPatternList();
+    } catch (err) {
+      setPatStatus(err.message || 'API unreachable', 'err');
+      setPatDirty(true);
+    } finally {
+      patSave.textContent = 'Save';
+      patSave.disabled = !patDirtyFlag;
+    }
+  }
+
+  patSave.addEventListener('click', savePattern);
+
+  async function deletePattern() {
+    if (patSelected === null) return;
+    const p = patItems[patSelected];
+    const header = parsePatternHeader(p.body);
+    const name = header ? header.name : p.filename;
+    if (!window.confirm('Delete pattern "' + name + '"? This cannot be undone.')) return;
+    try {
+      const q = encodeURIComponent(patPortal.value) + '&' + encodeURIComponent('patterns/' + p.filename);
+      const res = await fetch('/api/delete_file?' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) { say(data.stderr || 'Delete failed'); return; }
+      say('Deleted ' + name);
+      patSelected = null;
+      clearPatternPreview();
+      await loadPatterns();
+    } catch (err) {
+      say(err.message || 'API unreachable');
+    }
+  }
+
+  patDelete.addEventListener('click', deletePattern);
+
+  // ---------- new pattern modal ----------
+  const patnewModal = document.getElementById('patnew-modal');
+  const patnewName = document.getElementById('patnew-name');
+  const patnewToken = document.getElementById('patnew-token');
+  const patnewErr = document.getElementById('patnew-err');
+  const patnewCreate = document.getElementById('patnew-create');
+
+  function patFileFromName(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function openPatNew() {
+    if (!patPortal.value) { say('Pick a portal first'); return; }
+    patnewName.value = '';
+    patnewToken.textContent = '{{{SHERIFF::PATTERN_NAME}}}';
+    patnewErr.hidden = true;
+    document.querySelector('input[name="patnew-orient"][value="vertical"]').checked = true;
+    patnewModal.hidden = false;
+    setTimeout(() => patnewName.focus(), 50);
+  }
+  function closePatNew() { patnewModal.hidden = true; }
+
+  patNewBtn.addEventListener('click', openPatNew);
+  document.getElementById('patnew-close').addEventListener('click', closePatNew);
+  document.getElementById('patnew-cancel').addEventListener('click', closePatNew);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !patnewModal.hidden) closePatNew();
+  });
+
+  patnewName.addEventListener('input', () => {
+    const name = patnewName.value.trim();
+    patnewToken.textContent = name ? patternToken(name) : '{{{SHERIFF::PATTERN_NAME}}}';
+    patnewErr.hidden = true;
+  });
+  patnewName.addEventListener('keydown', e => { if (e.key === 'Enter') createPattern(); });
+
+  function patnewError(msg) { patnewErr.textContent = msg; patnewErr.hidden = false; }
+
+  async function createPattern() {
+    const name = patnewName.value.trim();
+    const orient = document.querySelector('input[name="patnew-orient"]:checked').value;
+    const slug = patFileFromName(name);
+
+    if (!name) { patnewError('Give the pattern a name.'); return; }
+    if (!slug) { patnewError('Name must contain letters or numbers.'); return; }
+
+    const file = 'patterns/' + slug + '.txt';
+    if (patItems.some(p => 'patterns/' + p.filename === file)) {
+      patnewError('A pattern named "' + name + '" already exists.'); return;
+    }
+
+    // Blank scaffold: header + two empty field lines to start + close.
+    const body = '::: pattern ' + orient + ' ' + name + '\n'
+      + 'label = \n'
+      + 'label = \n'
+      + ':::\n';
+
+    patnewCreate.disabled = true;
+    patnewCreate.textContent = 'Creating…';
+    try {
+      const q = 'portal=' + encodeURIComponent(patPortal.value)
+        + '&path=' + encodeURIComponent(file);
+      const res = await fetch('/api/write_file?' + q, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
+      });
+      const data = await apiJson(res);
+      if (data.ok === false) { patnewError(data.stderr || 'Create failed'); return; }
+      closePatNew();
+      say('Pattern created — fill it in and save');
+      await loadPatterns();
+      const idx = patItems.findIndex(p => 'patterns/' + p.filename === file);
+      if (idx >= 0) selectPattern(idx);
+    } catch (err) {
+      patnewError(err.message || 'API unreachable');
+    } finally {
+      patnewCreate.disabled = false;
+      patnewCreate.textContent = 'Create pattern';
+    }
+  }
+
+  patnewCreate.addEventListener('click', createPattern);
+
+  function copyText(text, label) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => say(label), () => say(text));
+    } else {
+      say(text);
+    }
+  }
+
+  patCopyScaffold.addEventListener('click', () => {
+    if (patSelected === null) return;
+    copyText(patItems[patSelected].body, 'Scaffold copied — paste into a page and fill it in');
+  });
+
+  patCopyToken.addEventListener('click', () => {
+    if (patSelected === null) return;
+    const header = parsePatternHeader(patItems[patSelected].body);
+    if (!header) { say('No pattern header to build a token from'); return; }
+    copyText(patternToken(header.name), 'Token copied — paste it where the pattern should appear');
+  });
 
   // ---------- boot ----------
   loadPortals().then(showView);

@@ -49,6 +49,7 @@ menus:
         Links: docs/guides/links.html
         Redirects: docs/guides/redirects.html
         Categories: docs/guides/categories.html
+        Patterns: docs/guides/patterns.html
         Glossary Tooltips: docs/guides/glossary.html
         Focus Panels: docs/guides/focus_panels.html
         Infoboxes: docs/guides/infoboxes.html

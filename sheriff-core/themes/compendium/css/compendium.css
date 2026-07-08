@@ -1499,6 +1499,10 @@ details.sheriff-spoiler[open] > summary::before {
   text-align: center;
 }
 
+.sheriff-pattern-row-heading .sheriff-pattern-label {
+  border-bottom: 0;
+}
+
 .sheriff-pattern-value:empty::after {
   content: "—";
   color: var(--sheriff-muted);

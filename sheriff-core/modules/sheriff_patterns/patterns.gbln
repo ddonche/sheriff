@@ -50,8 +50,13 @@ act pattern_class(name)
     slug |= :lower(slug)
     :update_where!(slug, " (pattern)", "")
     :update_where!(slug, "(pattern)", "")
+    :update_where!(slug, "[[", "")
+    :update_where!(slug, "]]", "")
     :update_where!(slug, "(", "")
     :update_where!(slug, ")", "")
+    :update_where!(slug, "|", "-")
+    :update_where!(slug, ":", "-")
+    :update_where!(slug, "/", "-")
     :update_where!(slug, "_", "-")
     :update_where!(slug, " ", "-")
 
@@ -110,12 +115,23 @@ act render_pattern_block(orientation, name, raw_fields)
         xx
 
         label_class | pattern_class(label)
-        label_safe | escape_text(label)
+        label_html | escape_text(label)
+        if :has(label, "[[")
+            label_html |= label
+        xx
 
         if wide_row
+            if value.nix? or value == .. or value == ""
+                :put_last!(rows, """
+  <div class="sheriff-pattern-row sheriff-pattern-row-wide sheriff-pattern-row-heading sheriff-pattern-row-{label_class}">
+    <dt class="sheriff-pattern-label">{label_html}</dt>
+  </div>""")
+                skip
+            xx
+
             :put_last!(rows, """
   <div class="sheriff-pattern-row sheriff-pattern-row-wide sheriff-pattern-row-{label_class}">
-    <dt class="sheriff-pattern-label">{label_safe}</dt>
+    <dt class="sheriff-pattern-label">{label_html}</dt>
     <dd class="sheriff-pattern-value">{value}</dd>
   </div>""")
             skip
@@ -123,7 +139,7 @@ act render_pattern_block(orientation, name, raw_fields)
 
         :put_last!(rows, """
   <div class="sheriff-pattern-row sheriff-pattern-row-{label_class}">
-    <dt class="sheriff-pattern-label">{label_safe}</dt>
+    <dt class="sheriff-pattern-label">{label_html}</dt>
     <dd class="sheriff-pattern-value">{value}</dd>
   </div>""")
     xx

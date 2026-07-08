@@ -48,7 +48,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "GOBLIN::EMPTY"
+        - "BADGE::VERSION"
       PAGECOUNT:
         - "BADGE::PAGE_COUNT"
       THEMESWITCHER:
@@ -97,7 +97,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "GOBLIN::EMPTY"
+        - "BADGE::VERSION"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -145,7 +145,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "GOBLIN::EMPTY"
+        - "BADGE::VERSION"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -191,7 +191,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "GOBLIN::EMPTY"
+        - "BADGE::VERSION"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:
@@ -222,7 +222,7 @@ layouts:
       BRANDNAME:
         - "BRINDLE::BRANDNAME"
       VERSION:
-        - "GOBLIN::EMPTY"
+        - "BADGE::VERSION"
       PAGECOUNT:
         - "BADGE::PAGE_COUNT"
       THEMESWITCHER:
