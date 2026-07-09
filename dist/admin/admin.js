@@ -1026,7 +1026,9 @@
       + 'meta_kind: docs\n'
       + 'meta_type: entry\n'
       + 'summary: ' + npmSummary.value.trim() + '\n'
-      + 'gloss: ' + npmGloss.value.trim() + '\n';
+      + 'gloss: ' + npmGloss.value.trim() + '\n'
+      + 'categories: []\n'
+      + 'aliases: []\n';
 
     if (layout === 'blog') {
       if (!npmAvatar.value.trim() || !npmThumb.value.trim() || !npmDate.value.trim()) {
@@ -2177,8 +2179,17 @@
 
       // 3. first page
       markTask('page', 'doing');
-      const fm = '^^^^\ntitle: ' + wiz.pageTitle
-        + '\nauthor: Sheriff\nlayout: docs\nmeta_kind: overview\nmeta_type: docs\nsummary: \n^^^^\n\n';
+      const fm = '^^^^\n'
+        + 'title: ' + wiz.pageTitle + '\n'
+        + 'author: Sheriff\n'
+        + 'layout: docs\n'
+        + 'meta_kind: overview\n'
+        + 'meta_type: docs\n'
+        + 'summary: \n'
+        + 'gloss: \n'
+        + 'categories: []\n'
+        + 'aliases: []\n'
+        + '^^^^\n\n';
       const body = fm + '# ' + wiz.pageTitle + '\n\n' + (wiz.pageBody || 'Welcome to ' + wiz.name + '.') + '\n';
       res = await fetch('/api/write_file?portal=' + encodeURIComponent(wiz.slug)
         + '&path=' + encodeURIComponent('content/index.md'), {
