@@ -109,6 +109,19 @@ act extract_frontmatter_map(md_text)
     return parsed
 xx
 
+act extract_frontmatter_block(md_text)
+    if md_text.nix? => send ..
+
+    t | md_text
+    if :starts_with(t, "^^^^") == false => send ..
+
+    block | :keep_between(t, "^^^^", "^^^^")
+    if block.nix? => send ..
+
+    return """^^^^{block}^^^^
+"""
+xx
+
 act extract_frontmatter_list(md_text, fm, field)
     values | []
 
@@ -450,6 +463,11 @@ act clean_category_pages_once(pre_ctx)
         for old_category_page in :walk(categories_root, "**/*.md")
             old_category_text | :read_text(old_category_page)
             if :has(old_category_text, "generated_by: categories")
+                old_fm | extract_frontmatter_map(old_category_text)
+                old_categories | extract_frontmatter_list(old_category_text, old_fm, "categories")
+                if :valtype(old_categories) == "array" and old_categories.len != 0
+                    skip
+                xx
                 :delete_path!(old_category_page)
             xx
         xx
@@ -485,6 +503,7 @@ act build_category_pages_once(pre_ctx)
     if routes.nix? => return pre_ctx
 
     :create_dir!(category_root)
+    preserved_frontmatter | []
 
     if :file_exists(index_path)
         old_index_text | :read_text(index_path)
@@ -496,6 +515,13 @@ act build_category_pages_once(pre_ctx)
     for old_category_page in :walk(category_root, "**/*.md")
         old_category_text | :read_text(old_category_page)
         if :has(old_category_text, "generated_by: categories")
+            old_fm | extract_frontmatter_map(old_category_text)
+            category_title_old | old_fm{"title"} ?? ..
+            category_slug_old | normalize_to_slug(category_title_old)
+            fm_block_old | extract_frontmatter_block(old_category_text)
+            if !category_slug_old.nix? and !fm_block_old.nix?
+                :put_last!(preserved_frontmatter, "{category_slug_old}|||{fm_block_old}")
+            xx
             :delete_path!(old_category_page)
         xx
     xx
@@ -615,6 +641,15 @@ summary: Pages in the {category_name} category.
 categories: []
 ^^^^
 """
+
+        for preserved in preserved_frontmatter
+            preserved_slug | :keep_before(preserved, "|||") ?? => skip
+            preserved_fm | :keep_after(preserved, "|||") ?? => skip
+
+            if preserved_slug == category_slug
+                category_frontmatter |= preserved_fm
+            xx
+        xx
 
         category_lines | [category_frontmatter]
 
