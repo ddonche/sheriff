@@ -1224,3 +1224,9 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   background:color-mix(in srgb, var(--teal) 15%, white);
   color:var(--teal-deep);
 }
+
+/* content sidebar action row */
+.ed-actions{ display:flex; gap:8px; }
+.ed-actions .btn{ flex:1; justify-content:center; }
+
+.folder-card{ width:min(440px, 94vw); }

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=22">
+<link rel="stylesheet" href="/admin/admin.css?v=24">
 </head>
 <body>
 
@@ -229,7 +229,10 @@
             <div class="tree-msg">Pick a portal to load files.</div>
           </div>
 
-          <button class="btn block" type="button" id="ed-new">New page</button>
+          <div class="ed-actions">
+            <button class="btn" type="button" id="ed-newfolder">New folder</button>
+            <button class="btn primary" type="button" id="ed-new">New page</button>
+          </div>
         </aside>
 
         <div class="v-resizer" id="ed-resizer" title="Drag to resize"></div>
@@ -641,6 +644,27 @@ leadership = [[House Andergard]]</pre>
   </div>
 </div>
 
+<div class="wizard" id="folder-modal" hidden>
+  <div class="wiz-card folder-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">New folder</span>
+      <button class="wiz-x" type="button" id="fm-close" title="Close">&times;</button>
+    </div>
+    <div class="wiz-body npm-body">
+      <label class="ed-label" for="fm-name">Folder name</label>
+      <input id="fm-name" class="wiz-input" type="text" placeholder="characters" spellcheck="false" autocomplete="off">
+      <p class="wiz-hint">Will be created in <span class="mono-hint" id="fm-parent">content</span></p>
+      <p class="wiz-err" id="fm-err" hidden></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn" type="button" id="fm-cancel">Cancel</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn primary" type="button" id="fm-create">Create folder</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" hidden>
   <div class="lb-inner">
     <img id="lb-img" alt="">
@@ -656,6 +680,6 @@ leadership = [[House Andergard]]</pre>
 <div id="toast" role="status">Not wired up yet</div>
 
 <script src="/admin/help.js?v=7"></script>
-<script src="/admin/admin.js?v=22"></script>
+<script src="/admin/admin.js?v=28"></script>
 </body>
 </html>

@@ -1,10 +1,20 @@
-act collect_dirs(root, base_rel, out_dirs)
+act collect_dirs(root, base_rel)
+    out | []
+
     dirs | :list_dirs("{root}/{base_rel}")
+
     for name in dirs
         rel | "{base_rel}/{name}"
-        :put_last!(out_dirs, rel)
-        collect_dirs(root, rel, out_dirs)
+        :put_last!(out, rel)
+
+        nested | collect_dirs(root, rel)
+
+        for sub in nested
+            :put_last!(out, sub)
+        xx
     xx
+
+    send out
 xx
 
 portal | :trim(:env("GOBLIN_QUERY_STRING"))
@@ -80,7 +90,11 @@ else
             :put_last!(files, rel)
         xx
 
-        collect_dirs(root, "content", dirs)
+        content_dirs | collect_dirs(root, "content")
+
+        for d in content_dirs
+            :put_last!(dirs, d)
+        xx
     xx
 
     blog_root | "{root}/blog"
@@ -102,7 +116,11 @@ else
             :put_last!(files, rel)
         xx
 
-        collect_dirs(root, "blog", dirs)
+        blog_dirs | collect_dirs(root, "blog")
+
+        for d in blog_dirs
+            :put_last!(dirs, d)
+        xx
     xx
 
     public_root | "{root}/public"
@@ -124,7 +142,11 @@ else
             :put_last!(files, rel)
         xx
 
-        collect_dirs(root, "public", dirs)
+        public_dirs | collect_dirs(root, "public")
+
+        for d in public_dirs
+            :put_last!(dirs, d)
+        xx
     xx
 
     root_configs | [

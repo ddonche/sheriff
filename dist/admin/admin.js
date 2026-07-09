@@ -368,9 +368,13 @@
   let editorPendingPortal = null;   // set by dashboard "Edit content"
   let edFiles = [];
   let edDirs = [];
+  // Folders created this session. An empty folder has no file to imply it,
+  // so if the API's dirs list drops it the tree would too. This keeps it.
+  let knownDirs = new Set();
   let openFile = null;
   let dirty = false;
   let expandedFolders = new Set();
+  let edCwd = 'content';
   let renamingPath = null;
 
   function setDirty(v) {
@@ -430,6 +434,17 @@
   // Direct port of Cloud's buildFileTree (DocsPanel.tsx)
   function buildFileTree(paths, dirs) {
     const root = { name: 'root', path: '', type: 'folder', children: [] };
+
+    // Same approach as the media panel: union the API's dirs with every
+    // directory implied by a file path, so nothing can go missing.
+    const dirSet = new Set(dirs);
+    for (const f of paths) {
+      const parts = f.split('/');
+      for (let i = 1; i < parts.length; i++) {
+        dirSet.add(parts.slice(0, i).join('/'));
+      }
+    }
+    dirs = Array.from(dirSet).sort();
 
     for (const dir of dirs) {
       const parts = dir.split('/').filter(Boolean);
@@ -548,7 +563,10 @@
           + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
           + '<span class="node-name"></span>';
         row.querySelector('.node-name').textContent = node.name;
-        row.addEventListener('click', () => toggleFolder(node.path));
+        row.addEventListener('click', () => {
+          edCwd = node.path;
+          toggleFolder(node.path);
+        });
 
         row.addEventListener('dragover', e => {
           e.preventDefault();
@@ -610,7 +628,7 @@
     if (!edPortal.value) return;
     tree.innerHTML = '<div class="tree-msg">Loading files\u2026</div>';
     try {
-      const res = await fetch('/api/list_files?' + encodeURIComponent(edPortal.value));
+      const res = await fetch('/api/list_files?' + encodeURIComponent(edPortal.value), { cache: 'no-store' });
       const data = await res.json();
       if (data.ok === false) {
         tree.innerHTML = '';
@@ -624,6 +642,10 @@
       }
       edFiles = Array.isArray(data.files) ? data.files.map(String) : [];
       edDirs = Array.isArray(data.dirs) ? data.dirs.map(String) : [];
+
+      for (const d of knownDirs) {
+        if (!edDirs.includes(d)) edDirs.push(d);
+      }
 
       // First load / portal switch: expand top-level folders containing
       // files (same default as Cloud). Reloads keep the current expansion.
@@ -818,6 +840,8 @@
   edPortal.addEventListener('change', () => {
     if (!confirmDiscard()) return;
     expandedFolders = new Set();
+    knownDirs = new Set();
+    edCwd = 'content';
     openFile = null;
     edPath.textContent = 'No file open';
     edText.value = '';
@@ -828,6 +852,82 @@
   });
 
   edFilter.addEventListener('input', renderTree);
+
+  // ---------- new folder (shared modal) ----------
+  const folderModal = document.getElementById('folder-modal');
+  const fmName = document.getElementById('fm-name');
+  const fmParent = document.getElementById('fm-parent');
+  const fmErr = document.getElementById('fm-err');
+  const fmCreate = document.getElementById('fm-create');
+  let fmContext = null;   // { portal, parent, onDone }
+
+  function openFolderModal(ctx) {
+    fmContext = ctx;
+    fmName.value = '';
+    fmParent.textContent = ctx.parent;
+    fmErr.hidden = true;
+    folderModal.hidden = false;
+    setTimeout(() => fmName.focus(), 50);
+  }
+  function closeFolderModal() { folderModal.hidden = true; fmContext = null; }
+
+  document.getElementById('fm-close').addEventListener('click', closeFolderModal);
+  document.getElementById('fm-cancel').addEventListener('click', closeFolderModal);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !folderModal.hidden) closeFolderModal();
+  });
+  fmName.addEventListener('input', () => { fmErr.hidden = true; });
+  fmName.addEventListener('keydown', e => { if (e.key === 'Enter') submitFolder(); });
+
+  async function submitFolder() {
+    if (!fmContext) return;
+    const clean = fmName.value.trim().replace(/[\\/]/g, '');
+    if (!clean) { fmErr.textContent = 'Give the folder a name.'; fmErr.hidden = false; return; }
+
+    const target = fmContext.parent + '/' + clean;
+    fmCreate.disabled = true;
+    fmCreate.textContent = 'Creating\u2026';
+    try {
+      const q = encodeURIComponent(fmContext.portal) + '&' + encodeURIComponent(target);
+      const res = await fetch('/api/create_dir?' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) {
+        fmErr.textContent = data.stderr || 'Could not create folder';
+        fmErr.hidden = false;
+        return;
+      }
+      const done = fmContext.onDone;
+      closeFolderModal();
+      say('Created ' + clean);
+      if (done) await done(target);
+    } catch (err) {
+      fmErr.textContent = err.message || 'API unreachable';
+      fmErr.hidden = false;
+    } finally {
+      fmCreate.disabled = false;
+      fmCreate.textContent = 'Create folder';
+    }
+  }
+  fmCreate.addEventListener('click', submitFolder);
+
+  document.getElementById('ed-newfolder').addEventListener('click', () => {
+    if (!edPortal.value) { say('Pick a portal first'); return; }
+    openFolderModal({
+      portal: edPortal.value,
+      parent: edCwd || 'content',
+      onDone: async target => {
+        // expand every ancestor so the new folder is visible
+        const parts = target.split('/');
+        for (let i = 1; i <= parts.length; i++) {
+          expandedFolders.add(parts.slice(0, i).join('/'));
+        }
+        edCwd = target;
+        edFilter.value = '';
+        knownDirs.add(target);
+        await loadFiles();
+      }
+    });
+  });
 
   // ---------- new page modal ----------
   const npModal = document.getElementById('np-modal');
@@ -851,6 +951,7 @@
   }
 
   function npmFolder() {
+    if (edCwd && edCwd !== 'content') return edCwd + '/';
     return localStorage.getItem('desk.newPageFolder') || 'content/';
   }
 
@@ -1049,7 +1150,7 @@
     if (!mdPortal.value) return;
     mdGrid.innerHTML = '<div class="portal-empty">Loading media…</div>';
     try {
-      const res = await fetch('/api/list_files?' + encodeURIComponent(mdPortal.value));
+      const res = await fetch('/api/list_files?' + encodeURIComponent(mdPortal.value), { cache: 'no-store' });
       const data = await res.json();
       if (data.ok === false) {
         mdGrid.innerHTML = '<div class="portal-empty">' + (data.stderr || 'Could not load media.') + '</div>';
@@ -1057,10 +1158,7 @@
       }
       const files = Array.isArray(data.files) ? data.files.map(String) : [];
       const dirs = Array.isArray(data.dirs) ? data.dirs.map(String) : [];
-      mediaFiles = files
-        .filter(f => f.startsWith('public/'))
-        .filter(f => !f.endsWith('/.gitkeep'))
-        .sort();
+      mediaFiles = files.filter(f => f.startsWith('public/')).sort();
 
       const dirSet = new Set(dirs.filter(d => d === 'public' || d.startsWith('public/')));
       mediaFiles.forEach(f => {
@@ -1326,27 +1424,18 @@
   }
 
   // ---------- new folder ----------
-  document.getElementById('md-newfolder').addEventListener('click', async () => {
+  document.getElementById('md-newfolder').addEventListener('click', () => {
     if (!mdPortal.value) { say('Pick a portal first'); return; }
-    const name = window.prompt('New folder in ' + mediaCwd + ':', '');
-    if (!name) return;
-    const clean = name.trim().replace(/[\\/]/g, '');
-    if (!clean) { say('Invalid folder name'); return; }
-
-    const target = mediaCwd + '/' + clean;
-    try {
-      const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(target);
-      const res = await fetch('/api/create_dir?' + q);
-      const data = await apiJson(res);
-      if (data.ok === false) { say(data.stderr || 'Could not create folder'); return; }
-      say('Created ' + clean);
-      await loadMedia();
-      mediaCwd = target;
-      mdFolder.value = mediaCwd;
-      renderMedia();
-    } catch (err) {
-      say(err.message || 'API unreachable');
-    }
+    openFolderModal({
+      portal: mdPortal.value,
+      parent: mediaCwd,
+      onDone: async target => {
+        await loadMedia();
+        mediaCwd = target;
+        mdFolder.value = mediaCwd;
+        renderMedia();
+      }
+    });
   });
 
   // ---------- move a file into a folder ----------

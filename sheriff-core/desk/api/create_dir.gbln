@@ -31,9 +31,15 @@ for name in known
     xx
 xx
 
-is_public | false
+is_allowed | false
 if :starts_with(path, "public/")
-    is_public |= true
+    is_allowed |= true
+xx
+if :starts_with(path, "content/")
+    is_allowed |= true
+xx
+if :starts_with(path, "blog/")
+    is_allowed |= true
 xx
 
 if portal == ""
@@ -56,8 +62,8 @@ elif :has(path, "..")
     out | { "ok": false, "stderr": "path traversal not allowed" }
     :say(:json_stringify(out))
 
-elif is_public == false
-    out | { "ok": false, "stderr": "folders can only be created under public/" }
+elif is_allowed == false
+    out | { "ok": false, "stderr": "folders can only be created under content/, blog/, or public/" }
     :say(:json_stringify(out))
 
 else
@@ -68,7 +74,6 @@ else
         :say(:json_stringify(out))
     else
         :create_dir!(full)
-        :write_text!("{full}/.gitkeep", "")
 
         out | { "ok": true, "path": path }
         :say(:json_stringify(out))
