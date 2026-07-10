@@ -5,6 +5,8 @@ layout: docs
 meta_kind: tutorial
 meta_type: docs
 summary: A sticky “reference card” that swaps images when you hover or click focus links.
+aliases: [focus panel]
+canonical: focus-panels
 ^^^^
 
 [[focuspanel:blog/mtg-goblin-guide.jpg|full|right|Goblin Guide]]

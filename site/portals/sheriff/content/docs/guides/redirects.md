@@ -6,6 +6,7 @@ meta_kind: guide
 meta_type: docs
 summary: Use aliases to redirect old page names and alternate wikilinks to the real page.
 gloss: Redirects let old page names and alternate wikilinks point to the real page.
+canonical: redirects
 ^^^^
 
 A redirect sends an old page name or alternate page name to the real page.

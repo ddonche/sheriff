@@ -1,0 +1,1120 @@
+/// api/file.gbln
+/// All file operations inside a portal. The first query segment is the verb;
+/// everything after it is the original action's query string, verbatim.
+///
+///   /api/file?list&{portal}
+///   /api/file?read&portal={portal}&path={path}
+///   /api/file?write&portal={portal}&path={path}    body = file contents
+///   /api/file?delete&{portal}&{path}
+///   /api/file?move&{portal}&{from}&{to}
+///   /api/file?upload&{portal}&{path}               body = the file
+///   /api/file?mkdir&{portal}&{path}
+///
+/// Replaces list_files, read_file, write_file, delete_file, move_file,
+/// upload_file, create_dir. Each verb is the body of its original file, moved
+/// into an act and otherwise unchanged. read and write keep their named
+/// portal=/path= query form; the rest stay positional. They were never
+/// consistent, and consolidating is not the place to change that.
+///
+/// Only three acts were shared: parse_query_value, normalize_rel_path, and
+/// has_traversal were byte-identical across their source files. is_allowed_path
+/// and is_managed_path each differ between their two sources, so both keep a
+/// source-scoped name.
+
+/// ---------- shared, byte-identical across the originals ----------
+
+act parse_query_value(raw, key)
+    part | :keep_after(raw, "{key}=")
+    if part == ""
+        return ""
+    xx
+
+    return :keep_before(part, "&")
+xx
+
+act normalize_rel_path(p)
+    if p.nix?
+        return ""
+    xx
+
+    out | :trim("" + p)
+    :update_where!(out, "\\", "/")
+    :update_where!(out, "%2F", "/")
+    :update_where!(out, "%2f", "/")
+    :update_where!(out, "%20", " ")
+    return out
+xx
+
+act has_traversal(p)
+    if :has(p, "..")
+        return true
+    xx
+
+    return false
+xx
+
+/// ---------- read_file.gbln ----------
+
+act read_allowed_path(path)
+    p | normalize_rel_path(path)
+
+    if p == "config.yall" => return true
+    if p == "nav.yall" => return true
+    if p == "assets.yall" => return true
+    if p == "widgets.yall" => return true
+
+    if :starts_with(p, "themes/") and :ends_with(p, "/override.css")
+        return true
+    xx
+
+    if :starts_with(p, "themes/") and :ends_with(p, "/templates.yall")
+        return true
+    xx
+
+    if :starts_with(p, "content/")
+        return true
+    xx
+
+    if :starts_with(p, "blog/")
+        return true
+    xx
+
+    if :starts_with(p, "public/")
+        return true
+    xx
+
+    return false
+xx
+
+act do_read(raw)
+    portal | :trim(parse_query_value(raw, "portal"))
+    path   | normalize_rel_path(parse_query_value(raw, "path"))
+
+    portal_check | "" + portal
+    :update_where!(portal_check, "..", "")
+    :update_where!(portal_check, "/", "")
+    :update_where!(portal_check, "\\", "")
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    elif path == ""
+        out | {
+          "ok": false,
+          "stderr": "missing path",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal_check != portal
+        out | {
+          "ok": false,
+          "stderr": "invalid portal",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    elif :starts_with(path, "/")
+        out | {
+          "ok": false,
+          "stderr": "absolute paths not allowed",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    elif has_traversal(path)
+        out | {
+          "ok": false,
+          "stderr": "path traversal not allowed",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    elif read_allowed_path(path) == false
+        out | {
+          "ok": false,
+          "stderr": "file not editable",
+          "path": "",
+          "content": ""
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        root_base | :trim(:env("SHERIFF_ROOT"))
+
+        if root_base == ""
+            root_base |= ".."
+        xx
+
+        root | "{root_base}/site/portals/{portal}"
+
+        if :file_exists(root) == false
+            out | {
+              "ok": false,
+              "stderr": "portal not found",
+              "path": "",
+              "content": ""
+            }
+
+            :say(:json_stringify(out))
+
+        else
+            full | "{root}/{path}"
+
+            if :file_exists(full) == false
+                out | {
+                  "ok": false,
+                  "stderr": "file not found",
+                  "path": path,
+                  "content": ""
+                }
+
+                :say(:json_stringify(out))
+
+            else
+                content | :read_text(full)
+
+                out | {
+                  "ok": true,
+                  "path": path,
+                  "content": content
+                }
+
+                :say(:json_stringify(out))
+            xx
+        xx
+    xx
+xx
+
+/// ---------- write_file.gbln ----------
+
+act has_unsafe_chars(p)
+    if :has(p, " ") => return true
+    if :has(p, ";") => return true
+    if :has(p, "&") => return true
+    if :has(p, "|") => return true
+    if :has(p, "$") => return true
+    if :has(p, "`") => return true
+    if :has(p, "\"") => return true
+    if :has(p, "'") => return true
+    if :has(p, "<") => return true
+    if :has(p, ">") => return true
+    if :has(p, "(") => return true
+    if :has(p, ")") => return true
+    if :has(p, "%") => return true
+    if :has(p, "^") => return true
+
+    return false
+xx
+
+act write_allowed_path(path)
+    p | normalize_rel_path(path)
+
+    if p == "config.yall" => return true
+    if p == "nav.yall" => return true
+    if p == "assets.yall" => return true
+    if p == "widgets.yall" => return true
+
+    if :starts_with(p, "themes/") and :ends_with(p, "/override.css")
+        return true
+    xx
+
+    if :starts_with(p, "themes/") and :ends_with(p, "/templates.yall")
+        return true
+    xx
+
+    if :starts_with(p, "content/") and :ends_with(p, ".md")
+        return true
+    xx
+
+    if :starts_with(p, "content/") and :ends_with(p, ".html")
+        return true
+    xx
+
+    if :starts_with(p, "blog/")
+        return true
+    xx
+
+    if :starts_with(p, "public/")
+        return true
+    xx
+
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
+    return false
+xx
+
+act is_no_build(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
+    return false
+xx
+
+act is_page_build(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "content/") and :ends_with(p, ".md")
+        return true
+    xx
+
+    return false
+xx
+
+act page_rel_path(path)
+    p | normalize_rel_path(path)
+    return :keep_after(p, "content/")
+xx
+
+act do_write(raw)
+    portal  | :trim(parse_query_value(raw, "portal"))
+    path    | normalize_rel_path(parse_query_value(raw, "path"))
+    content | :env("GOBLIN_BODY")
+
+    if content == ""
+        req_file | :trim(:env("GOBLIN_REQUEST_FILE"))
+        if req_file != ""
+            content |= :read_text(req_file)
+        xx
+    xx
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "missing portal"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "unknown portal: {portal}"
+        }
+
+        :say(:json_stringify(out))
+
+    elif path == ""
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "missing path"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :starts_with(path, "/")
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "absolute path not allowed"
+        }
+
+        :say(:json_stringify(out))
+
+    elif has_traversal(path)
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "path traversal not allowed"
+        }
+
+        :say(:json_stringify(out))
+
+    elif write_allowed_path(path) == false
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "file not editable"
+        }
+
+        :say(:json_stringify(out))
+
+    elif content.nix?
+        out | {
+          "ok": false,
+          "code": nil,
+          "stdout": "",
+          "stderr": "missing request body"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        root      | "{root_base}/site/portals/{portal}"
+        core_root | "{root_base}/sheriff-core"
+
+        if :file_exists(root) == false
+            out | {
+              "ok": false,
+              "code": nil,
+              "stdout": "",
+              "stderr": "portal not found"
+            }
+
+            :say(:json_stringify(out))
+
+        else
+            full | "{root}/{path}"
+
+            slash_positions | :find_all(full, "/")
+            for slash_pos in slash_positions
+                dir_part | full[0:slash_pos]
+                if dir_part.nix? == false
+                    :create_dir!(dir_part)
+                xx
+            xx
+
+            :write_text!(full, content)
+
+            if is_no_build(path)
+                out | {
+                  "ok": true,
+                  "code": 0,
+                  "stdout": "",
+                  "stderr": ""
+                }
+                :say(:json_stringify(out))
+            elif is_page_build(path)
+                rel | page_rel_path(path)
+
+                if has_unsafe_chars(rel)
+                    result | :run_cmd("goblin run main.gbln {portal}", core_root)
+                    :say(result)
+                else
+                    result | :run_cmd("goblin run main.gbln {portal} page {rel}", core_root)
+                    :say(result)
+                xx
+            else
+                result | :run_cmd("goblin run main.gbln {portal}", core_root)
+                :say(result)
+            xx
+        xx
+    xx
+xx
+
+/// ---------- delete_file.gbln ----------
+
+act delete_managed_path(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "content/")
+        return true
+    xx
+
+    if :starts_with(p, "blog/")
+        return true
+    xx
+
+    if :starts_with(p, "public/")
+        return true
+    xx
+
+    if :starts_with(p, "patterns/") and :ends_with(p, ".txt")
+        return true
+    xx
+
+    return false
+xx
+
+act do_delete(query)
+    parts | :split(query, "&")
+
+    portal | :trim(parts[0])
+    path   | normalize_rel_path(parts[1])
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    root | "{root_base}/site/portals/{portal}"
+    full_path | "{root}/{path}"
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | {
+          "ok": false,
+          "stderr": "unknown portal: {portal}"
+        }
+
+        :say(:json_stringify(out))
+
+    elif path == ""
+        out | {
+          "ok": false,
+          "stderr": "missing path"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :starts_with(path, "/")
+        out | {
+          "ok": false,
+          "stderr": "absolute paths not allowed"
+        }
+
+        :say(:json_stringify(out))
+
+    elif has_traversal(path)
+        out | {
+          "ok": false,
+          "stderr": "path traversal not allowed"
+        }
+
+        :say(:json_stringify(out))
+
+    elif delete_managed_path(path) == false
+        out | {
+          "ok": false,
+          "stderr": "file not deletable"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :file_exists(full_path) == false
+        out | {
+          "ok": false,
+          "stderr": "file not found"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        :delete_path!(full_path)
+
+        out | {
+          "ok": true,
+          "path": path
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- move_file.gbln ----------
+
+act move_managed_path(path)
+    p | normalize_rel_path(path)
+
+    if :starts_with(p, "content/")
+        return true
+    xx
+
+    if :starts_with(p, "blog/")
+        return true
+    xx
+
+    if :starts_with(p, "public/")
+        return true
+    xx
+
+    return false
+xx
+
+act is_bad_path(path)
+    if path == ""
+        return true
+    xx
+
+    if :starts_with(path, "/")
+        return true
+    xx
+
+    if has_traversal(path)
+        return true
+    xx
+
+    if move_managed_path(path) == false
+        return true
+    xx
+
+    return false
+xx
+
+act do_move(query)
+    parts | :split(query, "&")
+
+    portal | :trim(parts[0])
+    from   | normalize_rel_path(parts[1])
+    to     | normalize_rel_path(parts[2])
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    root      | "{root_base}/site/portals/{portal}"
+    full_from | "{root}/{from}"
+    full_to   | "{root}/{to}"
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | {
+          "ok": false,
+          "stderr": "unknown portal: {portal}"
+        }
+
+        :say(:json_stringify(out))
+
+    elif is_bad_path(from)
+        out | {
+          "ok": false,
+          "stderr": "invalid source path"
+        }
+
+        :say(:json_stringify(out))
+
+    elif is_bad_path(to)
+        out | {
+          "ok": false,
+          "stderr": "invalid destination path"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :file_exists(full_from) == false
+        out | {
+          "ok": false,
+          "stderr": "source file not found"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :file_exists(full_to)
+        out | {
+          "ok": false,
+          "stderr": "destination already exists"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        slash_positions | :find_all(full_to, "/")
+        for slash_pos in slash_positions
+            dir_part | full_to[0:slash_pos]
+            if dir_part.nix? == false
+                :create_dir!(dir_part)
+            xx
+        xx
+
+        :copy_file!(full_from, full_to)
+        :delete_path!(full_from)
+
+        out | {
+          "ok": true,
+          "from": from,
+          "to": to
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- upload_file.gbln ----------
+
+act do_upload(query)
+    /// api/upload_file.gbln
+    /// /api/upload_file?{portal}&{subpath}
+    /// Body arrives via GOBLIN_REQUEST_FILE. Uploads restricted to public/.
+
+
+    parts | :split(query, "&")
+
+    portal  | :trim(parts[0])
+    subpath | normalize_rel_path(parts[1])
+    src     | :env("GOBLIN_REQUEST_FILE")
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal"
+        }
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | {
+          "ok": false,
+          "stderr": "unknown portal: {portal}"
+        }
+        :say(:json_stringify(out))
+
+    elif subpath == ""
+        out | {
+          "ok": false,
+          "stderr": "missing path"
+        }
+        :say(:json_stringify(out))
+
+    elif :starts_with(subpath, "/")
+        out | {
+          "ok": false,
+          "stderr": "absolute paths not allowed"
+        }
+        :say(:json_stringify(out))
+
+    elif :has(subpath, "..")
+        out | {
+          "ok": false,
+          "stderr": "path traversal not allowed"
+        }
+        :say(:json_stringify(out))
+
+    elif :starts_with(subpath, "public/") == false
+        out | {
+          "ok": false,
+          "stderr": "uploads must go under public/"
+        }
+        :say(:json_stringify(out))
+
+    elif src == ""
+        out | {
+          "ok": false,
+          "stderr": "missing upload body"
+        }
+        :say(:json_stringify(out))
+
+    else
+        root     | :path_join(root_base, "site/portals/{portal}")
+        dest     | :path_join(root, subpath)
+        dest_dir | :dirname(dest)
+
+        :create_dir!(dest_dir)
+        :copy_file!(src, dest)
+
+        filename | :basename(subpath)
+
+        out | {
+          "ok": true,
+          "filename": filename,
+          "path": subpath,
+          "url": "/{subpath}"
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- create_dir.gbln ----------
+
+act do_mkdir(query)
+    /// api/create_dir.gbln
+    /// /api/create_dir?{portal}&{path}
+    /// Creates a folder under public/. Drops a .gitkeep so the folder persists
+    /// and shows up in listings even while empty.
+
+    parts | :split(query, "&")
+
+    portal | :trim(parts[0])
+    path   | :trim(parts[1])
+
+    :update_where!(path, "\\", "/")
+    :update_where!(path, "%2F", "/")
+    :update_where!(path, "%2f", "/")
+    :update_where!(path, "%20", " ")
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    is_allowed | false
+    if :starts_with(path, "public/")
+        is_allowed |= true
+    xx
+    if :starts_with(path, "content/")
+        is_allowed |= true
+    xx
+    if :starts_with(path, "blog/")
+        is_allowed |= true
+    xx
+
+    if portal == ""
+        out | { "ok": false, "stderr": "missing portal" }
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | { "ok": false, "stderr": "unknown portal: {portal}" }
+        :say(:json_stringify(out))
+
+    elif path == ""
+        out | { "ok": false, "stderr": "missing path" }
+        :say(:json_stringify(out))
+
+    elif :starts_with(path, "/")
+        out | { "ok": false, "stderr": "absolute path not allowed" }
+        :say(:json_stringify(out))
+
+    elif :has(path, "..")
+        out | { "ok": false, "stderr": "path traversal not allowed" }
+        :say(:json_stringify(out))
+
+    elif is_allowed == false
+        out | { "ok": false, "stderr": "folders can only be created under content/, blog/, or public/" }
+        :say(:json_stringify(out))
+
+    else
+        full | "{root_base}/site/portals/{portal}/{path}"
+
+        if :file_exists(full)
+            out | { "ok": false, "stderr": "folder already exists" }
+            :say(:json_stringify(out))
+        else
+            :create_dir!(full)
+
+            out | { "ok": true, "path": path }
+            :say(:json_stringify(out))
+        xx
+    xx
+xx
+
+/// ---------- list_files.gbln ----------
+
+act collect_dirs(root, base_rel)
+    out | []
+
+    dirs | :list_dirs("{root}/{base_rel}")
+
+    for name in dirs
+        rel | "{base_rel}/{name}"
+        :put_last!(out, rel)
+
+        nested | collect_dirs(root, rel)
+
+        for sub in nested
+            :put_last!(out, sub)
+        xx
+    xx
+
+    send out
+xx
+
+act do_list(query)
+    portal | :trim(query)
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    found | false
+
+    for name in known
+        if name == portal
+            found |= true
+        xx
+    xx
+
+    root | "{root_base}/site/portals/{portal}"
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal name",
+          "files": [],
+          "dirs": []
+        }
+
+        :say(:json_stringify(out))
+
+    elif found == false
+        out | {
+          "ok": false,
+          "stderr": "unknown portal: {portal}",
+          "files": [],
+          "dirs": []
+        }
+
+        :say(:json_stringify(out))
+
+    elif :file_exists(root) == false
+        out | {
+          "ok": false,
+          "stderr": "portal not found",
+          "files": [],
+          "dirs": []
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        files | []
+        dirs  | []
+
+        content_root | "{root}/content"
+        if :file_exists(content_root)
+            markdown_files | :walk(content_root, "**/*")
+
+            for file in markdown_files
+                file_norm | file
+                :update_where!(file_norm, "\\", "/")
+
+                prefix | "{root}/"
+                :update_where!(prefix, "\\", "/")
+                rel | :keep_after(file_norm, prefix)
+
+                if rel == ..
+                    rel |= file_norm
+                xx
+
+                :put_last!(files, rel)
+            xx
+
+            content_dirs | collect_dirs(root, "content")
+
+            for d in content_dirs
+                :put_last!(dirs, d)
+            xx
+        xx
+
+        blog_root | "{root}/blog"
+        if :file_exists(blog_root)
+            blog_files | :walk(blog_root, "**/*")
+
+            for file in blog_files
+                file_norm | file
+                :update_where!(file_norm, "\\", "/")
+
+                prefix | "{root}/"
+                :update_where!(prefix, "\\", "/")
+                rel | :keep_after(file_norm, prefix)
+
+                if rel == ..
+                    rel |= file_norm
+                xx
+
+                :put_last!(files, rel)
+            xx
+
+            blog_dirs | collect_dirs(root, "blog")
+
+            for d in blog_dirs
+                :put_last!(dirs, d)
+            xx
+        xx
+
+        public_root | "{root}/public"
+        if :file_exists(public_root)
+            public_files | :walk(public_root, "**/*")
+
+            for file in public_files
+                file_norm | file
+                :update_where!(file_norm, "\\", "/")
+
+                prefix | "{root}/"
+                :update_where!(prefix, "\\", "/")
+                rel | :keep_after(file_norm, prefix)
+
+                if rel == ..
+                    rel |= file_norm
+                xx
+
+                :put_last!(files, rel)
+            xx
+
+            public_dirs | collect_dirs(root, "public")
+
+            for d in public_dirs
+                :put_last!(dirs, d)
+            xx
+        xx
+
+        root_configs | [
+          "config.yall",
+          "nav.yall",
+          "assets.yall",
+          "widgets.yall"
+        ]
+
+        for name in root_configs
+            full | "{root}/{name}"
+
+            if :file_exists(full)
+                :put_last!(files, name)
+            xx
+        xx
+
+        theme_root | "{root}/themes"
+
+        if :file_exists(theme_root)
+            theme_files | :walk(theme_root, "**/*")
+
+            for file in theme_files
+                file_norm | file
+                :update_where!(file_norm, "\\", "/")
+
+                prefix | "{root}/"
+                :update_where!(prefix, "\\", "/")
+
+                rel | :keep_after(file_norm, prefix)
+
+                if rel == ..
+                    rel |= file_norm
+                xx
+
+                :put_last!(files, rel)
+            xx
+        xx
+
+        out | {
+          "ok": true,
+          "files": files,
+          "dirs": dirs
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- dispatch ----------
+
+raw | :trim(:env("GOBLIN_QUERY_STRING"))
+
+verb | :keep_before(raw, "&")
+rest | :keep_after(raw, "&")
+
+if verb == "list"
+    do_list(rest)
+
+elif verb == "read"
+    do_read(rest)
+
+elif verb == "write"
+    do_write(rest)
+
+elif verb == "delete"
+    do_delete(rest)
+
+elif verb == "move"
+    do_move(rest)
+
+elif verb == "upload"
+    do_upload(rest)
+
+elif verb == "mkdir"
+    do_mkdir(rest)
+
+else
+    out | {
+      "ok": false,
+      "stderr": "unknown verb: {verb}"
+    }
+
+    :say(:json_stringify(out))
+xx

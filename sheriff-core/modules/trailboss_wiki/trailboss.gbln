@@ -682,7 +682,8 @@ act lookup_href_by_slug(ctx, portal, slug)
 
     for meta in routes
         if meta.nix? => skip
-        if meta["slug"] == slug
+        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        if meta_slug == slug
             href_abs | meta["href"]
             if !href_abs.nix? => send href_abs
         xx
@@ -710,7 +711,8 @@ act lookup_gloss_by_slug(ctx, portal, slug)
 
     for meta in routes
         if meta.nix? => skip
-        if meta["slug"] == slug
+        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        if meta_slug == slug
             if :has(meta, "gloss")
                 g | meta["gloss"] 
                 if !g.nix? => send g
@@ -1407,12 +1409,35 @@ act publish_canonical_link(ctx)
     body   | ctx["body"] ?? => send ctx
 
     src_norm | path_norm(src)
-
-    /// WORKING SLUG DERIVATION (the one you already had)
     stem_name | :stem(src_norm)
-    slug      | normalize_to_slug(stem_name) ?? => send ctx
+    slug      | normalize_to_slug(stem_name) ?? ..
 
     canonical | "[[{slug}]]"
+    canonical_slug, wikilink | ..
+
+    href | ctx["href"] ?? ..
+    if !href.nix?
+        routes | load_routes_for_portal(ctx, portal)
+        if :valtype(routes) == "array"
+            for meta in routes
+                if meta.nix? => skip
+
+                route_href | meta["href"] ?? ..
+                if route_href == href
+                    canonical |= meta["canonical"] ?? ..
+                    if canonical.nix?
+                        canonical_slug |= meta["canonical_slug"] ?? ..
+                        if canonical_slug.nix?
+                            canonical_slug |= meta["slug"] ?? slug
+                        xx
+                        wikilink |= "[[" + canonical_slug + "]]"
+                        :update!(canonical, wikilink)
+                    xx
+                    stop
+                xx
+            xx
+        xx
+    xx
 
     html | """
     <div class="sheriff-canon-wrap">

@@ -6,6 +6,7 @@ meta_kind: tutorial
 meta_type: docs
 summary: Add citations and endnotes using footnotes — with clear copy/paste examples and rendered output.
 gloss: How to add reference citations and footnotes.
+canonical: footnotes
 ^^^^
 
 Footnotes are **built into Sheriff** via the Markdown renderer (Comrak).

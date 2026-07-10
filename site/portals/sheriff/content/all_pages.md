@@ -17,13 +17,23 @@ summary: Alphabetical index of all pages.
 ## B
 * [[building-sites|Building Sites]]
 
+## I
+* [[categories-images|Images]]
+
 ## C
-* [[categories|Categories]]
+* [[categories-index|Categories]]
+
+## N
+* [[categories-navigation|Navigation]]
+
+## P
+* [[categories-patterns|Patterns]]
+
+## C
 * [[categories|Categories]]
 * [[changelog|Changelog]]
 
 ## F
-* [[focus-panels|Focus Panels]]
 * [[footnotes|Footnotes & References]]
 
 ## G
@@ -31,16 +41,11 @@ summary: Alphabetical index of all pages.
 
 ## I
 * [[images|Images]]
-* [[images|Images]]
 
 ## H
 * [[mtg-horde-format|Horde Format Official Rules]]
 
-## N
-* [[navigation|Navigation]]
-
 ## P
-* [[patterns|Patterns]]
 * [[patterns|Patterns]]
 
 ## R
@@ -53,3 +58,6 @@ summary: Alphabetical index of all pages.
 ## W
 * [[wanted-pages|Wanted Pages]]
 * [[why-i-made-sheriff|Why I Made Sheriff]]
+
+## F
+* [[focus-panels|Focus Panels]]

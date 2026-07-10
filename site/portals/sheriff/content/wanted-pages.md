@@ -58,19 +58,6 @@ summary: Missing wiki pages linked from this site.
 <details class="sheriff-wanted-item">
   <summary class="sheriff-wanted-summary">
     <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
-    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">focus-panel</a></span>
-    <span class="sheriff-wanted-count">2 incoming links</span>
-    <span class="sheriff-wanted-sources">1 source page</span>
-  </summary>
-  <div class="sheriff-wanted-source-panel">
-<a class="sheriff-link" href="/docs/missing.html">Missing Page</a>
-  </div>
-</details>
-
-
-<details class="sheriff-wanted-item">
-  <summary class="sheriff-wanted-summary">
-    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
     <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="/docs/missing.html">links</a></span>
     <span class="sheriff-wanted-count">2 incoming links</span>
     <span class="sheriff-wanted-sources">1 source page</span>

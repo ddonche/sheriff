@@ -5,6 +5,7 @@ layout: docs
 meta_kind: tutorial
 meta_type: docs
 summary: How to build an entire Sheriff site, a single portal, or an individual page.
+canonical: building-sites
 ^^^^
 
 Sheriff can build content at **three different levels** depending on what you need:

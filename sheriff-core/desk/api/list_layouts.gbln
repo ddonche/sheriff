@@ -1,0 +1,55 @@
+/// api/list_layouts.gbln
+/// /api/list_layouts?{theme}
+/// Lists the layout names available in a theme. A layout's name is its
+/// filename stem -- outpost/layouts/docs.html is the "docs" layout.
+
+theme | :trim(:env("GOBLIN_QUERY_STRING"))
+
+root_base | :trim(:env("SHERIFF_ROOT"))
+
+if root_base == ""
+    root_base |= ".."
+xx
+
+layouts_dir | "{root_base}/sheriff-core/themes/{theme}/layouts"
+
+if theme == ""
+    out | {
+      "ok": false,
+      "stderr": "missing theme name",
+      "layouts": []
+    }
+
+    :say(:json_stringify(out))
+
+elif :file_exists(layouts_dir) == false
+    out | {
+      "ok": false,
+      "stderr": "no layouts directory: {layouts_dir}",
+      "layouts": []
+    }
+
+    :say(:json_stringify(out))
+
+else
+    found | :walk(layouts_dir, "**/*")
+
+    layouts | []
+
+    for file in found
+        name | :basename(file)
+        stem | :trim(:keep_before(name, "."))
+
+        if stem != ""
+            :put_last!(layouts, stem)
+        xx
+    xx
+
+    out | {
+      "ok": true,
+      "theme": theme,
+      "layouts": layouts
+    }
+
+    :say(:json_stringify(out))
+xx

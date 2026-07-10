@@ -7,6 +7,7 @@ meta_type: docs
 summary: Use reusable pattern blocks for infoboxes, navboxes, and other structured wiki page elements.
 gloss: Patterns are reusable structured blocks that can be pasted into pages or injected with Sheriff tokens.
 categories: [Patterns]
+canonical: patterns
 ^^^^
 
 Patterns are reusable structured blocks for wiki pages.

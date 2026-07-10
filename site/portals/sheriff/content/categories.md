@@ -7,6 +7,7 @@ meta_type: generated
 generated_by: categories
 summary: Index of all categories.
 categories: []
+canonical: categories-index
 ^^^^
 
 * [[Images]] - 1 page

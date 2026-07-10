@@ -5,6 +5,7 @@ layout: docs
 meta_kind: docs
 meta_type: guides
 summary: How themes, layouts, and overrides work in Sheriff.
+canonical: themes-layout
 ^^^^
 
 Sheriff’s theme system is intentionally simple, predictable, and non-magical.

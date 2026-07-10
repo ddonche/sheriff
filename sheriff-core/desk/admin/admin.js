@@ -261,6 +261,9 @@
       node.querySelector('.portal-build').addEventListener('click', e => {
         buildPortal(name, e.currentTarget);
       });
+      node.querySelector('.portal-rename').addEventListener('click', () => {
+        openRenamePortal(name);
+      });
       node.querySelector('.portal-delete').addEventListener('click', () => {
         deletePortal(name);
       });
@@ -296,7 +299,7 @@
     npCreate.disabled = true;
     npCreate.textContent = 'Creating\u2026';
     try {
-      const res = await fetch('/api/create_portal?' + encodeURIComponent(name)
+      const res = await fetch('/api/portal?create&' + encodeURIComponent(name)
         + '&outpost&' + encodeURIComponent(name));
       const data = await apiJson(res);
       if (data.ok === false) {
@@ -318,6 +321,112 @@
     }
   }
 
+  // ---------- rename a portal ----------
+  const rpModal = document.getElementById('rename-modal');
+  const rpName = document.getElementById('rp-name');
+  const rpOld = document.getElementById('rp-old');
+  const rpErr = document.getElementById('rp-err');
+  const rpBtn = document.getElementById('rp-rename');
+  let rpTarget = null;
+
+  function rpError(msg) {
+    rpErr.textContent = msg;
+    rpErr.hidden = false;
+  }
+
+  function openRenamePortal(name) {
+    rpTarget = name;
+    rpOld.textContent = name;
+    rpName.value = name;
+    rpErr.hidden = true;
+    rpBtn.disabled = false;
+    rpBtn.textContent = 'Rename';
+    rpModal.hidden = false;
+    setTimeout(() => { rpName.focus(); rpName.select(); }, 50);
+  }
+
+  function closeRenamePortal() {
+    rpModal.hidden = true;
+    rpTarget = null;
+  }
+
+  document.getElementById('rp-close').addEventListener('click', closeRenamePortal);
+  document.getElementById('rp-cancel').addEventListener('click', closeRenamePortal);
+  rpName.addEventListener('input', () => { rpErr.hidden = true; });
+  rpName.addEventListener('keydown', e => { if (e.key === 'Enter') renamePortal(); });
+  rpBtn.addEventListener('click', renamePortal);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !rpModal.hidden) closeRenamePortal();
+  });
+
+  async function renamePortal() {
+    const from = rpTarget;
+    const to = rpName.value.trim();
+
+    if (!from) return;
+    if (!to) { rpError('Enter a new name.'); return; }
+    if (to === from) { rpError('That is the current name.'); return; }
+    if (!PORTAL_NAME_RE.test(to)) {
+      rpError('Lowercase letters, numbers, and hyphens only.');
+      return;
+    }
+    if (RESERVED_PORTALS.has(to)) {
+      rpError('"' + to + '" is reserved by Sheriff Desk.');
+      return;
+    }
+    if (portalNames.includes(to)) { rpError('A portal named ' + to + ' already exists.'); return; }
+    if (!confirmDiscard()) return;
+
+    rpBtn.disabled = true;
+    rpBtn.textContent = 'Renaming\u2026';
+    try {
+      const q = encodeURIComponent(from) + '&' + encodeURIComponent(to);
+      const res = await fetch('/api/portal?rename&' + q);
+      const data = await apiJson(res);
+      if (data.ok === false) {
+        rpError(String(data.stderr || 'Rename failed').trim().slice(0, 160));
+        rpBtn.disabled = false;
+        rpBtn.textContent = 'Rename';
+        return;
+      }
+
+      closeRenamePortal();
+      say('Renamed ' + from + ' to ' + to);
+
+      // The editor was pointed at a portal that no longer exists under that name.
+      if (edPortal.value === from) {
+        openFile = null;
+        edFiles = [];
+        edDirs = [];
+        knownDirs = new Set();
+        edCwd = 'content';
+        expandedFolders = new Set();
+        edText.value = '';
+        edText.disabled = true;
+        setDirty(false);
+        edPath.textContent = 'No file open';
+        editorPendingPortal = to;
+      }
+
+      await loadPortals();
+      renderManageList();
+
+      // dist/{from} was discarded, so the portal is unserved until this finishes.
+      say('Rebuilding ' + to + '\u2026');
+      const b = await fetch('/api/build?' + encodeURIComponent(to));
+      const bd = await apiJson(b);
+      if (buildFailed(bd)) {
+        say('Renamed, but the rebuild failed. Build it from its card.');
+        return;
+      }
+      say('Renamed and rebuilt ' + to);
+    } catch (err) {
+      rpError(err.message || 'API unreachable');
+      rpBtn.disabled = false;
+      rpBtn.textContent = 'Rename';
+    }
+  }
+
   async function deletePortal(name) {
     const typed = window.prompt(
       'This deletes the portal source AND its built output. It cannot be undone.\n\n'
@@ -327,8 +436,8 @@
     if (typed.trim() !== name) { say('Name did not match \u2014 nothing deleted'); return; }
 
     try {
-      const res = await fetch('/api/delete_portal?' + encodeURIComponent(name));
-      const data = await res.json();
+      const res = await fetch('/api/portal?delete&' + encodeURIComponent(name));
+      const data = await apiJson(res);
       if (data.ok === false) {
         say(data.stderr || 'Delete failed');
         return;
@@ -628,7 +737,7 @@
     if (!edPortal.value) return;
     tree.innerHTML = '<div class="tree-msg">Loading files\u2026</div>';
     try {
-      const res = await fetch('/api/list_files?' + encodeURIComponent(edPortal.value), { cache: 'no-store' });
+      const res = await fetch('/api/file?list&' + encodeURIComponent(edPortal.value), { cache: 'no-store' });
       const data = await res.json();
       if (data.ok === false) {
         tree.innerHTML = '';
@@ -669,7 +778,7 @@
       const q = encodeURIComponent(edPortal.value)
         + '&' + encodeURIComponent(srcPath)
         + '&' + encodeURIComponent(destPath);
-      const res = await fetch('/api/move_file?' + q);
+      const res = await fetch('/api/file?move&' + q);
       const data = await res.json();
       if (data.ok === false) {
         say(data.stderr || 'Move failed');
@@ -709,7 +818,7 @@
     if (!window.confirm('Delete "' + path + '"? This cannot be undone.')) return;
     try {
       const q = encodeURIComponent(edPortal.value) + '&' + encodeURIComponent(path);
-      const res = await fetch('/api/delete_file?' + q);
+      const res = await fetch('/api/file?delete&' + q);
       const data = await res.json();
       if (data.ok === false) {
         say(data.stderr || 'Delete failed');
@@ -772,7 +881,7 @@
     setStatus('');
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(path);
-      const res = await fetch('/api/read_file?' + q);
+      const res = await fetch('/api/file?read&' + q);
       const data = await res.json();
       if (data.ok === false) {
         say(data.stderr || 'Could not open file');
@@ -798,7 +907,7 @@
     const started = Date.now();
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(openFile);
-      const res = await fetch('/api/write_file?' + q, {
+      const res = await fetch('/api/file?write&' + q, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: edText.value
@@ -889,7 +998,7 @@
     fmCreate.textContent = 'Creating\u2026';
     try {
       const q = encodeURIComponent(fmContext.portal) + '&' + encodeURIComponent(target);
-      const res = await fetch('/api/create_dir?' + q);
+      const res = await fetch('/api/file?mkdir&' + q);
       const data = await apiJson(res);
       if (data.ok === false) {
         fmErr.textContent = data.stderr || 'Could not create folder';
@@ -933,10 +1042,9 @@
   const npModal = document.getElementById('np-modal');
   const npmTitle = document.getElementById('npm-title');
   const npmPath = document.getElementById('npm-path');
+  const npmFolderSel = document.getElementById('npm-folder');
   const npmLayout = document.getElementById('npm-layout');
   const npmAuthor = document.getElementById('npm-author');
-  const npmSummary = document.getElementById('npm-summary');
-  const npmGloss = document.getElementById('npm-gloss');
   const npmBlog = document.getElementById('npm-blog');
   const npmAvatar = document.getElementById('npm-avatar');
   const npmThumb = document.getElementById('npm-thumb');
@@ -950,9 +1058,21 @@
     return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
-  function npmFolder() {
-    if (edCwd && edCwd !== 'content') return edCwd + '/';
-    return localStorage.getItem('desk.newPageFolder') || 'content/';
+  // Every folder a page may live in, drawn from the tree's own dir list.
+  // Defaults to content, never to whatever folder was last clicked.
+  function npmLoadFolders() {
+    npmFolderSel.innerHTML = '';
+    const folders = ['content'];
+    for (const d of edDirs) {
+      if (d === 'content' || d.startsWith('content/')) folders.push(d);
+    }
+    for (const name of [...new Set(folders)].sort()) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name + '/';
+      npmFolderSel.appendChild(opt);
+    }
+    npmFolderSel.value = 'content';
   }
 
   function todayStr() {
@@ -966,15 +1086,38 @@
     npmErr.hidden = false;
   }
 
+  async function npmLoadLayouts() {
+    npmLayout.innerHTML = '';
+    const theme = await detectCurrentTheme(edPortal.value);
+    if (!theme) {
+      npmError('Could not read the theme from config.yall.');
+      return;
+    }
+    const res = await fetch('/api/list_layouts?' + encodeURIComponent(theme));
+    const data = await apiJson(res);
+    if (data.ok === false || !Array.isArray(data.layouts) || !data.layouts.length) {
+      npmError(String(data.stderr || 'No layouts found for theme ' + theme).slice(0, 160));
+      return;
+    }
+    const layouts = [...new Set(data.layouts.map(String))].sort();
+    for (const name of layouts) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      npmLayout.appendChild(opt);
+    }
+    npmLayout.value = layouts.includes('docs') ? 'docs' : layouts[0];
+    npmBlog.hidden = npmLayout.value !== 'blog';
+  }
+
   function openNewPage() {
     if (!edPortal.value) { say('Pick a portal first'); return; }
     npmTitle.value = '';
-    npmPath.value = npmFolder();
+    npmPath.value = '';
     npmPathEdited = false;
-    npmLayout.value = 'docs';
+    npmLoadFolders();
+    npmLoadLayouts();
     npmAuthor.value = localStorage.getItem('desk.author') || 'Sheriff';
-    npmSummary.value = '';
-    npmGloss.value = '';
     npmAvatar.value = '';
     npmThumb.value = '';
     npmDate.value = todayStr();
@@ -996,12 +1139,12 @@
   npmTitle.addEventListener('input', () => {
     if (!npmPathEdited) {
       const slug = pageSlug(npmTitle.value);
-      npmPath.value = npmFolder() + (slug ? slug + '.md' : '');
+      npmPath.value = slug ? slug + '.md' : '';
     }
     npmErr.hidden = true;
   });
   npmPath.addEventListener('input', () => { npmPathEdited = true; npmErr.hidden = true; });
-  npmLayout.addEventListener('input', () => {
+  npmLayout.addEventListener('change', () => {
     npmBlog.hidden = npmLayout.value.trim() !== 'blog';
   });
 
@@ -1010,13 +1153,15 @@
 
   async function createNewPage() {
     const title = npmTitle.value.trim();
-    const path = npmPath.value.trim();
+    const file = npmPath.value.trim();
+    const path = npmFolderSel.value + '/' + file;
     const layout = npmLayout.value.trim() || 'docs';
     const author = npmAuthor.value.trim() || 'Sheriff';
 
     if (!title) { npmError('Give the page a title.'); return; }
-    const okContent = path.startsWith('content/') && (path.endsWith('.md') || path.endsWith('.html'));
-    if (!okContent) { npmError('Path must be under content/ and end in .md or .html'); return; }
+    if (!file) { npmError('Give the file a name.'); return; }
+    if (file.includes('/')) { npmError('Pick the folder above; the file name cannot contain /'); return; }
+    if (!file.endsWith('.md') && !file.endsWith('.html')) { npmError('File name must end in .md or .html'); return; }
     if (edFiles.includes(path)) { npmError('That file already exists.'); return; }
 
     let fm = '^^^^\n'
@@ -1025,8 +1170,8 @@
       + 'layout: ' + layout + '\n'
       + 'meta_kind: docs\n'
       + 'meta_type: entry\n'
-      + 'summary: ' + npmSummary.value.trim() + '\n'
-      + 'gloss: ' + npmGloss.value.trim() + '\n'
+      + 'summary: \n'
+      + 'gloss: \n'
       + 'categories: []\n'
       + 'aliases: []\n';
 
@@ -1049,7 +1194,7 @@
     npmCreate.textContent = 'Creating\u2026';
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(path);
-      const res = await fetch('/api/write_file?' + q, {
+      const res = await fetch('/api/file?write&' + q, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
       });
       const data = await apiJson(res);
@@ -1058,8 +1203,6 @@
         return;
       }
       localStorage.setItem('desk.author', author);
-      const folder = path.split('/').slice(0, -1).join('/') + '/';
-      localStorage.setItem('desk.newPageFolder', folder);
       closeNewPage();
       say('Page created');
       await loadFiles();
@@ -1152,7 +1295,7 @@
     if (!mdPortal.value) return;
     mdGrid.innerHTML = '<div class="portal-empty">Loading media…</div>';
     try {
-      const res = await fetch('/api/list_files?' + encodeURIComponent(mdPortal.value), { cache: 'no-store' });
+      const res = await fetch('/api/file?list&' + encodeURIComponent(mdPortal.value), { cache: 'no-store' });
       const data = await res.json();
       if (data.ok === false) {
         mdGrid.innerHTML = '<div class="portal-empty">' + (data.stderr || 'Could not load media.') + '</div>';
@@ -1361,7 +1504,7 @@
     if (!window.confirm('Delete "' + f + '"? This cannot be undone.')) return;
     try {
       const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(f);
-      const res = await fetch('/api/delete_file?' + q);
+      const res = await fetch('/api/file?delete&' + q);
       const data = await res.json();
       if (data.ok === false) {
         say(data.stderr || 'Delete failed');
@@ -1398,7 +1541,7 @@
       const subpath = folder + '/' + file.name;
       try {
         const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(subpath);
-        const res = await fetch('/api/upload_file?' + q, {
+        const res = await fetch('/api/file?upload&' + q, {
           method: 'POST',
           body: file
         });
@@ -1449,7 +1592,7 @@
       const q = encodeURIComponent(mdPortal.value)
         + '&' + encodeURIComponent(from)
         + '&' + encodeURIComponent(to);
-      const res = await fetch('/api/move_file?' + q);
+      const res = await fetch('/api/file?move&' + q);
       const data = await apiJson(res);
       if (data.ok === false) { say(data.stderr || 'Move failed'); return; }
       say('Moved ' + name + ' to ' + toFolder.replace(/^public\/?/, '') || 'public');
@@ -1545,7 +1688,7 @@
       setStatus('loading…');
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/read_file?' + q);
+        const res = await fetch('/api/file?read&' + q);
         const data = await apiJson(res);
         if (data.ok === false) {
           ed.missing = true;
@@ -1572,7 +1715,7 @@
       const started = Date.now();
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/write_file?' + q, {
+        const res = await fetch('/api/file?write&' + q, {
           method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text.value
         });
         const data = await apiJson(res);
@@ -1656,7 +1799,7 @@
   async function detectCurrentTheme(portal) {
     try {
       const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
-      const res = await fetch('/api/read_file?' + q);
+      const res = await fetch('/api/file?read&' + q);
       const data = await apiJson(res);
       if (data.ok === false) return null;
       const m = String(data.content || '').match(/theme:\s*\r?\n\s*name:\s*"([^"]+)"/);
@@ -1749,7 +1892,7 @@
       if (data.ok === false) { say(data.stderr || 'Theme prep failed'); return; }
 
       const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
-      res = await fetch('/api/read_file?' + q);
+      res = await fetch('/api/file?read&' + q);
       data = await apiJson(res);
       if (data.ok === false) { say('Could not read config.yall'); return; }
       const cfg = String(data.content || '');
@@ -1760,7 +1903,7 @@
       }
 
       say('Switching theme — rebuilding…');
-      res = await fetch('/api/write_file?' + q, {
+      res = await fetch('/api/file?write&' + q, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
       });
       data = await apiJson(res);
@@ -2154,7 +2297,7 @@
       // 1. create portal
       markTask('create', 'doing');
       const brand = wiz.name.replace(/["']/g, '');
-      let res = await fetch('/api/create_portal?' + encodeURIComponent(wiz.slug)
+      let res = await fetch('/api/portal?create&' + encodeURIComponent(wiz.slug)
         + '&' + encodeURIComponent(wiz.theme)
         + '&' + encodeURIComponent(brand));
       let data = await apiJson(res);
@@ -2166,7 +2309,7 @@
         markTask('logo', 'doing');
         const ext = (wiz.logoFile.name.split('.').pop() || 'png').toLowerCase();
         const logoPath = 'public/logo.' + (ext === 'png' ? 'png' : ext);
-        res = await fetch('/api/upload_file?' + encodeURIComponent(wiz.slug)
+        res = await fetch('/api/file?upload&' + encodeURIComponent(wiz.slug)
           + '&' + encodeURIComponent('public/logo.png'), {
           method: 'POST', body: wiz.logoFile
         });
@@ -2191,7 +2334,7 @@
         + 'aliases: []\n'
         + '^^^^\n\n';
       const body = fm + '# ' + wiz.pageTitle + '\n\n' + (wiz.pageBody || 'Welcome to ' + wiz.name + '.') + '\n';
-      res = await fetch('/api/write_file?portal=' + encodeURIComponent(wiz.slug)
+      res = await fetch('/api/file?write&portal=' + encodeURIComponent(wiz.slug)
         + '&path=' + encodeURIComponent('content/index.md'), {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
       });
@@ -2362,9 +2505,8 @@
     patSave.textContent = 'Saving…';
     setPatStatus('saving…');
     try {
-      const q = 'portal=' + encodeURIComponent(patPortal.value)
-        + '&path=' + encodeURIComponent('patterns/' + p.filename);
-      const res = await fetch('/api/write_file?' + q, {
+      const q = 'portal=' + encodeURIComponent(patPortal.value) + '&path=' + encodeURIComponent('patterns/' + p.filename);
+      const res = await fetch('/api/file?write&' + q, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: patText.value
       });
       const data = await apiJson(res);
@@ -2396,7 +2538,7 @@
     if (!window.confirm('Delete pattern "' + name + '"? This cannot be undone.')) return;
     try {
       const q = encodeURIComponent(patPortal.value) + '&' + encodeURIComponent('patterns/' + p.filename);
-      const res = await fetch('/api/delete_file?' + q);
+      const res = await fetch('/api/file?delete&' + q);
       const data = await apiJson(res);
       if (data.ok === false) { say(data.stderr || 'Delete failed'); return; }
       say('Deleted ' + name);
@@ -2470,9 +2612,8 @@
     patnewCreate.disabled = true;
     patnewCreate.textContent = 'Creating…';
     try {
-      const q = 'portal=' + encodeURIComponent(patPortal.value)
-        + '&path=' + encodeURIComponent(file);
-      const res = await fetch('/api/write_file?' + q, {
+      const q = 'portal=' + encodeURIComponent(patPortal.value) + '&path=' + encodeURIComponent(file);
+      const res = await fetch('/api/file?write&' + q, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: body
       });
       const data = await apiJson(res);

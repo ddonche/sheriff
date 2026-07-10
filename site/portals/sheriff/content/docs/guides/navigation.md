@@ -8,6 +8,7 @@ summary: Build header, sidebar, and footer navigation using nav.yall.
 gloss: nav.yall defines your site menus (header, docs sidebar, and footers) as a simple nested map of labels to links.
 categories: [Navigation]
 aliases: [Menus]
+canonical: navigation
 ^^^^
 
 Sheriff navigation is controlled by a single file: **nav.yall**.

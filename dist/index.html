@@ -282,6 +282,7 @@
           <div class="actions">
             <a class="btn small portal-edit" href="#content">Edit content</a>
             <button class="btn small primary portal-build" type="button">Build portal</button>
+            <button class="btn small portal-rename" type="button">Rename</button>
             <button class="btn small portal-delete" type="button">Delete</button>
           </div>
         </article>
@@ -561,32 +562,28 @@
       <label class="ed-label" for="npm-title">Title</label>
       <input id="npm-title" class="wiz-input" type="text" placeholder="What is money?" spellcheck="false" autocomplete="off">
 
-      <label class="ed-label" for="npm-path">File path</label>
-      <input id="npm-path" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
+      <div class="npm-row">
+        <div class="npm-col">
+          <label class="ed-label" for="npm-folder">Folder</label>
+          <select id="npm-folder" class="ed-select mono"></select>
+        </div>
+        <div class="npm-col">
+          <label class="ed-label" for="npm-path">File name</label>
+          <input id="npm-path" class="wiz-input mono" type="text" placeholder="what-is-money.md" spellcheck="false" autocomplete="off">
+        </div>
+      </div>
       <p class="wiz-hint">Under <code>content/</code>, ending in <code>.md</code>. Sheriff prefers underscores.</p>
 
       <div class="npm-row">
         <div class="npm-col">
           <label class="ed-label" for="npm-layout">Layout</label>
-          <input id="npm-layout" class="wiz-input mono" type="text" value="docs" list="npm-layouts" spellcheck="false" autocomplete="off">
-          <datalist id="npm-layouts">
-            <option value="docs"></option>
-            <option value="blog"></option>
-            <option value="wiki"></option>
-            <option value="index"></option>
-          </datalist>
+          <select id="npm-layout" class="ed-select mono"></select>
         </div>
         <div class="npm-col">
           <label class="ed-label" for="npm-author">Author</label>
           <input id="npm-author" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
         </div>
       </div>
-
-      <label class="ed-label" for="npm-summary">Summary <span class="npm-opt">(search results)</span></label>
-      <input id="npm-summary" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
-
-      <label class="ed-label" for="npm-gloss">Gloss <span class="npm-opt">(link hover preview)</span></label>
-      <input id="npm-gloss" class="wiz-input" type="text" spellcheck="false" autocomplete="off">
 
       <div id="npm-blog" hidden>
         <p class="wiz-hint" style="margin-top:10px">The <code>blog</code> layout requires these:</p>
@@ -661,6 +658,27 @@ leadership = [[House Andergard]]</pre>
       <button class="btn" type="button" id="fm-cancel">Cancel</button>
       <span style="margin-left:auto"></span>
       <button class="btn primary" type="button" id="fm-create">Create folder</button>
+    </div>
+  </div>
+</div>
+
+<div class="wizard" id="rename-modal" hidden>
+  <div class="wiz-card folder-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">Rename portal</span>
+      <button class="wiz-x" type="button" id="rp-close" title="Close">&times;</button>
+    </div>
+    <div class="wiz-body npm-body">
+      <label class="ed-label" for="rp-name">New name</label>
+      <input id="rp-name" class="wiz-input mono" type="text" placeholder="portal-name" spellcheck="false" autocomplete="off">
+      <p class="wiz-hint">Renaming <span class="mono-hint" id="rp-old">portal</span>. Its built output is discarded and the portal is rebuilt under the new name.</p>
+      <p class="wiz-err" id="rp-err" hidden></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn" type="button" id="rp-cancel">Cancel</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn primary" type="button" id="rp-rename">Rename</button>
     </div>
   </div>
 </div>

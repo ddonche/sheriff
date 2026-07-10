@@ -6,6 +6,7 @@ meta_kind: guide
 meta_type: docs
 summary: Use frontmatter categories to collect related pages into generated category indexes.
 gloss: Categories group related pages and generate category index pages automatically.
+canonical: categories
 ^^^^
 
 Categories group related pages together.

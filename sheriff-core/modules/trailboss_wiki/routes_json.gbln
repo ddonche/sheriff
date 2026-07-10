@@ -79,6 +79,68 @@ act normalize_to_slug(page)
     return slug
 xx
 
+act canonical_to_slug(value)
+    if value.nix? => send ..
+
+    raw | value
+    raw |= :trim(raw)
+    if raw.nix? => send ..
+
+    if :starts_with(raw, "[[") and :ends_with(raw, "]]")
+        raw |= :keep_between(raw, "[[", "]]") ?? raw
+    xx
+
+    raw |= :trim(:keep_before(raw, "|")) ?? raw
+
+    return normalize_to_slug(raw)
+xx
+
+act write_missing_canonical(path, md_text, canonical_slug)
+    if path.nix? => send nil
+    if md_text.nix? => send nil
+    if canonical_slug.nix? => send nil
+    if :starts_with(md_text, "^^^^") == false => send nil
+    if :has(md_text, "\ncanonical:") => send nil
+
+    block | :keep_between(md_text, "^^^^", "^^^^")
+    if block.nix? => send nil
+
+    new_block | block
+    if :ends_with(new_block, "\n") == false
+        new_block |= new_block + "\n"
+    xx
+
+    new_block |= new_block + "canonical: {canonical_slug}\n"
+
+    old_fm | "^^^^{block}^^^^"
+    new_fm | "^^^^{new_block}^^^^"
+    updated | md_text
+    :update_where!(updated, old_fm, new_fm)
+    :write_text!(path, updated)
+
+    return nil
+xx
+
+act canonical_conflict(canonical_slug, first_path, second_path)
+    :say("TRAILBOSS: canonical link naming conflict for [[{canonical_slug}]]")
+    :say("TRAILBOSS: first page: {first_path}")
+    :say("TRAILBOSS: second page: {second_path}")
+    :say("TRAILBOSS: change one canonical value, or move the old name into aliases if it should redirect.")
+
+    normalize_to_slug()
+xx
+
+act first_canonical_owner(rows, canonical_slug)
+    for row in rows
+        row_slug | :keep_before(row, "|||") ?? ..
+        if row_slug == canonical_slug
+            return :keep_after(row, "|||") ?? ..
+        xx
+    xx
+
+    return ..
+xx
+
 act build_href(url_root, rel_no_ext)
     if rel_no_ext.nix? => return "/index.html"
 
@@ -310,6 +372,37 @@ act build_routes_json_for_portal(portal)
         "Z": 0
     }
 
+    claimed_canonical_keys | []
+    claimed_canonical_rows | []
+
+    for src in files
+        src_norm | src
+        :update_where!(src_norm, "\\", "/")
+
+        stem_name | :stem(src_norm)
+        slug | normalize_to_slug(stem_name)
+
+        if slug == "index" => skip
+        if slug == "404" => skip
+        if slug == "missing" => skip
+
+        md_text | :read_text(src_norm)
+        fm      | extract_frontmatter_map(md_text)
+
+        if fm.nix? == false and :valtype(fm) == "map" and :has(fm, "canonical")
+            canonical_slug | canonical_to_slug(fm{"canonical"})
+            if canonical_slug.nix? => skip
+
+            if :has(claimed_canonical_keys, canonical_slug)
+                first_path | first_canonical_owner(claimed_canonical_rows, canonical_slug)
+                canonical_conflict(canonical_slug, first_path, src_norm)
+            xx
+
+            :put_last!(claimed_canonical_keys, canonical_slug)
+            :put_last!(claimed_canonical_rows, "{canonical_slug}|||{src_norm}")
+        xx
+    xx
+
     for src in files
         src_norm | src
         :update_where!(src_norm, "\\", "/")
@@ -351,19 +444,23 @@ act build_routes_json_for_portal(portal)
         :update_where!(title_src, "-", " ")
 
         page_title | :title(title_src)
-        canonical  | "[[{slug}]]"
 
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
-        gloss, meta_kind, meta_type, summary | ..
+        gloss, meta_kind, meta_type, summary, generated_by | ..
         categories | extract_frontmatter_list(md_text, fm, "categories")
         aliases    | extract_frontmatter_list(md_text, fm, "aliases")
+        canonical_slug | ..
 
         if fm.nix? == false and :valtype(fm) == "map"
 
             if :has(fm, "title")
                 page_title |= fm{"title"}
+            xx
+
+            if :has(fm, "canonical")
+                canonical_slug |= canonical_to_slug(fm{"canonical"})
             xx
 
             if :has(fm, "meta_kind")
@@ -372,6 +469,10 @@ act build_routes_json_for_portal(portal)
 
             if :has(fm, "meta_type")
                 meta_type |= fm{"meta_type"}
+            xx
+
+            if :has(fm, "generated_by")
+                generated_by |= fm{"generated_by"}
             xx
 
             if :has(fm, "summary")
@@ -386,8 +487,49 @@ act build_routes_json_for_portal(portal)
 
         xx
 
+        if canonical_slug.nix?
+            canonical_slug |= slug
+
+            if :has(claimed_canonical_keys, canonical_slug)
+                parts | :split(rel_no_ext, "/")
+                if parts.len > 1
+                    parent_idx | parts.len - 2
+                    parent | parts[parent_idx]
+                    parent_slug | normalize_to_slug(parent)
+                    if !parent_slug.nix?
+                        canonical_slug |= "{parent_slug}-{slug}"
+                    xx
+                xx
+            xx
+
+            if :has(claimed_canonical_keys, canonical_slug) and meta_type == "generated"
+                generated_slug | normalize_to_slug(generated_by)
+                if generated_slug.nix?
+                    generated_slug |= "generated"
+                xx
+
+                if generated_slug == slug
+                    canonical_slug |= "{slug}-index"
+                else
+                    canonical_slug |= "{generated_slug}-{slug}"
+                xx
+            xx
+
+            if :has(claimed_canonical_keys, canonical_slug)
+                first_path | first_canonical_owner(claimed_canonical_rows, canonical_slug)
+                canonical_conflict(canonical_slug, first_path, src_norm)
+            xx
+
+            :put_last!(claimed_canonical_keys, canonical_slug)
+            :put_last!(claimed_canonical_rows, "{canonical_slug}|||{src_norm}")
+            write_missing_canonical(src_norm, md_text, canonical_slug)
+        xx
+
+        canonical  | "[[" + canonical_slug + "]]"
+
         meta | {
             "slug":      slug,
+            "canonical_slug": canonical_slug,
             "href":      href_abs,
             "rel":       rel_no_ext,
             "title":     page_title,
@@ -724,7 +866,7 @@ act build_redirect_pages_once(pre_ctx)
             for check_route in routes
                 if check_route.nix? => skip
 
-                check_slug | check_route{"slug"} ?? ..
+                check_slug | check_route{"canonical_slug"} ?? check_route{"slug"} ?? ..
                 if check_slug == alias_slug
                     collides |= true
                 xx
@@ -815,6 +957,7 @@ summary: Alphabetical index of all pages.
 
         if slug != "all-pages"
             route_title | route{"title"}
+            canonical_slug | route{"canonical_slug"} ?? slug
 
             bucket | letter_key(route_title)
 
@@ -825,7 +968,7 @@ summary: Alphabetical index of all pages.
                 current_letter |= bucket
             xx
 
-            display_link | "[[{slug}|{route_title}]]"
+            display_link | "[[{canonical_slug}|{route_title}]]"
             :put_last!(lines, "* {display_link}")
         xx
     xx

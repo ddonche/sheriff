@@ -1,0 +1,686 @@
+/// api/portal.gbln
+/// Portal lifecycle. The first query segment is the verb; everything after it
+/// is the original action's query string, verbatim.
+///
+///   /api/portal?create&{name}&{theme}&{brand}
+///   /api/portal?delete&{name}
+///   /api/portal?rename&{from}&{to}
+///
+/// Replaces create_portal, delete_portal. create and delete are the bodies of
+/// their original files, moved into acts and otherwise unchanged.
+///
+/// rename has no original. It recreates the tree and copies each file across,
+/// because no directory-move builtin exists. Directories come from :list_dirs,
+/// not from file paths, so empty folders survive. dist/{from} is deleted rather
+/// than moved -- the built HTML has the old portal name baked into its paths --
+/// so rebuild {to} afterwards.
+
+/// ---------- create_portal.gbln ----------
+
+act is_bad_name(p)
+    if :has(p, "/") => return true
+    if :has(p, "\\") => return true
+    if :has(p, ".") => return true
+    if :has(p, " ") => return true
+    if :has(p, ";") => return true
+    if :has(p, "&") => return true
+    if :has(p, "|") => return true
+    if :has(p, "$") => return true
+    if :has(p, "`") => return true
+    if :has(p, "\"") => return true
+    if :has(p, "'") => return true
+    if :has(p, "<") => return true
+    if :has(p, ">") => return true
+    if :has(p, "(") => return true
+    if :has(p, ")") => return true
+    if :has(p, "\{") => return true
+    if :has(p, "\}") => return true
+    if :has(p, "*") => return true
+    if :has(p, "?") => return true
+    if :has(p, "!") => return true
+    if :has(p, "~") => return true
+    if :has(p, "#") => return true
+    if :has(p, "%") => return true
+    if :has(p, "^") => return true
+    if :has(p, ":") => return true
+    if :has(p, "@") => return true
+    if :has(p, "=") => return true
+    if :has(p, "+") => return true
+
+    return false
+xx
+
+act do_create(query)
+    parts | :split(query, "&")
+
+    portal | :trim(parts[0])
+
+    theme_req | ""
+    p1 | parts[1]
+    if p1.nix? == false
+        theme_req |= :trim(p1)
+    xx
+
+    brand | ""
+    p2 | parts[2]
+    if p2.nix? == false
+        brand |= :trim(p2)
+        :update_where!(brand, "%20", " ")
+    xx
+
+    if brand == ""
+        brand |= portal
+    xx
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    theme_pick | "outpost"
+    themes_dir | "{root_base}/sheriff-core/themes"
+
+    if theme_req != ""
+        if :file_exists(themes_dir)
+            available_themes | :list_dirs(themes_dir)
+            theme_ok | false
+            for t in available_themes
+                if t == theme_req
+                    theme_ok |= true
+                xx
+            xx
+            if theme_ok
+                theme_pick |= theme_req
+            xx
+        xx
+    xx
+
+    root | "{root_base}/site/portals/{portal}"
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal name"
+        }
+
+        :say(:json_stringify(out))
+
+    elif is_bad_name(portal)
+        out | {
+          "ok": false,
+          "stderr": "portal name may only use letters, numbers, and hyphens"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal == "admin"
+        out | {
+          "ok": false,
+          "stderr": "\"admin\" is reserved by Sheriff Desk"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal == "api"
+        out | {
+          "ok": false,
+          "stderr": "\"api\" is reserved by Sheriff Desk"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal == "public"
+        out | {
+          "ok": false,
+          "stderr": "\"public\" is reserved by Sheriff Desk"
+        }
+
+        :say(:json_stringify(out))
+
+    elif :file_exists(root)
+        out | {
+          "ok": false,
+          "stderr": "portal already exists"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        theme_name | theme_pick
+
+        :create_dir!(root)
+        :create_dir!("{root}/content")
+        :create_dir!("{root}/public")
+        :create_dir!("{root}/themes")
+        :create_dir!("{root}/themes/{theme_name}")
+
+        :write_text!(
+        "{root}/config.yall",
+        """
+    id: {portal}
+    name: "{brand}"
+    version: "0.0.1"
+
+    repo:
+      url: ""
+      name: ""
+      stars: ""
+      forks: ""
+
+    theme:
+      name: "{theme_name}"
+      brand_name: "{brand}"
+      logo: "logo.png"
+      favicon: "favicon.ico"
+      highlight_dark: "base16-ocean.dark"
+      highlight_light: "InspiredGitHub"
+      overrides: {}
+
+    routing:
+      dist_root: "{portal}"
+      url_root: ""
+      content_dir: "content"
+      public_dir: "public"
+    """
+        )
+
+        :write_text!(
+        "{root}/nav.yall",
+        """
+    menus:
+
+      header:
+        Home: index.html
+
+      left_docs:
+        PAGES:
+          Home: index.html
+
+      footer_left:
+        Built with Sheriff: ""
+        Powered by Goblin: https://goblinlang.org
+
+      footer_right:
+        GitHub: ""
+    """
+        )
+
+        :write_text!(
+        "{root}/assets.yall",
+        """
+    # Optional portal asset injection.
+    #
+    # head — script URL injected into <head>
+    # top  — optional top-of-body component mount
+    # end  — script URL injected before </body>
+
+    assets:
+      head: ""
+      top: {}
+      end: ""
+    """
+        )
+
+        :write_text!(
+        "{root}/widgets.yall",
+        """
+    badge:
+      social_sharing:
+        - twitter
+        - reddit
+        - linkedin
+    """
+        )
+
+        :write_text!(
+        "{root}/themes/{theme_name}/templates.yall",
+        """
+    layouts:
+      docs:
+        slots:
+          STYLELINK:
+            - "BRINDLE::STYLE"
+          LOGO:
+            - "BRINDLE::LOGO"
+          BRANDNAME:
+            - "BRINDLE::BRANDNAME"
+          VERSION:
+            - "BADGE::VERSION"
+          THEMESWITCHER:
+            - "BRINDLE::THEMESWITCHER"
+          VERSIONSWITCHER:
+            - "BRINDLE::VERSIONSWITCHER"
+          SEARCH:
+            - "PROSPECTOR::SEARCH_INPUT"
+          REPO:
+            - "BADGE::REPO"
+
+          HEADER_NAV:
+            - "SCOUT::header_DROPDOWN"
+
+          LEFT_NAV:
+            - "SCOUT::left_docs_SIDEBAR"
+
+          SIDEBAR_TOP:
+          SIDEBAR_MAIN:
+            - "SCOUT::BREADCRUMBS"
+            - "SCOUT::TOC"
+
+          FOOTER_LEFT:
+            - "SCOUT::footer_left_FLAT"
+          FOOTER_RIGHT:
+            - "SCOUT::footer_right_FLAT"
+
+          HEADERLEFT:
+            - "PAGE::META"
+          HEADERRIGHT:
+            - "TRAILBOSS::CANONLINK"
+          PAGEMETALEFT:
+            - "BADGE::READTIME"
+          PAGEMETARIGHT:
+            - "BADGE::UTILICONS"
+
+          SCRIPTS:
+            - "BRINDLE::SCRIPTS"
+
+      blog:
+        slots:
+          STYLELINK:
+            - "BRINDLE::STYLE"
+          LOGO:
+            - "BRINDLE::LOGO"
+          BRANDNAME:
+            - "BRINDLE::BRANDNAME"
+          VERSION:
+            - "BADGE::VERSION"
+          THEMESWITCHER:
+            - "BRINDLE::THEMESWITCHER"
+          VERSIONSWITCHER:
+            - "BRINDLE::VERSIONSWITCHER"
+          SEARCH:
+            - "PROSPECTOR::SEARCH_INPUT"
+          REPO:
+            - "BADGE::REPO"
+
+          HEADER_NAV:
+            - "SCOUT::header_DROPDOWN"
+
+          LEFT_NAV: []
+
+          SIDEBAR_TOP:
+          SIDEBAR_MAIN:
+            - "SCOUT::BREADCRUMBS"
+            - "CAMPFIRE::BLOG_LIST"
+
+          FOOTER_LEFT:
+            - "SCOUT::footer_left_FLAT"
+          FOOTER_RIGHT:
+            - "SCOUT::footer_right_FLAT"
+
+          HEADERLEFT:
+            - "PAGE::META"
+          HEADERRIGHT:
+            - "TRAILBOSS::CANONLINK"
+          PAGEMETALEFT:
+            - "BADGE::READTIME"
+          PAGEMETARIGHT:
+            - "BADGE::UTILICONS"
+
+          SCRIPTS:
+            - "BRINDLE::SCRIPTS"
+
+      blog_index:
+        slots:
+          STYLELINK:
+            - "BRINDLE::STYLE"
+          LOGO:
+            - "BRINDLE::LOGO"
+          BRANDNAME:
+            - "BRINDLE::BRANDNAME"
+          VERSION:
+            - "BADGE::VERSION"
+          THEMESWITCHER:
+            - "BRINDLE::THEMESWITCHER"
+          VERSIONSWITCHER:
+            - "BRINDLE::VERSIONSWITCHER"
+          SEARCH:
+            - "PROSPECTOR::SEARCH_INPUT"
+          REPO:
+            - "BADGE::REPO"
+
+          HEADER_NAV:
+            - "SCOUT::header_DROPDOWN"
+
+          LEFT_NAV: []
+
+          SIDEBAR_TOP:
+          SIDEBAR_MAIN:
+            - "CAMPFIRE::BLOG_LIST"
+
+          FOOTER_LEFT:
+            - "SCOUT::footer_left_FLAT"
+          FOOTER_RIGHT:
+            - "SCOUT::footer_right_FLAT"
+
+      home:
+        slots:
+          STYLELINK:
+            - "BRINDLE::STYLE"
+          LOGO:
+            - "BRINDLE::LOGO"
+          BRANDNAME:
+            - "BRINDLE::BRANDNAME"
+          VERSION:
+            - "BADGE::VERSION"
+          THEMESWITCHER:
+            - "BRINDLE::THEMESWITCHER"
+          VERSIONSWITCHER:
+            - "BRINDLE::VERSIONSWITCHER"
+          SEARCH:
+            - "PROSPECTOR::SEARCH_INPUT"
+          REPO:
+            - "BADGE::REPO"
+
+          HEADER_NAV:
+            - "SCOUT::header_DROPDOWN"
+
+          LEFT_NAV: []
+
+          SIDEBAR_TOP: []
+          SIDEBAR_MAIN:
+            - "SITE::HOME_INTRO"
+
+          FOOTER_LEFT:
+            - "SCOUT::footer_left_FLAT"
+          FOOTER_RIGHT:
+            - "SCOUT::footer_right_FLAT"
+    """
+        )
+
+        theme_templates_src | "{root_base}/sheriff-core/themes/{theme_name}/templates.yall"
+
+        if :file_exists(theme_templates_src)
+            :copy_file!(theme_templates_src, "{root}/themes/{theme_name}/templates.yall")
+        xx
+
+        :write_text!(
+        "{root}/themes/{theme_name}/override.css",
+        """/* portal/theme overrides */
+    """
+        )
+
+        logo_src    | "{root_base}/site/portals/sheriff/public/logo.png"
+        favicon_src | "{root_base}/site/portals/sheriff/public/favicon.ico"
+
+        if :file_exists(logo_src)
+            :copy_file!(logo_src, "{root}/public/logo.png")
+        xx
+
+        if :file_exists(favicon_src)
+            :copy_file!(favicon_src, "{root}/public/favicon.ico")
+        xx
+
+        js_src | "{root_base}/site/portals/sheriff/public/js"
+
+        if :file_exists(js_src)
+            :create_dir!("{root}/public/js")
+
+            for asset in :walk(js_src, "**/*.js")
+                asset_norm | asset
+                :update_where!(asset_norm, "\\", "/")
+
+                prefix | js_src
+                :update_where!(prefix, "\\", "/")
+                prefix |= "{prefix}/"
+
+                rel | :keep_after(asset_norm, prefix)
+
+                if rel == ..
+                    rel |= asset_norm
+                xx
+
+                :copy_file!(asset, "{root}/public/js/{rel}")
+            xx
+        xx
+
+        :write_text!(
+        "{root}/content/index.md",
+        """
+    ^^^^
+    title: Home
+    author: Sheriff
+    layout: docs
+    meta_kind: overview
+    meta_type: docs
+    summary: Starter page for {brand}.
+    ^^^^
+
+    # {brand}
+
+    Your Sheriff site is ready.
+
+    Edit this page in Sheriff Desk, then click **Build**.
+    """
+        )
+
+        out | {
+          "ok": true,
+          "portal": portal
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- delete_portal.gbln ----------
+
+act do_delete(query)
+    portal | :trim(query)
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+    known | :list_dirs(portals_dir)
+
+    portal_found | false
+
+    for name in known
+        if name == portal
+            portal_found |= true
+        xx
+    xx
+
+    root  | "{root_base}/site/portals/{portal}"
+    built | "{root_base}/dist/{portal}"
+
+    if portal == ""
+        out | {
+          "ok": false,
+          "stderr": "missing portal name"
+        }
+
+        :say(:json_stringify(out))
+
+    elif portal_found == false
+        out | {
+          "ok": false,
+          "stderr": "unknown portal: {portal}"
+        }
+
+        :say(:json_stringify(out))
+
+    else
+        :delete_path!(root)
+
+        if :file_exists(built)
+            :delete_path!(built)
+        xx
+
+        out | {
+          "ok": true,
+          "portal": portal
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- rename ----------
+
+/// Every directory under base_rel, relative to root, parents before children.
+act collect_dirs(root, base_rel)
+    out | []
+
+    dirs | :list_dirs("{root}/{base_rel}")
+
+    for name in dirs
+        rel | "{base_rel}/{name}"
+        :put_last!(out, rel)
+
+        nested | collect_dirs(root, rel)
+
+        for sub in nested
+            :put_last!(out, sub)
+        xx
+    xx
+
+    send out
+xx
+
+act do_rename(query)
+    parts | :split(query, "&")
+
+    from | :trim(parts[0])
+    to   | :trim(parts[1])
+
+    root_base | :trim(:env("SHERIFF_ROOT"))
+
+    if root_base == ""
+        root_base |= ".."
+    xx
+
+    portals_dir | "{root_base}/site/portals"
+
+    old_root | "{portals_dir}/{from}"
+    new_root | "{portals_dir}/{to}"
+    old_dist | "{root_base}/dist/{from}"
+
+    if from == ""
+        out | { "ok": false, "stderr": "missing portal name" }
+        :say(:json_stringify(out))
+
+    elif to == ""
+        out | { "ok": false, "stderr": "missing new name" }
+        :say(:json_stringify(out))
+
+    elif from == to
+        out | { "ok": false, "stderr": "new name is the same as the old one" }
+        :say(:json_stringify(out))
+
+    elif is_bad_name(to)
+        out | { "ok": false, "stderr": "portal name may only use letters, numbers, and hyphens" }
+        :say(:json_stringify(out))
+
+    elif to == "admin"
+        out | { "ok": false, "stderr": "\"admin\" is reserved by Sheriff Desk" }
+        :say(:json_stringify(out))
+
+    elif to == "api"
+        out | { "ok": false, "stderr": "\"api\" is reserved by Sheriff Desk" }
+        :say(:json_stringify(out))
+
+    elif to == "public"
+        out | { "ok": false, "stderr": "\"public\" is reserved by Sheriff Desk" }
+        :say(:json_stringify(out))
+
+    elif :file_exists(old_root) == false
+        out | { "ok": false, "stderr": "unknown portal: {from}" }
+        :say(:json_stringify(out))
+
+    elif :file_exists(new_root)
+        out | { "ok": false, "stderr": "a portal named {to} already exists" }
+        :say(:json_stringify(out))
+
+    else
+        :create_dir!(new_root)
+
+        sub_dirs | collect_dirs(old_root, "")
+
+        for rel in sub_dirs
+            :create_dir!("{new_root}/{rel}")
+        xx
+
+        found | :walk(old_root, "**/*")
+
+        prefix | "{old_root}/"
+        :update_where!(prefix, "\\", "/")
+
+        copied | 0
+
+        for file in found
+            file_norm | file
+            :update_where!(file_norm, "\\", "/")
+
+            rel | :keep_after(file_norm, prefix)
+
+            if rel == ..
+                rel |= file_norm
+            xx
+
+            dest | "{new_root}/{rel}"
+            dest_dir | :dirname(dest)
+
+            if :file_exists(dest_dir) == false
+                :create_dir!(dest_dir)
+            xx
+
+            :copy_file!(file, dest)
+            copied |= copied + 1
+        xx
+
+        :delete_path!(old_root)
+
+        if :file_exists(old_dist)
+            :delete_path!(old_dist)
+        xx
+
+        out | {
+          "ok": true,
+          "from": from,
+          "to": to,
+          "files": copied
+        }
+
+        :say(:json_stringify(out))
+    xx
+xx
+
+/// ---------- dispatch ----------
+
+raw | :trim(:env("GOBLIN_QUERY_STRING"))
+
+verb | :keep_before(raw, "&")
+rest | :keep_after(raw, "&")
+
+if verb == "create"
+    do_create(rest)
+
+elif verb == "delete"
+    do_delete(rest)
+
+elif verb == "rename"
+    do_rename(rest)
+
+else
+    out | {
+      "ok": false,
+      "stderr": "unknown verb: {verb}"
+    }
+
+    :say(:json_stringify(out))
+xx

@@ -5,6 +5,7 @@ layout: docs
 meta_kind: docs
 meta_type: overview
 summary: A list of changes from each version of Sheriff. 
+canonical: changelog
 ^^^^
 
 ## v0.14.0

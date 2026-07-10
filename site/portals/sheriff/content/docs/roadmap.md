@@ -5,6 +5,7 @@ layout: docs
 meta_kind: docs
 meta_type: overview
 summary: A list of upcoming features and fixes for Sheriff. 
+canonical: roadmap
 ^^^^
 
 Consider this a pile of all the features I still need to implement in Sheriff. 

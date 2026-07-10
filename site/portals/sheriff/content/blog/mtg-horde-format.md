@@ -8,6 +8,7 @@ layout: blog
 meta_kind: blog
 meta_type: community
 summary: Horde Format is a Goblin-Lang-themed Magic: The Gathering variant, just for fun.
+canonical: mtg-horde-format
 ^^^^
 
 [[image:blog/mtg-goblin.png|full|center|a lovely Goblin image]]

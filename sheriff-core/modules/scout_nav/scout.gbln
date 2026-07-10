@@ -2,6 +2,8 @@
 /// - TOC + breadcrumbs (page-scoped)
 /// - Nav menus from nav.yall (portal-scoped)
 
+import modules/trailboss_wiki/routes_json as rjson
+
 /// ------------------------------------------------------------------------
 /// Load ../site/portals/{portal}/nav.yall as a map.
 /// If missing, return {} so callers don't explode.
@@ -244,30 +246,177 @@ act make_abs_href(portal, raw)
     return "/" + href
 xx
 
+act scout_missing_link_info()
+    return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+xx
+
+act scout_nav_value_to_string(nav_val)
+    if nav_val.nix? => return ""
+
+    vt | :valtype(nav_val)
+
+    if vt == "str"
+        return nav_val
+    xx
+
+    if vt == "array"
+        first | nav_val[0]
+        if first.nix? => return ""
+
+        first_type | :valtype(first)
+
+        if first_type == "array"
+            inner | first[0]
+            if inner.nix? => return ""
+
+            return "[[{inner}]]"
+        xx
+
+        return "[[{first}]]"
+    xx
+
+    return ""
+xx
+
+act scout_is_wikilink(raw)
+    if raw.nix? => return false
+
+    s | scout_nav_value_to_string(raw)
+    s |= :trim(s)
+    if s.nix? => return false
+
+    if :starts_with(s, "[[") and :ends_with(s, "]]")
+        return true
+    xx
+
+    return false
+xx
+
+act scout_load_routes(portal)
+    if portal.nix? => return []
+
+    routes_path | "../site/portals/{portal}/routes.json"
+    if :file_exists(routes_path) == false => return []
+
+    parsed | :read_json(routes_path)
+    if parsed.nix? => return []
+
+    routes | parsed["routes"]
+    if routes.nix? => return []
+    if :valtype(routes) != "array" => return []
+
+    return routes
+xx
+
+act scout_split_anchor(target)
+    t | :trim(target)
+    if t.nix? => return {"page": .., "anchor": ..}
+
+    page | :trim(:keep_before(t, "#")) ?? t
+    anchor | :trim(:keep_after(t, "#")) ?? ..
+
+    return {"page": page, "anchor": anchor}
+xx
+
+act scout_link_info_for_wikilink(portal, raw)
+    if portal.nix? => return scout_missing_link_info()
+    if raw.nix? => return scout_missing_link_info()
+
+    s | scout_nav_value_to_string(raw)
+    s |= :trim(s)
+    if scout_is_wikilink(s) == false => return scout_missing_link_info()
+
+    core | :keep_between(s, "[[", "]]") ?? => return scout_missing_link_info()
+    target | :trim(:keep_before(core, "|")) ?? core
+    split | scout_split_anchor(target)
+    page_name | split["page"] ?? => return scout_missing_link_info()
+    anchor | split["anchor"] ?? ..
+
+    slug | rjson::normalize_to_slug(page_name)
+    if slug.nix? => return scout_missing_link_info()
+
+    routes | scout_load_routes(portal)
+    if :valtype(routes) != "array" => return scout_missing_link_info()
+
+    generated_fallback | ..
+
+    for meta in routes
+        if meta.nix? => skip
+
+        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        if meta_slug == slug
+            href | meta["href"] ?? => return scout_missing_link_info()
+            if !anchor.nix? => href |= "{href}#{anchor}"
+            meta_type | meta["meta_type"] ?? ..
+            if meta_type == "generated"
+                if generated_fallback.nix?
+                    generated_fallback |= href
+                xx
+            else
+                return {"class": "sheriff-link", "href": href}
+            xx
+        xx
+
+        aliases | meta["aliases"] ?? []
+        if :valtype(aliases) == "array"
+            for alias in aliases
+                alias_slug | rjson::normalize_to_slug(alias)
+                if alias_slug == slug
+                    href | meta["href"] ?? => return scout_missing_link_info()
+                    if !anchor.nix? => href |= "{href}#{anchor}"
+                    meta_type | meta["meta_type"] ?? ..
+                    if meta_type == "generated"
+                        if generated_fallback.nix?
+                            generated_fallback |= href
+                        xx
+                    else
+                        return {"class": "sheriff-link", "href": href}
+                    xx
+                xx
+            xx
+        xx
+    xx
+
+    if !generated_fallback.nix?
+        return {"class": "sheriff-link", "href": generated_fallback}
+    xx
+
+    return scout_missing_link_info()
+xx
+
+act scout_nav_link_info(portal, raw)
+    if raw.nix? => return {"class": "sheriff-link", "href": ""}
+
+    s | scout_nav_value_to_string(raw)
+    s |= :trim(s)
+    if s.nix? => return {"class": "sheriff-link", "href": ""}
+    if s == "" or s == "{}" => return {"class": "sheriff-link", "href": ""}
+
+    if scout_is_wikilink(s)
+        return scout_link_info_for_wikilink(portal, s)
+    xx
+
+    href | make_abs_href(portal, s)
+    if href == "" => return {"class": "sheriff-link", "href": ""}
+
+    if :starts_with(href, ["http://", "https://"])
+        return {"class": "sheriff-link", "href": href}
+    xx
+
+    return scout_link_info_for_href(portal, href)
+xx
+
 /// ------------------------------------------------------------------------
 /// Determine if a page exists in the portal's routes.json (Trailboss style).
 /// routes.json shape:
 ///   { "routes": [ { "href": "/docs/thing.html", ... }, ... ] }
 /// ------------------------------------------------------------------------
 act scout_link_info_for_href(portal, href)
-    if portal.nix? => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
-    if href.nix?   => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    if portal.nix? => return scout_missing_link_info()
+    if href.nix?   => return scout_missing_link_info()
 
-    routes_path | "../site/portals/{portal}/routes.json"
-
-    /// Strict like Trailboss: if we can't validate routes, treat as missing.
-    if :file_exists(routes_path) == false
-        return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
-    xx
-
-    parsed | :read_json(routes_path)
-    if parsed.nix?
-        return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
-    xx
-
-    routes | parsed["routes"]
-    if routes.nix? => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
-    if :valtype(routes) != "array" => return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    routes | scout_load_routes(portal)
+    if :valtype(routes) != "array" => return scout_missing_link_info()
 
     h | :trim(href)
 
@@ -312,7 +461,7 @@ act scout_link_info_for_href(portal, href)
         xx
     xx
 
-    return {"class": "sheriff-missing-link", "href": "/docs/missing.html"}
+    return scout_missing_link_info()
 xx
 
 /// ------------------------------------------------------------------------
@@ -351,12 +500,10 @@ act generate_nested_items(portal, items_map)
 
             update!(ul_items, ul_items + item)
         else
-            href | make_abs_href(portal, val)
-            if href == "" => skip
-
-            info | scout_link_info_for_href(portal, href)
+            info | scout_nav_link_info(portal, val)
             cls  | info["class"]
             out  | info["href"]
+            if out == "" => skip
 
             item | """
             <li>
@@ -410,13 +557,11 @@ act scout_render_sidebar(portal, menu_content)
             update!(nav_items, nav_items + item)
             update!(first_key, false)
 
-        elif val_type == "str"
-            href | make_abs_href(portal, top_val)
-            if href == "" => skip
-
-            info | scout_link_info_for_href(portal, href)
+        elif val_type == "str" or val_type == "array"
+            info | scout_nav_link_info(portal, top_val)
             cls  | info["class"]
             out  | info["href"]
+            if out == "" => skip
 
             item | """
             <li>
@@ -483,25 +628,26 @@ act scout_render_footer(portal, footer_content)
         /// Decide: plain text vs link
         is_link | true
         url_str | ""
+        cls | "sheriff-link"
 
         if url.nix?
             update!(is_link, false)
-        elif :valtype(url) != "str"
-            update!(is_link, false)
         else
-            tmp | :trim(url)
+            url_type | :valtype(url)
 
-            if tmp == "" or tmp == "{}"
+            if url_type != "str" and url_type != "array"
                 update!(is_link, false)
             else
-                update!(url_str, make_abs_href(portal, tmp))
+                info | scout_nav_link_info(portal, url)
+                url_str |= info["href"]
+                cls |= info["class"]
                 if url_str == "" => update!(is_link, false)
             xx
         xx
 
         item | ""
         if is_link
-            update!(item, "{sep}<a href=\"{url_str}\" class=\"sheriff-link\">{text}</a>")
+            update!(item, "{sep}<a href=\"{url_str}\" class=\"{cls}\">{text}</a>")
         else
             update!(item, "{sep}<span>{text}</span>")
         xx
@@ -537,13 +683,15 @@ act scout_render_header_nav(portal, menu_content)
         top_val   | menu_content[top_key]
         val_type  | :valtype(top_val)
 
-        if val_type == "str"
-            href | make_abs_href(portal, top_val)
+        if val_type == "str" or val_type == "array"
+            info | scout_nav_link_info(portal, top_val)
+            cls | info["class"]
+            href | info["href"]
             if href == "" => skip
 
             item | """
 <li>
-  <a class="sheriff-link" href="{href}">{top_key}</a>
+  <a class="{cls}" href="{href}">{top_key}</a>
 </li>
 """
             update!(nav_items, nav_items + item)
@@ -588,13 +736,15 @@ act generate_header_dropdown(portal, dropdown_map)
         section_val  | dropdown_map[section_key]
         section_type | :valtype(section_val)
 
-        if section_type == "str"
-            href | make_abs_href(portal, section_val)
+        if section_type == "str" or section_type == "array"
+            info | scout_nav_link_info(portal, section_val)
+            cls | info["class"]
+            href | info["href"]
             if href == "" => skip
 
             section_html | """
 <div class="dropdown-section">
-  <a href="{href}">{section_key}</a>
+  <a class="{cls}" href="{href}">{section_key}</a>
 </div>
 """
             update!(sections_html, sections_html + section_html)
@@ -604,12 +754,14 @@ act generate_header_dropdown(portal, dropdown_map)
             link_keys  | :keys(section_val)
 
             for link_key in link_keys
-                link_href | make_abs_href(portal, section_val[link_key])
+                info | scout_nav_link_info(portal, section_val[link_key])
+                cls | info["class"]
+                link_href | info["href"]
                 if link_href == "" => skip
 
                 link_item | """
     <li>
-      <a href="{link_href}">{link_key}</a>
+      <a class="{cls}" href="{link_href}">{link_key}</a>
     </li>
 """
                 update!(links_html, links_html + link_item)

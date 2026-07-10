@@ -7,6 +7,7 @@ meta_type: generated
 generated_by: categories
 summary: Pages in the Navigation category.
 categories: []
+canonical: categories-navigation
 ^^^^
 
 * [[Navigation]]

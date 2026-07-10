@@ -7,6 +7,7 @@ meta_type: docs
 summary: Add images to Sheriff pages with files in public/images and Sheriff wiki image syntax.
 gloss: Images are stored in public/images and rendered with Sheriff wiki image syntax.
 categories: [Images]
+canonical: images
 ^^^^
 
 Images are stored in your portal's `public/images` folder.

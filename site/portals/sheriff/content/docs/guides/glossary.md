@@ -6,6 +6,7 @@ meta_kind: tutorial
 meta_type: docs
 summary: Add instant hover explanations to wikilinks using the `gloss` frontmatter field.
 gloss: You can add definitions or one-line overviews to articles. People can view them by hovering links.
+canonical: glossary
 ^^^^
 
 Glossary tooltips allow Sheriff pages to show **instant explanations when hovering over a link**.
@@ -38,6 +39,7 @@ meta_kind: tutorial
 meta_type: docs
 summary: Add instant hover explanations to wikilinks using the `gloss` frontmatter field.
 gloss: You can add definitions or one-line overviews to articles. People can view them by hovering links.
+canonical: glossary
 ^^^^
 ```
 

@@ -8,6 +8,7 @@ layout: blog
 meta_kind: blog
 meta_type: development
 summary: The entire reason I created Sheriff, along with why I created it like this.
+canonical: why-i-made-sheriff
 ^^^^
 
 I think a lot of open-source software suffers from the same problem: documentation sucks. It's one of the primary reasons a lot of new languages, frameworks, libraries, etc. don't get adopted. *No one can figure out how to use it.* That's the userland problem. It is exists because of another inconvenient truth: no one wants to *write the documentation*. 

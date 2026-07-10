@@ -11,9 +11,9 @@ menus:
 
     Tutorials:
       Styling:
-        Themes: docs/guides/themes.html
-        Branding: docs/guides/branding.html
-        Focus Panels: docs/guides/focus_panels.html
+        Themes: [[themes]]
+        Branding: [[branding]]
+        Focus Panels: [[focus-panels]]
       Recipes:
         Password Generator: docs/tutorials/recipes/password_generator_recipe.html
 

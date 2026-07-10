@@ -5,6 +5,7 @@ layout: docs
 meta_kind: tutorial
 meta_type: docs
 summary: Styled callout blocks for notes, warnings, strategy, lore, and collapsible spoilers.
+canonical: admonitions
 ^^^^
 
 Admonitions are **styled callout blocks** used to highlight important information inside your content.
