@@ -20,6 +20,8 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      WIKI_PAGETABS:
+        - "TRAILBOSS::DOC_VERSIONS"
       DOC_VERSIONS:
         - "TRAILBOSS::DOC_VERSIONS"
       REVISION_META:
@@ -74,6 +76,8 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      WIKI_PAGETABS:
+        - "TRAILBOSS::DOC_VERSIONS"
       DOC_VERSIONS:
         - "TRAILBOSS::DOC_VERSIONS"
       REVISION_META:
@@ -127,6 +131,7 @@ layouts:
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
       WIKI_PAGETABS:
+        - "TRAILBOSS::DOC_VERSIONS"
       DOC_VERSIONS:
         - "TRAILBOSS::DOC_VERSIONS"
       REVISION_META:
@@ -176,6 +181,8 @@ layouts:
         - "CAMPFIRE::BLOG_LIST"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      WIKI_PAGETABS:
+        - "TRAILBOSS::DOC_VERSIONS"
       DOC_VERSIONS:
         - "TRAILBOSS::DOC_VERSIONS"
       REVISION_META:
@@ -260,6 +267,8 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      WIKI_PAGETABS:
+        - "TRAILBOSS::DOC_VERSIONS"
       DOC_VERSIONS:
         - "TRAILBOSS::DOC_VERSIONS"
       REVISION_META:

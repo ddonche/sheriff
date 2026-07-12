@@ -52,7 +52,6 @@
                   {{{PAGE::TITLE}}}
                 </h1>
                 <div class="sheriff-title-underline"></div>
-                {{{SLOT::DOC_VERSIONS}}}
                 <!-- Byline / meta row -->
                 <div class="sheriff-page-byline">
                   <div class="sheriff-page-byline-main">
@@ -61,7 +60,6 @@
                       {{{PAGE::AUTHOR}}}
                     </span>
                     {{{SLOT::PAGEMETALEFT}}}
-                    {{{SLOT::REVISION_META}}}
                     <!-- e.g. " · " + BADGE::READTIME -->
                   </div>
                   <div class="sheriff-page-byline-actions">
@@ -69,6 +67,7 @@
                     <!-- e.g. BADGE::UTILICONS -->
                   </div>
                 </div>
+                {{{SLOT::WIKI_PAGETABS}}}
                 <hr class="sheriff-page-header-divider" />
               </header>
               <!-- Markdown / main content -->

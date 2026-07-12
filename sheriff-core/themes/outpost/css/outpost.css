@@ -2242,32 +2242,45 @@ a.sheriff-missing-link:hover {
 /* WIKI CATEGORIES                                                            */
 /* ========================================================================== */
 
-.sheriff-doc-version-tabs {
+.sheriff-page-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0.75rem 0 0.35rem;
-  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  margin: 0.75rem 0 0;
+  border-bottom: 1px solid var(--sheriff-border);
+  font-size: 0.72rem;
 }
 
-.sheriff-doc-version-tab {
+.sheriff-page-tabs-left,
+.sheriff-page-tabs-right {
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheriff-page-tab {
   display: inline-flex;
   align-items: center;
-  min-height: 1.55rem;
-  padding: 0.16rem 0.55rem;
-  border: 1px solid var(--sheriff-border);
-  border-radius: 999px;
+  min-height: 1.75rem;
+  margin-bottom: -1px;
+  padding: 0.35rem 0.7rem 0.32rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--sheriff-border);
   color: var(--sheriff-muted);
   background: transparent;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   line-height: 1;
   text-decoration: none;
+  text-transform: uppercase;
 }
 
-.sheriff-doc-version-tab-active {
-  border-color: var(--sheriff-link);
-  color: var(--sheriff-link);
-  background: color-mix(in srgb, var(--sheriff-link) 10%, transparent);
+.sheriff-page-tab-active {
+  border-color: var(--sheriff-border);
+  border-bottom-color: var(--sheriff-bg);
+  color: var(--sheriff-text);
+  background: var(--sheriff-bg);
 }
 
 .sheriff-revision-meta {
@@ -2288,27 +2301,7 @@ a.sheriff-missing-link:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.sheriff-doc-version-tab[href]:hover {
-  border-color: var(--sheriff-link);
-  color: var(--sheriff-link);
-}
-
-.sheriff-revision-history {
-  display: inline-block;
-  margin-left: 0.45rem;
-}
-
-.sheriff-revision-history summary {
-  cursor: pointer;
-  color: var(--sheriff-link);
-}
-
-.sheriff-revision-history ol {
-  margin: 0.35rem 0 0 1.1rem;
-  padding: 0;
-}
-
-.sheriff-revision-current {
+.sheriff-page-tab[href]:hover {
   color: var(--sheriff-link);
 }
 
