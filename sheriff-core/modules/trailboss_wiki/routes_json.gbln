@@ -209,6 +209,20 @@ act revision_sort_key(revision)
     return num
 xx
 
+act version_variant_rel(page_rel, version)
+    version_slug | normalize_to_slug(version)
+    if version_slug.nix?
+        version_slug |= "version"
+    xx
+
+    :update_where!(version_slug, ".", "-")
+    :update_where!(version_slug, "/", "-")
+    :update_where!(version_slug, "\\", "-")
+    :update_where!(version_slug, ":", "-")
+
+    return "{page_rel}__{version_slug}"
+xx
+
 act frontmatter_is_tombstone(fm)
     if fm.nix? => return false
     if :valtype(fm) != "map" => return false
@@ -224,42 +238,62 @@ act frontmatter_is_tombstone(fm)
     return false
 xx
 
-act split_source_row(row)
-    page_rel | :keep_before(row, "|||") ?? ..
-    rest1 | :keep_after(row, "|||") ?? ..
-    version | :keep_before(rest1, "|||") ?? ..
-    rest2 | :keep_after(rest1, "|||") ?? ..
-    sort_key | :keep_before(rest2, "|||") ?? ..
-    rest3 | :keep_after(rest2, "|||") ?? ..
-    path | :keep_before(rest3, "|||") ?? ..
-    rest4 | :keep_after(rest3, "|||") ?? ..
-    out_rel | :keep_before(rest4, "|||") ?? ..
-    rest5 | :keep_after(rest4, "|||") ?? ..
-    storage_kind | :keep_before(rest5, "|||") ?? ..
-    revision | :keep_after(rest5, "|||") ?? ..
+act selected_version_for_page(page_rel, selected_rows)
+    for row in selected_rows
+        info | split_source_row(row)
+        if info{"page_rel"} == page_rel
+            return info{"version"}
+        xx
+    xx
 
-    return {
-        "page_rel": page_rel,
-        "version": version,
-        "sort_key": sort_key,
-        "path": path,
-        "rel_no_ext": out_rel,
-        "storage_kind": storage_kind,
-        "revision": revision
-    }
+    return ..
 xx
 
-act path_last_segment(path)
-    if path.nix? => send ..
+act version_rel_rows_for_page(page_rel, current_version_rows, selected_rows)
+    selected_version | selected_version_for_page(page_rel, selected_rows)
+    rows | []
 
-    parts | :split(path, "/")
-    if parts.nix? or parts.len == 0 => send path
+    for row in current_version_rows
+        info | split_source_row(row)
+        if info{"page_rel"} != page_rel
+            skip
+        xx
 
-    idx | parts.len - 1
-    return parts[idx]
+        version | info{"version"}
+        rel | page_rel
+
+        if version != selected_version
+            rel |= version_variant_rel(page_rel, version)
+        xx
+
+        :put_last!(rows, "{version}|||{rel}")
+    xx
+
+    return rows
 xx
 
-act build_source_records(portal)
+act revision_history_rows_for_version(page_rel, version, all_rows)
+    rows | []
+
+    for row in all_rows
+        info | split_source_row(row)
+        if info{"page_rel"} != page_rel
+            skip
+        xx
+
+        if info{"version"} != version
+            skip
+        xx
+
+        revision | info{"revision"}
+        path | info{"path"}
+        :put_last!(rows, "{revision}|||{path}")
+    xx
+
+    return rows
+xx
+
+act source_row_sets(portal)
     content_root | "../site/portals/{portal}/content"
     cfg | load_cfg(portal)
     versions | get_documentation_versions_for_portal(portal, cfg)
@@ -275,15 +309,23 @@ act build_source_records(portal)
         rel_no_ext | :keep_before(rel, ".md") ?? rel
         :update_where!(rel_no_ext, "\\", "/")
 
-        revision | path_last_segment(rel_no_ext)
+        leaf | path_last_segment(rel_no_ext)
         version_dir | path_last_segment(:dirname(rel_no_ext))
 
         is_revision | false
-        if :starts_with(revision, "R") and is_documentation_version(versions, version_dir)
-            is_revision |= true
+        is_invalid_version_file | false
+
+        if is_documentation_version(versions, version_dir)
+            if :starts_with(leaf, "R")
+                is_revision |= true
+            else
+                is_invalid_version_file |= true
+            xx
         xx
 
-        if is_revision
+        if is_invalid_version_file
+            skip
+        elif is_revision
             md_text | :read_text(src_norm)
             fm | extract_frontmatter_map(md_text)
             if frontmatter_is_tombstone(fm)
@@ -292,9 +334,9 @@ act build_source_records(portal)
 
             version_rel | :dirname(rel_no_ext)
             page_rel | :dirname(version_rel)
-            sort_key | revision_sort_key(revision)
+            sort_key | revision_sort_key(leaf)
 
-            :put_last!(rows, "{page_rel}|||{version_dir}|||{sort_key}|||{src_norm}|||{page_rel}|||revision|||{revision}")
+            :put_last!(rows, "{page_rel}|||{version_dir}|||{sort_key}|||{src_norm}|||{page_rel}|||revision|||{leaf}")
         else
             :put_last!(rows, "{rel_no_ext}|||{default_version}|||000000|||{src_norm}|||{rel_no_ext}|||legacy|||R1")
         xx
@@ -344,11 +386,27 @@ act build_source_records(portal)
         xx
     xx
 
+    return {
+        "all_rows": reverse_rows,
+        "current_version_rows": current_version_rows,
+        "selected_rows": selected_rows,
+        "default_version": default_version
+    }
+xx
+
+act records_from_rows(rows_to_emit, row_sets, render_all_versions)
+    current_version_rows | row_sets{"current_version_rows"}
+    selected_rows | row_sets{"selected_rows"}
+    all_rows | row_sets{"all_rows"}
+    default_version | row_sets{"default_version"}
+
     records | []
 
-    for row in selected_rows
+    for row in rows_to_emit
         info | split_source_row(row)
         page_rel | info{"page_rel"}
+        version | info{"version"}
+        selected_version | selected_version_for_page(page_rel, selected_rows)
 
         available_versions | []
         for version_row in current_version_rows
@@ -361,19 +419,72 @@ act build_source_records(portal)
             xx
         xx
 
+        output_rel | page_rel
+        if render_all_versions and version != selected_version
+            output_rel |= version_variant_rel(page_rel, version)
+        xx
+
         :put_last!(records, {
             "path": info{"path"},
-            "rel_no_ext": info{"rel_no_ext"},
+            "rel_no_ext": page_rel,
+            "output_rel_no_ext": output_rel,
             "page_rel": page_rel,
-            "doc_version": info{"version"},
+            "doc_version": version,
             "default_doc_version": default_version,
             "available_doc_versions": available_versions,
+            "version_rel_rows": version_rel_rows_for_page(page_rel, current_version_rows, selected_rows),
+            "revision_history_rows": revision_history_rows_for_version(page_rel, version, all_rows),
             "revision": info{"revision"},
             "storage_kind": info{"storage_kind"}
         })
     xx
 
     return records
+xx
+
+act split_source_row(row)
+    page_rel | :keep_before(row, "|||") ?? ..
+    rest1 | :keep_after(row, "|||") ?? ..
+    version | :keep_before(rest1, "|||") ?? ..
+    rest2 | :keep_after(rest1, "|||") ?? ..
+    sort_key | :keep_before(rest2, "|||") ?? ..
+    rest3 | :keep_after(rest2, "|||") ?? ..
+    path | :keep_before(rest3, "|||") ?? ..
+    rest4 | :keep_after(rest3, "|||") ?? ..
+    out_rel | :keep_before(rest4, "|||") ?? ..
+    rest5 | :keep_after(rest4, "|||") ?? ..
+    storage_kind | :keep_before(rest5, "|||") ?? ..
+    revision | :keep_after(rest5, "|||") ?? ..
+
+    return {
+        "page_rel": page_rel,
+        "version": version,
+        "sort_key": sort_key,
+        "path": path,
+        "rel_no_ext": out_rel,
+        "storage_kind": storage_kind,
+        "revision": revision
+    }
+xx
+
+act path_last_segment(path)
+    if path.nix? => send ..
+
+    parts | :split(path, "/")
+    if parts.nix? or parts.len == 0 => send path
+
+    idx | parts.len - 1
+    return parts[idx]
+xx
+
+act build_source_records(portal)
+    row_sets | source_row_sets(portal)
+    return records_from_rows(row_sets{"selected_rows"}, row_sets, false)
+xx
+
+act build_render_records(portal)
+    row_sets | source_row_sets(portal)
+    return records_from_rows(row_sets{"current_version_rows"}, row_sets, true)
 xx
 
 /// Match Trailboss slug normalization rules (basic + stable)
@@ -838,6 +949,8 @@ act build_routes_json_for_portal(portal)
             "doc_version": record{"doc_version"},
             "default_doc_version": record{"default_doc_version"},
             "available_doc_versions": record{"available_doc_versions"},
+            "version_rel_rows": record{"version_rel_rows"},
+            "revision_history_rows": record{"revision_history_rows"},
             "revision": record{"revision"},
             "title":     page_title,
             "aliases":   aliases,

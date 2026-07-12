@@ -2488,6 +2488,76 @@ a.sheriff-missing-link:hover {
 /* WIKI CATEGORIES                                                            */
 /* ========================================================================== */
 
+.sheriff-doc-version-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0.35rem;
+  align-items: center;
+}
+
+.sheriff-doc-version-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0.16rem 0.55rem;
+  border: 1px solid var(--sheriff-border);
+  border-radius: 999px;
+  color: var(--sheriff-muted);
+  background: transparent;
+  font-size: 0.76rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.sheriff-doc-version-tab-active {
+  border-color: var(--sheriff-link);
+  color: var(--sheriff-link);
+  background: color-mix(in srgb, var(--sheriff-link) 10%, transparent);
+}
+
+.sheriff-revision-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  margin-left: 0.45rem;
+  color: var(--sheriff-muted);
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.sheriff-page-header > .sheriff-revision-meta {
+  margin: 0.45rem 0 0;
+}
+
+.sheriff-revision-id {
+  font-variant-numeric: tabular-nums;
+}
+
+.sheriff-doc-version-tab[href]:hover {
+  border-color: var(--sheriff-link);
+  color: var(--sheriff-link);
+}
+
+.sheriff-revision-history {
+  display: inline-block;
+  margin-left: 0.45rem;
+}
+
+.sheriff-revision-history summary {
+  cursor: pointer;
+  color: var(--sheriff-link);
+}
+
+.sheriff-revision-history ol {
+  margin: 0.35rem 0 0 1.1rem;
+  padding: 0;
+}
+
+.sheriff-revision-current {
+  color: var(--sheriff-link);
+}
+
 .sheriff-wiki-categories {
   margin-top: 2.5rem;
   padding-top: 0.75rem;

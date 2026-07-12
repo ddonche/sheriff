@@ -25,3 +25,9 @@ routing:
   url_root: ""    
   content_dir: "content"     
   public_dir: "public"      
+
+documentation:
+  default_version: "1.0"
+  versions:
+    - "0.47"
+    - "1.0"

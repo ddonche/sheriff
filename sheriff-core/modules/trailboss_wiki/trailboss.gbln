@@ -1482,6 +1482,198 @@ act publish_canonical_link(ctx)
     return ctx
 xx
 
+act route_meta_for_ctx(ctx, portal)
+    href | ..
+    if :has(ctx, "href")
+        href |= ctx["href"] ?? ..
+    xx
+
+    route_rel | ..
+    if :has(ctx, "route_rel_no_ext")
+        route_rel |= ctx["route_rel_no_ext"] ?? ..
+    xx
+
+    routes | load_routes_for_portal(ctx, portal)
+    if :valtype(routes) != "array" => send nil
+
+    for meta in routes
+        if meta.nix? => skip
+
+        route_href | meta["href"] ?? ..
+        if !href.nix? and route_href == href
+            return meta
+        xx
+
+        rel | meta["rel"] ?? ..
+        if !route_rel.nix? and rel == route_rel
+            return meta
+        xx
+    xx
+
+    return nil
+xx
+
+act version_rel_for_tab(version, rows)
+    if :valtype(rows) != "array" => send ..
+
+    for row in rows
+        row_version | :keep_before(row, "|||") ?? ..
+        if row_version == version
+            return :keep_after(row, "|||") ?? ..
+        xx
+    xx
+
+    return ..
+xx
+
+act publish_doc_versions(ctx)
+    portal | ctx["portal"] ?? => send ctx
+    body   | ctx["body"] ?? => send ctx
+
+    html | ""
+    versions | []
+    if :has(ctx, "available_documentation_versions")
+        versions |= ctx["available_documentation_versions"] ?? []
+    xx
+
+    current_version | ..
+    if :has(ctx, "documentation_version")
+        current_version |= ctx["documentation_version"] ?? ..
+    xx
+    version_rel_rows | []
+    if :has(ctx, "version_rel_rows")
+        version_rel_rows |= ctx["version_rel_rows"] ?? []
+    xx
+
+    if :valtype(versions) != "array" or versions.len <= 1
+        meta | route_meta_for_ctx(ctx, portal)
+        if meta.nix? == false
+            versions |= meta["available_doc_versions"] ?? []
+            current_version |= meta["doc_version"] ?? current_version
+            version_rel_rows |= meta["version_rel_rows"] ?? version_rel_rows
+        xx
+    xx
+
+    if :valtype(versions) == "array" and versions.len > 1
+        cfg | rjson::load_cfg(portal)
+        url_root | rjson::get_url_root(cfg)
+        tabs | []
+
+        for version in versions
+            if version.nix? => skip
+
+            version_text | escape_text(version)
+
+            if version == current_version
+                :put_last!(tabs, "<span class=\"sheriff-doc-version-tab sheriff-doc-version-tab-active\" aria-current=\"page\">{version_text}</span>")
+            else
+                rel | version_rel_for_tab(version, version_rel_rows)
+                href | "#"
+                if !rel.nix?
+                    href |= rjson::build_href(url_root, rel)
+                xx
+
+                href_safe | escape_attr(href)
+                :put_last!(tabs, "<a class=\"sheriff-doc-version-tab\" href=\"{href_safe}\" data-doc-version=\"{version_text}\">{version_text}</a>")
+            xx
+        xx
+
+        tab_html | :join(tabs, "\n")
+
+        if tab_html.nix? == false
+            html |= """
+<nav class="sheriff-doc-version-tabs" aria-label="Documentation versions">
+{tab_html}
+</nav>
+"""
+        xx
+    xx
+
+    updated | body
+    :update_where!(updated, "{{{TRAILBOSS::DOC_VERSIONS}}}", html)
+    :update!(ctx["body"], updated)
+
+    return ctx
+xx
+
+act publish_revision_meta(ctx)
+    portal_new | ctx["portal"] ?? => send ctx
+    body_new   | ctx["body"] ?? => send ctx
+
+    html_new | ""
+    storage_kind_new | ..
+    if :has(ctx, "storage_kind")
+        storage_kind_new |= ctx["storage_kind"] ?? ..
+    xx
+
+    doc_version_new | ..
+    if :has(ctx, "documentation_version")
+        doc_version_new |= ctx["documentation_version"] ?? ..
+    xx
+
+    revision_new | ..
+    if :has(ctx, "revision")
+        revision_new |= ctx["revision"] ?? ..
+    xx
+
+    history_rows_new | []
+    if :has(ctx, "revision_history_rows")
+        history_rows_new |= ctx["revision_history_rows"] ?? []
+    xx
+
+    if storage_kind_new.nix? or doc_version_new.nix? or revision_new.nix?
+        meta_new | route_meta_for_ctx(ctx, portal_new)
+        if meta_new.nix? == false
+            storage_kind_new |= meta_new["storage_kind"] ?? storage_kind_new
+            doc_version_new |= meta_new["doc_version"] ?? doc_version_new
+            revision_new |= meta_new["revision"] ?? revision_new
+            history_rows_new |= meta_new["revision_history_rows"] ?? history_rows_new
+        xx
+    xx
+
+    if storage_kind_new == "revision" and doc_version_new.nix? == false and revision_new.nix? == false
+        version_safe_new | escape_text(doc_version_new)
+        revision_safe_new | escape_text(revision_new)
+
+        history_html_new | ""
+        if :valtype(history_rows_new) == "array" and history_rows_new.len > 0
+            items_new | []
+
+            for row_new in history_rows_new
+                history_revision_new | :keep_before(row_new, "|||") ?? row_new
+                history_revision_safe_new | escape_text(history_revision_new)
+                current_class_new | ""
+                current_label_new | ""
+
+                if history_revision_new == revision_new
+                    current_class_new |= " class=\"sheriff-revision-current\""
+                    current_label_new |= " <span>current</span>"
+                xx
+
+                :put_last!(items_new, "<li{current_class_new}>{history_revision_safe_new}{current_label_new}</li>")
+            xx
+
+            item_html_new | :join(items_new, "\n")
+            history_html_new |= """
+<details class="sheriff-revision-history">
+<summary>History</summary>
+<ol>
+{item_html_new}
+</ol>
+</details>
+"""
+        xx
+
+        html_new |= """<span class="sheriff-revision-meta"><span class="sheriff-revision-version">Version {version_safe_new}</span><span class="sheriff-revision-separator"> - </span><span class="sheriff-revision-id">{revision_safe_new}</span>{history_html_new}</span>"""
+    xx
+
+    updated_new | body_new
+    :update_where!(updated_new, "{{{TRAILBOSS::REVISION_META}}}", html_new)
+    :update!(ctx["body"], updated_new)
+
+    return ctx
+xx
+
 act publish_categories(ctx)
     portal | ctx["portal"] ?? => send ctx
     body   | ctx["body"] ?? => send ctx

@@ -11,6 +11,9 @@ summary: Alphabetical index of all pages.
 ## N
 * [[navigation|Navigation]]
 
+## V
+* [[version-test|Version Test]]
+
 ## A
 * [[admonitions|Admonitions & Spoilers]]
 

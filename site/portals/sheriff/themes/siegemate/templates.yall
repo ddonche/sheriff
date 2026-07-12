@@ -20,6 +20,10 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      DOC_VERSIONS:
+        - "TRAILBOSS::DOC_VERSIONS"
+      REVISION_META:
+        - "TRAILBOSS::REVISION_META"
 
       # FOOTERS: use footer_* menus as FLAT
       FOOTER_LEFT:
@@ -70,6 +74,10 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      DOC_VERSIONS:
+        - "TRAILBOSS::DOC_VERSIONS"
+      REVISION_META:
+        - "TRAILBOSS::REVISION_META"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
@@ -119,6 +127,10 @@ layouts:
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
       WIKI_PAGETABS:
+      DOC_VERSIONS:
+        - "TRAILBOSS::DOC_VERSIONS"
+      REVISION_META:
+        - "TRAILBOSS::REVISION_META"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
@@ -164,6 +176,10 @@ layouts:
         - "CAMPFIRE::BLOG_LIST"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      DOC_VERSIONS:
+        - "TRAILBOSS::DOC_VERSIONS"
+      REVISION_META:
+        - "TRAILBOSS::REVISION_META"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"
@@ -244,6 +260,10 @@ layouts:
         - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
+      DOC_VERSIONS:
+        - "TRAILBOSS::DOC_VERSIONS"
+      REVISION_META:
+        - "TRAILBOSS::REVISION_META"
       
       FOOTER_LEFT:
         - "SCOUT::footer_left_FLAT"

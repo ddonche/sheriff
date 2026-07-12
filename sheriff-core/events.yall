@@ -29,6 +29,8 @@ schedule:
   - "trailboss::publish_what_links_here"
   - "trailboss::publish_categories"
   - "trailboss::publish_canonical_link"
+  - "trailboss::publish_doc_versions"
+  - "trailboss::publish_revision_meta"
   - "scout::apply_tokens"
   - "campfire::apply_tokens"
   - "brindle::apply_tokens"

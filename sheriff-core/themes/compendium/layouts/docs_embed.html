@@ -31,11 +31,13 @@
                     </div>
                     <h1>{{{PAGE::TITLE}}}</h1>
                     <div class="sheriff-title-underline"></div>
+                    {{{SLOT::DOC_VERSIONS}}}
                     <div class="sheriff-page-byline">
                       <div class="sheriff-page-byline-main">
                         By
                         <span class="sheriff-page-byline-author">{{{PAGE::AUTHOR}}}</span>
                         {{{SLOT::PAGEMETALEFT}}}
+                        {{{SLOT::REVISION_META}}}
                       </div>
                       <div class="sheriff-page-byline-actions">
                         {{{SLOT::PAGEMETARIGHT}}}
