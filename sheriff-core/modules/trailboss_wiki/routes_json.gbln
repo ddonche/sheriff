@@ -61,6 +61,321 @@ act get_url_root(cfg)
     return t
 xx
 
+act get_documentation_map(cfg)
+    if cfg.nix? => return {}
+    if :valtype(cfg) != "map" => return {}
+    if :has(cfg, "documentation") == false => return {}
+
+    documentation | cfg{"documentation"}
+    if documentation.nix? => return {}
+    if :valtype(documentation) != "map" => return {}
+
+    return documentation
+xx
+
+act get_documentation_versions(cfg)
+    documentation | get_documentation_map(cfg)
+    if :has(documentation, "versions") == false => return []
+
+    versions | documentation{"versions"} ?? []
+    if :valtype(versions) != "array" => return []
+
+    clean | []
+    for version in versions
+        if version.nix? => skip
+
+        v | :trim(version)
+        if v.nix? => skip
+
+        if :has(clean, v) == false
+            :put_last!(clean, v)
+        xx
+    xx
+
+    return clean
+xx
+
+act strip_config_quotes(value)
+    if value.nix? => send ..
+
+    out | :trim(value)
+    if out.nix? => send ..
+
+    if :starts_with(out, "\"") and :ends_with(out, "\"")
+        out |= :keep_between(out, "\"", "\"") ?? out
+    xx
+
+    return out
+xx
+
+act get_documentation_versions_for_portal(portal, cfg)
+    versions | get_documentation_versions(cfg)
+    if :valtype(versions) == "array" and versions.len > 0
+        return versions
+    xx
+
+    path | "../site/portals/{portal}/config.yall"
+    if :file_exists(path) == false => return []
+
+    raw | :read_text(path)
+    in_versions | false
+    parsed_versions | []
+
+    for line in :split(raw, "\n")
+        t | :trim(line)
+        if t.nix? => skip
+
+        if t == "versions:"
+            in_versions |= true
+            skip
+        xx
+
+        if in_versions
+            if :starts_with(t, "- ")
+                version | :keep_after(t, "- ") ?? ..
+                version |= strip_config_quotes(version)
+                if !version.nix? and :has(parsed_versions, version) == false
+                    :put_last!(parsed_versions, version)
+                xx
+                skip
+            xx
+
+            if :has(t, ":")
+                stop
+            xx
+        xx
+    xx
+
+    return parsed_versions
+xx
+
+act get_default_documentation_version(cfg)
+    documentation | get_documentation_map(cfg)
+
+    default_version | ..
+    if :has(documentation, "default_version")
+        default_version |= documentation{"default_version"} ?? ..
+    xx
+    if !default_version.nix?
+        default_version |= :trim(default_version)
+    xx
+
+    if default_version.nix?
+        versions | get_documentation_versions(cfg)
+        if :valtype(versions) == "array" and versions.len > 0
+            default_version |= versions[0]
+        xx
+    xx
+
+    if default_version.nix?
+        default_version |= "default"
+    xx
+
+    return default_version
+xx
+
+act is_documentation_version(versions, value)
+    if value.nix? => return false
+    if :valtype(versions) != "array" => return false
+
+    for version in versions
+        if version == value
+            return true
+        xx
+    xx
+
+    return false
+xx
+
+act revision_sort_key(revision)
+    if revision.nix? => return "000000"
+
+    raw | revision
+    raw |= :trim(raw)
+
+    num | :keep_after(raw, "R")
+    if num.nix?
+        num |= raw
+    xx
+    trimmed_num | :trim(num)
+    num |= trimmed_num
+
+    if num.len < 2 => return "00000{num}"
+    if num.len < 3 => return "0000{num}"
+    if num.len < 4 => return "000{num}"
+    if num.len < 5 => return "00{num}"
+    if num.len < 6 => return "0{num}"
+
+    return num
+xx
+
+act frontmatter_is_tombstone(fm)
+    if fm.nix? => return false
+    if :valtype(fm) != "map" => return false
+    if :has(fm, "tombstone") == false => return false
+
+    value | fm{"tombstone"}
+    if value == true => return true
+
+    text | :lower(:trim(value))
+    if text == "true" => return true
+    if text == "yes" => return true
+
+    return false
+xx
+
+act split_source_row(row)
+    page_rel | :keep_before(row, "|||") ?? ..
+    rest1 | :keep_after(row, "|||") ?? ..
+    version | :keep_before(rest1, "|||") ?? ..
+    rest2 | :keep_after(rest1, "|||") ?? ..
+    sort_key | :keep_before(rest2, "|||") ?? ..
+    rest3 | :keep_after(rest2, "|||") ?? ..
+    path | :keep_before(rest3, "|||") ?? ..
+    rest4 | :keep_after(rest3, "|||") ?? ..
+    out_rel | :keep_before(rest4, "|||") ?? ..
+    rest5 | :keep_after(rest4, "|||") ?? ..
+    storage_kind | :keep_before(rest5, "|||") ?? ..
+    revision | :keep_after(rest5, "|||") ?? ..
+
+    return {
+        "page_rel": page_rel,
+        "version": version,
+        "sort_key": sort_key,
+        "path": path,
+        "rel_no_ext": out_rel,
+        "storage_kind": storage_kind,
+        "revision": revision
+    }
+xx
+
+act path_last_segment(path)
+    if path.nix? => send ..
+
+    parts | :split(path, "/")
+    if parts.nix? or parts.len == 0 => send path
+
+    idx | parts.len - 1
+    return parts[idx]
+xx
+
+act build_source_records(portal)
+    content_root | "../site/portals/{portal}/content"
+    cfg | load_cfg(portal)
+    versions | get_documentation_versions_for_portal(portal, cfg)
+    default_version | get_default_documentation_version(cfg)
+
+    rows | []
+
+    for src in :walk(content_root, "**/*.md")
+        src_norm | src
+        :update_where!(src_norm, "\\", "/")
+
+        rel | :path_relative_to(src_norm, content_root)
+        rel_no_ext | :keep_before(rel, ".md") ?? rel
+        :update_where!(rel_no_ext, "\\", "/")
+
+        revision | path_last_segment(rel_no_ext)
+        version_dir | path_last_segment(:dirname(rel_no_ext))
+
+        is_revision | false
+        if :starts_with(revision, "R") and is_documentation_version(versions, version_dir)
+            is_revision |= true
+        xx
+
+        if is_revision
+            md_text | :read_text(src_norm)
+            fm | extract_frontmatter_map(md_text)
+            if frontmatter_is_tombstone(fm)
+                skip
+            xx
+
+            version_rel | :dirname(rel_no_ext)
+            page_rel | :dirname(version_rel)
+            sort_key | revision_sort_key(revision)
+
+            :put_last!(rows, "{page_rel}|||{version_dir}|||{sort_key}|||{src_norm}|||{page_rel}|||revision|||{revision}")
+        else
+            :put_last!(rows, "{rel_no_ext}|||{default_version}|||000000|||{src_norm}|||{rel_no_ext}|||legacy|||R1")
+        xx
+    xx
+
+    sorted_rows | :sort(rows)
+    reverse_rows | []
+
+    for row in sorted_rows
+        :put_first!(reverse_rows, row)
+    xx
+
+    current_version_keys | []
+    current_version_rows | []
+
+    for row in reverse_rows
+        info | split_source_row(row)
+        key | info{"page_rel"} + "||" + info{"version"}
+
+        if :has(current_version_keys, key) == false
+            :put_last!(current_version_keys, key)
+            :put_last!(current_version_rows, row)
+        xx
+    xx
+
+    selected_pages | []
+    selected_rows | []
+
+    for row in current_version_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+        version | info{"version"}
+
+        if version == default_version and :has(selected_pages, page_rel) == false
+            :put_last!(selected_pages, page_rel)
+            :put_last!(selected_rows, row)
+        xx
+    xx
+
+    for row in current_version_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+
+        if :has(selected_pages, page_rel) == false
+            :put_last!(selected_pages, page_rel)
+            :put_last!(selected_rows, row)
+        xx
+    xx
+
+    records | []
+
+    for row in selected_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+
+        available_versions | []
+        for version_row in current_version_rows
+            version_info | split_source_row(version_row)
+            if version_info{"page_rel"} == page_rel
+                version_name | version_info{"version"}
+                if :has(available_versions, version_name) == false
+                    :put_last!(available_versions, version_name)
+                xx
+            xx
+        xx
+
+        :put_last!(records, {
+            "path": info{"path"},
+            "rel_no_ext": info{"rel_no_ext"},
+            "page_rel": page_rel,
+            "doc_version": info{"version"},
+            "default_doc_version": default_version,
+            "available_doc_versions": available_versions,
+            "revision": info{"revision"},
+            "storage_kind": info{"storage_kind"}
+        })
+    xx
+
+    return records
+xx
+
 /// Match Trailboss slug normalization rules (basic + stable)
 act normalize_to_slug(page)
     if page.nix? => send ..
@@ -337,7 +652,7 @@ act build_routes_json_for_portal(portal)
     url_root | get_url_root(cfg)
     site_url | get_site_url(cfg)
 
-    files  | :walk(content_root, "**/*.md")
+    records | build_source_records(portal)
     routes | []
 
     page_count | 0
@@ -375,11 +690,10 @@ act build_routes_json_for_portal(portal)
     claimed_canonical_keys | []
     claimed_canonical_rows | []
 
-    for src in files
-        src_norm | src
-        :update_where!(src_norm, "\\", "/")
-
-        stem_name | :stem(src_norm)
+    for record in records
+        src_norm | record{"path"}
+        rel_no_ext | record{"rel_no_ext"}
+        stem_name | :stem(rel_no_ext)
         slug | normalize_to_slug(stem_name)
 
         if slug == "index" => skip
@@ -403,11 +717,10 @@ act build_routes_json_for_portal(portal)
         xx
     xx
 
-    for src in files
-        src_norm | src
-        :update_where!(src_norm, "\\", "/")
-
-        stem_name | :stem(src_norm)
+    for record in records
+        src_norm | record{"path"}
+        rel_no_ext | record{"rel_no_ext"}
+        stem_name | :stem(rel_no_ext)
         slug | normalize_to_slug(stem_name)
 
         if slug == "index"
@@ -421,21 +734,6 @@ act build_routes_json_for_portal(portal)
         if slug == "missing"
             skip
         xx
-
-        prefix | "../site/portals/{portal}/content/"
-        rel    | :keep_after(src_norm, prefix)
-
-        if rel == ""
-            rel |= "{stem_name}.md"
-        xx
-
-        rel_no_ext | :keep_before(rel, ".md")
-
-        if rel_no_ext == ""
-            rel_no_ext |= rel
-        xx
-
-        :update_where!(rel_no_ext, "\\", "/")
 
         href_abs | build_href(url_root, rel_no_ext)
 
@@ -452,6 +750,7 @@ act build_routes_json_for_portal(portal)
         categories | extract_frontmatter_list(md_text, fm, "categories")
         aliases    | extract_frontmatter_list(md_text, fm, "aliases")
         canonical_slug | ..
+        storage_kind | record{"storage_kind"} ?? "legacy"
 
         if fm.nix? == false and :valtype(fm) == "map"
 
@@ -522,7 +821,9 @@ act build_routes_json_for_portal(portal)
 
             :put_last!(claimed_canonical_keys, canonical_slug)
             :put_last!(claimed_canonical_rows, "{canonical_slug}|||{src_norm}")
-            write_missing_canonical(src_norm, md_text, canonical_slug)
+            if storage_kind != "revision"
+                write_missing_canonical(src_norm, md_text, canonical_slug)
+            xx
         xx
 
         canonical  | "[[" + canonical_slug + "]]"
@@ -532,6 +833,12 @@ act build_routes_json_for_portal(portal)
             "canonical_slug": canonical_slug,
             "href":      href_abs,
             "rel":       rel_no_ext,
+            "source_path": src_norm,
+            "storage_kind": storage_kind,
+            "doc_version": record{"doc_version"},
+            "default_doc_version": record{"default_doc_version"},
+            "available_doc_versions": record{"available_doc_versions"},
+            "revision": record{"revision"},
             "title":     page_title,
             "aliases":   aliases,
             "canonical": canonical,
@@ -570,6 +877,14 @@ act build_routes_json_for_portal(portal)
 
     :write_json!(routes_path, payload)
     :write_json!(report_path, report_payload)
+
+    /// also publish routes.json into the served public dir so the
+    /// interactive-image viewer can resolve wikilink markers client-side
+    dist_public | "../dist/{portal}/public"
+    if :file_exists(dist_public) == false
+        :create_dir!(dist_public)
+    xx
+    :write_json!("{dist_public}/routes.json", payload)
 
     if site_url != ..
         write_sitemap_xml(sitemap_path, site_url, routes)

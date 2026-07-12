@@ -135,8 +135,18 @@ act build_breadcrumbs(ctx)
     path   | ctx["path"] ?? => return ""
     portal | ctx["portal"] ?? => return ""
 
-    content_root | "../site/portals/{portal}/content"
-    rel          | :path_relative_to(path, content_root)
+    route_rel | ..
+    if :has(ctx, "route_rel_no_ext")
+        route_rel |= ctx["route_rel_no_ext"] ?? ..
+    xx
+    rel | ..
+
+    if !route_rel.nix?
+        rel |= route_rel + ".md"
+    else
+        content_root | "../site/portals/{portal}/content"
+        rel |= :path_relative_to(path, content_root)
+    xx
 
     /// Root → no breadcrumbs
     if rel == "" => return ""

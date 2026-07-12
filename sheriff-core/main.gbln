@@ -147,6 +147,32 @@ act resolve_single_md(content_root, md_files, target)
     return best_path
 xx
 
+act resolve_single_record(records, target)
+    if records.nix? => return nil
+
+    for record in records
+        if record.nix? => skip
+
+        path | record["path"] ?? ..
+        rel_no_ext | record["rel_no_ext"] ?? ..
+        source_stem | :stem(path)
+        route_stem | :stem(rel_no_ext)
+
+        if target == path => return record
+        if target == rel_no_ext => return record
+        if target == route_stem => return record
+        if target == source_stem => return record
+
+        if :ends_with(target, ".md")
+            content_rel | rel_no_ext + ".md"
+            if target == content_rel => return record
+            if :ends_with(path, target) => return record
+        xx
+    xx
+
+    return nil
+xx
+
 /// --- helper: merge pre_ctx keys into ctx using update! (NO |= on indexed slots)
 act merge_pre_ctx_into_ctx(ctx, pre_ctx)
     if pre_ctx.nix?
@@ -209,24 +235,19 @@ act build()
     cfg      | load_events()
     schedule | cfg["schedule"]
 
-    content_root | "../site/portals/{#local::portal}/content"
-    md_files     | []
-
-    for f in :walk(content_root, "**/*.md")
-        :put_last!(md_files, f)
-    xx
-
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
     :update!(pre_ctx["schedule"], schedule)
 
-    md_files |= []
-    for f in :walk(content_root, "**/*.md")
-        :put_last!(md_files, f)
-    xx
+    cfg_portal | rjson::load_cfg(#local::portal)
+    url_root | rjson::get_url_root(cfg_portal)
+    source_records | rjson::build_source_records(#local::portal)
 
     /// BUILD EACH MARKDOWN FILE
-    for md_path in md_files
+    for record in source_records
+        md_path | record["path"]
+        rel_no_ext | record["rel_no_ext"]
+        href_abs | rjson::build_href(url_root, rel_no_ext)
         raw | :read_text(md_path)
 
         ctx | {
@@ -234,8 +255,14 @@ act build()
             "frontmatter": {},
             "tokens": {},
             "path": md_path,
+            "route_rel_no_ext": rel_no_ext,
+            "documentation_version": record["doc_version"],
+            "default_documentation_version": record["default_doc_version"],
+            "available_documentation_versions": record["available_doc_versions"],
+            "revision": record["revision"],
+            "storage_kind": record["storage_kind"],
             "portal": #local::portal,
-            "href": "",
+            "href": href_abs,
             "wanted_pages": pre_ctx["wanted_pages"],
             "backlinks": pre_ctx["backlinks"],
             "schedule": schedule
@@ -250,9 +277,8 @@ act build()
         :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
         :update!(pre_ctx["backlinks"], ctx["backlinks"])
 
-        rel_path | :path_relative_to(md_path, content_root)  /// "docs/judge.md"
-        dir      | :dirname(rel_path)                        /// "docs"
-        base     | :stem(rel_path)                           /// "judge"
+        dir      | :dirname(rel_no_ext)
+        base     | :stem(rel_no_ext)
         out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
         create_all_dirs(out_file)
@@ -280,22 +306,21 @@ act build_one_page(target)
 
     cfg      | load_events()
     schedule | cfg["schedule"]
+    cfg_portal | rjson::load_cfg(#local::portal)
+    url_root | rjson::get_url_root(cfg_portal)
+    source_records | rjson::build_source_records(#local::portal)
+    record | resolve_single_record(source_records, target)
 
-    content_root | "../site/portals/{#local::portal}/content"
-    md_files     | []
-
-    for f in :walk(content_root, "**/*.md")
-        :put_last!(md_files, f)
-    xx
-
-    md_path | resolve_single_md(content_root, md_files, target)
-
-    if md_path.nix?
+    if record.nix?
         :say("ERROR: page not found:")
         :say(target)
         :say("Tip: use slug (e.g. judge) or rel path (e.g. docs/judge.md)")
         return
     xx
+
+    md_path | record["path"]
+    rel_no_ext | record["rel_no_ext"]
+    href_abs | rjson::build_href(url_root, rel_no_ext)
 
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
@@ -308,8 +333,14 @@ act build_one_page(target)
         "frontmatter": {},
         "tokens": {},
         "path": md_path,
+        "route_rel_no_ext": rel_no_ext,
+        "documentation_version": record["doc_version"],
+        "default_documentation_version": record["default_doc_version"],
+        "available_documentation_versions": record["available_doc_versions"],
+        "revision": record["revision"],
+        "storage_kind": record["storage_kind"],
         "portal": #local::portal,
-        "href": "",
+        "href": href_abs,
         "wanted_pages": pre_ctx["wanted_pages"],
         "backlinks": pre_ctx["backlinks"],
         "schedule": schedule
@@ -323,9 +354,8 @@ act build_one_page(target)
     :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
     :update!(pre_ctx["backlinks"], ctx["backlinks"])
 
-    rel_path | :path_relative_to(md_path, content_root)
-    dir      | :dirname(rel_path)
-    base     | :stem(rel_path)
+    dir      | :dirname(rel_no_ext)
+    base     | :stem(rel_no_ext)
     out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
     create_all_dirs(out_file)

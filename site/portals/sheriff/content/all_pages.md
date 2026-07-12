@@ -17,6 +17,9 @@ summary: Alphabetical index of all pages.
 ## B
 * [[building-sites|Building Sites]]
 
+## C
+* [[canonical-links|Canonical Links]]
+
 ## I
 * [[categories-images|Images]]
 

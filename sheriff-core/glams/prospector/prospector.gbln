@@ -56,15 +56,32 @@ act index_page(ctx)
 
     if layout != "docs" => return ctx
 
-    /// -------- href from source path --------
-    rel_path     | :path_relative_to(path, #need::source_dir)
+    /// -------- href from route path --------
+    href | ..
 
-    rel_no_ext | rel_path
-    if :ends_with(rel_no_ext, ".md")
-        rel_no_ext | :ignore_where(rel_no_ext, ".md")
+    route_rel | ..
+    if :has(ctx, "route_rel_no_ext")
+        route_rel |= ctx["route_rel_no_ext"] ?? ..
     xx
 
-    href | "/{#local::portal}/{rel_no_ext}.html"
+    if !route_rel.nix?
+        href |= "/{route_rel}.html"
+    xx
+
+    if href.nix? and :has(ctx, "href")
+        href |= ctx["href"] ?? ..
+    xx
+
+    if href.nix?
+        rel_path | :path_relative_to(path, #need::source_dir)
+
+        rel_no_ext | rel_path
+        if :ends_with(rel_no_ext, ".md")
+            rel_no_ext | :ignore_where(rel_no_ext, ".md")
+        xx
+
+        href |= "/{#local::portal}/{rel_no_ext}.html"
+    xx
 
     /// -------- title --------
     title | "Untitled"

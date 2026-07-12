@@ -45,6 +45,7 @@
     content:    { el: 'view-content' },
     portals:    { el: 'view-portals' },
     media:      { el: 'view-media' },
+    interactive:{ el: 'view-interactive' },
     patterns:   { el: 'view-patterns' },
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
@@ -82,6 +83,7 @@
     if (key === 'content') editorEnter();
     if (key === 'portals') renderManageList();
     if (key === 'media') mediaEnter();
+    if (key === 'interactive' && window.SheriffInteractive) window.SheriffInteractive.enter(portalNames, PORT);
     if (key === 'navigation') nvEditor.enter();
     if (key === 'config') cfEditor.enter();
     if (key === 'themes') themesEnter();

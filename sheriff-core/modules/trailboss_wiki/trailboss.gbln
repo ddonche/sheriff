@@ -523,6 +523,18 @@ act attach_href(ctx)
     portal | ctx["portal"] ?? => send ctx
     src    | ctx["path"] ?? => send ctx
 
+    route_rel | ..
+    if :has(ctx, "route_rel_no_ext")
+        route_rel |= ctx["route_rel_no_ext"] ?? ..
+    xx
+    if !route_rel.nix?
+        cfg      | rjson::load_cfg(portal)
+        url_root | rjson::get_url_root(cfg)
+        href_abs | rjson::build_href(url_root, route_rel)
+        :update!(ctx["href"], href_abs)
+        return ctx
+    xx
+
     src_norm | path_norm(src)
 
     /// derive rel from the real source path under content/

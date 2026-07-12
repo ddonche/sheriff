@@ -1230,3 +1230,61 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
 .ed-actions .btn{ flex:1; justify-content:center; }
 
 .folder-card{ width:min(440px, 94vw); }
+
+/* ============ INTERACTIVE panel ============ */
+.ii-wrap{ display:flex; flex-direction:column; gap:16px; height:100%; min-height:0; }
+.ii-bar{ padding:14px 18px; }
+.ii-status{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:8px; min-height:14px; }
+.ii-main{ display:flex; gap:16px; flex:1; min-height:0; }
+
+.ii-icons{ width:196px; flex:none; display:flex; flex-direction:column; min-height:0; padding:14px; }
+.ii-col-head{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:8px; }
+.ii-col-actions{ display:flex; gap:6px; }
+.ii-icon-crumbs{ margin-bottom:10px; font-size:11px; flex-wrap:wrap; }
+.ii-icon-list{ flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; }
+.ii-icon{ position:relative; width:60px; height:60px; border:1px solid var(--line);
+  border-radius:6px; background:var(--canvas); display:flex; align-items:center;
+  justify-content:center; cursor:grab; }
+.ii-icon:active{ cursor:grabbing; }
+.ii-icon img{ max-width:48px; max-height:48px; object-fit:contain; pointer-events:none; }
+.ii-folder{ width:60px; height:60px; border:1px solid var(--line); border-radius:6px;
+  background:var(--card); display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:2px; cursor:pointer; color:var(--teal-deep); padding:4px; }
+.ii-folder:hover{ background:var(--canvas); }
+.ii-folder.up{ color:var(--muted); }
+.ii-folder-name{ font-size:9.5px; color:var(--ink); max-width:52px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.ii-icon-x{ position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%;
+  border:1px solid var(--line); background:var(--card); color:var(--red); font-size:10px;
+  line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+.ii-icon-x:hover{ background:var(--red); color:#fff; border-color:var(--red); }
+.ii-hint{ font-size:11px; color:var(--muted); margin-top:10px; line-height:1.4; }
+
+.ii-canvas-wrap{ flex:1; min-width:0; display:flex; padding:8px; }
+.ii-canvas{ position:relative; flex:1; min-height:340px; overflow:hidden; border-radius:4px;
+  background:repeating-conic-gradient(#e6e8e7 0% 25%, #f2f4f3 0% 50%) 50%/20px 20px; }
+.ii-canvas .portal-empty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.ii-img{ position:absolute; user-select:none; }
+.ii-markers{ position:absolute; inset:0; pointer-events:none; }
+.ii-pin{ position:absolute; transform:translate(-50%,-100%); pointer-events:auto;
+  background:none; border:0; padding:0; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; }
+.ii-pin-dot{ width:16px; height:16px; border-radius:50% 50% 50% 0; background:var(--red);
+  transform:rotate(-45deg); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+.ii-pin-icon{ width:30px; height:30px; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.ii-pin-label{ position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  margin-top:3px; font-size:11px; color:#fff; background:rgba(34,40,44,.9);
+  padding:1px 5px; border-radius:3px; white-space:nowrap; max-width:160px;
+  overflow:hidden; text-overflow:ellipsis; opacity:0; visibility:hidden;
+  transition:opacity .1s; pointer-events:none; }
+.ii-pin:hover .ii-pin-label{ opacity:1; visibility:visible; }
+.ii-pin.sel .ii-pin-dot{ background:var(--teal); outline:2px solid var(--teal-deep); }
+.ii-pin.sel .ii-pin-icon{ outline:2px solid var(--teal); border-radius:3px; }
+
+.ii-insp{ width:240px; flex:none; padding:14px; }
+.ii-insp-fields{ display:flex; flex-direction:column; gap:6px; }
+.ii-insp-fields .ed-label{ margin-top:4px; }
+.ii-del{ margin-top:12px; color:var(--red); }
+.ii-del:hover{ background:var(--red); color:#fff; border-color:var(--red); }
