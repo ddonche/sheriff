@@ -959,6 +959,7 @@ act build_routes_json_for_portal(portal)
 
             "meta_kind": meta_kind,
             "meta_type": meta_type,
+            "generated_by": generated_by,
             "summary":   summary,
             "categories": categories
         }
@@ -1376,29 +1377,55 @@ summary: Alphabetical index of all pages.
 
     lines | [frontmatter]
 
-    sorted | :sort(routes)
+    page_rows | []
+
+    for route in routes
+        slug | route{"slug"}
+
+        if slug == "all-pages"
+            skip
+        xx
+
+        generated_by | ..
+        if :has(route, "generated_by")
+            generated_by |= route{"generated_by"} ?? ..
+        xx
+
+        if generated_by == "categories"
+            skip
+        xx
+
+        route_title | route{"title"}
+        canonical_slug | route{"canonical_slug"} ?? slug
+
+        :put_last!(page_rows, "{route_title}|||{route_title}|||{canonical_slug}")
+    xx
+
+    sorted | :sort(page_rows)
 
     current_letter | ""
 
-    for route in sorted
-        slug | route{"slug"}
+    for row in sorted
+        rest | :keep_after(row, "|||") ?? ..
+        if rest.nix? => skip
 
-        if slug != "all-pages"
-            route_title | route{"title"}
-            canonical_slug | route{"canonical_slug"} ?? slug
+        route_title | :keep_before(rest, "|||") ?? ..
+        if route_title.nix? => skip
 
-            bucket | letter_key(route_title)
+        canonical_slug | :keep_after(rest, "|||") ?? ..
+        if canonical_slug.nix? => skip
 
-            if bucket != current_letter
-                :put_last!(lines, "")
-                :put_last!(lines, "## {bucket}")
+        bucket | letter_key(route_title)
 
-                current_letter |= bucket
-            xx
+        if bucket != current_letter
+            :put_last!(lines, "")
+            :put_last!(lines, "## {bucket}")
 
-            display_link | "[[{canonical_slug}|{route_title}]]"
-            :put_last!(lines, "* {display_link}")
+            current_letter |= bucket
         xx
+
+        display_link | "[[{canonical_slug}|{route_title}]]"
+        :put_last!(lines, "* {display_link}")
     xx
 
     :write_text!(out_path, :join(lines, "\n"))

@@ -8,12 +8,6 @@ summary: Alphabetical index of all pages.
 ^^^^
 
 
-## N
-* [[navigation|Navigation]]
-
-## V
-* [[version-test|Version Test]]
-
 ## A
 * [[admonitions|Admonitions & Spoilers]]
 
@@ -22,34 +16,24 @@ summary: Alphabetical index of all pages.
 
 ## C
 * [[canonical-links|Canonical Links]]
-
-## I
-* [[categories-images|Images]]
-
-## C
-* [[categories-index|Categories]]
-
-## N
-* [[categories-navigation|Navigation]]
-
-## P
-* [[categories-patterns|Patterns]]
-
-## C
 * [[categories|Categories]]
 * [[changelog|Changelog]]
 
 ## F
+* [[focus-panels|Focus Panels]]
 * [[footnotes|Footnotes & References]]
 
 ## G
 * [[glossary|Glossary Tooltips]]
 
+## H
+* [[mtg-horde-format|Horde Format Official Rules]]
+
 ## I
 * [[images|Images]]
 
-## H
-* [[mtg-horde-format|Horde Format Official Rules]]
+## N
+* [[navigation|Navigation]]
 
 ## P
 * [[patterns|Patterns]]
@@ -61,9 +45,9 @@ summary: Alphabetical index of all pages.
 ## T
 * [[themes-layout|Themes in Sheriff]]
 
+## V
+* [[version-test|Version Test]]
+
 ## W
 * [[wanted-pages|Wanted Pages]]
 * [[why-i-made-sheriff|Why I Made Sheriff]]
-
-## F
-* [[focus-panels|Focus Panels]]
