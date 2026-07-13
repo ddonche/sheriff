@@ -1288,3 +1288,17 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
 .ii-insp-fields .ed-label{ margin-top:4px; }
 .ii-del{ margin-top:12px; color:var(--red); }
 .ii-del:hover{ background:var(--red); color:#fff; border-color:var(--red); }
+
+/* ---- content version selector ---- */
+.ed-version-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:8px 12px; background:var(--canvas); border-bottom:1px solid var(--line); }
+.ed-vb-label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); }
+.ed-vb-tab{ font-family:var(--mono); font-size:12px; padding:4px 10px; cursor:pointer;
+  background:var(--card); border:1px solid var(--line); border-radius:4px; color:var(--ink); }
+.ed-vb-tab:hover{ background:#F6F7F6; }
+.ed-vb-tab.active{ background:var(--teal); border-color:var(--teal); color:#fff; }
+.ed-vb-rev{ margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); }
+.ed-vb-add{ font-family:var(--mono); font-size:12px; padding:4px 8px; cursor:pointer;
+  background:var(--card); border:1px dashed var(--line); border-radius:4px; color:var(--teal-deep); }
+.ed-vb-add:hover{ border-color:var(--teal); }

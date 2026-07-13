@@ -483,6 +483,12 @@
   // so if the API's dirs list drops it the tree would too. This keeps it.
   let knownDirs = new Set();
   let openFile = null;
+
+  // --- documentation versions/revisions (mirrors routes_json.gbln rules) ---
+  let docConfig = { versions: [], default: null, mode: 'manual' };
+  let versionedPages = {};        // "content/<page>" -> { versions: { ver: [{num,path}] } }
+  let versionedPageSet = new Set();
+  let openVersionCtx = null;      // { page, version } when a versioned page is open
   let dirty = false;
   let expandedFolders = new Set();
   let edCwd = 'content';
@@ -533,6 +539,231 @@
   function confirmDiscard() {
     if (!dirty) return true;
     return window.confirm('Unsaved changes will be lost. Continue?');
+  }
+
+  // ---- documentation versions ----
+  // Parse the config.yall `documentation:` block (string parse, same style as
+  // the theme swap already in this file).
+  function parseDocConfig(text) {
+    const out = { versions: [], default: null, mode: 'manual' };
+    const lines = String(text).split(/\r?\n/);
+    let i = lines.findIndex(l => /^documentation:\s*$/.test(l));
+    if (i < 0) return out;
+    let inVersions = false;
+    for (i = i + 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\S/.test(line)) break;            // dedent to a top-level key ends the block
+      let m = line.match(/^\s+default_version:\s*"?([^"]+?)"?\s*$/);
+      if (m) { out.default = m[1].trim(); inVersions = false; continue; }
+      m = line.match(/^\s+mode:\s*"?([a-z]+)"?\s*$/i);
+      if (m) { out.mode = m[1].trim().toLowerCase(); inVersions = false; continue; }
+      if (/^\s+versions:\s*$/.test(line)) { inVersions = true; continue; }
+      if (inVersions) {
+        const mv = line.match(/^\s+-\s*"?([^"]+?)"?\s*$/);
+        if (mv) { out.versions.push(mv[1].trim()); continue; }
+        if (/^\s+\S+:/.test(line)) inVersions = false;
+      }
+    }
+    return out;
+  }
+
+  async function loadDocConfig(portal) {
+    docConfig = { versions: [], default: null, mode: 'manual' };
+    try {
+      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
+      const res = await fetch('/api/file?read&' + q, { cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.ok !== false && data.content) docConfig = parseDocConfig(data.content);
+    } catch (err) { /* no config → no versions, everything stays legacy-flat */ }
+  }
+
+  // A versioned page is content/<page>/<version>/R<n>.md where <version> is a
+  // declared documentation version. Returns page -> versions -> sorted revisions.
+  function detectVersionedPages(paths) {
+    const vp = {};
+    const vset = new Set(docConfig.versions);
+    if (vset.size === 0) return vp;
+    for (const p of paths) {
+      if (p.indexOf('content/') !== 0 || !/\.md$/i.test(p)) continue;
+      const parts = p.split('/');
+      if (parts.length < 4) continue;
+      const file = parts[parts.length - 1];
+      const ver = parts[parts.length - 2];
+      if (!vset.has(ver) || !/^R\d+\.md$/i.test(file)) continue;
+      const page = parts.slice(0, parts.length - 2).join('/');
+      const num = parseInt(file.replace(/^R/i, ''), 10);
+      if (!vp[page]) vp[page] = { versions: {} };
+      if (!vp[page].versions[ver]) vp[page].versions[ver] = [];
+      vp[page].versions[ver].push({ num: num, path: p });
+    }
+    for (const page in vp) {
+      for (const ver in vp[page].versions) {
+        vp[page].versions[ver].sort((a, b) => a.num - b.num);
+      }
+    }
+    return vp;
+  }
+
+  // Collapse versioned pages to a single page node; hide their version folders
+  // and R*.md files from the raw tree.
+  function foldForTree(paths, dirs) {
+    if (versionedPageSet.size === 0) return { paths: paths, dirs: dirs };
+    const keepPaths = [];
+    for (const p of paths) {
+      let under = false;
+      for (const page of versionedPageSet) {
+        if (p.indexOf(page + '/') === 0) { under = true; break; }
+      }
+      if (!under) keepPaths.push(p);
+    }
+    for (const page of versionedPageSet) keepPaths.push(page); // synthetic page node
+    const keepDirs = dirs.filter(d => {
+      for (const page of versionedPageSet) {
+        if (d === page || d.indexOf(page + '/') === 0) return false;
+      }
+      return true;
+    });
+    return { paths: keepPaths, dirs: keepDirs };
+  }
+
+  function availableVersions(page) {
+    const info = versionedPages[page];
+    if (!info) return [];
+    const ordered = docConfig.versions.filter(v => info.versions[v]);
+    // include any on-disk versions not listed in config, after the ordered ones
+    for (const v in info.versions) if (ordered.indexOf(v) < 0) ordered.push(v);
+    return ordered;
+  }
+
+  async function openVersionedPage(page, version) {
+    if (!confirmDiscard()) return;
+    const info = versionedPages[page];
+    if (!info) { say('No versions for this page'); return; }
+    const avail = availableVersions(page);
+    if (avail.length === 0) { say('No versions for this page'); return; }
+    let ver = version;
+    if (!ver || !info.versions[ver]) {
+      ver = (docConfig.default && info.versions[docConfig.default]) ? docConfig.default : avail[0];
+    }
+    const revs = info.versions[ver];
+    const latest = revs[revs.length - 1];
+    try {
+      const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(latest.path);
+      const res = await fetch('/api/file?read&' + q);
+      const data = await res.json();
+      if (data.ok === false) { say(data.stderr || 'Could not open revision'); return; }
+      openFile = latest.path;
+      edPath.textContent = page.replace(/^content\//, '');
+      edText.value = data.content || '';
+      edText.disabled = false;
+      setDirty(false);
+      openVersionCtx = { page: page, version: ver, revNum: latest.num, flat: false };
+      renderVersionBar();
+      renderTree();
+      edText.focus();
+    } catch (err) { say('API unreachable'); }
+  }
+
+  function addableVersions(page, isFlat) {
+    const all = docConfig.versions;
+    if (isFlat) {
+      const base = docConfig.default || all[0];
+      return all.filter(v => v !== base);
+    }
+    const have = availableVersions(page);
+    return all.filter(v => have.indexOf(v) < 0);
+  }
+
+  function renderVersionBar() {
+    const bar = document.getElementById('ed-version-bar');
+    if (!bar) return;
+    const ctx = openVersionCtx;
+    if (!ctx || docConfig.versions.length === 0) { bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.hidden = false;
+    bar.innerHTML = '';
+
+    const label = document.createElement('span');
+    label.className = 'ed-vb-label';
+    label.textContent = 'Version';
+    bar.appendChild(label);
+
+    let tabs, revText;
+    if (ctx.flat) {
+      const base = docConfig.default || docConfig.versions[0];
+      tabs = [base];
+      revText = 'flat page';
+    } else {
+      tabs = availableVersions(ctx.page);
+      revText = 'editing R' + ctx.revNum;
+    }
+
+    tabs.forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ed-vb-tab' + (v === ctx.version ? ' active' : '');
+      b.textContent = v + (v === docConfig.default ? ' \u00b7 default' : '');
+      if (!ctx.flat) b.addEventListener('click', () => openVersionedPage(ctx.page, v));
+      bar.appendChild(b);
+    });
+
+    const addable = addableVersions(ctx.page, ctx.flat);
+    if (addable.length) {
+      const sel = document.createElement('select');
+      sel.className = 'ed-vb-add';
+      const opt0 = document.createElement('option');
+      opt0.value = ''; opt0.textContent = '+ version';
+      sel.appendChild(opt0);
+      addable.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = 'Add ' + v;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        sel.value = '';
+        if (v) addVersion(ctx, v);
+      });
+      bar.appendChild(sel);
+    }
+
+    const rev = document.createElement('span');
+    rev.className = 'ed-vb-rev';
+    rev.textContent = revText;
+    bar.appendChild(rev);
+  }
+
+  // Add a new version to a page. Flat pages migrate to the folder layout on
+  // first use (page.md -> page/<default>/R1.md), then the new version's R1 is
+  // seeded from the current content. Foldered pages just get a new version.
+  async function addVersion(ctx, newVer) {
+    if (dirty) { say('Save your changes before adding a version'); return; }
+    const portal = edPortal.value;
+    const content = edText.value;
+    const q = (path) => 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent(path);
+    setStatus('Adding version ' + newVer + '\u2026');
+    try {
+      if (ctx.flat) {
+        const base = docConfig.default || docConfig.versions[0];
+        const flatPath = ctx.page + '.md';
+        const baseR1 = ctx.page + '/' + base + '/R1.md';
+        // migrate the flat file into the folder layout (true move: copy + delete)
+        const mv = await fetch('/api/file?move&' + encodeURIComponent(portal)
+          + '&' + encodeURIComponent(flatPath) + '&' + encodeURIComponent(baseR1));
+        const mvData = await mv.json();
+        if (mvData.ok === false) { say(mvData.stderr || 'Could not convert page'); return; }
+      }
+      // create the new version's first revision, seeded from current content
+      const newR1 = ctx.page + '/' + newVer + '/R1.md';
+      const wr = await fetch('/api/file?write&' + q(newR1), { method: 'POST', body: content });
+      const wrData = await wr.json();
+      if (wrData.ok === false) { say(wrData.stderr || 'Could not create version'); return; }
+
+      say('Added version ' + newVer);
+      await loadFiles();
+      await openVersionedPage(ctx.page, newVer);
+    } catch (err) {
+      say('API unreachable');
+    }
   }
 
   const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'ico']);
@@ -718,9 +949,11 @@
       return;
     }
 
+    const folded = foldForTree(edFiles, edDirs);
+
     // Filter active: flat list of matching full paths. No filter: tree.
     if (q) {
-      const shown = edFiles.filter(f => f.toLowerCase().includes(q));
+      const shown = folded.paths.filter(f => f.toLowerCase().includes(q));
       if (shown.length === 0) {
         const div = document.createElement('div');
         div.className = 'tree-msg';
@@ -732,7 +965,7 @@
       return;
     }
 
-    renderNodes(tree, buildFileTree(edFiles, edDirs), 0);
+    renderNodes(tree, buildFileTree(folded.paths, folded.dirs), 0);
   }
 
   async function loadFiles() {
@@ -757,6 +990,10 @@
       for (const d of knownDirs) {
         if (!edDirs.includes(d)) edDirs.push(d);
       }
+
+      await loadDocConfig(edPortal.value);
+      versionedPages = detectVersionedPages(edFiles);
+      versionedPageSet = new Set(Object.keys(versionedPages));
 
       // First load / portal switch: expand top-level folders containing
       // files (same default as Cloud). Reloads keep the current expansion.
@@ -850,6 +1087,7 @@
   let menuPath = null;
 
   function showFileMenu(x, y, path) {
+    if (versionedPageSet.has(path)) return; // versioned pages: no raw rename/delete yet
     menuPath = path;
     fileMenu.hidden = false;
     const rect = fileMenu.getBoundingClientRect();
@@ -876,6 +1114,7 @@
 
   async function openPath(path) {
     if (!confirmDiscard()) return;
+    if (versionedPageSet.has(path)) { openVersionedPage(path); return; }
     if (IMAGE_EXTS.has(fileExt(path))) {
       say('Image viewer lands with the Media panel');
       return;
@@ -894,6 +1133,14 @@
       edText.value = data.content || '';
       edText.disabled = false;
       setDirty(false);
+      // flat content page: show the version bar with the implicit default,
+      // so versions can be added. Non-content files get no bar.
+      if (path.indexOf('content/') === 0 && /\.md$/i.test(path) && docConfig.versions.length) {
+        openVersionCtx = { page: path.replace(/\.md$/i, ''), version: docConfig.default || docConfig.versions[0], flat: true };
+      } else {
+        openVersionCtx = null;
+      }
+      renderVersionBar();
       renderTree();
       edText.focus();
     } catch (err) {
