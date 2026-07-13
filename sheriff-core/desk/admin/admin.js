@@ -489,6 +489,7 @@
   let versionedPages = {};        // "content/<page>" -> { versions: { ver: [{num,path}] } }
   let versionedPageSet = new Set();
   let openVersionCtx = null;      // { page, version } when a versioned page is open
+  let saveMode = 'revision';      // manual-mode radio: 'revision' | 'overwrite'
   let dirty = false;
   let expandedFolders = new Set();
   let edCwd = 'content';
@@ -730,6 +731,29 @@
     rev.className = 'ed-vb-rev';
     rev.textContent = revText;
     bar.appendChild(rev);
+
+    // save-mode control (revision vs overwrite)
+    const modeWrap = document.createElement('span');
+    modeWrap.className = 'ed-vb-mode';
+    if (docConfig.mode === 'always') {
+      modeWrap.textContent = 'saves create a new revision';
+    } else if (docConfig.mode === 'off') {
+      modeWrap.textContent = 'saves overwrite latest';
+    } else {
+      [['revision', 'New revision'], ['overwrite', 'Overwrite latest']].forEach(m => {
+        const lab = document.createElement('label');
+        lab.className = 'ed-vb-radio';
+        const r = document.createElement('input');
+        r.type = 'radio';
+        r.name = 'ed-save-mode';
+        r.checked = (saveMode === m[0]);
+        r.addEventListener('change', () => { if (r.checked) saveMode = m[0]; });
+        lab.appendChild(r);
+        lab.appendChild(document.createTextNode(m[1]));
+        modeWrap.appendChild(lab);
+      });
+    }
+    bar.appendChild(modeWrap);
   }
 
   // Add a new version to a page. Flat pages migrate to the folder layout on
@@ -763,6 +787,66 @@
       await openVersionedPage(ctx.page, newVer);
     } catch (err) {
       say('API unreachable');
+    }
+  }
+
+  function versionsActive() {
+    return !!(openVersionCtx && docConfig.versions.length);
+  }
+
+  // manual: honor the radio; always: force new revision; off: force overwrite
+  function effectiveSaveMode() {
+    if (docConfig.mode === 'always') return 'revision';
+    if (docConfig.mode === 'off') return 'overwrite';
+    return saveMode;
+  }
+
+  // Save the editor content as the next immutable revision. A flat page folds
+  // first: page.md -> page/<default>/R1.md (old) + R2.md (edited).
+  async function saveNewRevision() {
+    const ctx = openVersionCtx;
+    const portal = edPortal.value;
+    const content = edText.value;
+    const q = (path) => 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent(path);
+    edSave.disabled = true;
+    edSave.textContent = 'Saving…';
+    setStatus('building…');
+    const started = Date.now();
+    try {
+      let openVer, openRev;
+      if (ctx.flat) {
+        const base = docConfig.default || docConfig.versions[0];
+        const flatPath = ctx.page + '.md';
+        // R1 = the original content on disk; move preserves it
+        const mv = await fetch('/api/file?move&' + encodeURIComponent(portal)
+          + '&' + encodeURIComponent(flatPath) + '&' + encodeURIComponent(ctx.page + '/' + base + '/R1.md'));
+        const mvData = await mv.json();
+        if (mvData.ok === false) { setStatus('save failed', 'err'); say(mvData.stderr || 'Could not convert page'); setDirty(true); return; }
+        // R2 = the edited content
+        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + base + '/R2.md'),
+          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
+        const wrData = await wr.json();
+        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
+        openVer = base; openRev = 2;
+      } else {
+        const next = (ctx.revNum || 1) + 1;
+        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + ctx.version + '/R' + next + '.md'),
+          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
+        const wrData = await wr.json();
+        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
+        openVer = ctx.version; openRev = next;
+      }
+      const secs = ((Date.now() - started) / 1000).toFixed(1);
+      setStatus('✓ saved R' + openRev + ' · page built in ' + secs + 's', 'ok');
+      setDirty(false);
+      await loadFiles();
+      await openVersionedPage(ctx.page, openVer);
+    } catch (err) {
+      setStatus('API unreachable', 'err');
+      setDirty(true);
+    } finally {
+      edSave.textContent = 'Save & build';
+      edSave.disabled = !dirty;
     }
   }
 
@@ -1150,6 +1234,7 @@
 
   async function saveFile() {
     if (!openFile || edSave.disabled) return;
+    if (versionsActive() && effectiveSaveMode() === 'revision') { return saveNewRevision(); }
     edSave.disabled = true;
     edSave.textContent = 'Saving…';
     setStatus('building…');

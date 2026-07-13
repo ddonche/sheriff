@@ -1298,7 +1298,11 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
   background:var(--card); border:1px solid var(--line); border-radius:4px; color:var(--ink); }
 .ed-vb-tab:hover{ background:#F6F7F6; }
 .ed-vb-tab.active{ background:var(--teal); border-color:var(--teal); color:#fff; }
-.ed-vb-rev{ margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); }
+.ed-vb-rev{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+.ed-vb-mode{ margin-left:auto; display:flex; align-items:center; gap:12px;
+  font-family:var(--mono); font-size:11px; color:var(--muted); }
+.ed-vb-radio{ display:flex; align-items:center; gap:4px; cursor:pointer; color:var(--ink); }
+.ed-vb-radio input{ cursor:pointer; margin:0; }
 .ed-vb-add{ font-family:var(--mono); font-size:12px; padding:4px 8px; cursor:pointer;
   background:var(--card); border:1px dashed var(--line); border-radius:4px; color:var(--teal-deep); }
 .ed-vb-add:hover{ border-color:var(--teal); }
