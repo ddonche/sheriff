@@ -42,6 +42,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Forum
       </a>
+      <span class="header-account" id="sso-acct"></span>
     </div>
   </header>
 
@@ -184,7 +185,7 @@
           <!-- cloud panel -->
           <div class="panel">
             <h2 class="bracket">Sheriff Cloud</h2>
-            <div class="cloud-state">
+            <div class="cloud-state" id="cloud-state">
               <span class="dot"></span> Not connected
             </div>
             <div class="stack">
@@ -766,7 +767,30 @@ leadership = [[House Andergard]]</pre>
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/auth.js?v=1"></script>
+<div class="wizard" id="sso-modal" hidden>
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <img src="/admin/logo.png" alt="">
+      <span class="wiz-title">Sign in to Sheriff Cloud</span>
+      <button class="wiz-x" type="button" id="sso-close" title="Close">&times;</button>
+    </div>
+    <div class="wiz-body" style="min-height:auto">
+      <p class="wiz-sub">Optional. Sign in to connect this site to Sheriff Cloud for push, pull, and team editing — you can keep working locally without it.</p>
+      <label class="ed-label" for="sso-email">Email</label>
+      <input id="sso-email" class="wiz-input" type="email" autocomplete="username" spellcheck="false">
+      <label class="ed-label" for="sso-pass" style="margin-top:10px">Password</label>
+      <input id="sso-pass" class="wiz-input" type="password" autocomplete="current-password">
+      <p class="wiz-err" id="sso-err" hidden></p>
+    </div>
+    <div class="wiz-foot">
+      <button class="btn" type="button" id="sso-cancel">Cancel</button>
+      <span style="margin-left:auto"></span>
+      <button class="btn primary" type="button" id="sso-submit">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/auth.js?v=2"></script>
 <script src="/admin/help.js?v=7"></script>
 <script src="/admin/admin.js?v=31"></script>
 <script src="/admin/interactive-editor.js?v=3"></script>
