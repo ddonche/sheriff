@@ -11,3 +11,4 @@ import modules/campfire_blog/campfire       as campfire
 import modules/badge_labels/badge           as badge
 import modules/sheriff_patterns/patterns    as sheriff
 import modules/debug_body/debug_body        as debug
+import modules/sheriff_sso/sheriff_sso       as sheriff_sso

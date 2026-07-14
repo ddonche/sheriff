@@ -1,0 +1,18 @@
+/// api/config.gbln — public Supabase config for Sheriff Desk.
+///
+/// Returns the anon key + URL from the local server's environment so the Desk
+/// login form can authenticate against Sheriff Cloud. The anon key is public
+/// by design (it's shipped in every Cloud web app), so returning it here is
+/// safe — but it is NOT committed: set it in the environment before starting
+/// the local server:
+///
+///   export SUPABASE_URL=https://YOURPROJECT.supabase.co
+///   export SUPABASE_ANON_KEY=eyJ...
+///   goblin start
+
+out | {
+  "supabase_url": :trim(:env("SUPABASE_URL")),
+  "anon_key": :trim(:env("SUPABASE_ANON_KEY"))
+}
+
+:say(:json_stringify(out))

@@ -1,0 +1,243 @@
+/// modules/sheriff_sso/sheriff_sso.gbln
+/// Sheriff SSO — shared auth module (local Sheriff + Glamr).
+///
+/// One identity: Sheriff Cloud's Supabase Auth. This module lets the local
+/// tool log a user in against Cloud, store the session on disk, and verify a
+/// token on the backend.
+///
+///   Sheriff Desk backend / Glamr backend → verify(token)
+///   `sheriff login` (CLI)                → login(email, password)
+///   shared credential                    → ~/.sheriff/credentials.json
+///
+/// Env expected (set before running the local server or CLI):
+///   SUPABASE_URL       e.g. https://xxxx.supabase.co  (no trailing slash)
+///   SUPABASE_ANON_KEY  the project's anon/public key (public by design)
+///
+/// NOTE: :http_get / :http_post are only available under the VM engine, so run
+/// goblin with `--vm` for anything that touches the network (login, verify,
+/// refresh).
+
+/// ── small helpers ─────────────────────────────────────────────────────────
+
+/// Safe map read: goblin raises on a missing key, so guard with :has first.
+act mget(m, k, d)
+    if :valtype(m) == "map" and :has(m, k)
+        return m[k]
+    xx
+    return d
+xx
+
+/// http_get/http_post may return the body string directly or a response map,
+/// depending on the build. Normalize to the body text either way.
+act http_body(resp)
+    if :valtype(resp) == "map"
+        return "" + mget(resp, "body", mget(resp, "text", ""))
+    xx
+    return "" + resp
+xx
+
+/// ── config helpers ────────────────────────────────────────────────────────
+
+act supabase_url()
+    return :trim(:env("SUPABASE_URL"))
+xx
+
+act anon_key()
+    return :trim(:env("SUPABASE_ANON_KEY"))
+xx
+
+act home_dir()
+    home | :trim(:env("HOME"))
+    if home == ""
+        home |= :trim(:env("USERPROFILE"))   /// windows fallback
+    xx
+    return home
+xx
+
+/// Path to the shared credential file: ~/.sheriff/credentials.json
+act cred_path()
+    home | home_dir()
+    return "{home}/.sheriff/credentials.json"
+xx
+
+/// ── login (client side) ───────────────────────────────────────────────────
+
+/// login(email, password) → map
+///   { "ok": true,  "access_token": "..." }   and writes the credential file
+///   { "ok": false, "error": "..." }
+///
+/// Uses Supabase's password grant. No browser needed.
+act login(email, password)
+    base | supabase_url()
+    key  | anon_key()
+    if base == "" or key == ""
+        return { "ok": false, "error": "SUPABASE_URL / SUPABASE_ANON_KEY not set" }
+    xx
+
+    body | :json_stringify({ "email": :trim(email), "password": password })
+    headers | { "apikey": key }
+
+    data | {}
+    attempt
+        resp | :http_post("{base}/auth/v1/token?grant_type=password", body, "application/json", headers)
+        parsed | :json_parse(http_body(resp))
+        if :valtype(parsed) == "map"
+            :update!(data, parsed)
+        xx
+    rescue
+        return { "ok": false, "error": "login request failed" }
+    xx
+
+    if :has(data, "access_token") == false
+        msg | mget(data, "error_description", mget(data, "msg", mget(data, "error", "invalid credentials")))
+        return { "ok": false, "error": msg }
+    xx
+
+    creds | {
+        "access_token":  data["access_token"],
+        "refresh_token": mget(data, "refresh_token", ""),
+        "expires_at":    mget(data, "expires_at", 0)
+    }
+    save_creds(creds)
+    return { "ok": true, "access_token": data["access_token"] }
+xx
+
+/// refresh() → map like login(); exchanges the stored refresh_token for a new
+/// access token and rewrites the credential file. For push/pull once the 1h
+/// access token has expired.
+act refresh()
+    base | supabase_url()
+    key  | anon_key()
+    if base == "" or key == ""
+        return { "ok": false, "error": "SUPABASE_URL / SUPABASE_ANON_KEY not set" }
+    xx
+
+    rt | mget(load_creds(), "refresh_token", "")
+    if rt == ""
+        return { "ok": false, "error": "no refresh token — run `sheriff login`" }
+    xx
+
+    body | :json_stringify({ "refresh_token": rt })
+    headers | { "apikey": key }
+
+    data | {}
+    attempt
+        resp | :http_post("{base}/auth/v1/token?grant_type=refresh_token", body, "application/json", headers)
+        parsed | :json_parse(http_body(resp))
+        if :valtype(parsed) == "map"
+            :update!(data, parsed)
+        xx
+    rescue
+        return { "ok": false, "error": "refresh request failed" }
+    xx
+
+    if :has(data, "access_token") == false
+        return { "ok": false, "error": "refresh rejected — run `sheriff login` again" }
+    xx
+
+    creds | {
+        "access_token":  data["access_token"],
+        "refresh_token": mget(data, "refresh_token", rt),
+        "expires_at":    mget(data, "expires_at", 0)
+    }
+    save_creds(creds)
+    return { "ok": true, "access_token": data["access_token"] }
+xx
+
+/// ── verification (backend side) ───────────────────────────────────────────
+
+/// verify(token) → map
+///   { "ok": true,  "user_id": "...", "email": "..." }   on success
+///   { "ok": false, "error": "..." }                     otherwise
+///
+/// A valid Supabase JWT resolves to a user object containing "id"; anything
+/// else — bad token, expired token, network error — is unauthorized.
+act verify(token)
+    tok | :trim(token)
+    if tok == ""
+        return { "ok": false, "error": "missing token" }
+    xx
+
+    base | supabase_url()
+    if base == ""
+        return { "ok": false, "error": "SUPABASE_URL not set" }
+    xx
+
+    headers | {
+        "Authorization": "Bearer {tok}",
+        "apikey": anon_key()
+    }
+
+    user | {}
+    attempt
+        resp | :http_get("{base}/auth/v1/user", headers)
+        parsed | :json_parse(http_body(resp))
+        if :valtype(parsed) == "map"
+            :update!(user, parsed)
+        xx
+    rescue
+        return { "ok": false, "error": "invalid or expired token" }
+    xx
+
+    if :has(user, "id") == false
+        return { "ok": false, "error": "invalid or expired token" }
+    xx
+
+    return {
+        "ok": true,
+        "user_id": user["id"],
+        "email": mget(user, "email", "")
+    }
+xx
+
+/// ── credential file ───────────────────────────────────────────────────────
+
+/// load_creds() → map with access_token/refresh_token/expires_at, or {} if none
+act load_creds()
+    path | cred_path()
+    if :file_exists(path) == false
+        return {}
+    xx
+    parsed | {}
+    attempt
+        data | :json_parse(:read_text(path))
+        if :valtype(data) == "map"
+            :update!(parsed, data)
+        xx
+    rescue
+        return {}
+    xx
+    return parsed
+xx
+
+/// save_creds(creds) — write the credential file (creates ~/.sheriff if needed).
+/// NOTE: goblin core has no chmod builtin; the CLI wrapper should chmod the
+/// file to 600 (and the dir to 700) right after this returns.
+act save_creds(creds)
+    home | home_dir()
+    dir | "{home}/.sheriff"
+    if :file_exists(dir) == false
+        :create_dir!(dir)
+    xx
+    :write_text!(cred_path(), :json_stringify(creds))
+    return true
+xx
+
+/// token() → the stored access token, or "".
+act token()
+    return mget(load_creds(), "access_token", "")
+xx
+
+/// whoami() → verify(token()); convenience for the CLI to print the user.
+act whoami()
+    return verify(token())
+xx
+
+/// logout() — remove the credential file.
+act logout()
+    path | cred_path()
+    if :file_exists(path)
+        :delete_path!(path)
+    xx
+    return true
+xx

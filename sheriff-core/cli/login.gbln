@@ -1,0 +1,32 @@
+/// cli/login.gbln — `sheriff login` for the terminal.
+///
+/// Run from the sheriff-core directory (needs the VM engine for the network):
+///
+///   export SUPABASE_URL=https://YOURPROJECT.supabase.co
+///   export SUPABASE_ANON_KEY=eyJ...          # anon/public key
+///   goblin --vm run cli/login.gbln
+///
+/// Prompts for your Sheriff Cloud email + password, authenticates against
+/// Supabase, and writes ~/.sheriff/credentials.json. That credential is then
+/// shared by Sheriff Desk and (later) Glamr.
+
+import modules/sheriff_sso/sheriff_sso as sso
+
+:say("Sheriff — log in to Sheriff Cloud")
+
+email    | :trim(:ask("Email: "))
+password | :ask("Password: ")
+
+result | sso::login(email, password)
+
+if result["ok"]
+    who   | sso::whoami()
+    email2 | sso::mget(who, "email", email)
+    path   | sso::cred_path()
+    :say("")
+    :say("✓ Logged in as {email2}")
+    :say("  credential written to {path}")
+else
+    :say("")
+    :say("✗ Login failed: " + sso::mget(result, "error", "unknown error"))
+xx
