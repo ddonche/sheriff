@@ -1,10 +1,10 @@
 // Sheriff Desk — Sheriff SSO login (v1)
 //
 // Loads before admin.js. Two jobs:
-//   1. Wrap fetch() so every /api/ call carries the logged-in user's
-//      Supabase access token (Authorization: Bearer ...).
-//   2. Gate the panel behind a login overlay until the user has authenticated
-//      against Sheriff Cloud (Supabase password grant).
+//   1. Wrap fetch() so /api/ calls carry the logged-in user's Supabase access
+//      token (Authorization: Bearer ...) WHEN a session exists.
+//   2. Offer an optional "Log in to Cloud" button. Desk works fully logged-out
+//      for local editing; login only matters for syncing to Sheriff Cloud.
 //
 // The session lives in localStorage under 'sheriff.session'. Supabase config
 // (URL + anon key) comes from /api/config, which reads the local server's env.
@@ -23,8 +23,7 @@
   function clearSession() { localStorage.removeItem(SESSION_KEY); }
   function tokenNow() { var s = getSession(); return s && s.access_token ? s.access_token : ''; }
 
-  // ---- fetch wrapper: attach Bearer to same-origin /api/ calls ------------
-  // Installed immediately so it is in place before admin.js makes any call.
+  // ---- fetch wrapper: attach Bearer to /api/ calls when logged in ---------
   var _fetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     init = init || {};
@@ -43,7 +42,8 @@
   function loadConfig() {
     return _fetch('/api/config', { cache: 'no-store' })
       .then(function (r) { return r.text(); })
-      .then(function (t) { try { return JSON.parse(t); } catch (e) { return {}; } });
+      .then(function (t) { try { return JSON.parse(t); } catch (e) { return {}; } })
+      .catch(function () { return {}; });
   }
 
   // ---- password grant against Sheriff Cloud -------------------------------
@@ -69,30 +69,36 @@
     });
   }
 
-  // ---- UI: login overlay --------------------------------------------------
-  function buildOverlay(cfg) {
-    var ov = document.createElement('div');
-    ov.id = 'sso-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0d1525;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"IBM Plex Sans",system-ui,sans-serif;color:#e8e8f0;';
-    ov.innerHTML =
-      '<img src="/admin/logo.png" alt="Sheriff" style="height:56px;margin-bottom:24px">' +
-      '<div style="width:100%;max-width:380px;background:#0d1525;border:1px solid #1e2d47;border-radius:14px;padding:28px;box-sizing:border-box">' +
-        '<h2 style="margin:0 0 4px;font-family:Bitter,serif;font-size:20px">Log in to Sheriff Cloud</h2>' +
-        '<p style="margin:0 0 20px;color:#6f86a8;font-size:13px">Sign in to edit and sync your content.</p>' +
+  // ---- UI: dismissible login modal (opened by the button) -----------------
+  function openLoginModal(cfg) {
+    if (document.getElementById('sso-modal')) return;
+    var back = document.createElement('div');
+    back.id = 'sso-modal';
+    back.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(6,11,22,.72);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Sans",system-ui,sans-serif;color:#e8e8f0';
+    back.innerHTML =
+      '<div id="sso-card" style="width:100%;max-width:380px;background:#0d1525;border:1px solid #1e2d47;border-radius:14px;padding:26px;box-sizing:border-box;position:relative">' +
+        '<button id="sso-close" title="Close" style="position:absolute;top:10px;right:12px;border:none;background:none;color:#6f86a8;font-size:20px;cursor:pointer;line-height:1">&times;</button>' +
+        '<h2 style="margin:0 0 4px;font-family:Bitter,serif;font-size:19px">Log in to Sheriff Cloud</h2>' +
+        '<p style="margin:0 0 18px;color:#6f86a8;font-size:13px">Optional — needed only to sync with Cloud.</p>' +
         '<div id="sso-error" style="display:none;color:#fca5a5;font-size:13px;margin-bottom:12px"></div>' +
         '<input id="sso-email" type="email" placeholder="Email" autocomplete="username" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;border:1px solid #1e2d47;border-radius:8px;background:#080e1a;color:#e8e8f0;font-size:15px;outline:none">' +
         '<input id="sso-pass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:16px;border:1px solid #1e2d47;border-radius:8px;background:#080e1a;color:#e8e8f0;font-size:15px;outline:none">' +
         '<button id="sso-submit" style="width:100%;padding:12px;border:none;border-radius:9px;background:#f29106;color:#fff;font-weight:800;font-size:15px;cursor:pointer">Log In</button>' +
-      '</div>' +
-      '<p style="margin-top:16px;color:#6f86a8;font-size:12px">Powered by Sheriff Cloud</p>';
-    document.body.appendChild(ov);
+      '</div>';
+    document.body.appendChild(back);
 
-    var errEl = ov.querySelector('#sso-error');
-    var emailEl = ov.querySelector('#sso-email');
-    var passEl = ov.querySelector('#sso-pass');
-    var btn = ov.querySelector('#sso-submit');
+    var card = back.querySelector('#sso-card');
+    var errEl = back.querySelector('#sso-error');
+    var emailEl = back.querySelector('#sso-email');
+    var passEl = back.querySelector('#sso-pass');
+    var btn = back.querySelector('#sso-submit');
 
+    function close() { back.remove(); }
     function showErr(m) { errEl.textContent = m; errEl.style.display = 'block'; }
+
+    back.addEventListener('click', function (e) { if (e.target === back) close(); });
+    back.querySelector('#sso-close').addEventListener('click', close);
+    card.addEventListener('click', function (e) { e.stopPropagation(); });
 
     function submit() {
       var email = emailEl.value.trim();
@@ -104,8 +110,8 @@
       btn.disabled = true; btn.textContent = 'Logging in…';
       signIn(cfg, email, pass).then(function (session) {
         setSession(session);
-        ov.remove();
-        mountUserBar(session);
+        close();
+        mountBar(cfg);
       }).catch(function (e) {
         showErr(e.message || 'Login failed.');
         btn.disabled = false; btn.textContent = 'Log In';
@@ -117,32 +123,38 @@
     emailEl.focus();
   }
 
-  // ---- UI: small logged-in bar with logout --------------------------------
-  function mountUserBar(session) {
-    if (document.getElementById('sso-userbar')) return;
+  // ---- UI: top-right bar — "Log in" when out, email + "Log out" when in ----
+  function mountBar(cfg) {
+    var existing = document.getElementById('sso-userbar');
+    if (existing) existing.remove();
+
     var bar = document.createElement('div');
     bar.id = 'sso-userbar';
     bar.style.cssText = 'position:fixed;top:8px;right:10px;z-index:9999;display:flex;align-items:center;gap:10px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:12px;color:#8fa6c8;background:rgba(13,21,37,.85);border:1px solid #1e2d47;border-radius:20px;padding:5px 12px';
-    bar.innerHTML =
-      '<span>' + (session.email || 'signed in') + '</span>' +
-      '<button id="sso-logout" style="border:none;background:none;color:#f29106;font-weight:700;cursor:pointer;font-size:12px">Log out</button>';
-    document.body.appendChild(bar);
-    bar.querySelector('#sso-logout').addEventListener('click', function () {
-      clearSession();
-      location.reload();
-    });
+
+    var session = getSession();
+    if (session && session.access_token) {
+      bar.innerHTML =
+        '<span>' + (session.email || 'signed in') + '</span>' +
+        '<button id="sso-logout" style="border:none;background:none;color:#f29106;font-weight:700;cursor:pointer;font-size:12px">Log out</button>';
+      document.body.appendChild(bar);
+      bar.querySelector('#sso-logout').addEventListener('click', function () {
+        clearSession();
+        mountBar(cfg);
+      });
+    } else {
+      bar.innerHTML =
+        '<button id="sso-login" style="border:none;background:none;color:#f29106;font-weight:700;cursor:pointer;font-size:12px">Log in to Cloud</button>';
+      document.body.appendChild(bar);
+      bar.querySelector('#sso-login').addEventListener('click', function () { openLoginModal(cfg); });
+    }
   }
 
-  // ---- boot ---------------------------------------------------------------
+  // ---- boot: never blocks — just mounts the bar ---------------------------
   function boot() {
     loadConfig().then(function (cfg) {
       window.__SHERIFF_SSO_CFG__ = cfg;
-      var s = getSession();
-      if (s && s.access_token) {
-        mountUserBar(s);
-      } else {
-        buildOverlay(cfg);
-      }
+      mountBar(cfg);
     });
   }
 
