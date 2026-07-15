@@ -115,9 +115,22 @@
     var acct = document.getElementById('sso-acct');
     if (acct) {
       if (session && session.access_token) {
+        var email = session.email || 'signed in';
+        var initial = (email.charAt(0) || '?');
         acct.innerHTML =
-          '<span class="acct-email">' + (session.email || 'signed in') + '</span>' +
-          '<button class="btn ghost" type="button" id="sso-logout">Log out</button>';
+          '<button class="acct-avatar" type="button" id="sso-acct-btn" title="' + email + '">' + initial + '</button>' +
+          '<div class="acct-menu" id="sso-menu" hidden>' +
+            '<div class="acct-menu-email">' + email + '</div>' +
+            '<button class="btn ghost" type="button" id="sso-logout">Log out</button>' +
+          '</div>';
+        var menu = acct.querySelector('#sso-menu');
+        acct.querySelector('#sso-acct-btn').addEventListener('click', function (e) {
+          e.stopPropagation();
+          menu.hidden = !menu.hidden;
+        });
+        document.addEventListener('click', function (e) {
+          if (menu && !menu.hidden && !acct.contains(e.target)) menu.hidden = true;
+        });
         acct.querySelector('#sso-logout').addEventListener('click', function () {
           clearSession(); render();
         });
