@@ -69,26 +69,38 @@ header{
   font-family:var(--mono); font-size:12px; color:var(--muted);
 }
 .header-actions{ margin-left:auto; display:flex; gap:8px; }
-.header-account{ display:flex; align-items:center; position:relative; }
-.acct-avatar{
-  width:28px; height:28px; border-radius:50%;
-  border:1px solid var(--teal-deep); background:var(--teal); color:#fff;
-  font-family:var(--sans); font-weight:700; font-size:13px; text-transform:uppercase;
-  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+/* Account dropdown — mirrors the Sheriff Cloud admin header (neutral avatar). */
+.header-account{ position:relative; display:flex; align-items:center; }
+.acct-trigger{
+  width:30px; height:30px; border-radius:999px;
+  border:1px solid var(--line); background:var(--canvas); color:var(--ink);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--sans); font-size:13px; font-weight:700; line-height:1;
+  text-transform:uppercase; cursor:pointer;
 }
+.acct-trigger:hover{ border-color:#C9CECC; }
 .acct-menu{
-  position:absolute; top:38px; right:0; z-index:500;
-  min-width:190px; padding:8px;
+  position:absolute; top:calc(100% + 8px); right:0; z-index:300;
+  min-width:220px; padding:10px;
   background:var(--card); border:1px solid var(--line); border-radius:8px;
-  box-shadow:0 12px 30px rgba(0,0,0,.18);
+  box-shadow:0 14px 34px rgba(0,0,0,.12);
 }
 .acct-menu[hidden]{ display:none; }
-.acct-menu-email{
-  font-family:var(--mono); font-size:12px; color:var(--muted);
-  padding:6px 8px 8px; word-break:break-all;
-  border-bottom:1px solid var(--line); margin-bottom:6px;
+.acct-meta{
+  padding:6px 12px 0; font-size:11px;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
 }
-.acct-menu .btn{ width:100%; justify-content:flex-start; }
+.acct-email{
+  padding:4px 12px 10px; font-size:14px; font-weight:600;
+  color:var(--ink); word-break:break-word;
+}
+.acct-divider{ height:1px; background:var(--line); margin:6px 0 8px; }
+.acct-signout{
+  display:block; width:100%; text-align:left; padding:10px 12px;
+  border:0; background:transparent; border-radius:6px;
+  font-family:var(--sans); font-size:14px; color:var(--ink); cursor:pointer;
+}
+.acct-signout:hover{ background:var(--canvas); color:var(--red); }
 
 /* ---------- buttons ---------- */
 .btn{

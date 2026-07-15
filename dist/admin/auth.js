@@ -118,10 +118,12 @@
         var email = session.email || 'signed in';
         var initial = (email.charAt(0) || '?');
         acct.innerHTML =
-          '<button class="acct-avatar" type="button" id="sso-acct-btn" title="' + email + '">' + initial + '</button>' +
+          '<button class="acct-trigger" type="button" id="sso-acct-btn" title="' + email + '">' + initial + '</button>' +
           '<div class="acct-menu" id="sso-menu" hidden>' +
-            '<div class="acct-menu-email">' + email + '</div>' +
-            '<button class="btn ghost" type="button" id="sso-logout">Log out</button>' +
+            '<div class="acct-meta">Signed in as</div>' +
+            '<div class="acct-email">' + email + '</div>' +
+            '<div class="acct-divider"></div>' +
+            '<button class="acct-signout" type="button" id="sso-logout">Sign out</button>' +
           '</div>';
         var menu = acct.querySelector('#sso-menu');
         acct.querySelector('#sso-acct-btn').addEventListener('click', function (e) {
