@@ -47,7 +47,7 @@ act run_pre_schedule(cfg)
         "schedule": []
     }
 
-    pre_schedule | cfg["pre"]
+    pre_schedule | cfg{"pre"}
     if pre_schedule.nix?
         return pre_ctx
     xx
@@ -63,7 +63,7 @@ act run_pre_schedule(cfg)
             :say(act_name)
             /// keep old pre_ctx
         else
-            pre_ctx | ret
+            pre_ctx |= ret
         xx
     xx
 
@@ -74,12 +74,12 @@ xx
 act run_post_schedule(cfg, pre_ctx)
     post_ctx | { 
         "portal": #local::portal,
-        "wanted_pages": pre_ctx["wanted_pages"],
-        "backlinks": pre_ctx["backlinks"],
-        "schedule": pre_ctx["schedule"]
+        "wanted_pages": pre_ctx{"wanted_pages"},
+        "backlinks": pre_ctx{"backlinks"},
+        "schedule": pre_ctx{"schedule"}
     }
 
-    post_schedule | cfg["post"] ?? => return post_ctx
+    post_schedule | cfg{"post"} ?? => return post_ctx
 
     for act_name in post_schedule
         :say("---- RUNNING POST ACT ----")
@@ -91,7 +91,7 @@ act run_post_schedule(cfg, pre_ctx)
             :say("!!!! THIS POST ACT RETURNED NIL !!!!")
             :say(act_name)
         else
-            post_ctx | ret
+            post_ctx |= ret
         xx
     xx
 
@@ -153,8 +153,8 @@ act resolve_single_record(records, target)
     for record in records
         if record.nix? => skip
 
-        path | record["path"] ?? ..
-        rel_no_ext | record["rel_no_ext"] ?? ..
+        path | record{"path"} ?? ..
+        rel_no_ext | record{"rel_no_ext"} ?? ..
         source_stem | :stem(path)
         route_stem | :stem(rel_no_ext)
 
@@ -185,7 +185,7 @@ act merge_pre_ctx_into_ctx(ctx, pre_ctx)
             skip
         xx
 
-        :update!(ctx[k], pre_ctx[k])
+        :update!(ctx{k}, pre_ctx{k})
     xx
 
     return ctx
@@ -233,11 +233,11 @@ act build()
     backup_path | backup_dist()
 
     cfg      | load_events()
-    schedule | cfg["schedule"]
+    schedule | cfg{"schedule"}
 
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
-    :update!(pre_ctx["schedule"], schedule)
+    :update!(pre_ctx{"schedule"}, schedule)
 
     cfg_portal | rjson::load_cfg(#local::portal)
     url_root | rjson::get_url_root(cfg_portal)
@@ -245,9 +245,9 @@ act build()
 
     /// BUILD EACH MARKDOWN FILE
     for record in source_records
-        md_path | record["path"]
-        rel_no_ext | record["rel_no_ext"]
-        output_rel_no_ext | record["output_rel_no_ext"] ?? rel_no_ext
+        md_path | record{"path"}
+        rel_no_ext | record{"rel_no_ext"}
+        output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
         href_abs | rjson::build_href(url_root, output_rel_no_ext)
         raw | :read_text(md_path)
 
@@ -258,17 +258,17 @@ act build()
             "path": md_path,
             "route_rel_no_ext": rel_no_ext,
             "output_rel_no_ext": output_rel_no_ext,
-            "documentation_version": record["doc_version"],
-            "default_documentation_version": record["default_doc_version"],
-            "available_documentation_versions": record["available_doc_versions"],
-            "version_rel_rows": record["version_rel_rows"],
-            "revision_history_rows": record["revision_history_rows"],
-            "revision": record["revision"],
-            "storage_kind": record["storage_kind"],
+            "documentation_version": record{"doc_version"},
+            "default_documentation_version": record{"default_doc_version"},
+            "available_documentation_versions": record{"available_doc_versions"},
+            "version_rel_rows": record{"version_rel_rows"},
+            "revision_history_rows": record{"revision_history_rows"},
+            "revision": record{"revision"},
+            "storage_kind": record{"storage_kind"},
             "portal": #local::portal,
             "href": href_abs,
-            "wanted_pages": pre_ctx["wanted_pages"],
-            "backlinks": pre_ctx["backlinks"],
+            "wanted_pages": pre_ctx{"wanted_pages"},
+            "backlinks": pre_ctx{"backlinks"},
             "schedule": schedule
         }
 
@@ -278,15 +278,15 @@ act build()
         :clear_tokens("SLOT")
 
         ctx |= :summon(ctx, schedule)
-        :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
-        :update!(pre_ctx["backlinks"], ctx["backlinks"])
+        :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
+        :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
 
         dir      | :dirname(output_rel_no_ext)
         base     | :stem(output_rel_no_ext)
         out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
         create_all_dirs(out_file)
-        :write_text!(out_file, ctx["body"])
+        :write_text!(out_file, ctx{"body"})
     xx
 
     /// Run post-build schedule once
@@ -309,7 +309,7 @@ act build_one_page(target)
     :say(#local::portal ++ " :: " ++ target)
 
     cfg      | load_events()
-    schedule | cfg["schedule"]
+    schedule | cfg{"schedule"}
     cfg_portal | rjson::load_cfg(#local::portal)
     url_root | rjson::get_url_root(cfg_portal)
     source_records | rjson::build_source_records(#local::portal)
@@ -322,14 +322,14 @@ act build_one_page(target)
         return
     xx
 
-    md_path | record["path"]
-    rel_no_ext | record["rel_no_ext"]
-    output_rel_no_ext | record["output_rel_no_ext"] ?? rel_no_ext
+    md_path | record{"path"}
+    rel_no_ext | record{"rel_no_ext"}
+    output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
     href_abs | rjson::build_href(url_root, output_rel_no_ext)
 
     /// Run pre-build schedule once
     pre_ctx | run_pre_schedule(cfg)
-    :update!(pre_ctx["schedule"], schedule)
+    :update!(pre_ctx{"schedule"}, schedule)
 
     raw | :read_text(md_path)
 
@@ -340,17 +340,17 @@ act build_one_page(target)
         "path": md_path,
         "route_rel_no_ext": rel_no_ext,
         "output_rel_no_ext": output_rel_no_ext,
-        "documentation_version": record["doc_version"],
-        "default_documentation_version": record["default_doc_version"],
-        "available_documentation_versions": record["available_doc_versions"],
-        "version_rel_rows": record["version_rel_rows"],
-        "revision_history_rows": record["revision_history_rows"],
-        "revision": record["revision"],
-        "storage_kind": record["storage_kind"],
+        "documentation_version": record{"doc_version"},
+        "default_documentation_version": record{"default_doc_version"},
+        "available_documentation_versions": record{"available_doc_versions"},
+        "version_rel_rows": record{"version_rel_rows"},
+        "revision_history_rows": record{"revision_history_rows"},
+        "revision": record{"revision"},
+        "storage_kind": record{"storage_kind"},
         "portal": #local::portal,
         "href": href_abs,
-        "wanted_pages": pre_ctx["wanted_pages"],
-        "backlinks": pre_ctx["backlinks"],
+        "wanted_pages": pre_ctx{"wanted_pages"},
+        "backlinks": pre_ctx{"backlinks"},
         "schedule": schedule
     }
 
@@ -359,15 +359,15 @@ act build_one_page(target)
     :clear_tokens("SLOT")
 
     ctx |= :summon(ctx, schedule)
-    :update!(pre_ctx["wanted_pages"], ctx["wanted_pages"])
-    :update!(pre_ctx["backlinks"], ctx["backlinks"])
+    :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
+    :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)
     out_file | "../dist/{#local::portal}/{dir}/{base}.html"
 
     create_all_dirs(out_file)
-    :write_text!(out_file, ctx["body"])
+    :write_text!(out_file, ctx{"body"})
 
     :say("Built page:")
     :say(out_file)

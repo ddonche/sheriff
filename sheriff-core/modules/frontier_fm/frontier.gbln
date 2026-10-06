@@ -28,10 +28,10 @@ xx
 /// --- ctx-based helper (optional utility) ----------------------------------
 /// Reads ctx["body"], fills ctx["frontmatter"], returns ctx.
 act frontier_extract_into_ctx(ctx)
-    body | ctx["body"]
+    body | ctx{"body"}
     
     if body.nix?
-        :update!(ctx["frontmatter"], {"categories": []})
+        :update!(ctx{"frontmatter"}, {"categories": []})
         return ctx
     xx
     
@@ -41,15 +41,15 @@ act frontier_extract_into_ctx(ctx)
     xx
 
     if :has(fm_map, "categories") == false
-        :update!(fm_map["categories"], [])
+        :update!(fm_map{"categories"}, [])
     else
-        cats | fm_map["categories"]
+        cats | fm_map{"categories"}
         if cats.nix? or :valtype(cats) != "array"
-            :update!(fm_map["categories"], [])
+            :update!(fm_map{"categories"}, [])
         xx
     xx
 
-    :update!(ctx["frontmatter"], fm_map)
+    :update!(ctx{"frontmatter"}, fm_map)
     return ctx
 xx
 
@@ -57,7 +57,7 @@ xx
 /// Also populates ctx["frontmatter"]. Used in the pipeline as
 ///   frontier::strip_frontmatter
 act strip_frontmatter(ctx)
-    body | ctx["body"] ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
         
     /// 1) Extract frontmatter map from the current body
     fm_map | frontier_extract_frontmatter(body)
@@ -66,20 +66,20 @@ act strip_frontmatter(ctx)
     xx
 
     if :has(fm_map, "categories") == false
-        :update!(fm_map["categories"], [])
+        :update!(fm_map{"categories"}, [])
     else
-        cats | fm_map["categories"]
+        cats | fm_map{"categories"}
         if cats.nix? or :valtype(cats) != "array"
-            :update!(fm_map["categories"], [])
+            :update!(fm_map{"categories"}, [])
         xx
     xx
 
-    :update!(ctx["frontmatter"], fm_map)
+    :update!(ctx{"frontmatter"}, fm_map)
     
     /// 2) Remove the ^^^^ ... ^^^^ block (fences + contents)
     clean | :ignore_blocks_first(body, "^^^^", "^^^^")
     
     /// 3) Write cleaned body back into ctx
-    :update!(ctx["body"], clean)
+    :update!(ctx{"body"}, clean)
     return ctx
 xx

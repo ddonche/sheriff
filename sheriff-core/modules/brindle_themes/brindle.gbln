@@ -10,10 +10,10 @@ act resolve_theme_name(portal)
     if :file_exists(config_path) == false => return theme_name
 
     cfg       | :yall_parse_file(config_path)
-    theme_cfg | cfg["theme"] ?? nil
+    theme_cfg | cfg{"theme"} ?? nil
 
-    if :valtype(theme_cfg) == "map" and !theme_cfg["name"].nix?
-        :update!(theme_name, theme_cfg["name"].trim)
+    if :valtype(theme_cfg) == "map" and !theme_cfg{"name"}.nix?
+        :update!(theme_name, theme_cfg{"name"}.trim)
     xx
 
     return theme_name
@@ -23,10 +23,10 @@ xx
 /// JOB 1: Apply layout
 /// ------------------------------------------------------
 act apply_layout(ctx)
-    body   | ctx["body"] ?? => return ctx
-    portal | ctx["portal"] ?? => return ctx
+    body   | ctx{"body"} ?? => return ctx
+    portal | ctx{"portal"} ?? => return ctx
 
-    fm | ctx["frontmatter"]
+    fm | ctx{"frontmatter"}
 
     /// SAFETY: if frontmatter exists but is NOT a map → wipe it.
     if !fm.nix? and :valtype(fm) != "map"
@@ -34,8 +34,8 @@ act apply_layout(ctx)
     xx
 
     layout_name | "docs"
-    if :valtype(fm) == "map" and :has(fm, "layout") and !fm["layout"].nix?
-        :update!(layout_name, fm["layout"].trim)
+    if :valtype(fm) == "map" and :has(fm, "layout") and !fm{"layout"}.nix?
+        :update!(layout_name, fm{"layout"}.trim)
     xx
 
     theme_name  | resolve_theme_name(portal)
@@ -52,19 +52,19 @@ act apply_layout(ctx)
     /// PAGE TITLE / AUTHOR / META / SEO
     /// ----------------------------------------------
     page_title | "Untitled"
-    if :valtype(fm) == "map" and :has(fm, "title") and !fm["title"].nix?
-        :update!(page_title, fm["title"].trim)
+    if :valtype(fm) == "map" and :has(fm, "title") and !fm{"title"}.nix?
+        :update!(page_title, fm{"title"}.trim)
     xx
 
     page_author | "Unknown"
-    if :valtype(fm) == "map" and :has(fm, "author") and !fm["author"].nix?
-        :update!(page_author, fm["author"].trim)
+    if :valtype(fm) == "map" and :has(fm, "author") and !fm{"author"}.nix?
+        :update!(page_author, fm{"author"}.trim)
     xx
 
     page_summary | "Documentation for this site."
     if :valtype(fm) == "map"
         attempt
-            :update!(page_summary, fm["summary"].trim)
+            :update!(page_summary, fm{"summary"}.trim)
         rescue
             :update!(page_summary, "Documentation for this site.")
         end
@@ -73,7 +73,7 @@ act apply_layout(ctx)
     page_thumb | ""
     if :valtype(fm) == "map"
         attempt
-            :update!(page_thumb, fm["thumb"].trim)
+            :update!(page_thumb, fm{"thumb"}.trim)
         rescue
             :update!(page_thumb, "")
         end
@@ -84,11 +84,11 @@ act apply_layout(ctx)
 
     if :file_exists(config_path)
         cfg       | :yall_parse_file(config_path)
-        theme_cfg | cfg["theme"] ?? nil
+        theme_cfg | cfg{"theme"} ?? nil
 
         if :valtype(theme_cfg) == "map"
-            if !theme_cfg["brand_name"].nix?
-                :update!(brand_name, theme_cfg["brand_name"].trim)
+            if !theme_cfg{"brand_name"}.nix?
+                :update!(brand_name, theme_cfg{"brand_name"}.trim)
             xx
         xx
     xx
@@ -103,7 +103,7 @@ act apply_layout(ctx)
     if layout_name == "blog"
         tmp_avatar | ""
         attempt
-            :update!(tmp_avatar, fm["author_avatar"].trim)
+            :update!(tmp_avatar, fm{"author_avatar"}.trim)
         rescue
             :update!(tmp_avatar, "")
         end
@@ -142,7 +142,7 @@ act apply_layout(ctx)
     register_token("BRINDLE", "SCRIPTS", scripts_html)
 
     final_html | resolve_token(layout_html)
-    :update!(ctx["body"], final_html)
+    :update!(ctx{"body"}, final_html)
     return ctx
 xx
 
@@ -155,13 +155,13 @@ act build_page_meta(fm)
 
     kind, type | ""
 
-    if :has(fm, "meta_kind") and !fm["meta_kind"].nix?
-        tmp | fm["meta_kind"].trim
+    if :has(fm, "meta_kind") and !fm{"meta_kind"}.nix?
+        tmp | fm{"meta_kind"}.trim
         if tmp != "" => :update!(kind, tmp)
     xx
 
-    if :has(fm, "meta_type") and !fm["meta_type"].nix?
-        tmp | fm["meta_type"].trim
+    if :has(fm, "meta_type") and !fm{"meta_type"}.nix?
+        tmp | fm{"meta_type"}.trim
         if tmp != "" => :update!(type, tmp)
     xx
 
@@ -234,8 +234,8 @@ xx
 /// JOB 2: Register + resolve BRINDLE tokens
 /// ------------------------------------------------------
 act apply_tokens(ctx)
-    body   | ctx["body"] ?? => return ctx
-    portal | ctx["portal"] ?? => return ctx
+    body   | ctx{"body"} ?? => return ctx
+    portal | ctx{"portal"} ?? => return ctx
 
     /// --------------------------------------------------
     /// Read theme config
@@ -248,23 +248,23 @@ act apply_tokens(ctx)
 
     if :file_exists(config_path)
         cfg       | :yall_parse_file(config_path)
-        theme_cfg | cfg["theme"] ?? nil
+        theme_cfg | cfg{"theme"} ?? nil
 
         if :valtype(theme_cfg) == "map"
-            if :has(theme_cfg, "name") and !theme_cfg["name"].nix?
-                :update!(theme_name, theme_cfg["name"].trim)
+            if :has(theme_cfg, "name") and !theme_cfg{"name"}.nix?
+                :update!(theme_name, theme_cfg{"name"}.trim)
             xx
 
-            if :has(theme_cfg, "brand_name") and !theme_cfg["brand_name"].nix?
-                :update!(brand_name, theme_cfg["brand_name"].trim)
+            if :has(theme_cfg, "brand_name") and !theme_cfg{"brand_name"}.nix?
+                :update!(brand_name, theme_cfg{"brand_name"}.trim)
             xx
 
-            if :has(theme_cfg, "logo") and !theme_cfg["logo"].nix?
-                :update!(logo_name, theme_cfg["logo"].trim)
+            if :has(theme_cfg, "logo") and !theme_cfg{"logo"}.nix?
+                :update!(logo_name, theme_cfg{"logo"}.trim)
             xx
 
-            if :has(theme_cfg, "favicon") and !theme_cfg["favicon"].nix?
-                :update!(favicon_name, theme_cfg["favicon"].trim)
+            if :has(theme_cfg, "favicon") and !theme_cfg{"favicon"}.nix?
+                :update!(favicon_name, theme_cfg{"favicon"}.trim)
             xx
         xx
     xx
@@ -285,34 +285,34 @@ act apply_tokens(ctx)
         if !assets_cfg.nix? and :valtype(assets_cfg) == "map"
             assets_map | {}
             attempt
-                :update!(assets_map, assets_cfg["assets"])
+                :update!(assets_map, assets_cfg{"assets"})
             rescue
                 :update!(assets_map, {})
             end
 
             if :valtype(assets_map) == "map"
                 attempt
-                    :update!(assets_head_raw, assets_map["head"])
+                    :update!(assets_head_raw, assets_map{"head"})
                 rescue
                     :update!(assets_head_raw, "")
                 end
 
                 attempt
-                    :update!(assets_end_raw, assets_map["end"])
+                    :update!(assets_end_raw, assets_map{"end"})
                 rescue
                     :update!(assets_end_raw, "")
                 end
 
                 top_map | {}
                 attempt
-                    :update!(top_map, assets_map["top"])
+                    :update!(top_map, assets_map{"top"})
                 rescue
                     :update!(top_map, {})
                 end
 
                 if :valtype(top_map) == "map"
                     attempt
-                        :update!(assets_top_tag, top_map["tag"].trim)
+                        :update!(assets_top_tag, top_map{"tag"}.trim)
                     rescue
                         :update!(assets_top_tag, "")
                     end
@@ -320,7 +320,7 @@ act apply_tokens(ctx)
                     if assets_top_tag != ""
                         attrs_map | {}
                         attempt
-                            :update!(attrs_map, top_map["attrs"])
+                            :update!(attrs_map, top_map{"attrs"})
                         rescue
                             :update!(attrs_map, {})
                         end
@@ -434,7 +434,7 @@ act apply_tokens(ctx)
     /// Resolve BRINDLE / ASSETS tokens
     /// --------------------------------------------------
     updated | resolve_token(body)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
     return ctx
 xx
 
@@ -442,7 +442,7 @@ xx
 /// JOB 3: Export Sheriff header partial for other apps
 /// ------------------------------------------------------
 act export_header_partial(ctx)
-    portal | ctx["portal"] ?? => return ctx
+    portal | ctx{"portal"} ?? => return ctx
 
     theme_name | resolve_theme_name(portal)
 

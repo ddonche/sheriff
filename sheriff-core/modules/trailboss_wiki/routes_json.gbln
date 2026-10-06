@@ -52,7 +52,7 @@ act get_url_root(cfg)
     routing | get_routing_map(cfg)
     if routing.nix? => send ..
     
-    url_root | routing["url_root"]
+    url_root | routing{"url_root"}
     if url_root.nix? => send ..
 
     t | :trim(url_root)
@@ -972,7 +972,7 @@ act build_routes_json_for_portal(portal)
         current | letter_counts{bucket}
         current += 1
 
-        :update!(letter_counts[bucket], current)
+        :update!(letter_counts{bucket}, current)
     xx
 
     payload | {
@@ -1441,7 +1441,7 @@ act load_routes_json(portal)
     parsed | :read_json(routes_path)
     if parsed.nix? => return []
 
-    routes | parsed["routes"]
+    routes | parsed{"routes"}
     if routes == nil => return []
 
     return routes

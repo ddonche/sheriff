@@ -212,8 +212,8 @@ act restore_pattern_code_segments(text, stash)
     for item in stash
         if item.nix? => skip
 
-        k | item["k"] ?? => skip
-        v | item["v"] ?? => skip
+        k | item{"k"} ?? => skip
+        v | item{"v"} ?? => skip
 
         :update_where!(out, k, v)
     xx
@@ -224,7 +224,7 @@ xx
 act publish_patterns(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
-    portal | pre_ctx["portal"] ?? => send pre_ctx
+    portal | pre_ctx{"portal"} ?? => send pre_ctx
 
     patterns_dir | "../site/portals/{portal}/patterns"
     if :file_exists(patterns_dir) == false
@@ -263,13 +263,13 @@ act publish_patterns(pre_ctx)
 xx
 
 act apply_patterns(ctx)
-    body | ctx["body"] ?? => send ctx
+    body | ctx{"body"} ?? => send ctx
 
     stashed | stash_pattern_code_segments(body)
-    rendered | resolve_token(stashed["text"])
+    rendered | resolve_token(stashed{"text"})
     rendered |= render_patterns_in_text(rendered)
-    rendered |= restore_pattern_code_segments(rendered, stashed["stash"])
+    rendered |= restore_pattern_code_segments(rendered, stashed{"stash"})
 
-    :update!(ctx["body"], rendered)
+    :update!(ctx{"body"}, rendered)
     return ctx
 xx

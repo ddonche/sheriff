@@ -56,7 +56,7 @@ act build_blog_list(portal)
 
         title | ""
         attempt
-            :update!(title, :trim(fm["title"]))
+            :update!(title, :trim(fm{"title"}))
         rescue
             :update!(title, "")
         end
@@ -102,31 +102,31 @@ act build_blog_index(portal)
         title, author, post_date, summary, author_avatar | ""
 
         attempt
-            :update!(title, :trim(fm["title"]))
+            :update!(title, :trim(fm{"title"}))
         rescue
             :update!(title, "")
         end
 
         attempt
-            :update!(author, :trim(fm["author"]))
+            :update!(author, :trim(fm{"author"}))
         rescue
             :update!(author, "")
         end
 
         attempt
-            :update!(post_date, :trim(fm["date"]))
+            :update!(post_date, :trim(fm{"date"}))
         rescue
             :update!(post_date, "")
         end
 
         attempt
-            :update!(summary, :trim(fm["summary"]))
+            :update!(summary, :trim(fm{"summary"}))
         rescue
             :update!(summary, "")
         end
 
         attempt
-            :update!(author_avatar, :trim(fm["author_avatar"]))
+            :update!(author_avatar, :trim(fm{"author_avatar"}))
         rescue
             :update!(author_avatar, "")
         end
@@ -189,7 +189,7 @@ act build_blog_index(portal)
         thumb_src | ""
 
         attempt
-            :update!(thumb_src, :trim(fm["thumb"]))
+            :update!(thumb_src, :trim(fm{"thumb"}))
         rescue
             :update!(thumb_src, "")
         end
@@ -239,7 +239,7 @@ xx
 /// ------------------------------------------------------
 act build_index_once(pre_ctx)
 
-    portal | pre_ctx["portal"] ?? => return pre_ctx
+    portal | pre_ctx{"portal"} ?? => return pre_ctx
 
     blog_list_html  | build_blog_list(portal)
     blog_index_html | build_blog_index(portal)
@@ -255,10 +255,10 @@ xx
 /// ------------------------------------------------------
 act apply_tokens(ctx)
 
-    body | ctx["body"] ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
 
     rendered | resolve_token(body)
-    :update!(ctx["body"], rendered)
+    :update!(ctx{"body"}, rendered)
 
     return ctx
 xx

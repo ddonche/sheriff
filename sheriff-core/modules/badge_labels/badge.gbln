@@ -30,7 +30,7 @@ act extract_version(cfg)
 
     if :valtype(cfg) != "map" => return ""
 
-    v | cfg["version"] ?? => return ""
+    v | cfg{"version"} ?? => return ""
     t | :trim(v) ?? => return ""
 
     return t
@@ -42,7 +42,7 @@ act extract_repo(cfg)
 
     if :valtype(cfg) != "map" => return nil
 
-    repo | cfg["repo"] ?? => return nil
+    repo | cfg{"repo"} ?? => return nil
 
     /// Only accept maps as repo objects
     if :valtype(repo) != "map" => return nil
@@ -57,10 +57,10 @@ act build_repo_badge(repo, ver)
     if :valtype(repo) != "map" => return ""
 
     url, name, stars, forks | ""
-    if !repo["url"].nix? => :update!(url, "" + repo["url"])
-    if !repo["name"].nix? => :update!(name, "" + repo["name"])
-    if !repo["stars"].nix? => :update!(stars, "" + repo["stars"])
-    if !repo["forks"].nix? => :update!(forks, "" + repo["forks"])
+    if !repo{"url"}.nix? => :update!(url, "" + repo{"url"})
+    if !repo{"name"}.nix? => :update!(name, "" + repo{"name"})
+    if !repo{"stars"}.nix? => :update!(stars, "" + repo{"stars"})
+    if !repo{"forks"}.nix? => :update!(forks, "" + repo{"forks"})
 
     /// If we somehow didn't get a URL, don't render a broken badge.
     if url == "" => return ""
@@ -159,10 +159,10 @@ act generate_social_share_widget(portal, page_url, page_title)
     widgets_cfg | load_widgets_cfg(portal) ?? => return ""
     if :valtype(widgets_cfg) != "map" => return ""
     
-    badge_cfg | widgets_cfg["badge"] ?? => return ""
+    badge_cfg | widgets_cfg{"badge"} ?? => return ""
     if :valtype(badge_cfg) != "map" => return ""
     
-    platforms | badge_cfg["social_sharing"] ?? => return ""
+    platforms | badge_cfg{"social_sharing"} ?? => return ""
     
     /// URL-encode the title and URL
     encoded_url | :url_encode(page_url)
@@ -173,11 +173,11 @@ act generate_social_share_widget(portal, page_url, page_title)
     for platform in platforms
         data | get_social_platform_data(platform) ?? => skip
         
-        url | data["url"]
+        url | data{"url"}
         url | :update_where(url, "{url}", encoded_url)
         url | :update_where(url, "{title}", encoded_title)
         
-        svg | data["svg"]
+        svg | data{"svg"}
         
         icon | """
       <a href="{url}" target="_blank" rel="noopener noreferrer" class="social-icon" aria-label="Share on {platform}">
@@ -263,7 +263,7 @@ act compute_readtime_label(body)
 xx
 
 act publish_readtime(ctx)
-    body | ctx["body"] ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
 
     clear_token("BADGE", "READTIME")
 
@@ -285,8 +285,8 @@ xx
 
 /// MAIN ENTRY
 act apply_tokens(ctx)
-    portal | ctx["portal"] ?? => return ctx
-    body   | ctx["body"] ?? => return ctx
+    portal | ctx{"portal"} ?? => return ctx
+    body   | ctx{"body"} ?? => return ctx
 
     cfg  | load_cfg(portal)
     ver  | extract_version(cfg)
@@ -314,7 +314,7 @@ act apply_tokens(ctx)
     page_count | 0
 
     if :valtype(report) == "map"
-        pages | report["pages"]
+        pages | report{"pages"}
         if !pages.nix?
             page_count |= pages
         xx
@@ -336,9 +336,9 @@ act apply_tokens(ctx)
     page_title | "Test Page Title"
     page_url   | "https://example.com/test-page"
 
-    fm | ctx["frontmatter"]
+    fm | ctx{"frontmatter"}
     if !fm.nix? and :valtype(fm) == "map"
-        title_val | fm["title"]
+        title_val | fm{"title"}
         if !title_val.nix?
             update!(page_title, "" + title_val)
         xx
@@ -350,7 +350,7 @@ act apply_tokens(ctx)
 
     rendered | :resolve_token(body)
 
-    :update!(ctx["body"], rendered)
+    :update!(ctx{"body"}, rendered)
 
     /// THEN clear for next page
     clear_token("BADGE", "READTIME")

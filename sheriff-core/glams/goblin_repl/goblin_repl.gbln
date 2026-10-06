@@ -68,7 +68,7 @@ xx
 /// APPLY_TOKENS: Register and resolve GOBLIN_REPL tokens per page
 /// ----------------------------------------------------------------------
 act apply_tokens(ctx)
-    body | ctx["body"] ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
 
     embed_html | """
     <div class="goblin-repl-placeholder"></div>
@@ -78,6 +78,6 @@ act apply_tokens(ctx)
     register_token("GOBLIN_REPL", "EMBED", embed_html)
 
     updated | resolve_token(body)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
     return ctx
 xx

@@ -8,7 +8,7 @@
 /// INIT: Clear search index at start of portal build + copy JS
 /// ----------------------------------------------------------------------
 act init(pre_ctx)
-    portal | pre_ctx["portal"] ?? => return pre_ctx
+    portal | pre_ctx{"portal"} ?? => return pre_ctx
 
     public_dir | "../dist/{portal}/public"
     if :file_exists(public_dir) == false
@@ -38,17 +38,17 @@ xx
 /// Call this right after frontier::strip_frontmatter
 /// ----------------------------------------------------------------------
 act index_page(ctx)
-    portal | ctx["portal"] ?? => return ctx 
-    body   | ctx["body"] ?? => return ctx 
-    fm     | ctx["frontmatter"]
-    path   | ctx["path"]
+    portal | ctx{"portal"} ?? => return ctx 
+    body   | ctx{"body"} ?? => return ctx 
+    fm     | ctx{"frontmatter"}
+    path   | ctx{"path"}
 
     /// only index docs layout
     layout | "docs"
 
     if !fm.nix?
         attempt
-            lay_val | fm["layout"]
+            lay_val | fm{"layout"}
             if !lay_val.nix? => layout | :trim(lay_val)
         rescue err
             /// frontmatter is missing or not a map or has no "layout" – ignore
@@ -62,7 +62,7 @@ act index_page(ctx)
 
     route_rel | ..
     if :has(ctx, "route_rel_no_ext")
-        route_rel |= ctx["route_rel_no_ext"] ?? ..
+        route_rel |= ctx{"route_rel_no_ext"} ?? ..
     xx
 
     if !route_rel.nix?
@@ -70,7 +70,7 @@ act index_page(ctx)
     xx
 
     if href.nix? and :has(ctx, "href")
-        href |= ctx["href"] ?? ..
+        href |= ctx{"href"} ?? ..
     xx
 
     if href.nix?
@@ -91,7 +91,7 @@ act index_page(ctx)
     /// 1) try frontmatter.title (but don't die if key missing)
     if !fm.nix?
         attempt
-            v | fm["title"]
+            v | fm{"title"}
             if !v.nix?
                 t | :trim(v)
                 if t != ""
@@ -121,7 +121,7 @@ act index_page(ctx)
     /// 1) try frontmatter.summary
     if !fm.nix?
         attempt
-            v | fm["summary"]
+            v | fm{"summary"}
             if !v.nix?
                 s | :trim(v)
                 if s != ""
@@ -147,7 +147,7 @@ act index_page(ctx)
     categories | []
     if !fm.nix?
         attempt
-            fm_categories | fm["categories"]
+            fm_categories | fm{"categories"}
             if :valtype(fm_categories) == "array"
                 for category in fm_categories
                     if category.nix? => skip
@@ -189,8 +189,8 @@ xx
 /// APPLY_TOKENS: register + resolve PROSPECTOR tokens
 /// ------------------------------------------------------
 act apply_tokens(ctx)
-    body   | ctx["body"] ?? => return ctx 
-    portal | ctx["portal"] ?? => return ctx 
+    body   | ctx{"body"} ?? => return ctx 
+    portal | ctx{"portal"} ?? => return ctx 
 
     /// SEARCH INPUT (box + results container)
     search_input_html | """
@@ -220,6 +220,6 @@ act apply_tokens(ctx)
     /// Resolve ONLY tokens that have registered values
     updated | resolve_token(body)
 
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
     return ctx
 xx

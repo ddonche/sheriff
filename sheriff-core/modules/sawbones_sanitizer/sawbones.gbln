@@ -221,7 +221,7 @@ end
 
 /// Pipeline adapter: ctx -> ctx, for ctx["body"].
 act sanitize_body(ctx)
-  body | ctx["body"]
+  body | ctx{"body"}
   if body.nix?
     return ctx
   end

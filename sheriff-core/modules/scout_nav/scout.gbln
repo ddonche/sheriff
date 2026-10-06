@@ -9,7 +9,7 @@ import modules/trailboss_wiki/routes_json as rjson
 /// If missing, return {} so callers don't explode.
 /// ------------------------------------------------------------------------
 act scout_load_nav_config(ctx)
-    portal | ctx["portal"] ?? => return {}
+    portal | ctx{"portal"} ?? => return {}
 
     path | "../site/portals/{portal}/nav.yall"
 
@@ -88,7 +88,7 @@ act generate_toc(html_content)
 
     /// Avoid duplicates if someone manually created a "footnotes" header/id already
     for h in headers
-        if h["id"] == "footnotes" => saw_footnotes |= true
+        if h{"id"} == "footnotes" => saw_footnotes |= true
     xx
 
     /// If the page has footnotes, add them as a TOC entry
@@ -101,9 +101,9 @@ act generate_toc(html_content)
 
     toc_parts | []
     for h in headers
-        level | h["level"]
-        id    | h["id"]
-        text  | h["text"]
+        level | h{"level"}
+        id    | h{"id"}
+        text  |= h{"text"}
 
         item | "<li class=\"toc-item toc-level-" + string(level)
         item |= item + "\"><a href=\"#"
@@ -132,12 +132,12 @@ xx
 /// - Uses sheriff-breadcrumb-* classes to match CSS / React mock
 /// ------------------------------------------------------------------------
 act build_breadcrumbs(ctx)
-    path   | ctx["path"] ?? => return ""
-    portal | ctx["portal"] ?? => return ""
+    path   | ctx{"path"} ?? => return ""
+    portal | ctx{"portal"} ?? => return ""
 
     route_rel | ..
     if :has(ctx, "route_rel_no_ext")
-        route_rel |= ctx["route_rel_no_ext"] ?? ..
+        route_rel |= ctx{"route_rel_no_ext"} ?? ..
     xx
     rel | ..
 
@@ -198,7 +198,7 @@ act build_breadcrumbs(ctx)
             )
         xx
 
-        idx | idx + 1
+        idx |= idx + 1
     xx
 
     :put_last!(parts, "</nav>")
@@ -211,7 +211,7 @@ xx
 /// After layout + wire_slots, before Brindle resolves tokens.
 /// ------------------------------------------------------------------------
 act apply_tokens(ctx)
-    body | ctx["body"] ?? => return ctx 
+    body | ctx{"body"} ?? => return ctx 
 
     /// Always clear first so nothing leaks between pages
     clear_token("SCOUT", "TOC")
@@ -227,7 +227,7 @@ act apply_tokens(ctx)
 
     /// Resolve SCOUT::* for this page only
     rendered | :resolve_token(body)
-    :update!(ctx["body"], rendered)
+    :update!(ctx{"body"}, rendered)
 
     /// Clear page-scoped tokens for the next file
     clear_token("SCOUT", "TOC")
@@ -311,7 +311,7 @@ act scout_load_routes(portal)
     parsed | :read_json(routes_path)
     if parsed.nix? => return []
 
-    routes | parsed["routes"]
+    routes | parsed{"routes"}
     if routes.nix? => return []
     if :valtype(routes) != "array" => return []
 
@@ -339,8 +339,8 @@ act scout_link_info_for_wikilink(portal, raw)
     core | :keep_between(s, "[[", "]]") ?? => return scout_missing_link_info()
     target | :trim(:keep_before(core, "|")) ?? core
     split | scout_split_anchor(target)
-    page_name | split["page"] ?? => return scout_missing_link_info()
-    anchor | split["anchor"] ?? ..
+    page_name | split{"page"} ?? => return scout_missing_link_info()
+    anchor | split{"anchor"} ?? ..
 
     slug | rjson::normalize_to_slug(page_name)
     if slug.nix? => return scout_missing_link_info()
@@ -353,11 +353,11 @@ act scout_link_info_for_wikilink(portal, raw)
     for meta in routes
         if meta.nix? => skip
 
-        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
         if meta_slug == slug
-            href | meta["href"] ?? => return scout_missing_link_info()
+            href | meta{"href"} ?? => return scout_missing_link_info()
             if !anchor.nix? => href |= "{href}#{anchor}"
-            meta_type | meta["meta_type"] ?? ..
+            meta_type | meta{"meta_type"} ?? ..
             if meta_type == "generated"
                 if generated_fallback.nix?
                     generated_fallback |= href
@@ -367,14 +367,14 @@ act scout_link_info_for_wikilink(portal, raw)
             xx
         xx
 
-        aliases | meta["aliases"] ?? []
+        aliases | meta{"aliases"} ?? []
         if :valtype(aliases) == "array"
             for alias in aliases
                 alias_slug | rjson::normalize_to_slug(alias)
                 if alias_slug == slug
-                    href | meta["href"] ?? => return scout_missing_link_info()
+                    href | meta{"href"} ?? => return scout_missing_link_info()
                     if !anchor.nix? => href |= "{href}#{anchor}"
-                    meta_type | meta["meta_type"] ?? ..
+                    meta_type | meta{"meta_type"} ?? ..
                     if meta_type == "generated"
                         if generated_fallback.nix?
                             generated_fallback |= href
@@ -433,7 +433,7 @@ act scout_link_info_for_href(portal, href)
     /// 1) Exact match (href keys include leading "/")
     for meta in routes
         if meta.nix? => skip
-        mh | meta["href"]
+        mh | meta{"href"}
         if mh.nix? => skip
         if (mh) == h
             return {"class": "sheriff-link", "href": href}
@@ -453,7 +453,7 @@ act scout_link_info_for_href(portal, href)
 
     for meta in routes
         if meta.nix? => skip
-        mh | meta["href"]
+        mh | meta{"href"}
         if mh.nix? => skip
 
         mh2 | mh
@@ -487,7 +487,7 @@ act generate_nested_items(portal, items_map)
     ul_items | ""
 
     for key in keys
-        val      | items_map[key]
+        val      | items_map{key}
         val_type | :valtype(val)
 
         if val_type == "map"
@@ -511,8 +511,8 @@ act generate_nested_items(portal, items_map)
             update!(ul_items, ul_items + item)
         else
             info | scout_nav_link_info(portal, val)
-            cls  | info["class"]
-            out  | info["href"]
+            cls  | info{"class"}
+            out  | info{"href"}
             if out == "" => skip
 
             item | """
@@ -551,7 +551,7 @@ act scout_render_sidebar(portal, menu_content)
     first_key | true
 
     for top_key in keys
-        top_val   | menu_content[top_key]
+        top_val   | menu_content{top_key}
         val_type  | :valtype(top_val)
 
         if first_key and val_type == "map"
@@ -569,8 +569,8 @@ act scout_render_sidebar(portal, menu_content)
 
         elif val_type == "str" or val_type == "array"
             info | scout_nav_link_info(portal, top_val)
-            cls  | info["class"]
-            out  | info["href"]
+            cls  | info{"class"}
+            out  | info{"href"}
             if out == "" => skip
 
             item | """
@@ -629,7 +629,7 @@ act scout_render_footer(portal, footer_content)
     first        | true
 
     for text in keys
-        url | footer_content[text]
+        url | footer_content{text}
         
         /// Separator between items
         sep | ""
@@ -649,8 +649,8 @@ act scout_render_footer(portal, footer_content)
                 update!(is_link, false)
             else
                 info | scout_nav_link_info(portal, url)
-                url_str |= info["href"]
-                cls |= info["class"]
+                url_str |= info{"href"}
+                cls |= info{"class"}
                 if url_str == "" => update!(is_link, false)
             xx
         xx
@@ -690,13 +690,13 @@ act scout_render_header_nav(portal, menu_content)
     nav_items | ""
 
     for top_key in keys
-        top_val   | menu_content[top_key]
+        top_val   | menu_content{top_key}
         val_type  | :valtype(top_val)
 
         if val_type == "str" or val_type == "array"
             info | scout_nav_link_info(portal, top_val)
-            cls | info["class"]
-            href | info["href"]
+            cls | info{"class"}
+            href | info{"href"}
             if href == "" => skip
 
             item | """
@@ -743,13 +743,13 @@ act generate_header_dropdown(portal, dropdown_map)
     sections_html | ""
 
     for section_key in keys
-        section_val  | dropdown_map[section_key]
+        section_val  | dropdown_map{section_key}
         section_type | :valtype(section_val)
 
         if section_type == "str" or section_type == "array"
             info | scout_nav_link_info(portal, section_val)
-            cls | info["class"]
-            href | info["href"]
+            cls | info{"class"}
+            href | info{"href"}
             if href == "" => skip
 
             section_html | """
@@ -764,9 +764,9 @@ act generate_header_dropdown(portal, dropdown_map)
             link_keys  | :keys(section_val)
 
             for link_key in link_keys
-                info | scout_nav_link_info(portal, section_val[link_key])
-                cls | info["class"]
-                link_href | info["href"]
+                info | scout_nav_link_info(portal, section_val{link_key})
+                cls | info{"class"}
+                link_href | info{"href"}
                 if link_href == "" => skip
 
                 link_item | """
@@ -829,8 +829,8 @@ act scout_active_theme_name(portal)
     if :file_exists(cfg_path) == false => return "outpost"
 
     cfg   | :yall_parse_file(cfg_path)
-    theme | cfg["theme"] ?? => return "outpost"
-    name | theme["name"] ?? => return "outpost"
+    theme | cfg{"theme"} ?? => return "outpost"
+    name | theme{"name"} ?? => return "outpost"
 
     return name
 xx
@@ -852,13 +852,13 @@ act scout_load_theme_nav_mapping(portal)
     xx
 
     cfg   | :yall_parse_file(cfg_path)
-    theme | cfg["theme"]
+    theme | cfg{"theme"}
     if theme.nix?
         :say("SCOUT: Portal '{portal}' has no theme entry in config.yall")
         return nil
     xx
 
-    name | theme["name"]
+    name | theme{"name"}
     if name.nix?
         :say("SCOUT: Portal '{portal}' has theme section but no theme.name")
         return nil
@@ -875,7 +875,7 @@ act scout_load_theme_nav_mapping(portal)
     xx
 
     cfg2    | :yall_parse_file(map_path)
-    mapping | cfg2["tokens"]
+    mapping | cfg2{"tokens"}
     if mapping.nix?
         :say("SCOUT: Theme '{theme_name}' has no tokens section in scout_nav.yall")
         return nil
@@ -908,7 +908,7 @@ act publish_nav_tokens(pre_ctx)
         return pre_ctx
     xx
 
-    portal | pre_ctx["portal"]
+    portal | pre_ctx{"portal"}
     if portal.nix?
         :say("SCOUT: No portal in pre_ctx. Skipping menus.")
         return pre_ctx
@@ -921,7 +921,7 @@ act publish_nav_tokens(pre_ctx)
     xx
 
     nav_cfg | :yall_parse_file(nav_path)
-    menus   | nav_cfg["menus"]
+    menus   | nav_cfg{"menus"}
     if menus.nix?
         :say("SCOUT: nav.yall has no menus section. Skipping menus.")
         return pre_ctx
@@ -931,7 +931,7 @@ act publish_nav_tokens(pre_ctx)
 
     /// Generic per-menu tokens (header/sidebar/flat)
     for name in names
-        menu_map | menus[name]
+        menu_map | menus{name}
         if menu_map.nix?
             :say("SCOUT: menu '" ++ (name) ++ "' is nil, skipping.")
             skip

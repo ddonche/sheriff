@@ -59,7 +59,7 @@ act build_routes_once(pre_ctx)
         send pre_ctx
     xx
 
-    portal | pre_ctx["portal"]
+    portal | pre_ctx{"portal"}
     if portal.nix?
         :say("TRAILBOSS.build_routes_once: portal missing; skipping routes.json.")
         send pre_ctx
@@ -74,9 +74,9 @@ xx
 act init_wanted_pages(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
-    :update!(pre_ctx["wanted_pages"], [])
+    :update!(pre_ctx{"wanted_pages"}, [])
 
-    portal | pre_ctx["portal"] ?? => send pre_ctx
+    portal | pre_ctx{"portal"} ?? => send pre_ctx
 
     out_path | "../site/portals/{portal}/content/wanted-pages.md"
 
@@ -99,9 +99,9 @@ xx
 act init_backlinks(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
-    :update!(pre_ctx["backlinks"], [])
+    :update!(pre_ctx{"backlinks"}, [])
 
-    portal | pre_ctx["portal"] ?? => send pre_ctx
+    portal | pre_ctx{"portal"} ?? => send pre_ctx
 
     public_dir | "../dist/{portal}/public"
     if :file_exists(public_dir) == false
@@ -143,24 +143,24 @@ act add_class_to_first_anchor(html, add_class)
 xx
 
 act stash_code_for_fences(ctx)
-    body | ctx["body"] ?? => send ctx
+    body | ctx{"body"} ?? => send ctx
 
     stashed | stash_code_segments(body)
 
     fences | {
         "ctx":    ctx,
-        "work":   stashed["html"],
-        "stash":  stashed["stash"],
-        "portal": ctx["portal"]
+        "work":   stashed{"html"},
+        "stash":  stashed{"stash"},
+        "portal": ctx{"portal"}
     }
 
     return fences
 xx
 
 act sweep_fences(fences)
-    ctx    | fences["ctx"]
-    portal | fences["portal"]
-    out    | fences["work"]
+    ctx    | fences{"ctx"}
+    portal | fences{"portal"}
+    out    | fences{"work"}
 
     /// core fence parsing locals; using broadcast tether
     block, payload, header_line, body_part, header_rest, first_tok, kind_raw | nil
@@ -448,14 +448,14 @@ act sweep_fences(fences)
             xx
     xx
 
-    :update!(fences["work"], out)
+    :update!(fences{"work"}, out)
     return fences
 xx
 
 act restore_code_for_fences(fences)
-    ctx   | fences["ctx"]
-    final | restore_code_segments(fences["work"], fences["stash"])
-    :update!(ctx["body"], final)
+    ctx   | fences{"ctx"}
+    final | restore_code_segments(fences{"work"}, fences{"stash"})
+    :update!(ctx{"body"}, final)
     return ctx
 xx
 
@@ -464,7 +464,7 @@ xx
 /// ======================================================================
 
 act render_footnotes(ctx)
-    body | ctx["body"] ?? => send ctx
+    body | ctx{"body"} ?? => send ctx
 
     out | body
 
@@ -511,7 +511,7 @@ act render_footnotes(ctx)
     :update_where!(out, "class=\"footnote-ref\"", "class=\"footnote-ref sheriff-footnote-ref\"")
     :update_where!(out, "class=\"footnote-backref\"", "class=\"footnote-backref sheriff-footnote-backref\"")
 
-    :update!(ctx["body"], out)
+    :update!(ctx{"body"}, out)
     return ctx
 xx
 
@@ -520,18 +520,18 @@ xx
 /// ======================================================================
 
 act attach_href(ctx)
-    portal | ctx["portal"] ?? => send ctx
-    src    | ctx["path"] ?? => send ctx
+    portal | ctx{"portal"} ?? => send ctx
+    src    | ctx{"path"} ?? => send ctx
 
     route_rel | ..
     if :has(ctx, "route_rel_no_ext")
-        route_rel |= ctx["route_rel_no_ext"] ?? ..
+        route_rel |= ctx{"route_rel_no_ext"} ?? ..
     xx
     if !route_rel.nix?
         cfg      | rjson::load_cfg(portal)
         url_root | rjson::get_url_root(cfg)
         href_abs | rjson::build_href(url_root, route_rel)
-        :update!(ctx["href"], href_abs)
+        :update!(ctx{"href"}, href_abs)
         return ctx
     xx
 
@@ -556,7 +556,7 @@ act attach_href(ctx)
     href_abs | rjson::build_href(url_root, rel_no_ext)
 
     /// Always set the key so downstream reads never crash
-    :update!(ctx["href"], href_abs)
+    :update!(ctx{"href"}, href_abs)
     return ctx
 xx
 
@@ -612,11 +612,11 @@ xx
 act portal_mount(portal)
     cfg | load_cfg(portal) ?? => send ..
 
-    routing | cfg["routing"] ?? => send ..
+    routing | cfg{"routing"} ?? => send ..
 
     if :valtype(routing) != "map" => send ..
 
-    dr | routing["dist_root"]
+    dr | routing{"dist_root"}
     dr |= clean_cfg_string(dr)
 
     if dr.nix?        => send ..
@@ -659,7 +659,7 @@ act split_anchor(text)
 xx
 
 act derive_portal_root_from_ctx(ctx, portal)
-    src | ctx["path"]
+    src | ctx{"path"}
     if src.nix? => send "../site/portals/{portal}"
 
     src_norm | path_norm(src)
@@ -679,7 +679,7 @@ act load_routes_for_portal(ctx, portal)
 
     parsed | :read_json(routes_path) ?? => send []
 
-    routes | parsed["routes"] ?? => send []
+    routes | parsed{"routes"} ?? => send []
     if :valtype(routes) != "array" => send []
 
     return routes
@@ -694,17 +694,17 @@ act lookup_href_by_slug(ctx, portal, slug)
 
     for meta in routes
         if meta.nix? => skip
-        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
         if meta_slug == slug
-            href_abs | meta["href"]
+            href_abs | meta{"href"}
             if !href_abs.nix? => send href_abs
         xx
 
-        if :has(meta, "aliases") and :valtype(meta["aliases"]) == "array"
-            for alias in meta["aliases"]
+        if :has(meta, "aliases") and :valtype(meta{"aliases"}) == "array"
+            for alias in meta{"aliases"}
                 alias_slug | rjson::normalize_to_slug(alias)
                 if alias_slug == slug
-                    href_abs | meta["href"]
+                    href_abs | meta{"href"}
                     if !href_abs.nix? => send href_abs
                 xx
             xx
@@ -723,21 +723,21 @@ act lookup_gloss_by_slug(ctx, portal, slug)
 
     for meta in routes
         if meta.nix? => skip
-        meta_slug | meta["canonical_slug"] ?? meta["slug"] ?? ..
+        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
         if meta_slug == slug
             if :has(meta, "gloss")
-                g | meta["gloss"] 
+                g | meta{"gloss"} 
                 if !g.nix? => send g
             xx
             send ..
         xx
 
-        if :has(meta, "aliases") and :valtype(meta["aliases"]) == "array"
-            for alias in meta["aliases"]
+        if :has(meta, "aliases") and :valtype(meta{"aliases"}) == "array"
+            for alias in meta{"aliases"}
                 alias_slug | rjson::normalize_to_slug(alias)
                 if alias_slug == slug
                     if :has(meta, "gloss")
-                        g | meta["gloss"]
+                        g | meta{"gloss"}
                         if !g.nix? => send g
                     xx
                     send ..
@@ -760,10 +760,10 @@ act lookup_slug_by_href(ctx, portal, href_abs)
 
     for meta in routes
         if meta.nix? => skip
-        h | meta["href"]
+        h | meta{"href"}
         if h.nix? => skip
         if (h) == href_s
-            s | meta["slug"]
+            s | meta{"slug"}
             if !s.nix? => send s
         xx
     xx
@@ -816,8 +816,8 @@ act restore_code_segments(html, stash)
 
     for item in stash
         if item.nix? => skip
-        k | item["k"]
-        v | item["v"]
+        k | item{"k"}
+        v | item{"v"}
         if k.nix? => skip
         if v.nix? => skip
         :update_where!(out, k, v)
@@ -936,7 +936,7 @@ act resolve_wikilink(inner, ctx, portal)
         m | portal_mount(portal)
         src | "/public/images/{filename}"
         if !m.nix? 
-            src | "{m}/public/images/{filename}"
+            src |= "{m}/public/images/{filename}"
         xx
 
         src_e | escape_attr(src)
@@ -975,7 +975,7 @@ act resolve_wikilink(inner, ctx, portal)
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix? => src | "{m}/public/images/{filename}"
+        if !m.nix? => src |= "{m}/public/images/{filename}"
 
         src_e | escape_attr(src)
         cap_a | escape_attr(caption)
@@ -1010,7 +1010,7 @@ act resolve_wikilink(inner, ctx, portal)
         /// mount-aware src
         m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix? => src | "{m}/public/images/{filename}"
+        if !m.nix? => src |= "{m}/public/images/{filename}"
 
         src_e   | escape_attr(src)
         cap_a   | escape_attr(label)
@@ -1099,8 +1099,8 @@ act resolve_wikilink(inner, ctx, portal)
             if rest.nix?        => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
 
             parts  | split_anchor(rest)
-            page   | parts["page"]
-            anchor | parts["anchor"]
+            page   | parts{"page"}
+            anchor | parts{"anchor"}
 
             slug | normalize_to_slug(page)
             if slug.nix? => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
@@ -1130,8 +1130,8 @@ act resolve_wikilink(inner, ctx, portal)
 
         else:
             parts  | split_anchor(link_part)
-            page   | parts["page"]
-            anchor | parts["anchor"]
+            page   | parts{"page"}
+            anchor | parts{"anchor"}
 
             slug | normalize_to_slug(page)
             if slug.nix?
@@ -1161,17 +1161,17 @@ xx
 /// ======================================================================
 
 act stash_code_for_wikilinks(ctx)
-    body   | ctx["body"] ?? => send ctx
-    portal | ctx["portal"] ?? => send ctx
+    body   | ctx{"body"} ?? => send ctx
+    portal | ctx{"portal"} ?? => send ctx
 
     stashed | stash_code_segments(body)
 
     wl | {
         "ctx":    ctx,
-        "work":   stashed["html"],
-        "stash":  stashed["stash"],
+        "work":   stashed{"html"},
+        "stash":  stashed{"stash"},
         "portal": portal,
-        "result": stashed["html"],
+        "result": stashed{"html"},
         "focus_html": ..
     }
 
@@ -1179,11 +1179,11 @@ act stash_code_for_wikilinks(ctx)
 xx
 
 act sweep_wikilinks(wl)
-    ctx    | wl["ctx"]
-    portal | wl["portal"]
-    work   | wl["work"]
-    result | wl["result"]
-    focus_html | wl["focus_html"]
+    ctx    | wl{"ctx"}
+    portal | wl{"portal"}
+    work   | wl{"work"}
+    result | wl{"result"}
+    focus_html | wl{"focus_html"}
 
     core, repl_raw, repl | ..
     link_part, lower_link, target_portal, target_text, target_s, slug | ..
@@ -1211,7 +1211,7 @@ act sweep_wikilinks(wl)
             repl |= repl_raw ?? => skip
 
             if :has(repl, "sheriff-missing-link")
-                if :has(ctx, "wanted_pages") and :valtype(ctx["wanted_pages"]) == "array"
+                if :has(ctx, "wanted_pages") and :valtype(ctx{"wanted_pages"}) == "array"
                     link_part, lower_link, target_portal, target_text, target_s, slug |= ..
                     portal_name, rest, parts |= ..
                     source_href, source_title, source_fm, source_path |= ..
@@ -1241,31 +1241,31 @@ act sweep_wikilinks(wl)
 
                         target_portal |= portal_name
                         parts         |= split_anchor(rest)
-                        target_text   |= parts["page"]
+                        target_text   |= parts{"page"}
                     else
                         parts       |= split_anchor(link_part)
-                        target_text |= parts["page"]
+                        target_text |= parts{"page"}
                     xx
 
                     target_s |= s_trim(target_text) ?? => skip
                     slug     |= normalize_to_slug(target_s) ?? => skip
 
-                    source_href  |= ctx["href"] ?? ..
+                    source_href  |= ctx{"href"} ?? ..
                     source_title |= source_href
 
-                    if :has(ctx, "frontmatter") and :valtype(ctx["frontmatter"]) == "map"
-                        source_fm |= ctx["frontmatter"]
+                    if :has(ctx, "frontmatter") and :valtype(ctx{"frontmatter"}) == "map"
+                        source_fm |= ctx{"frontmatter"}
                         if :has(source_fm, "title")
-                            source_title |= source_fm["title"]
+                            source_title |= source_fm{"title"}
                         xx
                     xx
 
                     if source_title.nix?
-                        source_path  |= ctx["path"] ?? ..
+                        source_path  |= ctx{"path"} ?? ..
                         source_title |= :stem(source_path) ?? source_href
                     xx
 
-                    :put_last!(ctx["wanted_pages"], {
+                    :put_last!(ctx{"wanted_pages"}, {
                         "portal":       target_portal,
                         "slug":         slug,
                         "target":       target_s,
@@ -1275,7 +1275,7 @@ act sweep_wikilinks(wl)
                     })
                 xx
             else
-                if :has(ctx, "backlinks") and :valtype(ctx["backlinks"]) == "array" and :has(repl, "href=\"")
+                if :has(ctx, "backlinks") and :valtype(ctx{"backlinks"}) == "array" and :has(repl, "href=\"")
                     link_part, lower_link, target_portal, target_text, target_s, slug |= ..
                     portal_name, rest, parts |= ..
                     source_href, source_title, source_fm, source_path |= ..
@@ -1305,11 +1305,11 @@ act sweep_wikilinks(wl)
                         else
                             target_portal |= portal_name
                             parts         |= split_anchor(rest)
-                            target_text   |= parts["page"]
+                            target_text   |= parts{"page"}
                         xx
                     elif backlink_ok
                         parts       |= split_anchor(link_part)
-                        target_text |= parts["page"]
+                        target_text |= parts{"page"}
                     xx
 
                     if backlink_ok and target_portal != portal
@@ -1332,7 +1332,7 @@ act sweep_wikilinks(wl)
                     xx
 
                     if backlink_ok
-                        source_href  |= ctx["href"] ?? ..
+                        source_href  |= ctx{"href"} ?? ..
                         if source_href.nix?
                             backlink_ok |= false
                         xx
@@ -1345,24 +1345,24 @@ act sweep_wikilinks(wl)
                     if backlink_ok
                         source_title |= source_href
 
-                        if :has(ctx, "frontmatter") and :valtype(ctx["frontmatter"]) == "map"
-                            source_fm |= ctx["frontmatter"]
+                        if :has(ctx, "frontmatter") and :valtype(ctx{"frontmatter"}) == "map"
+                            source_fm |= ctx{"frontmatter"}
                             if :has(source_fm, "title")
-                                source_title |= source_fm["title"]
+                                source_title |= source_fm{"title"}
                             xx
                         xx
 
                         if source_title.nix?
-                            source_path  |= ctx["path"] ?? ..
+                            source_path  |= ctx{"path"} ?? ..
                             source_title |= :stem(source_path) ?? source_href
                         xx
 
                         backlink_seen | false
-                        for existing in ctx["backlinks"]
+                        for existing in ctx{"backlinks"}
                             if existing.nix? => skip
 
-                            existing_target | existing["target_href"] ?? ..
-                            existing_source | existing["source_href"] ?? ..
+                            existing_target | existing{"target_href"} ?? ..
+                            existing_source | existing{"source_href"} ?? ..
 
                             if existing_target == target_href and existing_source == source_href
                                 backlink_seen |= true
@@ -1371,7 +1371,7 @@ act sweep_wikilinks(wl)
                         xx
 
                         if backlink_seen == false
-                            :put_last!(ctx["backlinks"], {
+                            :put_last!(ctx{"backlinks"}, {
                                 "target_href":  target_href,
                                 "target_title": target_text,
                                 "source_href":  source_href,
@@ -1385,29 +1385,29 @@ act sweep_wikilinks(wl)
             :update_where!(result, self, repl)
     xx
 
-    :update!(wl["ctx"], ctx)
-    :update!(wl["result"], result)
-    :update!(wl["focus_html"], focus_html)
+    :update!(wl{"ctx"}, ctx)
+    :update!(wl{"result"}, result)
+    :update!(wl{"focus_html"}, focus_html)
     return wl
 xx
 
 act inject_focus_panel(wl)
-    result     | wl["result"]
-    focus_html | wl["focus_html"]
+    result     | wl{"result"}
+    focus_html | wl{"focus_html"}
 
     if focus_html.nix? => focus_html |= ..
 
     :update_where!(result, "{{{SITE::FOCUS_PANEL}}}", focus_html)
     :update_where!(result, "{{{TRAILBOSS::FOCUS_PANEL}}}", focus_html)
 
-    :update!(wl["result"], result)
+    :update!(wl{"result"}, result)
     return wl
 xx
 
 act restore_code_for_wikilinks(wl)
-    ctx   | wl["ctx"]
-    final | restore_code_segments(wl["result"], wl["stash"])
-    :update!(ctx["body"], final)
+    ctx   | wl{"ctx"}
+    final | restore_code_segments(wl{"result"}, wl{"stash"})
+    :update!(ctx{"body"}, final)
     return ctx
 xx
 
@@ -1416,9 +1416,9 @@ xx
 /// ======================================================================
 
 act publish_canonical_link(ctx)
-    portal | ctx["portal"] ?? => send ctx
-    src    | ctx["path"] ?? => send ctx
-    body   | ctx["body"] ?? => send ctx
+    portal | ctx{"portal"} ?? => send ctx
+    src    | ctx{"path"} ?? => send ctx
+    body   | ctx{"body"} ?? => send ctx
 
     src_norm | path_norm(src)
     stem_name | :stem(src_norm)
@@ -1427,20 +1427,20 @@ act publish_canonical_link(ctx)
     canonical | "[[{slug}]]"
     canonical_slug, wikilink | ..
 
-    href | ctx["href"] ?? ..
+    href | ctx{"href"} ?? ..
     if !href.nix?
         routes | load_routes_for_portal(ctx, portal)
         if :valtype(routes) == "array"
             for meta in routes
                 if meta.nix? => skip
 
-                route_href | meta["href"] ?? ..
+                route_href | meta{"href"} ?? ..
                 if route_href == href
-                    canonical |= meta["canonical"] ?? ..
+                    canonical |= meta{"canonical"} ?? ..
                     if canonical.nix?
-                        canonical_slug |= meta["canonical_slug"] ?? ..
+                        canonical_slug |= meta{"canonical_slug"} ?? ..
                         if canonical_slug.nix?
-                            canonical_slug |= meta["slug"] ?? slug
+                            canonical_slug |= meta{"slug"} ?? slug
                         xx
                         wikilink |= "[[" + canonical_slug + "]]"
                         :update!(canonical, wikilink)
@@ -1477,7 +1477,7 @@ act publish_canonical_link(ctx)
 
     updated | body
     :update_where!(updated, "{{{TRAILBOSS::CANONLINK}}}", html)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
 
     return ctx
 xx
@@ -1485,12 +1485,12 @@ xx
 act route_meta_for_ctx(ctx, portal)
     href | ..
     if :has(ctx, "href")
-        href |= ctx["href"] ?? ..
+        href |= ctx{"href"} ?? ..
     xx
 
     route_rel | ..
     if :has(ctx, "route_rel_no_ext")
-        route_rel |= ctx["route_rel_no_ext"] ?? ..
+        route_rel |= ctx{"route_rel_no_ext"} ?? ..
     xx
 
     routes | load_routes_for_portal(ctx, portal)
@@ -1499,12 +1499,12 @@ act route_meta_for_ctx(ctx, portal)
     for meta in routes
         if meta.nix? => skip
 
-        route_href | meta["href"] ?? ..
+        route_href | meta{"href"} ?? ..
         if !href.nix? and route_href == href
             return meta
         xx
 
-        rel | meta["rel"] ?? ..
+        rel | meta{"rel"} ?? ..
         if !route_rel.nix? and rel == route_rel
             return meta
         xx
@@ -1527,30 +1527,30 @@ act version_rel_for_tab(version, rows)
 xx
 
 act publish_doc_versions(ctx)
-    portal | ctx["portal"] ?? => send ctx
-    body   | ctx["body"] ?? => send ctx
+    portal | ctx{"portal"} ?? => send ctx
+    body   | ctx{"body"} ?? => send ctx
 
     html | ""
     versions | []
     if :has(ctx, "available_documentation_versions")
-        versions |= ctx["available_documentation_versions"] ?? []
+        versions |= ctx{"available_documentation_versions"} ?? []
     xx
 
     current_version | ..
     if :has(ctx, "documentation_version")
-        current_version |= ctx["documentation_version"] ?? ..
+        current_version |= ctx{"documentation_version"} ?? ..
     xx
     version_rel_rows | []
     if :has(ctx, "version_rel_rows")
-        version_rel_rows |= ctx["version_rel_rows"] ?? []
+        version_rel_rows |= ctx{"version_rel_rows"} ?? []
     xx
 
     if :valtype(versions) != "array" or versions.len <= 1
         meta | route_meta_for_ctx(ctx, portal)
         if meta.nix? == false
-            versions |= meta["available_doc_versions"] ?? []
-            current_version |= meta["doc_version"] ?? current_version
-            version_rel_rows |= meta["version_rel_rows"] ?? version_rel_rows
+            versions |= meta{"available_doc_versions"} ?? []
+            current_version |= meta{"doc_version"} ?? current_version
+            version_rel_rows |= meta{"version_rel_rows"} ?? version_rel_rows
         xx
     xx
 
@@ -1596,37 +1596,37 @@ act publish_doc_versions(ctx)
 
     updated | body
     :update_where!(updated, "{{{TRAILBOSS::DOC_VERSIONS}}}", html)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
 
     return ctx
 xx
 
 act publish_revision_meta(ctx)
-    body | ctx["body"] ?? => send ctx
+    body | ctx{"body"} ?? => send ctx
     updated | body
     :update_where!(updated, "{{{TRAILBOSS::REVISION_META}}}", "")
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
 
     return ctx
 xx
 
 act publish_categories(ctx)
-    portal | ctx["portal"] ?? => send ctx
-    body   | ctx["body"] ?? => send ctx
+    portal | ctx{"portal"} ?? => send ctx
+    body   | ctx{"body"} ?? => send ctx
 
     categories | []
 
-    href | ctx["href"] ?? ..
+    href | ctx{"href"} ?? ..
     if !href.nix?
         routes | load_routes_for_portal(ctx, portal)
         if :valtype(routes) == "array"
             for meta in routes
                 if meta.nix? => skip
 
-                route_href | meta["href"] ?? ..
+                route_href | meta{"href"} ?? ..
                 if route_href == href
-                    if :has(meta, "categories") and :valtype(meta["categories"]) == "array"
-                        categories |= meta["categories"]
+                    if :has(meta, "categories") and :valtype(meta{"categories"}) == "array"
+                        categories |= meta{"categories"}
                     xx
                     stop
                 xx
@@ -1634,10 +1634,10 @@ act publish_categories(ctx)
         xx
     xx
 
-    if :has(ctx, "frontmatter") and :valtype(ctx["frontmatter"]) == "map"
-        fm | ctx["frontmatter"]
-        if categories.nix? and :has(fm, "categories") and :valtype(fm["categories"]) == "array"
-            categories |= fm["categories"]
+    if :has(ctx, "frontmatter") and :valtype(ctx{"frontmatter"}) == "map"
+        fm | ctx{"frontmatter"}
+        if categories.nix? and :has(fm, "categories") and :valtype(fm{"categories"}) == "array"
+            categories |= fm{"categories"}
         xx
     xx
 
@@ -1671,15 +1671,15 @@ act publish_categories(ctx)
 
     updated | body
     :update_where!(updated, "{{{TRAILBOSS::CATEGORIES}}}", html)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
 
     return ctx
 xx
 
 act publish_what_links_here(ctx)
-    portal | ctx["portal"] ?? => send ctx
-    body   | ctx["body"] ?? => send ctx
-    href   | ctx["href"] ?? ..
+    portal | ctx{"portal"} ?? => send ctx
+    body   | ctx{"body"} ?? => send ctx
+    href   | ctx{"href"} ?? ..
 
     slug | ..
 
@@ -1689,9 +1689,9 @@ act publish_what_links_here(ctx)
             for meta in routes
                 if meta.nix? => skip
 
-                route_href | meta["href"] ?? ..
+                route_href | meta{"href"} ?? ..
                 if route_href == href
-                    slug |= meta["slug"] ?? ..
+                    slug |= meta{"slug"} ?? ..
                     stop
                 xx
             xx
@@ -1717,7 +1717,7 @@ act publish_what_links_here(ctx)
 
     updated | body
     :update_where!(updated, "{{{TRAILBOSS::WHAT_LINKS_HERE}}}", html)
-    :update!(ctx["body"], updated)
+    :update!(ctx{"body"}, updated)
 
     return ctx
 xx
@@ -1725,11 +1725,11 @@ xx
 act write_backlinks_once(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
-    portal | pre_ctx["portal"] ?? => send pre_ctx
+    portal | pre_ctx{"portal"} ?? => send pre_ctx
 
     backlinks | []
-    if :has(pre_ctx, "backlinks") and :valtype(pre_ctx["backlinks"]) == "array"
-        backlinks |= pre_ctx["backlinks"]
+    if :has(pre_ctx, "backlinks") and :valtype(pre_ctx{"backlinks"}) == "array"
+        backlinks |= pre_ctx{"backlinks"}
     xx
 
     out_dir | "../dist/{portal}/public/backlinks"
@@ -1743,8 +1743,8 @@ act write_backlinks_once(pre_ctx)
     for meta in routes
         if meta.nix? => skip
 
-        href | meta["href"] ?? => skip
-        slug | meta["slug"] ?? => skip
+        href | meta{"href"} ?? => skip
+        slug | meta{"slug"} ?? => skip
 
         seen | []
         sources | []
@@ -1752,12 +1752,12 @@ act write_backlinks_once(pre_ctx)
         for entry in backlinks
             if entry.nix? => skip
 
-            target_href | entry["target_href"] ?? ..
+            target_href | entry{"target_href"} ?? ..
             if target_href != href
                 skip
             xx
 
-            source_href | entry["source_href"] ?? => skip
+            source_href | entry{"source_href"} ?? => skip
             if source_href == href
                 skip
             xx
@@ -1766,7 +1766,7 @@ act write_backlinks_once(pre_ctx)
                 skip
             xx
 
-            source_title | entry["source_title"] ?? source_href
+            source_title | entry{"source_title"} ?? source_href
 
             :put_last!(seen, source_href)
             :put_last!(sources, {
@@ -1785,10 +1785,10 @@ xx
 act build_wanted_pages_once(pre_ctx)
     if pre_ctx.nix? => send pre_ctx
 
-    portal | pre_ctx["portal"] ?? => send pre_ctx
+    portal | pre_ctx{"portal"} ?? => send pre_ctx
 
-    schedule | pre_ctx["schedule"] ?? => send pre_ctx
-    wanted   | pre_ctx["wanted_pages"]
+    schedule | pre_ctx{"schedule"} ?? => send pre_ctx
+    wanted   | pre_ctx{"wanted_pages"}
 
     if wanted == nil or :valtype(wanted) != "array"
         wanted |= []
@@ -1820,8 +1820,8 @@ summary: Missing wiki pages linked from this site.
         for entry in wanted
             if entry.nix? => skip
 
-            slug | entry["slug"] ?? => skip
-            entry_portal | entry["portal"] ?? portal
+            slug | entry{"slug"} ?? => skip
+            entry_portal | entry{"portal"} ?? portal
             key | "{entry_portal}:{slug}"
 
             if :has(seen, key)
@@ -1830,13 +1830,13 @@ summary: Missing wiki pages linked from this site.
 
             :put_last!(seen, key)
 
-            title | entry["title"] ?? entry["target"] ?? entry["slug"] ?? "missing"
+            title | entry{"title"} ?? entry{"target"} ?? entry{"slug"} ?? "missing"
             count | 0
 
             for item in wanted
                 if item.nix? => skip
-                item_slug | item["slug"] ?? => skip
-                item_portal | item["portal"] ?? portal
+                item_slug | item{"slug"} ?? => skip
+                item_portal | item{"portal"} ?? portal
 
                 if item_slug == slug
                     if item_portal == entry_portal
@@ -1893,13 +1893,13 @@ summary: Missing wiki pages linked from this site.
                 for item in wanted
                     if item.nix? => skip
 
-                    item_slug | item["slug"] ?? => skip
-                    item_portal | item["portal"] ?? portal
+                    item_slug | item{"slug"} ?? => skip
+                    item_portal | item{"portal"} ?? portal
 
                     if item_slug == slug
                         if item_portal == entry_portal
-                            source_href | item["source_href"] ?? => skip
-                            source_title | item["source_title"] ?? source_href
+                            source_href | item{"source_href"} ?? => skip
+                            source_title | item{"source_title"} ?? source_href
 
                             if :has(source_seen, source_href) == false
                                 source_href_safe | escape_attr(source_href)
@@ -1973,7 +1973,7 @@ summary: Missing wiki pages linked from this site.
             skip
         xx
 
-        :update!(ctx[k], pre_ctx[k])
+        :update!(ctx{k}, pre_ctx{k})
     xx
 
     :clear_tokens("SLOT")
@@ -1981,7 +1981,7 @@ summary: Missing wiki pages linked from this site.
     ctx |= :summon(ctx, schedule)
 
     :create_dir!("../dist/{portal}")
-    :write_text!(out_file, ctx["body"])
+    :write_text!(out_file, ctx{"body"})
 
     return pre_ctx
 xx

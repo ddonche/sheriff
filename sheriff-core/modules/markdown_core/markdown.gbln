@@ -2,7 +2,7 @@
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
 
 act render(ctx)
-    body | ctx["body"] ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
 
     clean      | :sanitize_bom(body)
     normalized | :normalize_newlines(clean)
@@ -14,20 +14,20 @@ act render(ctx)
     highlight_dark  | "base16-ocean.dark"
     highlight_light | "InspiredGitHub"
 
-    portal | ctx["portal"]
+    portal | ctx{"portal"}
 
     if !portal.nix?
         config_path | "../site/portals/{portal}/config.yall"
         if :file_exists(config_path)
             cfg | :yall_parse_file(config_path)
-            if !cfg.nix? and :valtype(cfg) == "map" and !cfg["theme"].nix?
-                theme_cfg | cfg["theme"]
+            if !cfg.nix? and :valtype(cfg) == "map" and !cfg{"theme"}.nix?
+                theme_cfg | cfg{"theme"}
                 if :valtype(theme_cfg) == "map"
-                    if !theme_cfg["highlight_dark"].nix?
-                        :update!(highlight_dark, :trim(theme_cfg["highlight_dark"]))
+                    if !theme_cfg{"highlight_dark"}.nix?
+                        :update!(highlight_dark, :trim(theme_cfg{"highlight_dark"}))
                     xx
-                    if !theme_cfg["highlight_light"].nix?
-                        :update!(highlight_light, :trim(theme_cfg["highlight_light"]))
+                    if !theme_cfg{"highlight_light"}.nix?
+                        :update!(highlight_light, :trim(theme_cfg{"highlight_light"}))
                     xx
                 xx
             xx
@@ -93,8 +93,8 @@ act render(ctx)
     /// --------------------------------------------------------------
     for item in wikistash
         if item.nix? => skip
-        k | item["k"] ?? => skip 
-        v | item["v"] ?? => skip 
+        k | item{"k"} ?? => skip 
+        v | item{"v"} ?? => skip 
         :update_where!(out, k, v)
     xx
 
@@ -103,8 +103,8 @@ act render(ctx)
     /// --------------------------------------------------------------
     for item in code_stash
         if item.nix? => skip
-        k | item["k"] ?? => skip
-        v | item["v"] ?? => skip
+        k | item{"k"} ?? => skip
+        v | item{"v"} ?? => skip
         :update_where!(out, k, v)
     xx
 
@@ -115,8 +115,8 @@ act render(ctx)
 
     for item in fence_stash
         if item.nix? => skip
-        k | item["k"] ?? => skip 
-        v | item["v"] ?? => skip 
+        k | item{"k"} ?? => skip 
+        v | item{"v"} ?? => skip 
 
         lang, code |= ""
 
@@ -136,7 +136,7 @@ act render(ctx)
 
         :update_where!(out, k, fence_html)
     xx
-    :update!(ctx["body"], out)
+    :update!(ctx{"body"}, out)
     return ctx
 xx
 
