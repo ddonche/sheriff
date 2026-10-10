@@ -280,19 +280,30 @@ act render_record(record, shared)
 xx
 
 /// MAIN BUILD FUNCTION
+/// Benchmark marker: prints "PHASE <name>" when SHERIFF_TIMING is set.
+act phase(name)
+    if :env("SHERIFF_TIMING").nix? == false
+        :say("PHASE {name}")
+    xx
+xx
+
 act build()
+    phase("start")
     :clear_all_tokens()
     :say("Building portal:")
     :say(#local::portal)
 
     backup_path | backup_dist()
+    phase("backup")
 
     cfg      | load_events()
     schedule | cfg{"schedule"}
 
     /// Run pre-build schedule once
+    phase("events")
     pre_ctx | run_pre_schedule(cfg)
     :update!(pre_ctx{"schedule"}, schedule)
+    phase("pre_schedule")
 
     cfg_portal | rjson::load_cfg(#local::portal)
     url_root | rjson::get_url_root(cfg_portal)
@@ -300,16 +311,33 @@ act build()
 
     /// routes.json is final now: index it once for every page's link lookups.
     :update!(pre_ctx{"routes_index"}, trailboss::build_routes_index(#local::portal))
+    phase("records_and_index")
 
     /// BUILD EACH MARKDOWN FILE, in parallel. Every page starts from the same
     /// frozen pre_ctx; the wanted pages and backlinks each page adds are
     /// merged afterwards, in page order.
-    shared | :freeze({
-        "pre_ctx": pre_ctx,
-        "schedule": schedule,
-        "url_root": url_root
-    })
-    pages | :swarm!(source_records, render_record, 8, shared)
+    /// SHERIFF_WORKERS (default 4) sets the worker count; 1 renders the
+    /// pages one at a time without :swarm!.
+    workers | 4
+    workers_env | :env("SHERIFF_WORKERS")
+    if workers_env.nix? == false
+        workers |= :int(workers_env)
+    xx
+    pages | []
+    if workers == 1
+        plain_shared | {"pre_ctx": pre_ctx, "schedule": schedule, "url_root": url_root}
+        for record in source_records
+            :put_last!(pages, render_record(record, plain_shared))
+        xx
+    else
+        shared | :freeze({
+            "pre_ctx": pre_ctx,
+            "schedule": schedule,
+            "url_root": url_root
+        })
+        pages |= :swarm!(source_records, render_record, workers, shared)
+    xx
+    phase("render")
 
     wanted_before | pre_ctx{"wanted_pages"}.len
     backlinks_before | pre_ctx{"backlinks"}.len
@@ -330,9 +358,11 @@ act build()
     :update!(pre_ctx{"wanted_pages"}, wanted)
     :update!(pre_ctx{"backlinks"}, backlinks)
     :summon({"entries": search_entries}, ["prospector::append_entries"])
+    phase("merge")
 
     /// Run post-build schedule once
     run_post_schedule(cfg, pre_ctx)
+    phase("post_schedule")
 
     :say("Portal build finished:")
     :say(#local::portal)
