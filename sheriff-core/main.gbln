@@ -224,6 +224,61 @@ act discover_portals()
     return portals
 xx
 
+/// Render one page in a swarm worker: run the schedule over it, write the
+/// HTML, and return what it added to wanted_pages and backlinks.
+act render_record(record, shared)
+    pre_ctx  | shared{"pre_ctx"}
+    schedule | shared{"schedule"}
+    url_root | shared{"url_root"}
+
+    md_path | record{"path"}
+    rel_no_ext | record{"rel_no_ext"}
+    output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
+    href_abs | rjson::build_href(url_root, output_rel_no_ext)
+    raw | :read_text(md_path)
+
+    ctx | {
+        "body": raw,
+        "frontmatter": {},
+        "tokens": {},
+        "path": md_path,
+        "route_rel_no_ext": rel_no_ext,
+        "output_rel_no_ext": output_rel_no_ext,
+        "documentation_version": record{"doc_version"},
+        "default_documentation_version": record{"default_doc_version"},
+        "available_documentation_versions": record{"available_doc_versions"},
+        "version_rel_rows": record{"version_rel_rows"},
+        "revision_history_rows": record{"revision_history_rows"},
+        "revision": record{"revision"},
+        "storage_kind": record{"storage_kind"},
+        "portal": #local::portal,
+        "href": href_abs,
+        "wanted_pages": pre_ctx{"wanted_pages"},
+        "backlinks": pre_ctx{"backlinks"},
+        "schedule": schedule
+    }
+
+    /// merge any pre_ctx fields into ctx
+    ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
+
+    :clear_tokens("SLOT")
+
+    ctx |= :summon(ctx, schedule)
+
+    dir      | :dirname(output_rel_no_ext)
+    base     | :stem(output_rel_no_ext)
+    out_file | "../dist/{#local::portal}/{dir}/{base}.html"
+
+    create_all_dirs(out_file)
+    :write_text!(out_file, ctx{"body"})
+
+    return {
+        "wanted_pages": ctx{"wanted_pages"},
+        "backlinks": ctx{"backlinks"},
+        "search_entry": ctx{"search_entry"} ?? nil
+    }
+xx
+
 /// MAIN BUILD FUNCTION
 act build()
     :clear_all_tokens()
@@ -243,51 +298,35 @@ act build()
     url_root | rjson::get_url_root(cfg_portal)
     source_records | rjson::build_render_records(#local::portal)
 
-    /// BUILD EACH MARKDOWN FILE
-    for record in source_records
-        md_path | record{"path"}
-        rel_no_ext | record{"rel_no_ext"}
-        output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
-        href_abs | rjson::build_href(url_root, output_rel_no_ext)
-        raw | :read_text(md_path)
+    /// BUILD EACH MARKDOWN FILE, in parallel. Every page starts from the same
+    /// frozen pre_ctx; the wanted pages and backlinks each page adds are
+    /// merged afterwards, in page order.
+    shared | :freeze({
+        "pre_ctx": pre_ctx,
+        "schedule": schedule,
+        "url_root": url_root
+    })
+    pages | :swarm!(source_records, render_record, 8, shared)
 
-        ctx | {
-            "body": raw,
-            "frontmatter": {},
-            "tokens": {},
-            "path": md_path,
-            "route_rel_no_ext": rel_no_ext,
-            "output_rel_no_ext": output_rel_no_ext,
-            "documentation_version": record{"doc_version"},
-            "default_documentation_version": record{"default_doc_version"},
-            "available_documentation_versions": record{"available_doc_versions"},
-            "version_rel_rows": record{"version_rel_rows"},
-            "revision_history_rows": record{"revision_history_rows"},
-            "revision": record{"revision"},
-            "storage_kind": record{"storage_kind"},
-            "portal": #local::portal,
-            "href": href_abs,
-            "wanted_pages": pre_ctx{"wanted_pages"},
-            "backlinks": pre_ctx{"backlinks"},
-            "schedule": schedule
-        }
-
-        /// merge any pre_ctx fields into ctx
-        ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
-
-        :clear_tokens("SLOT")
-
-        ctx |= :summon(ctx, schedule)
-        :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
-        :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
-
-        dir      | :dirname(output_rel_no_ext)
-        base     | :stem(output_rel_no_ext)
-        out_file | "../dist/{#local::portal}/{dir}/{base}.html"
-
-        create_all_dirs(out_file)
-        :write_text!(out_file, ctx{"body"})
+    wanted_before | pre_ctx{"wanted_pages"}.len
+    backlinks_before | pre_ctx{"backlinks"}.len
+    wanted | pre_ctx{"wanted_pages"}
+    backlinks | pre_ctx{"backlinks"}
+    search_entries | []
+    for page in pages
+        :put_last!(search_entries, page{"search_entry"})
+        new_wanted | page{"wanted_pages"}
+        new_backlinks | page{"backlinks"}
+        for w in new_wanted[wanted_before:]
+            :put_last!(wanted, w)
+        xx
+        for b in new_backlinks[backlinks_before:]
+            :put_last!(backlinks, b)
+        xx
     xx
+    :update!(pre_ctx{"wanted_pages"}, wanted)
+    :update!(pre_ctx{"backlinks"}, backlinks)
+    :summon({"entries": search_entries}, ["prospector::append_entries"])
 
     /// Run post-build schedule once
     run_post_schedule(cfg, pre_ctx)
@@ -361,6 +400,7 @@ act build_one_page(target)
     ctx |= :summon(ctx, schedule)
     :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
     :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
+    :summon({"entries": [ctx{"search_entry"} ?? nil]}, ["prospector::append_entries"])
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)
