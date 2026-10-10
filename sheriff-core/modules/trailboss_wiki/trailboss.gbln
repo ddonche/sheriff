@@ -1979,6 +1979,7 @@ summary: Missing wiki pages linked from this site.
     :clear_tokens("SLOT")
 
     ctx |= :summon(ctx, schedule)
+    :summon({"entries": [ctx{"search_entry"} ?? nil]}, ["prospector::append_entries"])
 
     :create_dir!("../dist/{portal}")
     :write_text!(out_file, ctx{"body"})
