@@ -1845,6 +1845,19 @@ act write_backlinks_once(pre_ctx)
     routes | rjson::load_routes_json(portal)
     if :valtype(routes) != "array" => send pre_ctx
 
+    /// Backlinks grouped by target, in their original order, so each route
+    /// only looks at its own.
+    backlinks_by_target | {}
+    for entry in backlinks
+        if entry.nix? => skip
+        target_key | entry{"target_href"} ?? ..
+        if target_key.nix? => skip
+        if :has(backlinks_by_target, target_key) == false
+            :update!(backlinks_by_target{target_key}, [])
+        xx
+        :put_last!(backlinks_by_target{target_key}, entry)
+    xx
+
     for meta in routes
         if meta.nix? => skip
 
@@ -1854,7 +1867,12 @@ act write_backlinks_once(pre_ctx)
         seen | []
         sources | []
 
-        for entry in backlinks
+        route_backlinks | []
+        if :has(backlinks_by_target, href)
+            route_backlinks |= backlinks_by_target{href}
+        xx
+
+        for entry in route_backlinks
             if entry.nix? => skip
 
             target_href | entry{"target_href"} ?? ..
@@ -1917,10 +1935,26 @@ summary: Missing wiki pages linked from this site.
     if wanted.nix?
         :put_last!(lines, "No wanted pages.")
     else
-        seen | []
+        seen | {}
         rows | []
         count_keys | []
         wanted_blocks | []
+
+        /// Wanted entries grouped by portal, then slug, in their original
+        /// order, so counting and listing sources don't rescan every entry.
+        wanted_by_portal | {}
+        for item in wanted
+            if item.nix? => skip
+            item_slug | item{"slug"} ?? => skip
+            item_portal | item{"portal"} ?? portal
+            if :has(wanted_by_portal, item_portal) == false
+                :update!(wanted_by_portal{item_portal}, {})
+            xx
+            if :has(wanted_by_portal{item_portal}, item_slug) == false
+                :update!(wanted_by_portal{item_portal}{item_slug}, [])
+            xx
+            :put_last!(wanted_by_portal{item_portal}{item_slug}, item)
+        xx
 
         for entry in wanted
             if entry.nix? => skip
@@ -1933,22 +1967,10 @@ summary: Missing wiki pages linked from this site.
                 skip
             xx
 
-            :put_last!(seen, key)
+            :update!(seen{key}, true)
 
             title | entry{"title"} ?? entry{"target"} ?? entry{"slug"} ?? "missing"
-            count | 0
-
-            for item in wanted
-                if item.nix? => skip
-                item_slug | item{"slug"} ?? => skip
-                item_portal | item{"portal"} ?? portal
-
-                if item_slug == slug
-                    if item_portal == entry_portal
-                        count += 1
-                    xx
-                xx
-            xx
+            count | wanted_by_portal{entry_portal}{slug}.len
 
             sort_key | "{count}"
 
@@ -1995,7 +2017,12 @@ summary: Missing wiki pages linked from this site.
                 source_seen | []
                 source_lines | []
 
-                for item in wanted
+                same_items | []
+                if :has(wanted_by_portal, entry_portal) and :has(wanted_by_portal{entry_portal}, slug)
+                    same_items |= wanted_by_portal{entry_portal}{slug}
+                xx
+
+                for item in same_items
                     if item.nix? => skip
 
                     item_slug | item{"slug"} ?? => skip
