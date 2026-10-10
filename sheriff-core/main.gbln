@@ -298,6 +298,9 @@ act build()
     url_root | rjson::get_url_root(cfg_portal)
     source_records | rjson::build_render_records(#local::portal)
 
+    /// routes.json is final now: index it once for every page's link lookups.
+    :update!(pre_ctx{"routes_index"}, trailboss::build_routes_index(#local::portal))
+
     /// BUILD EACH MARKDOWN FILE, in parallel. Every page starts from the same
     /// frozen pre_ctx; the wanted pages and backlinks each page adds are
     /// merged afterwards, in page order.

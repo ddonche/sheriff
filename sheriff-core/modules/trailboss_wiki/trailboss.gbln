@@ -685,9 +685,102 @@ act load_routes_for_portal(ctx, portal)
     return routes
 xx
 
+/// Lookups by slug, built once per build from routes.json (see main.gbln).
+/// The first matching route wins, as in the scans below.
+act build_routes_index(portal)
+    routes | load_routes_for_portal({}, portal)
+    href_by_slug | {}
+    route_by_slug | {}
+    pos_by_href | {}
+    pos_by_rel | {}
+    pos | -1
+
+    for meta in routes
+        pos |= pos + 1
+        if meta.nix? => skip
+
+        /// "" counts as missing, as `??` does in the scans.
+        route_href | meta{"href"} ?? ..
+        if !route_href.nix? and :has(pos_by_href, route_href) == false
+            :update!(pos_by_href{route_href}, pos)
+        xx
+        route_rel | meta{"rel"} ?? ..
+        if !route_rel.nix? and :has(pos_by_rel, route_rel) == false
+            :update!(pos_by_rel{route_rel}, pos)
+        xx
+        slugs | []
+        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
+        if !meta_slug.nix?
+            :put_last!(slugs, meta_slug)
+        xx
+        if :has(meta, "aliases") and :valtype(meta{"aliases"}) == "array"
+            for alias in meta{"aliases"}
+                :put_last!(slugs, rjson::normalize_to_slug(alias))
+            xx
+        xx
+
+        href_abs | meta{"href"}
+        for slug_key in slugs
+            if slug_key.nix? => skip
+            if :has(route_by_slug, slug_key) == false
+                :update!(route_by_slug{slug_key}, meta)
+            xx
+            if !href_abs.nix? and :has(href_by_slug, slug_key) == false
+                :update!(href_by_slug{slug_key}, href_abs)
+            xx
+        xx
+    xx
+
+    return {
+        "portal": portal,
+        "routes": routes,
+        "href_by_slug": href_by_slug,
+        "route_by_slug": route_by_slug,
+        "pos_by_href": pos_by_href,
+        "pos_by_rel": pos_by_rel
+    }
+xx
+
+/// The build's routes index for this portal, or nil.
+act routes_index_for(ctx, portal)
+    if ctx.nix? or :valtype(ctx) != "map" => send ..
+    if :has(ctx, "routes_index") == false => send ..
+    index | ctx{"routes_index"}
+    if index.nix? or index{"portal"} != portal => send ..
+    if derive_portal_root_from_ctx(ctx, portal) != "../site/portals/{portal}" => send ..
+    return index
+xx
+
+/// The routes a scan for this href (or route rel) needs to look at: with
+/// the index, just the first route that matches; without it, all of them.
+act routes_for_href(ctx, portal, href, route_rel)
+    index | routes_index_for(ctx, portal)
+    if index.nix? => send load_routes_for_portal(ctx, portal)
+
+    best | -1
+    if !href.nix? and :has(index{"pos_by_href"}, href)
+        best |= index{"pos_by_href"}{href}
+    xx
+    if !route_rel.nix? and :has(index{"pos_by_rel"}, route_rel)
+        rel_pos | index{"pos_by_rel"}{route_rel}
+        if best < 0 or rel_pos < best
+            best |= rel_pos
+        xx
+    xx
+    if best < 0 => send []
+    return [index{"routes"}[best]]
+xx
+
 act lookup_href_by_slug(ctx, portal, slug)
     if portal.nix? => send ..
     if slug.nix?   => send ..
+
+    index | routes_index_for(ctx, portal)
+    if !index.nix?
+        hrefs | index{"href_by_slug"}
+        if :has(hrefs, slug) => send hrefs{slug}
+        send ..
+    xx
 
     routes | load_routes_for_portal(ctx, portal)
     if :valtype(routes) != "array" => send ..
@@ -717,6 +810,18 @@ xx
 act lookup_gloss_by_slug(ctx, portal, slug)
     if portal.nix? => send ..
     if slug.nix?   => send ..
+
+    index | routes_index_for(ctx, portal)
+    if !index.nix?
+        found | index{"route_by_slug"}
+        if :has(found, slug) == false => send ..
+        meta | found{slug}
+        if :has(meta, "gloss")
+            g | meta{"gloss"}
+            if !g.nix? => send g
+        xx
+        send ..
+    xx
 
     routes | load_routes_for_portal(ctx, portal)
     if :valtype(routes) != "array" => send ..
@@ -1429,7 +1534,7 @@ act publish_canonical_link(ctx)
 
     href | ctx{"href"} ?? ..
     if !href.nix?
-        routes | load_routes_for_portal(ctx, portal)
+        routes | routes_for_href(ctx, portal, href, ..)
         if :valtype(routes) == "array"
             for meta in routes
                 if meta.nix? => skip
@@ -1493,7 +1598,7 @@ act route_meta_for_ctx(ctx, portal)
         route_rel |= ctx{"route_rel_no_ext"} ?? ..
     xx
 
-    routes | load_routes_for_portal(ctx, portal)
+    routes | routes_for_href(ctx, portal, href, route_rel)
     if :valtype(routes) != "array" => send nil
 
     for meta in routes
@@ -1618,7 +1723,7 @@ act publish_categories(ctx)
 
     href | ctx{"href"} ?? ..
     if !href.nix?
-        routes | load_routes_for_portal(ctx, portal)
+        routes | routes_for_href(ctx, portal, href, ..)
         if :valtype(routes) == "array"
             for meta in routes
                 if meta.nix? => skip
@@ -1684,7 +1789,7 @@ act publish_what_links_here(ctx)
     slug | ..
 
     if !href.nix?
-        routes | load_routes_for_portal(ctx, portal)
+        routes | routes_for_href(ctx, portal, href, ..)
         if :valtype(routes) == "array"
             for meta in routes
                 if meta.nix? => skip
