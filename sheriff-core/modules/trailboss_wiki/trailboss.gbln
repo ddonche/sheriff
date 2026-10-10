@@ -1462,18 +1462,28 @@ act sweep_wikilinks(wl)
                             source_title |= :stem(source_path) ?? source_href
                         xx
 
-                        backlink_seen | false
-                        for existing in ctx{"backlinks"}
-                            if existing.nix? => skip
-
-                            existing_target | existing{"target_href"} ?? ..
-                            existing_source | existing{"source_href"} ?? ..
-
-                            if existing_target == target_href and existing_source == source_href
-                                backlink_seen |= true
-                                stop
-                            xx
+                        /// Which (target, source) pairs are already listed: kept
+                        /// beside the list and rebuilt whenever the list's
+                        /// length shows it was changed elsewhere.
+                        backlink_count | ctx{"backlinks"}.len
+                        index_ok | false
+                        if :has(ctx, "backlink_index")
+                            index_ok |= ctx{"backlink_index"}{"n"} == backlink_count
                         xx
+                        if index_ok == false
+                            pair_keys | {}
+                            for existing in ctx{"backlinks"}
+                                if existing.nix? => skip
+                                existing_target | existing{"target_href"} ?? ..
+                                existing_source | existing{"source_href"} ?? ..
+                                if existing_target.nix? or existing_source.nix? => skip
+                                :update!(pair_keys{"{existing_target}\n{existing_source}"}, true)
+                            xx
+                            :update!(ctx{"backlink_index"}, {"n": backlink_count, "keys": pair_keys})
+                        xx
+
+                        pair_key | "{target_href}\n{source_href}"
+                        backlink_seen | :has(ctx{"backlink_index"}{"keys"}, pair_key)
 
                         if backlink_seen == false
                             :put_last!(ctx{"backlinks"}, {
@@ -1482,6 +1492,8 @@ act sweep_wikilinks(wl)
                                 "source_href":  source_href,
                                 "source_title": source_title
                             })
+                            :update!(ctx{"backlink_index"}{"keys"}{pair_key}, true)
+                            :update!(ctx{"backlink_index"}{"n"}, backlink_count + 1)
                         xx
                     xx
                 xx

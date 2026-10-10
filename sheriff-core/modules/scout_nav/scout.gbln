@@ -4,6 +4,11 @@
 
 import modules/trailboss_wiki/routes_json as rjson
 
+/// While publish_nav_tokens runs, routes.json is parsed once per portal
+/// instead of once per menu link.
+scout_routes_caching | false
+scout_routes_cache | {}
+
 /// ------------------------------------------------------------------------
 /// Load ../site/portals/{portal}/nav.yall as a map.
 /// If missing, return {} so callers don't explode.
@@ -304,6 +309,17 @@ xx
 
 act scout_load_routes(portal)
     if portal.nix? => return []
+
+    if scout_routes_caching
+        if :has(scout_routes_cache, portal) == false
+            :update!(scout_routes_cache{portal}, scout_read_routes(portal))
+        xx
+        return scout_routes_cache{portal}
+    xx
+    return scout_read_routes(portal)
+xx
+
+act scout_read_routes(portal)
 
     routes_path | "../site/portals/{portal}/routes.json"
     if :file_exists(routes_path) == false => return []
@@ -929,6 +945,9 @@ act publish_nav_tokens(pre_ctx)
 
     names | :keys(menus)
 
+    scout_routes_caching |= true
+    scout_routes_cache |= {}
+
     /// Generic per-menu tokens (header/sidebar/flat)
     for name in names
         menu_map | menus{name}
@@ -960,5 +979,7 @@ act publish_nav_tokens(pre_ctx)
     xx
 
     /// IMPORTANT: always hand the ctx back
+    scout_routes_caching |= false
+    scout_routes_cache |= {}
     return pre_ctx
 xx
