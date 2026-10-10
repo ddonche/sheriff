@@ -272,9 +272,13 @@ act render_record(record, shared)
     create_all_dirs(out_file)
     :write_text!(out_file, ctx{"body"})
 
+    /// Only what this page added: every page starts from pre_ctx's lists,
+    /// and handing those back from every page grows with the site squared.
+    wanted_before | pre_ctx{"wanted_pages"}.len
+    backlinks_before | pre_ctx{"backlinks"}.len
     return {
-        "wanted_pages": ctx{"wanted_pages"},
-        "backlinks": ctx{"backlinks"},
+        "wanted_pages": ctx{"wanted_pages"}[wanted_before:],
+        "backlinks": ctx{"backlinks"}[backlinks_before:],
         "search_entry": ctx{"search_entry"} ?? nil
     }
 xx
@@ -339,19 +343,15 @@ act build()
     xx
     phase("render")
 
-    wanted_before | pre_ctx{"wanted_pages"}.len
-    backlinks_before | pre_ctx{"backlinks"}.len
     wanted | pre_ctx{"wanted_pages"}
     backlinks | pre_ctx{"backlinks"}
     search_entries | []
     for page in pages
         :put_last!(search_entries, page{"search_entry"})
-        new_wanted | page{"wanted_pages"}
-        new_backlinks | page{"backlinks"}
-        for w in new_wanted[wanted_before:]
+        for w in page{"wanted_pages"}
             :put_last!(wanted, w)
         xx
-        for b in new_backlinks[backlinks_before:]
+        for b in page{"backlinks"}
             :put_last!(backlinks, b)
         xx
     xx

@@ -8,6 +8,7 @@ import modules/trailboss_wiki/routes_json as rjson
 /// instead of once per menu link.
 scout_routes_caching | false
 scout_routes_cache | {}
+scout_href_cache | {}
 
 /// ------------------------------------------------------------------------
 /// Load ../site/portals/{portal}/nav.yall as a map.
@@ -319,6 +320,38 @@ act scout_load_routes(portal)
     return scout_read_routes(portal)
 xx
 
+/// "/a/b" -> "a/b", as the fallback scan in scout_link_info_for_href does.
+act scout_strip_lead_slash(value)
+    key | value
+    if :starts_with(key, "/")
+        tmp | :keep_after(key, "/")
+        if !tmp.nix?
+            key |= tmp
+        else
+            key |= ""
+        xx
+    xx
+    return key
+xx
+
+/// The routes' hrefs as sets, exact and without a leading "/", built once
+/// per portal while the routes cache is on.
+act scout_href_sets(portal, routes)
+    if :has(scout_href_cache, portal) == false
+        exact | {}
+        stripped | {}
+        for meta in routes
+            if meta.nix? => skip
+            mh | meta{"href"}
+            if mh.nix? => skip
+            :update!(exact{mh}, true)
+            :update!(stripped{scout_strip_lead_slash(mh)}, true)
+        xx
+        :update!(scout_href_cache{portal}, {"exact": exact, "stripped": stripped})
+    xx
+    return scout_href_cache{portal}
+xx
+
 act scout_read_routes(portal)
 
     routes_path | "../site/portals/{portal}/routes.json"
@@ -445,6 +478,13 @@ act scout_link_info_for_href(portal, href)
     if :valtype(routes) != "array" => return scout_missing_link_info()
 
     h | :trim(href)
+
+    if scout_routes_caching
+        sets | scout_href_sets(portal, routes)
+        if :has(sets{"exact"}, h) => return {"class": "sheriff-link", "href": href}
+        if :has(sets{"stripped"}, scout_strip_lead_slash(h)) => return {"class": "sheriff-link", "href": href}
+        return scout_missing_link_info()
+    xx
 
     /// 1) Exact match (href keys include leading "/")
     for meta in routes
@@ -947,6 +987,7 @@ act publish_nav_tokens(pre_ctx)
 
     scout_routes_caching |= true
     scout_routes_cache |= {}
+    scout_href_cache |= {}
 
     /// Generic per-menu tokens (header/sidebar/flat)
     for name in names
@@ -981,5 +1022,6 @@ act publish_nav_tokens(pre_ctx)
     /// IMPORTANT: always hand the ctx back
     scout_routes_caching |= false
     scout_routes_cache |= {}
+    scout_href_cache |= {}
     return pre_ctx
 xx

@@ -349,7 +349,8 @@ act source_row_sets(portal)
         :put_first!(reverse_rows, row)
     xx
 
-    current_version_keys | []
+    /// Seen-sets are maps, so checking one doesn't scan every row.
+    current_version_keys | {}
     current_version_rows | []
 
     for row in reverse_rows
@@ -357,12 +358,12 @@ act source_row_sets(portal)
         key | info{"page_rel"} + "||" + info{"version"}
 
         if :has(current_version_keys, key) == false
-            :put_last!(current_version_keys, key)
+            :update!(current_version_keys{key}, true)
             :put_last!(current_version_rows, row)
         xx
     xx
 
-    selected_pages | []
+    selected_pages | {}
     selected_rows | []
 
     for row in current_version_rows
@@ -371,7 +372,7 @@ act source_row_sets(portal)
         version | info{"version"}
 
         if version == default_version and :has(selected_pages, page_rel) == false
-            :put_last!(selected_pages, page_rel)
+            :update!(selected_pages{page_rel}, true)
             :put_last!(selected_rows, row)
         xx
     xx
@@ -381,7 +382,7 @@ act source_row_sets(portal)
         page_rel | info{"page_rel"}
 
         if :has(selected_pages, page_rel) == false
-            :put_last!(selected_pages, page_rel)
+            :update!(selected_pages{page_rel}, true)
             :put_last!(selected_rows, row)
         xx
     xx
@@ -851,7 +852,7 @@ act build_routes_json_for_portal(portal)
         "Z": 0
     }
 
-    claimed_canonical_keys | []
+    claimed_canonical_keys | {}
     claimed_canonical_rows | []
 
     for record in records
@@ -876,7 +877,7 @@ act build_routes_json_for_portal(portal)
                 canonical_conflict(canonical_slug, first_path, src_norm)
             xx
 
-            :put_last!(claimed_canonical_keys, canonical_slug)
+            :update!(claimed_canonical_keys{canonical_slug}, true)
             :put_last!(claimed_canonical_rows, "{canonical_slug}|||{src_norm}")
         xx
     xx
@@ -983,7 +984,7 @@ act build_routes_json_for_portal(portal)
                 canonical_conflict(canonical_slug, first_path, src_norm)
             xx
 
-            :put_last!(claimed_canonical_keys, canonical_slug)
+            :update!(claimed_canonical_keys{canonical_slug}, true)
             :put_last!(claimed_canonical_rows, "{canonical_slug}|||{src_norm}")
             if storage_kind != "revision"
                 write_missing_canonical(src_norm, md_text, canonical_slug)
