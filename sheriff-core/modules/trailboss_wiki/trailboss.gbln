@@ -932,12 +932,7 @@ act resolve_wikilink(inner, ctx, portal)
         if size.nix?  => size |= "full"
         if align.nix? => align |= "center"
 
-        /// mount-aware src
-        m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix? 
-            src |= "{m}/public/images/{filename}"
-        xx
 
         src_e | escape_attr(src)
         cap_a | escape_attr(caption)
@@ -972,10 +967,7 @@ act resolve_wikilink(inner, ctx, portal)
         if size.nix?     => send ..
         if align.nix?    => send ..
 
-        /// mount-aware src
-        m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix? => src |= "{m}/public/images/{filename}"
 
         src_e | escape_attr(src)
         cap_a | escape_attr(caption)
@@ -1007,10 +999,7 @@ act resolve_wikilink(inner, ctx, portal)
 
         filename | :keep_after(img_ref, "image:") ?? => send ..
 
-        /// mount-aware src
-        m | portal_mount(portal)
         src | "/public/images/{filename}"
-        if !m.nix? => src |= "{m}/public/images/{filename}"
 
         src_e   | escape_attr(src)
         cap_a   | escape_attr(label)
