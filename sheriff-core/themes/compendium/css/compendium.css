@@ -1055,7 +1055,8 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-toc {
-  width: 15rem;
+  width: 10rem;
+  flex: 0 0 10rem;
   padding-left: 1.5rem;
   border-left: 1px solid var(--sheriff-border);
   font-size: 0.85rem;
@@ -2177,8 +2178,8 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-wiki-sidebar {
-  width: 12rem;
-  flex: 0 0 12rem;
+  width: 10rem;
+  flex: 0 0 10rem;
 }
 
 /* ========================================================================== */
@@ -2618,6 +2619,7 @@ details.sheriff-spoiler[open] > summary::before {
   .sheriff-toc,
   .sheriff-sidebar {
     width: 100%;
+    flex: none;
     border: none;
     padding: 0;
   }
