@@ -174,8 +174,8 @@ act generate_social_share_widget(portal, page_url, page_title)
         data | get_social_platform_data(platform) ?? => skip
         
         url | data{"url"}
-        url | :update_where(url, "{url}", encoded_url)
-        url | :update_where(url, "{title}", encoded_title)
+        url |= :update_where(url, "{url}", encoded_url)
+        url |= :update_where(url, "{title}", encoded_title)
         
         svg | data{"svg"}
         

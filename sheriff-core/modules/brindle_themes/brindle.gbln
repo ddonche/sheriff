@@ -449,7 +449,7 @@ act export_header_partial(ctx)
     source_path | "../dist/{portal}/docs/index.html"
 
     if :file_exists(source_path) == false
-        source_path | "../dist/{portal}/index.html"
+        source_path |= "../dist/{portal}/index.html"
     xx
 
     if :file_exists(source_path) == false

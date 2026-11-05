@@ -138,8 +138,8 @@ act resolve_single_md(content_root, md_files, target)
             cur_len | rel_path.len
 
             if best_len.nix? or cur_len < best_len
-                best_len  | cur_len
-                best_path | md_path
+                best_len  |= cur_len
+                best_path |= md_path
             xx
         xx
     xx

@@ -67,9 +67,9 @@ act sb_collapse_blank_lines(text)
       line_str | :join(current_line, "")
       trimmed | :minimize(line_str)
       if trimmed == ""
-        blank_run | blank_run + 1
+        blank_run |= blank_run + 1
       else
-        blank_run | 0
+        blank_run |= 0
       end
 
       if blank_run <= 1
@@ -77,7 +77,7 @@ act sb_collapse_blank_lines(text)
         put_last!(chars, "\n")
       end
 
-      current_line | []
+      current_line |= []
     else
       put_last!(current_line, ch)
     end
@@ -107,11 +107,11 @@ act sb_normalize_spaces(text)
     if ch == " " or ch == "\t"
       if not in_space
         put_last!(chars, " ")
-        in_space | true
+        in_space |= true
       end
     else
       put_last!(chars, ch)
-      in_space | false
+      in_space |= false
     end
   end
 
@@ -131,14 +131,14 @@ act sb_fix_tabs(text, tabsize)
   for ch in text
     if ch == "\n" or ch == "\r"
       put_last!(chars, ch)
-      col | 0
+      col |= 0
       skip
     end
 
     if ch == "\t"
       if tabsize <= 0
         put_last!(chars, " ")
-        col | col + 1
+        col |= col + 1
       else
         next_stop | ((col / tabsize) + 1) * tabsize
         needed    | next_stop - col
@@ -147,11 +147,11 @@ act sb_fix_tabs(text, tabsize)
         for space_ch in spaces
           put_last!(chars, space_ch)
         end
-        col | next_stop
+        col |= next_stop
       end
     else
       put_last!(chars, ch)
-      col | col + 1
+      col |= col + 1
     end
   end
 
@@ -165,38 +165,38 @@ end
 /// UTF-8 sanity: BOM → invalid → control → zero-width.
 act sb_sanitize_utf8(text)
   t | text
-  t | sb_remove_bom(t)
-  t | sb_strip_invalid_utf8(t)
-  t | sb_strip_control_chars(t)
-  t | sb_strip_zero_width(t)
+  t |= sb_remove_bom(t)
+  t |= sb_strip_invalid_utf8(t)
+  t |= sb_strip_control_chars(t)
+  t |= sb_strip_zero_width(t)
   t
 end
 
 /// Markdown sanitizer: utf8 → newlines → blank lines → spaces.
 act sb_sanitize_markdown(text)
   t | text
-  t | sb_sanitize_utf8(t)
-  t | sb_normalize_newlines(t)
-  t | sb_collapse_blank_lines(t)
-  t | sb_normalize_spaces(t)
+  t |= sb_sanitize_utf8(t)
+  t |= sb_normalize_newlines(t)
+  t |= sb_collapse_blank_lines(t)
+  t |= sb_normalize_spaces(t)
   t
 end
 
 /// Markdown sanitizer without emoji.
 act sb_sanitize_markdown_no_emoji(text)
   t | sb_sanitize_markdown(text)
-  t | sb_strip_emoji(t)
+  t |= sb_strip_emoji(t)
   t
 end
 
 /// ASCII-only sanitizer.
 act sb_sanitize_ascii(text)
   t | text
-  t | sb_sanitize_utf8(t)
-  t | sb_normalize_newlines(t)
-  t | sb_strip_non_ascii(t)
-  t | sb_collapse_blank_lines(t)
-  t | sb_normalize_spaces(t)
+  t |= sb_sanitize_utf8(t)
+  t |= sb_normalize_newlines(t)
+  t |= sb_strip_non_ascii(t)
+  t |= sb_collapse_blank_lines(t)
+  t |= sb_normalize_spaces(t)
   t
 end
 
@@ -228,6 +228,6 @@ act sanitize_body(ctx)
 
   clean | sb_sanitize_markdown(body)
 
-  ctx | :update_at!(ctx, "body", clean)
+  ctx |= :update_at!(ctx, "body", clean)
   ctx
 end
