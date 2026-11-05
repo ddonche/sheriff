@@ -228,6 +228,6 @@ act sanitize_body(ctx)
 
   clean | sb_sanitize_markdown(body)
 
-  ctx |= :update_at!(ctx, "body", clean)
+  :update_at!(ctx, "body", clean)
   ctx
 end
