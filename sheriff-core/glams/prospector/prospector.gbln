@@ -77,7 +77,7 @@ act index_page(ctx)
 
         rel_no_ext | rel_path
         if :ends_with(rel_no_ext, ".md")
-            rel_no_ext | :ignore_where(rel_no_ext, ".md")
+            rel_no_ext |= :ignore_where(rel_no_ext, ".md")
         xx
 
         href |= "/{#local::portal}/{rel_no_ext}.html"
