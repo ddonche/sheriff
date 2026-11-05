@@ -1501,7 +1501,8 @@ a.sheriff-missing-link:hover {
 }
 
 .sheriff-pattern-canonical code {
-  font-size: 0.7rem;
+  font-size: 0.58rem;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 760px) {
