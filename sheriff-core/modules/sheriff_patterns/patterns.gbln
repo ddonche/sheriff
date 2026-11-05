@@ -84,7 +84,6 @@ act render_pattern_block(orientation, name, raw_fields)
     token_slug | pattern_slug(name_clean)
     token_name | "PATTERN_{token_slug}"
 
-    name_safe | escape_text(name_clean)
     token_html | canonical_token_html(token_name)
 
     rows | []
@@ -103,10 +102,15 @@ act render_pattern_block(orientation, name, raw_fields)
         if label.nix? => skip
 
         wide_row | false
+        image_row | false
 
         if :starts_with(value, "[[_image:")
             :update_where!(value, "[[_image:", "[[image:")
             wide_row |= true
+        xx
+
+        if :starts_with(value, "[[image:")
+            image_row |= true
         xx
 
         if :starts_with(label, "_")
@@ -125,6 +129,14 @@ act render_pattern_block(orientation, name, raw_fields)
                 :put_last!(rows, """
   <div class="sheriff-pattern-row sheriff-pattern-row-wide sheriff-pattern-row-heading sheriff-pattern-row-{label_class}">
     <dt class="sheriff-pattern-label">{label_html}</dt>
+  </div>""")
+                skip
+            xx
+
+            if image_row
+                :put_last!(rows, """
+  <div class="sheriff-pattern-row sheriff-pattern-row-wide sheriff-pattern-row-image-only sheriff-pattern-row-{label_class}">
+    <dd class="sheriff-pattern-value">{value}</dd>
   </div>""")
                 skip
             xx
@@ -148,7 +160,6 @@ act render_pattern_block(orientation, name, raw_fields)
 
     return """
 <aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}">
-  <div class="sheriff-pattern-title">{name_safe}</div>
   <dl class="sheriff-pattern-fields">
 {rows_html}
   </dl>
