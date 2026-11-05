@@ -1537,7 +1537,8 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-pattern-canonical code {
-  font-size: 0.72rem;
+  font-size: 0.58rem;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 760px) {
@@ -2176,8 +2177,8 @@ details.sheriff-spoiler[open] > summary::before {
 }
 
 .sheriff-wiki-sidebar {
-  width: 16rem;
-  flex: 0 0 16rem;
+  width: 12rem;
+  flex: 0 0 12rem;
 }
 
 /* ========================================================================== */
