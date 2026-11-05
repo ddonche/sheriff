@@ -866,7 +866,7 @@ act build_routes_json_for_portal(portal)
         if fm.nix? == false and :valtype(fm) == "map"
 
             if :has(fm, "title")
-                page_title |= fm{"title"}
+                page_title |= :str(fm{"title"})
             xx
 
             if :has(fm, "canonical")
