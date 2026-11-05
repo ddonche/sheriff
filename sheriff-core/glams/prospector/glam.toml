@@ -15,7 +15,6 @@ base_url   = "#site::base_url"
 actions = [
     "prospector::init",
     "prospector::index_page",
-    "prospector::append_entries",
     "prospector::apply_tokens"
 ]
 
