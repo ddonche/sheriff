@@ -166,15 +166,29 @@ act index_page(ctx)
         "categories": categories
     }
 
-    /// write JSON safely to temp
-    tmp_path   | "{#need::output_dir}/.prospector.tmp.json"
-    :write_json!(tmp_path, entry)
-
-    json_text  | :read_text(tmp_path)
-    index_path | "{#need::output_dir}/{#prospector::index_file}"
-    :append_file!(index_path, json_text + "\n")
-
+    /// The build appends entries to the index in page order (append_entries),
+    /// so pages rendered in parallel never write the same file.
+    :update!(ctx{"search_entry"}, entry)
     return ctx
+xx
+
+/// ------------------------------------------------------
+/// Append page entries to the NDJSON index, in the order given.
+/// job: {"entries": [entry, ...]}
+/// ------------------------------------------------------
+act append_entries(job)
+    tmp_path   | "{#need::output_dir}/.prospector.tmp.json"
+    index_path | "{#need::output_dir}/{#prospector::index_file}"
+
+    for entry in job{"entries"}
+        if entry.nix? => skip
+
+        /// write JSON safely to temp, read it back, append it
+        :write_json!(tmp_path, entry)
+        json_text | :read_text(tmp_path)
+        :append_file!(index_path, json_text + "\n")
+    xx
+    return job
 xx
 
 /// ------------------------------------------------------
