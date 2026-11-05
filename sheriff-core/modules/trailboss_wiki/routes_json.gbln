@@ -594,7 +594,29 @@ act extract_frontmatter_map(md_text)
     if parsed.nix? => return {}
     if :valtype(parsed) != "map" => return {}
 
-    return parsed
+    return fm_text_values(parsed)
+xx
+
+/// Frontmatter values are text: `title: 1984` reads as "1984", not an int.
+/// Booleans stay booleans.
+act fm_value_text(v)
+    if :is_int(v) or :is_float(v) => send :str(v)
+    if :valtype(v) == "array"
+        out | []
+        for item in v
+            :put_last!(out, fm_value_text(item))
+        xx
+        return out
+    xx
+    return v
+xx
+
+act fm_text_values(m)
+    out | {}
+    for k in :keys(m)
+        :update!(out{k}, fm_value_text(m{k}))
+    xx
+    return out
 xx
 
 act extract_frontmatter_block(md_text)
