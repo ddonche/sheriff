@@ -121,13 +121,13 @@ layouts:
         - "PROSPECTOR::SEARCH_INPUT"
       
       LEFT_NAV:
-        - "SCOUT::left_wiki_SIDEBAR"
+        - "SCOUT::left_docs_SIDEBAR"
       
       SIDEBAR_TOP:
         - "TRAILBOSS::WHAT_LINKS_HERE"
       SIDEBAR_MAIN:
         - "SCOUT::BREADCRUMBS"
-        - "SCOUT::CATEGORIES_NAV"
+        - "SCOUT::TOC"
       CATEGORIES:
         - "TRAILBOSS::CATEGORIES"
       WIKI_PAGETABS:
