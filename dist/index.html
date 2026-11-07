@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=26">
+<link rel="stylesheet" href="/admin/admin.css?v=28">
 </head>
 <body>
 
@@ -229,6 +229,7 @@
           <select id="ed-portal" class="ed-select"></select>
 
           <input id="ed-filter" class="ed-filter" type="text" placeholder="Filter files…" spellcheck="false">
+          <label class="ed-revision-toggle"><input id="ed-raw-revisions" type="checkbox"> Show revision files</label>
 
           <div class="file-tree" id="file-tree">
             <div class="tree-msg">Pick a portal to load files.</div>
@@ -247,6 +248,8 @@
             <span class="ed-path" id="ed-path">No file open</span>
             <span class="ed-dirty" id="ed-dirty" hidden>● unsaved</span>
             <span class="ed-status" id="ed-status"></span>
+            <button class="btn small" type="button" id="ed-rename" disabled>Rename</button>
+            <button class="btn small" type="button" id="ed-delete" disabled>Delete</button>
             <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
             <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
@@ -516,6 +519,11 @@
             <select id="cf-portal" class="ed-select"></select>
           </div>
         </div>
+        <details class="cfg-version-badges" id="cf-version-badges" hidden>
+          <summary>Version badge tokens</summary>
+          <p id="cf-version-badge-note" class="np-hint"></p>
+          <div id="cf-version-badge-list"></div>
+        </details>
         <div class="cfg-editor">
           <textarea id="cf-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a file above."></textarea>
           <div class="cfg-foot">
@@ -780,8 +788,8 @@ leadership = [[House Andergard]]</pre>
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=8"></script>
-<script src="/admin/admin.js?v=32"></script>
+<script src="/admin/help.js?v=11"></script>
+<script src="/admin/admin.js?v=34"></script>
 <script src="/admin/interactive-editor.js?v=3"></script>
 </body>
 </html>

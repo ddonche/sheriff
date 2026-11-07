@@ -356,3 +356,107 @@ act apply_tokens(ctx)
     clear_token("BADGE", "READTIME")
     return ctx
 xx
+
+
+/// Inline documentation badges resolve last, so examples survive earlier token passes.
+act escape_version_label(value)
+    out | :str(value)
+    :update_where!(out, "&", "&amp;")
+    :update_where!(out, "<", "&lt;")
+    :update_where!(out, ">", "&gt;")
+    :update_where!(out, "\"", "&quot;")
+    :update_where!(out, "'", "&#39;")
+    return out
+xx
+
+act build_inline_version_badge(version)
+    safe | escape_version_label(version)
+    return "<span class=\"sheriff-inline-version\" title=\"Version {safe}\" data-version=\"{safe}\"><svg class=\"sheriff-inline-version-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z\"/><circle cx=\"7\" cy=\"7\" r=\"1\"/></svg><span class=\"sheriff-inline-version-label\">{safe}</span></span>"
+xx
+
+act stash_version_badge_examples(body)
+    out | body
+    stash | []
+    n | 0
+    segment, key | ..
+
+    sweep out
+        "<pre" ... "</pre>":
+            segment |= self
+            key |= "@@SHERIFF_VERSION_EXAMPLE_{n}@@"
+            :put_last!(stash, {"key": key, "value": segment})
+            :update_where!(out, segment, key)
+            n += 1
+    xx
+
+    sweep out
+        "<code" ... "</code>":
+            segment |= self
+            key |= "@@SHERIFF_VERSION_EXAMPLE_{n}@@"
+            :put_last!(stash, {"key": key, "value": segment})
+            :update_where!(out, segment, key)
+            n += 1
+    xx
+
+    sweep out
+        "<script" ... "</script>":
+            segment |= self
+            key |= "@@SHERIFF_VERSION_EXAMPLE_{n}@@"
+            :put_last!(stash, {"key": key, "value": segment})
+            :update_where!(out, segment, key)
+            n += 1
+    xx
+
+    sweep out
+        "<style" ... "</style>":
+            segment |= self
+            key |= "@@SHERIFF_VERSION_EXAMPLE_{n}@@"
+            :put_last!(stash, {"key": key, "value": segment})
+            :update_where!(out, segment, key)
+            n += 1
+    xx
+
+    sweep out
+        "<textarea" ... "</textarea>":
+            segment |= self
+            key |= "@@SHERIFF_VERSION_EXAMPLE_{n}@@"
+            :put_last!(stash, {"key": key, "value": segment})
+            :update_where!(out, segment, key)
+            n += 1
+    xx
+
+    return {"body": out, "stash": stash}
+xx
+
+act apply_version_badges(ctx)
+    portal | ctx{"portal"} ?? => return ctx
+    body | ctx{"body"} ?? => return ctx
+    cfg | load_cfg(portal)
+    versions | rjson::get_documentation_versions_for_portal(portal, cfg)
+    if versions.nix? => return ctx
+
+    previous | []
+    for version in versions
+        token | "\{\{\{SHERIFF::{version}\}\}\}"
+        :put_last!(previous, {"version": version, "token": token, "value": :resolve_token(token)})
+        register_token("SHERIFF", version, build_inline_version_badge(version))
+    xx
+
+    protected | stash_version_badge_examples(body)
+    rendered | :resolve_token(protected{"body"})
+
+    /// Leave the registry as it was, including any same-named pattern token.
+    for entry in previous
+        if entry{"value"} == entry{"token"}
+            clear_token("SHERIFF", entry{"version"})
+        else
+            register_token("SHERIFF", entry{"version"}, entry{"value"})
+        xx
+    xx
+
+    for entry in protected{"stash"}
+        :update_where!(rendered, entry{"key"}, entry{"value"})
+    xx
+    :update!(ctx{"body"}, rendered)
+    return ctx
+xx

@@ -1,3 +1,6 @@
+import modules/markdown_core/fenced_code as fenced_code
+import modules/markdown_core/content_tabs as content_tabs
+
 /// modules/markdown_core/markdown.gbln
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
 
@@ -6,7 +9,7 @@ act render(ctx)
 
     clean      | :sanitize_bom(body)
     normalized | :normalize_newlines(clean)
-    protected  | normalized
+    protected | normalized
 
     /// ----------------------------------------------------------
     /// Read highlight themes from portal config (same as brindle)
@@ -37,18 +40,15 @@ act render(ctx)
     /// --------------------------------------------------------------
     /// 1) STASH FENCED CODE BLOCKS
     /// --------------------------------------------------------------
-    fence_stash | []
-    fn | 0
-    seg, key | ""
-
-    sweep protected
-        "```" ... "```":
-            seg |= self
-            key |= "@@TB_FENCE_{fn}@@"
-            :put_last!(fence_stash, {"k": key, "v": seg})
-            :update_where!(protected, seg, key)
-            fn += 1
+    fenced | fenced_code::stash(protected, "TB_FENCE")
+    fence_stash | fenced{"stash"}
+    tabbed | content_tabs::prepare(fenced{"text"}, 1)
+    protected |= tabbed{"body"}
+    for item in fence_stash
+        k | item{"k"}
+        :update_where!(protected, k, "\n\n" + k + "\n\n")
     xx
+    seg, key | ""
 
     /// --------------------------------------------------------------
     /// 2) STASH INLINE CODE
@@ -116,15 +116,8 @@ act render(ctx)
     for item in fence_stash
         if item.nix? => skip
         k | item{"k"} ?? => skip 
-        v | item{"v"} ?? => skip 
-
-        lang, code |= ""
-
-        sweep v
-            "```" ... "```":
-                lang |= :trim(:keep_before(:keep_after(self, "```"), "\n"))
-                code |= :trim(:keep_between(self, "\n", "```"))
-        xx
+        lang |= item{"lang"} ?? ""
+        code |= item{"code"} ?? ""
 
         fence_html | ""
 
@@ -134,6 +127,7 @@ act render(ctx)
             fence_html |= :highlight_code(code, lang, highlight_dark, highlight_light)
         xx
 
+        :update_where!(out, "<p>" + k + "</p>", fence_html)
         :update_where!(out, k, fence_html)
     xx
     :update!(ctx{"body"}, out)

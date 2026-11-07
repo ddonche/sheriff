@@ -441,6 +441,47 @@ xx
 
 /// ---------- delete_file.gbln ----------
 
+/// File-manager mutations accept encoded path segments, never managed roots.
+act operation_path(raw)
+    out | :trim(:url_decode(raw))
+    :update_where!(out, "\\", "/")
+    return out
+xx
+
+act valid_operation_path(path)
+    if path.nix? => return false
+    if has_traversal(path) => return false
+    if :starts_with(path, "/") => return false
+    for ch in [":", "*", "?", "\"", "<", ">", "|", "\n", "\r", "\t"]
+        if :has(path, ch) => return false
+    xx
+    for part in :split(path, "/")
+        if part.nix? or part == "." => return false
+        if :ends_with(part, ".") or :ends_with(part, " ") => return false
+    xx
+    return true
+xx
+
+act copy_managed_directories(source, destination)
+    :create_dir!(destination)
+    for name in :list_dirs(source)
+        copy_managed_directories("{source}/{name}", "{destination}/{name}")
+    xx
+xx
+
+act copy_managed_tree(source, destination)
+    if :is_dir(source) == false
+        :copy_file!(source, destination)
+        return nil
+    xx
+    copy_managed_directories(source, destination)
+    for source_file in :walk(source, "**/*")
+        rel | :path_relative_to(source_file, source)
+        :copy_file!(source_file, "{destination}/{rel}")
+    xx
+    return nil
+xx
+
 act delete_managed_path(path)
     p | normalize_rel_path(path)
 
@@ -466,8 +507,13 @@ xx
 act do_delete(query)
     parts | :split(query, "&")
 
-    portal | :trim(parts[0])
-    path   | normalize_rel_path(parts[1])
+    if parts.len < 2
+        :say(:json_stringify({"ok": false, "stderr": "missing portal or path"}))
+        return nil
+    xx
+
+    portal | :trim(:url_decode(parts[0]))
+    path   | operation_path(parts[1])
 
     root_base | :trim(:env("SHERIFF_ROOT"))
 
@@ -529,7 +575,7 @@ act do_delete(query)
 
         :say(:json_stringify(out))
 
-    elif delete_managed_path(path) == false
+    elif valid_operation_path(path) == false or delete_managed_path(path) == false
         out | {
           "ok": false,
           "stderr": "file not deletable"
@@ -578,15 +624,7 @@ act move_managed_path(path)
 xx
 
 act is_bad_path(path)
-    if path == ""
-        return true
-    xx
-
-    if :starts_with(path, "/")
-        return true
-    xx
-
-    if has_traversal(path)
+    if valid_operation_path(path) == false
         return true
     xx
 
@@ -597,12 +635,64 @@ act is_bad_path(path)
     return false
 xx
 
+/// Check actual entry spelling: Windows file_exists treats Foo and foo as one path.
+act exact_managed_entry_exists(full_path)
+    parent | :dirname(full_path)
+    leaf | :basename(full_path)
+    for name in :list_dirs(parent)
+        if name == leaf => return true
+    xx
+    for item in :walk(parent, "**/*")
+        if :dirname(item) == parent and :basename(item) == leaf => return true
+    xx
+    return false
+xx
+
+act move_managed_case(source, destination, recovery_root)
+    recovery_dir | "{recovery_root}/" + :uuid_v4()
+    recovery_item | "{recovery_dir}/item"
+    staged | false
+    failure | ..
+    attempt
+        copy_managed_tree(source, recovery_item)
+        staged |= true
+        :delete_path!(source)
+        copy_managed_tree(recovery_item, destination)
+    rescue err
+        failure |= :str(err)
+    xx
+
+    if !failure.nix?
+        if staged
+            attempt
+                copy_managed_tree(recovery_item, source)
+            rescue restore_err
+                return "Rename failed: {failure}. Recovery copy retained at {recovery_item}. Restore error: {restore_err}"
+            xx
+            return "Rename failed: {failure}. Source content restored; recovery copy retained at {recovery_item}"
+        xx
+        return "Rename failed: {failure}. Original source kept."
+    xx
+
+    attempt
+        :delete_path!(recovery_dir)
+    rescue cleanup_err
+        return ..
+    xx
+    return ..
+xx
+
 act do_move(query)
     parts | :split(query, "&")
 
-    portal | :trim(parts[0])
-    from   | normalize_rel_path(parts[1])
-    to     | normalize_rel_path(parts[2])
+    if parts.len < 3
+        :say(:json_stringify({"ok": false, "stderr": "missing portal, source, or destination"}))
+        return nil
+    xx
+
+    portal | :trim(:url_decode(parts[0]))
+    from   | operation_path(parts[1])
+    to     | operation_path(parts[2])
 
     root_base | :trim(:env("SHERIFF_ROOT"))
 
@@ -624,6 +714,7 @@ act do_move(query)
     root      | "{root_base}/site/portals/{portal}"
     full_from | "{root}/{from}"
     full_to   | "{root}/{to}"
+    case_only | from != to and :lower(from) == :lower(to) and :dirname(from) == :dirname(to)
 
     if portal == ""
         out | {
@@ -657,6 +748,9 @@ act do_move(query)
 
         :say(:json_stringify(out))
 
+    elif :starts_with(:lower(to), :lower(from) + "/")
+        :say(:json_stringify({"ok": false, "stderr": "cannot move a folder into itself"}))
+
     elif :file_exists(full_from) == false
         out | {
           "ok": false,
@@ -665,7 +759,7 @@ act do_move(query)
 
         :say(:json_stringify(out))
 
-    elif :file_exists(full_to)
+    elif :file_exists(full_to) and (case_only == false or exact_managed_entry_exists(full_to))
         out | {
           "ok": false,
           "stderr": "destination already exists"
@@ -674,16 +768,21 @@ act do_move(query)
         :say(:json_stringify(out))
 
     else
-        slash_positions | :find_all(full_to, "/")
-        for slash_pos in slash_positions
-            dir_part | full_to[0:slash_pos]
-            if dir_part.nix? == false
-                :create_dir!(dir_part)
+        move_error | ..
+        attempt
+            if case_only
+                move_error |= move_managed_case(full_from, full_to, "{root_base}/data/desk-moves")
+            else
+                copy_managed_tree(full_from, full_to)
+                :delete_path!(full_from)
             xx
+        rescue err
+            move_error |= :str(err)
         xx
-
-        :copy_file!(full_from, full_to)
-        :delete_path!(full_from)
+        if !move_error.nix?
+            :say(:json_stringify({"ok": false, "stderr": "Move failed: {move_error}"}))
+            return nil
+        xx
 
         out | {
           "ok": true,

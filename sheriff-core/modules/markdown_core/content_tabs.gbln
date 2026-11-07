@@ -1,0 +1,146 @@
+/// Content tabs: one ::: tabs group, with @tab Label panel boundaries.
+/// Parse before Markdown so each panel retains normal Markdown behavior.
+act escape_label(text)
+    out | text
+    :update_where!(out, "&", "&amp;")
+    :update_where!(out, "<", "&lt;")
+    :update_where!(out, ">", "&gt;")
+    :update_where!(out, "\"", "&quot;")
+    :update_where!(out, "[", "&#91;")
+    :update_where!(out, "]", "&#93;")
+    :update_where!(out, raw "{", "&#123;")
+    :update_where!(out, raw "}", "&#125;")
+    :update_where!(out, "`", "&#96;")
+    return out
+xx
+
+act directive_line(line)
+    return :starts_with(line, "    ") == false and :starts_with(line, "\t") == false
+xx
+
+act code_fence(line)
+    if directive_line(line) == false => return ""
+    t | :trim(line)
+    marker | ""
+    if :starts_with(t, "```") => marker |= "`"
+    if :starts_with(t, "~~~") => marker |= "~"
+    if marker.nix? => return ""
+    run | ""
+    for n in :range(0, t.len)
+        if t[n:n+1] != marker => stop
+        run |= run + marker
+    xx
+    return run
+xx
+
+act closes_code(line, marker)
+    t | :trim(line)
+    if :starts_with(t, marker) == false => return false
+    fence | code_fence(line)
+    if :starts_with(fence, marker) == false => return false
+    tail | :keep_after(t, fence) ?? ""
+    return :trim(tail).nix?
+xx
+
+act read_group(lines, start)
+    panels | []
+    label | ""
+    content | []
+    code | ""
+    depth | 0
+    valid | true
+    for n in :range(start + 1, lines.len)
+        line | lines[n]
+        t | :trim(line)
+        if !code.nix?
+            :put_last!(content, line)
+            if closes_code(line, code) => code |= ""
+            skip
+        xx
+        fence | code_fence(line)
+        if !fence.nix?
+            code |= fence
+            :put_last!(content, line)
+            if label.nix? => valid |= false
+            skip
+        xx
+        if directive_line(line)
+            if :starts_with(t, "::: ")
+                depth += 1
+            elif t == ":::"
+                if depth == 0
+                    if !label.nix? => :put_last!(panels, {"label": label, "body": :join(content, "\n")})
+                    return {"valid": valid and panels.len > 0, "panels": panels, "end": n}
+                xx
+                depth -= 1
+            elif depth == 0 and (t == "@tab" or :starts_with(t, "@tab "))
+                if !label.nix? => :put_last!(panels, {"label": label, "body": :join(content, "\n")})
+                label |= :trim(:keep_after(t, "@tab") ?? "")
+                if label.nix? => valid |= false
+                content |= []
+                skip
+            xx
+        xx
+        if label.nix? and !t.nix? => valid |= false
+        :put_last!(content, line)
+    xx
+    return {"valid": false}
+xx
+
+act render_group(group, group_number)
+    group_id | "sheriff-content-tabs-{group_number}"
+    next_group | group_number + 1
+    tabs | []
+    panels | []
+    index | 0
+    for panel in group{"panels"}
+        index += 1
+        panel_id | "{group_id}-panel-{index}"
+        tab_id | "{group_id}-tab-{index}"
+        label | escape_label(panel{"label"})
+        :put_last!(tabs, "<a class=\"sheriff-page-tab sheriff-content-tab\" id=\"{tab_id}\" href=\"#{panel_id}\">{label}</a>")
+        nested | prepare(panel{"body"}, next_group)
+        next_group |= nested{"next_group"}
+        body | nested{"body"}
+        :put_last!(panels, "<section class=\"sheriff-content-tab-panel\" id=\"{panel_id}\">\n<div class=\"sheriff-content-tab-heading\">{label}</div>\n\n{body}\n\n</section>")
+    xx
+    tab_html | :join(tabs, "\n")
+    panel_html | :join(panels, "\n\n")
+    html | "<section class=\"sheriff-content-tabs\" data-sheriff-content-tabs>\n<nav class=\"sheriff-page-tabs sheriff-content-tab-list\" aria-label=\"Content tabs {group_number}\">\n{tab_html}\n</nav>\n\n{panel_html}\n\n</section>"
+    return {"body": html, "next_group": next_group}
+xx
+
+act prepare(text, first_group)
+    lines | :split(text, "\n")
+    out | []
+    consumed | -1
+    code | ""
+    next_group | first_group
+    for n in :range(0, lines.len)
+        if n <= consumed => skip
+        line | lines[n]
+        if !code.nix?
+            :put_last!(out, line)
+            if closes_code(line, code) => code |= ""
+            skip
+        xx
+        fence | code_fence(line)
+        if !fence.nix?
+            code |= fence
+            :put_last!(out, line)
+            skip
+        xx
+        if directive_line(line) and :trim(line) == "::: tabs"
+            group | read_group(lines, n)
+            if group{"valid"}
+                rendered | render_group(group, next_group)
+                :put_last!(out, "\n" + rendered{"body"} + "\n")
+                next_group |= rendered{"next_group"}
+                consumed |= group{"end"}
+                skip
+            xx
+        xx
+        :put_last!(out, line)
+    xx
+    return {"body": :join(out, "\n"), "next_group": next_group}
+xx

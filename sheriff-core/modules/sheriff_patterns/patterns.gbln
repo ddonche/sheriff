@@ -1,3 +1,5 @@
+import modules/markdown_core/fenced_code as fenced_code
+
 /// modules/sheriff_patterns/patterns.gbln
 /// Portal-local reusable content patterns.
 ///
@@ -229,21 +231,7 @@ act render_patterns_in_text(text)
 xx
 
 act stash_pattern_code_segments(text)
-    out | text ?? => send {"text": .., "stash": []}
-    stash | []
-    n | 0
-    seg, key | ..
-
-    sweep out
-        "```" ... "```":
-            seg |= self
-            key |= "@@SHERIFF_PATTERN_CODE_{n}@@"
-            :put_last!(stash, {"k": key, "v": seg})
-            :update_where!(out, seg, key)
-            n += 1
-    xx
-
-    return {"text": out, "stash": stash}
+    return fenced_code::stash(text, "SHERIFF_PATTERN_CODE")
 xx
 
 act restore_pattern_code_segments(text, stash)

@@ -2650,3 +2650,43 @@ a.sheriff-missing-link:hover {
   color: var(--sheriff-missing-link-hover);
   text-decoration: underline;
 }
+
+
+/* Inline documentation version badge: solid link-color icon cell beside the version label. */
+.sheriff-inline-version{
+  display:inline-flex;align-items:center;gap:0;
+  vertical-align:baseline;white-space:nowrap;
+  font-family:inherit;font-size:clamp(.625rem,.78em,.875rem);
+  font-weight:500;font-style:normal;line-height:1.1;
+  letter-spacing:normal;text-transform:none;text-decoration:none;
+  padding:0;border:1px solid var(--sheriff-border);border-radius:2px;overflow:hidden;
+  color:var(--sheriff-text);background:var(--sheriff-panel);
+  border-color:var(--sheriff-link);
+}
+.sheriff-inline-version > .sheriff-inline-version-icon{
+  display:block;flex:none;box-sizing:content-box;width:.95em;height:1.1em;
+  padding:.12em .34em;color:#fff;
+  color:contrast-color(var(--sheriff-link));
+  background:var(--sheriff-link);
+  border-right:1px solid var(--sheriff-link);
+}
+.sheriff-inline-version > .sheriff-inline-version-label{display:block;padding:.12em .4em;}
+
+/* Content tabs share the public page-tab appearance. */
+/* Contain panel floats while fitting beside an earlier infobox. */
+.sheriff-content-tabs{display:flow-root;margin:1.25rem 0;min-width:0;}
+.sheriff-content-tabs > .sheriff-content-tab-list{justify-content:flex-start;gap:0;}
+.sheriff-content-tab-list > .sheriff-content-tab{font-family:inherit;cursor:pointer;text-decoration:none;color:var(--sheriff-muted);}
+.sheriff-content-tab-list > .sheriff-content-tab.sheriff-page-tab-active{color:var(--sheriff-text);}
+.sheriff-content-tab-list > .sheriff-content-tab:hover{color:var(--sheriff-link);}
+.sheriff-content-tab-list > .sheriff-content-tab:focus-visible{outline:2px solid var(--sheriff-link);outline-offset:2px;position:relative;z-index:1;}
+.sheriff-content-tab-panel{padding:.85rem 0;min-width:0;display:flow-root;}
+.sheriff-content-tab-panel[hidden]{display:none!important;}
+.sheriff-content-tab-heading{font-weight:600;margin-bottom:.65rem;}
+.sheriff-content-tabs-ready > .sheriff-content-tab-panel > .sheriff-content-tab-heading{display:none;}
+.sheriff-content-tab-panel > :last-child{margin-bottom:0;}
+@media print{
+  .sheriff-content-tabs > .sheriff-content-tab-list{display:none;}
+  .sheriff-content-tabs > .sheriff-content-tab-panel[hidden]{display:flow-root!important;}
+  .sheriff-content-tabs-ready > .sheriff-content-tab-panel > .sheriff-content-tab-heading{display:block;}
+}

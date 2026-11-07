@@ -1312,3 +1312,27 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
 .ed-vb-add{ font-family:var(--mono); font-size:12px; padding:4px 8px; cursor:pointer;
   background:var(--card); border:1px dashed var(--line); border-radius:4px; color:var(--teal-deep); }
 .ed-vb-add:hover{ border-color:var(--teal); }
+
+/* Content file management */
+.tree-row{display:flex;align-items:center;min-width:0;flex-shrink:0;gap:2px;}
+.tree-row > .tree-item,.tree-row > .tree-folder{flex:1;min-width:0;width:auto;}
+.tree-row > .tree-item .node-name,.tree-row > .tree-folder .node-name{flex:1;min-width:0;}
+.tree-row .rename-input{width:0;}
+.tree-actions{flex:none;width:28px;height:28px;margin-right:3px;border:0;border-radius:4px;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;}
+.tree-actions:hover,.tree-actions:focus-visible{background:var(--canvas);color:var(--ink);}
+.ed-revision-toggle{display:flex;align-items:center;gap:7px;margin:8px 0;font-size:12px;color:var(--muted);cursor:pointer;}
+.editor-bar{flex-wrap:wrap;}
+#ed-delete{color:var(--red-deep);}
+
+.editor-bar .ed-status{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.editor-bar .btn,.editor-bar .help-btn{flex-shrink:0;}
+
+
+/* Copy the exact configured version label as an inline badge token. */
+.cfg-version-badges{flex:none;padding:10px 12px;margin-bottom:10px;border:1px solid var(--line);border-radius:6px;background:var(--card);max-height:230px;overflow:auto;}
+.cfg-version-badges summary{cursor:pointer;font-size:13px;font-weight:600;}
+.cfg-version-badges .np-hint{margin:8px 0;}
+.cfg-version-badge-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:5px 0;font-size:12px;}
+.cfg-version-badge-row code{flex:1;overflow-wrap:anywhere;font-size:12px;}
+.cfg-version-badge-row .btn{flex:none;}
+.ed-vb-badge{max-width:200px;}

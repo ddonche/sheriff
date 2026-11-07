@@ -110,6 +110,12 @@ act copy_assets(pre_ctx)
             :say("STAGEHAND: override.css already exists; leaving as-is")
         xx
     xx
+    /// Core-owned browser behavior is available to every portal, including old ones.
+    tabs_js_src | "../sheriff-core/modules/markdown_core/sheriff-content-tabs.js"
+    if :file_exists(tabs_js_src)
+        :create_dir!("../dist/{portal}/public/js")
+        :copy_file!(tabs_js_src, "../dist/{portal}/public/js/sheriff-content-tabs.js")
+    xx
     /// ----- 4) Copy index.html from content/ to dist/{portal} if it exists -----
     index_src  | "../site/portals/{portal}/content/index.html"
     index_dest | "../dist/{portal}/index.html"
@@ -173,58 +179,60 @@ act build_slot_value(slot_tokens)
     return value
 xx
 
-/// ----------------------------------------------------------------------
-/// Wire layout slots → SLOT::* tokens for the current page/layout.
-/// 1. Read ../site/portals/{portal}/templates.yall
-/// 2. Look up layouts[layout_name].slots
-/// 3. For each slot_name in that map:
-///      - Build "{{{MOD::TOKEN}}}..." string
-///      - register_token("SLOT", slot_name, that_string)
-/// 4. Apply SLOT tokens into the current HTML via resolve_token(body)
-///    (module tokens remain for their own apply_tokens steps).
-/// ----------------------------------------------------------------------
+/// Read one layout's slots. Missing portal entries inherit the Core theme.
+act load_layout_slots(templates_path, layout_name)
+    if :file_exists(templates_path) == false => return {}
+    templates | :yall_parse_file(templates_path)
+    if :valtype(templates) != "map" => return {}
+    layouts_cfg | templates{"layouts"} ?? {}
+    if :valtype(layouts_cfg) != "map" => return {}
+    layout_cfg | layouts_cfg{layout_name} ?? {}
+    if :valtype(layout_cfg) != "map" => return {}
+    slots | layout_cfg{"slots"} ?? {}
+    if :valtype(slots) != "map" => return {}
+    return slots
+xx
+
+/// Inherit Core slots, then apply portal overrides per slot. An explicitly
+/// empty portal slot stays empty. Restore the registry after expanding this
+/// page so custom slots cannot leak into another layout or portal.
 act wire_slots(ctx)
     portal | ctx{"portal"} ?? => return ctx
     fm     | ctx{"frontmatter"}
     body   | ctx{"body"} ?? => return ctx
 
-    /// SAFETY: ensure fm is actually a map
-    if !fm.nix? && :valtype(fm) != "map" => fm |= {}
-
-    /// 1) Determine layout name (default "docs")
     layout_name | "docs"
     if :valtype(fm) == "map" && :has(fm, "layout") && !fm{"layout"}.nix?
-        :update!(layout_name, :trim(fm{"layout"}))
+        layout_name |= :trim(fm{"layout"})
     xx
 
-    /// 2) Load templates.yall and locate slots for this layout
     theme_name | resolve_theme_name(portal)
-    templates_path | "../site/portals/{portal}/themes/{theme_name}/templates.yall"
-    if :file_exists(templates_path) == false => return ctx
-
-    templates | :yall_parse_file(templates_path)
-    if templates.nix? or templates{"layouts"}.nix? => return ctx
-
-    layouts_cfg | templates{"layouts"}
-    if layouts_cfg{layout_name}.nix? or layouts_cfg{layout_name}{"slots"}.nix?
-        return ctx
+    core_slots | load_layout_slots("../sheriff-core/themes/{theme_name}/templates.yall", layout_name)
+    portal_slots | load_layout_slots("../site/portals/{portal}/themes/{theme_name}/templates.yall", layout_name)
+    slots_cfg | {}
+    for pair in core_slots
+        :update!(slots_cfg{pair[0]}, pair[1])
+    xx
+    for pair in portal_slots
+        :update!(slots_cfg{pair[0]}, pair[1])
     xx
 
-    slots_cfg | layouts_cfg{layout_name}{"slots"}
-
-    /// 3) For each slot [name, tokens], build the raw token string
-    ///    and register SLOT::slot_name = "{{{MOD::TOKEN}}}..."
-    /// Now register them fresh
-
+    previous | []
     for pair in slots_cfg
-        slot_name|pair[0]
-        slot_tokens|pair[1]
-        slot_value|build_slot_value(slot_tokens)
-        register_token("SLOT", slot_name, slot_value)
+        slot_name | pair[0]
+        token | "\{\{\{SLOT::{slot_name}\}\}\}"
+        :put_last!(previous, {"name": slot_name, "token": token, "value": resolve_token(token)})
+        register_token("SLOT", slot_name, build_slot_value(pair[1]))
     xx
 
-    /// 4) Apply SLOT tokens into the layout HTML.
     rendered | resolve_token(body)
+    for entry in previous
+        if entry{"value"} == entry{"token"}
+            clear_token("SLOT", entry{"name"})
+        else
+            register_token("SLOT", entry{"name"}, entry{"value"})
+        xx
+    xx
     :update!(ctx{"body"}, rendered)
     return ctx
 xx

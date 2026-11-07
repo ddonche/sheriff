@@ -37,6 +37,7 @@ schedule:
   - "badge::apply_tokens"
   - "prospector::apply_tokens"
   - "goblin_repl::apply_tokens"
+  - "badge::apply_version_badges"
 
 post:
   - "trailboss::build_wanted_pages_once"

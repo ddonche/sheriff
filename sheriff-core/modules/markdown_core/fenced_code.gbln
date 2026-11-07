@@ -1,0 +1,72 @@
+/// Line-based Markdown code fences. Closing fences must use the same
+/// character and at least the opening fence's length; inner fences stay code.
+act marker(line)
+    if :starts_with(line, "    ") or :starts_with(line, "\t") => return ""
+    t | :trim(line)
+    char | ""
+    if :starts_with(t, "```") => char |= "`"
+    if :starts_with(t, "~~~") => char |= "~"
+    if char.nix? => return ""
+    run | ""
+    for n in :range(0, t.len)
+        if t[n:n+1] != char => stop
+        run |= run + char
+    xx
+    return run
+xx
+
+act closes(line, opening)
+    run | marker(line)
+    if :starts_with(run, opening) == false => return false
+    tail | :keep_after(:trim(line), run) ?? ""
+    return :trim(tail).nix?
+xx
+
+act stash(text, prefix)
+    lines | :split(text ?? "", "\n")
+    out | []
+    items | []
+    opening | ""
+    segment | []
+    code | []
+    lang | ""
+    for line in lines
+        if opening.nix?
+            run | marker(line)
+            if !run.nix?
+                info | :trim(:keep_after(:trim(line), run) ?? "")
+                if :starts_with(run, "`") and :has(info, "`")
+                    :put_last!(out, line)
+                    skip
+                xx
+                opening |= run
+                lang |= :keep_before(info, " ") ?? info
+                segment |= [line]
+                code |= []
+                skip
+            xx
+            :put_last!(out, line)
+            skip
+        xx
+        :put_last!(segment, line)
+        if closes(line, opening)
+            n | items.len
+            key | "@@{prefix}_{n}@@"
+            :put_last!(items, {"k": key, "v": :join(segment, "\n"), "lang": lang, "code": :join(code, "\n")})
+            :put_last!(out, key)
+            opening |= ""
+            segment |= []
+            code |= []
+        else
+            :put_last!(code, line)
+        xx
+    xx
+    /// An unfinished fence remains code through the end of the document.
+    if !opening.nix?
+        n | items.len
+        key | "@@{prefix}_{n}@@"
+        :put_last!(items, {"k": key, "v": :join(segment, "\n"), "lang": lang, "code": :join(code, "\n")})
+        :put_last!(out, key)
+    xx
+    return {"text": :join(out, "\n"), "stash": items}
+xx

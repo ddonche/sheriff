@@ -475,6 +475,9 @@
   const edText = document.getElementById('ed-text');
   const edOpenPortal = document.getElementById('ed-open-portal');
   const newBtn = document.getElementById('ed-new');
+  const edRename = document.getElementById('ed-rename');
+  const edDelete = document.getElementById('ed-delete');
+  const edRawRevisions = document.getElementById('ed-raw-revisions');
 
   let editorPendingPortal = null;   // set by dashboard "Edit content"
   let edFiles = [];
@@ -494,11 +497,13 @@
   let expandedFolders = new Set();
   let edCwd = 'content';
   let renamingPath = null;
+  let fileOperationBusy = false;
 
   function setDirty(v) {
     dirty = v;
     edDirty.hidden = !v;
     edSave.disabled = !v || !openFile;
+    updateFileActions();
   }
 
   function setStatus(msg, cls) {
@@ -568,6 +573,40 @@
     return out;
   }
 
+  function versionBadgeToken(version) {
+    return '{{{SHERIFF::' + version + '}}}';
+  }
+
+  function renderConfigVersionBadges(text, dirty) {
+    const panel = document.getElementById('cf-version-badges');
+    const list = document.getElementById('cf-version-badge-list');
+    const versions = Array.from(new Set(parseDocConfig(text).versions));
+    panel.hidden = versions.length === 0;
+    list.innerHTML = '';
+    document.getElementById('cf-version-badge-note').textContent = dirty
+      ? 'Save the configuration before copying newly configured badges.'
+      : 'Paste a token into a heading, paragraph, list, or table.';
+    versions.forEach(version => {
+      const row = document.createElement('div'); row.className = 'cfg-version-badge-row';
+      const label = document.createElement('span'); label.textContent = version;
+      const token = document.createElement('code'); token.textContent = versionBadgeToken(version);
+      const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn small';
+      copy.textContent = 'Copy token'; copy.disabled = dirty;
+      copy.setAttribute('aria-label', 'Copy badge token for ' + version);
+      copy.addEventListener('click', () => copyText(versionBadgeToken(version), 'Version badge token copied'));
+      row.append(label, token, copy); list.appendChild(row);
+    });
+    if (!dirty && text && document.getElementById('cf-portal').value === edPortal.value) {
+      docConfig = parseDocConfig(text);
+      versionedPages = detectVersionedPages(edFiles);
+      versionedPageSet = new Set(Object.keys(versionedPages));
+      if (openVersionCtx && openVersionCtx.flat) openVersionCtx.version = docConfig.default || docConfig.versions[0];
+      else if (openVersionCtx && !docConfig.versions.includes(openVersionCtx.version)) openVersionCtx = null;
+      renderVersionBar();
+      renderTree();
+    }
+  }
+
   async function loadDocConfig(portal) {
     docConfig = { versions: [], default: null, mode: 'manual' };
     try {
@@ -608,7 +647,7 @@
   // Collapse versioned pages to a single page node; hide their version folders
   // and R*.md files from the raw tree.
   function foldForTree(paths, dirs) {
-    if (versionedPageSet.size === 0) return { paths: paths, dirs: dirs };
+    if (edRawRevisions.checked || versionedPageSet.size === 0) return { paths: paths, dirs: dirs };
     const keepPaths = [];
     for (const p of paths) {
       let under = false;
@@ -676,6 +715,7 @@
   }
 
   function renderVersionBar() {
+    updateFileActions();
     const bar = document.getElementById('ed-version-bar');
     if (!bar) return;
     const ctx = openVersionCtx;
@@ -727,6 +767,23 @@
       bar.appendChild(sel);
     }
 
+    const badgeCopy = document.createElement('select');
+    badgeCopy.className = 'ed-vb-add ed-vb-badge';
+    badgeCopy.setAttribute('aria-label', 'Copy version badge token');
+    const copyPrompt = document.createElement('option');
+    copyPrompt.value = ''; copyPrompt.textContent = 'Copy badge token…';
+    badgeCopy.appendChild(copyPrompt);
+    Array.from(new Set(docConfig.versions)).forEach(version => {
+      const option = document.createElement('option'); option.value = version;
+      option.textContent = version; option.title = versionBadgeToken(version);
+      badgeCopy.appendChild(option);
+    });
+    badgeCopy.addEventListener('change', () => {
+      const version = badgeCopy.value; badgeCopy.value = '';
+      if (version) copyText(versionBadgeToken(version), 'Version badge token copied');
+    });
+    bar.appendChild(badgeCopy);
+
     const rev = document.createElement('span');
     rev.className = 'ed-vb-rev';
     rev.textContent = revText;
@@ -738,9 +795,11 @@
     if (docConfig.mode === 'always') {
       modeWrap.textContent = 'saves create a new revision';
     } else if (docConfig.mode === 'off') {
-      modeWrap.textContent = 'saves overwrite latest';
+      modeWrap.textContent = ctx.flat ? 'saves overwrite the page' : 'saves overwrite this revision';
     } else {
-      [['revision', 'New revision'], ['overwrite', 'Overwrite latest']].forEach(m => {
+      const latest = versionedPages[ctx.page] && versionedPages[ctx.page].versions[ctx.version];
+      const overwriteLabel = !ctx.flat && latest && latest[latest.length - 1].num !== ctx.revNum ? 'Overwrite this revision' : 'Overwrite latest';
+      [['revision', 'New revision'], ['overwrite', overwriteLabel]].forEach(m => {
         const lab = document.createElement('label');
         lab.className = 'ed-vb-radio';
         const r = document.createElement('input');
@@ -829,7 +888,8 @@
         if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
         openVer = base; openRev = 2;
       } else {
-        const next = (ctx.revNum || 1) + 1;
+        const revisions = versionedPages[ctx.page] && versionedPages[ctx.page].versions[ctx.version] || [];
+        const next = Math.max(ctx.revNum || 0, ...revisions.map(r => r.num)) + 1;
         const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + ctx.version + '/R' + next + '.md'),
           { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
         const wrData = await wr.json();
@@ -933,91 +993,105 @@
     renderTree();
   }
 
+  function appendRenameInput(row, path, name) {
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'rename-input'; input.value = name;
+    input.setAttribute('aria-label', 'New name for ' + name); input.spellcheck = false;
+    row.appendChild(input);
+    input.addEventListener('click', e => e.stopPropagation());
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { renamingPath = null; renderTree(); }
+      if (e.key === 'Enter') { e.preventDefault(); commitRename(path, input.value); }
+    });
+    input.addEventListener('blur', () => {
+      if (renamingPath === path) { renamingPath = null; renderTree(); }
+    });
+    requestAnimationFrame(() => { input.focus(); input.select(); });
+  }
+
+  function appendItemActions(wrapper, path) {
+    if (!canManageItem(path) || path === renamingPath) return;
+    const more = document.createElement('button');
+    more.type = 'button'; more.className = 'tree-actions'; more.textContent = '\u22ef';
+    more.title = 'Rename or delete';
+    more.setAttribute('aria-label', 'Actions for ' + path.split('/').pop());
+    more.setAttribute('aria-haspopup', 'menu');
+    more.addEventListener('click', e => {
+      e.stopPropagation();
+      const rect = more.getBoundingClientRect();
+      showFileMenu(rect.left, rect.bottom, path);
+    });
+    wrapper.appendChild(more);
+    wrapper.addEventListener('contextmenu', e => {
+      e.preventDefault(); showFileMenu(e.clientX, e.clientY, path);
+    });
+  }
+
   function fileRow(path, name, indentPx) {
-    const row = document.createElement('button');
+    const wrapper = document.createElement('div'); wrapper.className = 'tree-row';
+    const row = document.createElement(path === renamingPath ? 'div' : 'button');
     row.type = 'button';
-    row.className = 'tree-item' + (path === openFile ? ' open' : '');
-    row.style.paddingLeft = indentPx + 'px';
-
+    const isPage = versionedPageSet.has(path);
+    row.className = 'tree-item' + (path === openFile || isPage && pathWithin(path, openFile) ? ' open' : '');
+    row.style.paddingLeft = indentPx + 'px'; row.title = path;
+    row.innerHTML = '<span class="caret"></span>' + fileIconSvg(isPage ? name + '.md' : name);
+    wrapper.appendChild(row);
     if (path === renamingPath) {
-      row.innerHTML = '<span class="caret"></span>' + fileIconSvg(name);
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'rename-input';
-      input.value = name;
-      input.spellcheck = false;
-      row.appendChild(input);
-      input.addEventListener('click', e => e.stopPropagation());
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { renamingPath = null; renderTree(); }
-        if (e.key === 'Enter') commitRename(path, input.value);
-      });
-      input.addEventListener('blur', () => {
-        if (renamingPath === path) { renamingPath = null; renderTree(); }
-      });
-      requestAnimationFrame(() => { input.focus(); input.select(); });
-      return row;
+      appendRenameInput(row, path, path.split('/').pop());
+      return wrapper;
     }
-
-    row.innerHTML = '<span class="caret"></span>' + fileIconSvg(name) + '<span class="node-name"></span>';
-    row.querySelector('.node-name').textContent = name;
-    row.title = path;
+    const label = document.createElement('span'); label.className = 'node-name'; label.textContent = name;
+    row.appendChild(label);
     row.addEventListener('click', () => openPath(path));
-
-    row.draggable = true;
-    row.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', path);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-
-    row.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      showFileMenu(e.clientX, e.clientY, path);
-    });
-    return row;
+    if (canManageItem(path)) {
+      row.draggable = true;
+      row.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', path); e.dataTransfer.effectAllowed = 'move';
+      });
+    }
+    appendItemActions(wrapper, path);
+    return wrapper;
   }
 
   function renderNodes(container, nodes, depth) {
     nodes.forEach(node => {
-      if (node.type === 'folder') {
-        const isOpen = expandedFolders.has(node.path);
-        const row = document.createElement('button');
-        row.type = 'button';
-        row.className = 'tree-folder' + (isOpen ? ' expanded' : '');
-        row.style.paddingLeft = (10 + depth * 16) + 'px';
-        row.innerHTML = '<span class="caret">' + (isOpen ? '\u25be' : '\u25b8') + '</span>'
-          + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-          + '<span class="node-name"></span>';
-        row.querySelector('.node-name').textContent = node.name;
-        row.addEventListener('click', () => {
-          edCwd = node.path;
-          toggleFolder(node.path);
-        });
-
+      if (node.type !== 'folder') {
+        container.appendChild(fileRow(node.path, node.name, 10 + depth * 16));
+        return;
+      }
+      const isOpen = expandedFolders.has(node.path);
+      const wrapper = document.createElement('div'); wrapper.className = 'tree-row';
+      const row = document.createElement(node.path === renamingPath ? 'div' : 'button');
+      row.type = 'button'; row.className = 'tree-folder' + (isOpen ? ' expanded' : '');
+      row.style.paddingLeft = (10 + depth * 16) + 'px'; row.title = node.path;
+      row.innerHTML = '<span class="caret">' + (isOpen ? '\u25be' : '\u25b8') + '</span>'
+        + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+      wrapper.appendChild(row);
+      if (node.path === renamingPath) appendRenameInput(row, node.path, node.path.split('/').pop());
+      else {
+        const label = document.createElement('span'); label.className = 'node-name'; label.textContent = node.name;
+        row.appendChild(label);
+        row.addEventListener('click', () => { edCwd = node.path; toggleFolder(node.path); });
+        if (canManageItem(node.path)) {
+          row.draggable = true;
+          row.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', node.path); e.dataTransfer.effectAllowed = 'move';
+          });
+        }
         row.addEventListener('dragover', e => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          row.classList.add('drop-target');
+          e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('drop-target');
         });
         row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
         row.addEventListener('drop', e => {
-          e.preventDefault();
-          row.classList.remove('drop-target');
-          const srcPath = e.dataTransfer.getData('text/plain');
-          if (!srcPath) return;
-          const base = srcPath.split('/').pop();
-          const dest = node.path + '/' + base;
-          if (dest === srcPath) return;
-          moveFilePath(srcPath, dest);
+          e.preventDefault(); row.classList.remove('drop-target');
+          const source = e.dataTransfer.getData('text/plain');
+          if (source) moveFilePath(source, node.path + '/' + source.split('/').pop());
         });
-
-        container.appendChild(row);
-        if (isOpen && node.children) {
-          renderNodes(container, node.children, depth + 1);
-        }
-      } else {
-        container.appendChild(fileRow(node.path, node.name, 10 + depth * 16));
+        appendItemActions(wrapper, node.path);
       }
+      container.appendChild(wrapper);
+      if (isOpen && node.children) renderNodes(container, node.children, depth + 1);
     });
   }
 
@@ -1025,7 +1099,7 @@
     const q = edFilter.value.trim().toLowerCase();
     tree.innerHTML = '';
 
-    if (edFiles.length === 0) {
+    if (edFiles.length === 0 && edDirs.length === 0) {
       const div = document.createElement('div');
       div.className = 'tree-msg';
       div.textContent = 'No files in this portal yet.';
@@ -1037,7 +1111,7 @@
 
     // Filter active: flat list of matching full paths. No filter: tree.
     if (q) {
-      const shown = folded.paths.filter(f => f.toLowerCase().includes(q));
+      const shown = Array.from(new Set(folded.paths.concat(folded.dirs))).filter(f => f.toLowerCase().includes(q));
       if (shown.length === 0) {
         const div = document.createElement('div');
         div.className = 'tree-msg';
@@ -1045,7 +1119,7 @@
         tree.appendChild(div);
         return;
       }
-      shown.forEach(f => tree.appendChild(fileRow(f, f, 10)));
+      renderNodes(tree, shown.map(p => ({path:p, name:p, type:folded.dirs.includes(p) ? 'folder' : 'file', children:[]})), 0);
       return;
     }
 
@@ -1078,6 +1152,8 @@
       await loadDocConfig(edPortal.value);
       versionedPages = detectVersionedPages(edFiles);
       versionedPageSet = new Set(Object.keys(versionedPages));
+      if (openFile && !edFiles.includes(openFile)) clearContentEditor();
+      updateFileActions();
 
       // First load / portal switch: expand top-level folders containing
       // files (same default as Cloud). Reloads keep the current expansion.
@@ -1096,74 +1172,148 @@
   }
 
   // ---------- file operations ----------
-  async function moveFilePath(srcPath, destPath) {
-    try {
-      const q = encodeURIComponent(edPortal.value)
-        + '&' + encodeURIComponent(srcPath)
-        + '&' + encodeURIComponent(destPath);
-      const res = await fetch('/api/file?move&' + q);
-      const data = await res.json();
-      if (data.ok === false) {
-        say(data.stderr || 'Move failed');
-        return;
-      }
-      if (openFile === srcPath) {
-        openFile = destPath;
-        edPath.textContent = destPath;
-      }
-      const parts = destPath.split('/');
-      let running = '';
-      for (let i = 0; i < parts.length - 1; i++) {
-        running = running ? running + '/' + parts[i] : parts[i];
-        expandedFolders.add(running);
-      }
-      say('Moved to ' + destPath);
-      await loadFiles();
-    } catch (err) {
-      say('API unreachable');
-    }
+  function pathWithin(parent, candidate) {
+    return !!(parent && candidate && (candidate === parent || candidate.startsWith(parent + '/')));
   }
 
-  function commitRename(path, newName) {
-    const name = newName.trim();
+  function canManageItem(path) {
+    return /^(content|blog|public)\/.+/.test(path || '');
+  }
+
+  function revisionContextForPath(path) {
+    const parts = String(path || '').split('/');
+    if (parts[0] !== 'content' || parts.length < 4) return null;
+    const match = /^R([1-9]\d*)\.md$/i.exec(parts[parts.length - 1]);
+    const version = parts[parts.length - 2];
+    if (!match || !docConfig.versions.includes(version)) return null;
+    return {page:parts.slice(0,-2).join('/'), version, revNum:Number(match[1]), flat:false};
+  }
+
+  function currentManagedPath() {
+    if (!edRawRevisions.checked && openVersionCtx && !openVersionCtx.flat && pathWithin(openVersionCtx.page, openFile)) return openVersionCtx.page;
+    return openFile;
+  }
+
+  function updateFileActions() {
+    const target = currentManagedPath();
+    edRename.disabled = edDelete.disabled = fileOperationBusy || !canManageItem(target);
+    const page = target && versionedPageSet.has(target);
+    edRename.textContent = page ? 'Rename page' : 'Rename';
+    edDelete.textContent = page ? 'Delete page' : 'Delete';
+  }
+
+  function clearContentEditor() {
+    openFile = null; openVersionCtx = null;
+    edPath.textContent = 'No file open'; edText.value = ''; edText.disabled = true;
+    setDirty(false); renderVersionBar(); setStatus('');
+  }
+
+  function remapItemPath(value, from, to) {
+    return pathWithin(from, value) ? to + value.slice(from.length) : value;
+  }
+
+  function isDirectoryItem(path) {
+    return versionedPageSet.has(path) || edDirs.includes(path) || edFiles.some(f => f.startsWith(path + '/'));
+  }
+
+  function startRename(path) {
+    if (fileOperationBusy || !canManageItem(path)) return;
+    renamingPath = path;
+    const parts = path.split('/');
+    for (let i = 1; i < parts.length; i++) expandedFolders.add(parts.slice(0,i).join('/'));
+    if (!path.toLowerCase().includes(edFilter.value.trim().toLowerCase())) edFilter.value = '';
+    renderTree();
+  }
+
+  async function moveFilePath(srcPath, destPath) {
+    if (fileOperationBusy || !canManageItem(srcPath) || !canManageItem(destPath) || srcPath === destPath) return false;
+    if (pathWithin(srcPath, destPath)) { say('A folder cannot be moved inside itself'); return false; }
+    const portal = edPortal.value;
+    fileOperationBusy = true; edPortal.disabled = true; updateFileActions();
+    try {
+      const q = encodeURIComponent(portal) + '&' + encodeURIComponent(srcPath) + '&' + encodeURIComponent(destPath);
+      const res = await fetch('/api/file?move&' + q);
+      const data = await res.json();
+      if (!res.ok || data.ok === false) { say(data.stderr || 'Move failed'); return false; }
+      openFile = remapItemPath(openFile, srcPath, destPath);
+      if (openVersionCtx) openVersionCtx.page = openVersionCtx.flat && openFile && /\.md$/i.test(openFile)
+        ? openFile.replace(/\.md$/i, '') : remapItemPath(openVersionCtx.page, srcPath, destPath);
+      const revision = revisionContextForPath(openFile);
+      if (revision) openVersionCtx = revision;
+      if (openFile) edPath.textContent = openVersionCtx && !openVersionCtx.flat ? openVersionCtx.page.replace(/^content\//,'') : openFile;
+      knownDirs = new Set(Array.from(knownDirs, d => remapItemPath(d, srcPath, destPath)));
+      expandedFolders = new Set(Array.from(expandedFolders, d => remapItemPath(d, srcPath, destPath)));
+      edCwd = remapItemPath(edCwd, srcPath, destPath);
+      const parts = destPath.split('/');
+      for (let i=1; i<parts.length; i++) expandedFolders.add(parts.slice(0,i).join('/'));
+      await loadFiles(); renderVersionBar();
+      setStatus('Renamed or moved · rebuild portal to update the site');
+      say('Moved to ' + destPath);
+      return true;
+    } catch (err) { say('Move failed: ' + err.message); return false; }
+    finally { fileOperationBusy = false; edPortal.disabled = false; updateFileActions(); }
+  }
+
+  async function commitRename(path, newName) {
+    let name = newName.trim();
     renamingPath = null;
     if (!name || name === path.split('/').pop()) { renderTree(); return; }
-    if (name.includes('/') || name.includes('\\')) {
-      say('Name cannot contain slashes');
-      renderTree();
-      return;
+    if (/[\\/:*?"<>|\x00-\x1f]/.test(name) || name === '.' || name.includes('..') || /[. ]$/.test(name)) {
+      say('Use a filename without slashes, trailing dots, or reserved characters'); renderTree(); return;
     }
-    const dir = path.split('/').slice(0, -1).join('/');
-    moveFilePath(path, dir ? dir + '/' + name : name);
+    const revision = revisionContextForPath(path);
+    if (revision && !/^R[1-9]\d*\.md$/i.test(name)) {
+      say('Revision filenames must use R1.md, R2.md, and so on'); renderTree(); return;
+    }
+    if (versionedPageSet.has(path)) name = name.replace(/\.md$/i, '');
+    else if (/\.md$/i.test(path) && !/\.md$/i.test(name)) name += '.md';
+    for (const page in versionedPages) {
+      if (path.startsWith(page + '/') && path.slice(page.length + 1).indexOf('/') < 0 && !docConfig.versions.includes(name)) {
+        say('Declare that version label in config.yall before renaming its folder'); renderTree(); return;
+      }
+    }
+    const parent = path.slice(0,path.lastIndexOf('/'));
+    await moveFilePath(path, parent + '/' + name);
+    renderTree();
   }
 
   async function deleteFilePath(path) {
-    if (!window.confirm('Delete "' + path + '"? This cannot be undone.')) return;
+    if (fileOperationBusy || !canManageItem(path)) return;
+    const directory = isDirectoryItem(path), page = versionedPageSet.has(path);
+    let message = page ? 'Delete page "' + path + '" and ALL its versions and revisions?'
+      : directory ? 'Delete folder "' + path + '" and ALL files and subfolders inside it?'
+      : 'Delete file "' + path + '"?';
+    if (dirty && pathWithin(path,openFile)) message += '\nUnsaved changes in the editor will also be discarded.';
+    if (revisionContextForPath(path)) message += '\nIf this is the latest revision, the preceding revision becomes current.';
+    if (!window.confirm(message + '\nThis cannot be undone.')) return;
+    const recovery = pathWithin(path,openFile) && openVersionCtx && !openVersionCtx.flat ? Object.assign({},openVersionCtx) : null;
+    const portal = edPortal.value;
+    fileOperationBusy = true; edPortal.disabled = true; updateFileActions();
     try {
-      const q = encodeURIComponent(edPortal.value) + '&' + encodeURIComponent(path);
+      const q = encodeURIComponent(portal) + '&' + encodeURIComponent(path);
       const res = await fetch('/api/file?delete&' + q);
       const data = await res.json();
-      if (data.ok === false) {
-        say(data.stderr || 'Delete failed');
-        return;
-      }
-      if (openFile === path) {
-        openFile = null;
-        edPath.textContent = 'No file open';
-        edText.value = '';
-        edText.disabled = true;
-        setDirty(false);
-      }
-      say('Deleted ' + path);
+      if (!res.ok || data.ok === false) { say(data.stderr || 'Delete failed'); return; }
+      if (pathWithin(path,openFile)) clearContentEditor();
+      knownDirs = new Set(Array.from(knownDirs).filter(d => !pathWithin(path,d)));
+      expandedFolders = new Set(Array.from(expandedFolders).filter(d => !pathWithin(path,d)));
+      if (pathWithin(path,edCwd)) edCwd = path.slice(0,path.lastIndexOf('/')) || 'content';
       await loadFiles();
-    } catch (err) {
-      say('API unreachable');
-    }
+      if (recovery && versionedPages[recovery.page]) await openVersionedPage(recovery.page,recovery.version);
+      renderVersionBar();
+      setStatus('Deleted · rebuild portal to update the site'); say('Deleted ' + path);
+    } catch (err) { say('Delete failed: ' + err.message); }
+    finally { fileOperationBusy = false; edPortal.disabled = false; updateFileActions(); }
   }
+
+  edRename.addEventListener('click', () => startRename(currentManagedPath()));
+  edDelete.addEventListener('click', () => deleteFilePath(currentManagedPath()));
+  edRawRevisions.addEventListener('change', () => { renamingPath = null; hideFileMenu(); renderTree(); updateFileActions(); });
 
   // ---------- context menu ----------
   const fileMenu = document.createElement('div');
   fileMenu.className = 'ctx-menu';
+  fileMenu.setAttribute('role', 'menu');
   fileMenu.hidden = true;
   fileMenu.innerHTML = '<button type="button" data-act="rename">Rename</button>'
     + '<button type="button" data-act="delete" class="danger">Delete</button>';
@@ -1171,12 +1321,13 @@
   let menuPath = null;
 
   function showFileMenu(x, y, path) {
-    if (versionedPageSet.has(path)) return; // versioned pages: no raw rename/delete yet
+    if (fileOperationBusy || !canManageItem(path)) return;
     menuPath = path;
     fileMenu.hidden = false;
     const rect = fileMenu.getBoundingClientRect();
     fileMenu.style.left = Math.min(x, window.innerWidth - rect.width - 8) + 'px';
-    fileMenu.style.top = Math.min(y, window.innerHeight - rect.height - 8) + 'px';
+    fileMenu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+    fileMenu.querySelector('button').focus();
   }
 
   function hideFileMenu() {
@@ -1189,7 +1340,7 @@
     const path = menuPath;
     hideFileMenu();
     if (!act || !path) return;
-    if (act === 'rename') { renamingPath = path; renderTree(); }
+    if (act === 'rename') startRename(path);
     if (act === 'delete') deleteFilePath(path);
   });
 
@@ -1219,7 +1370,10 @@
       setDirty(false);
       // flat content page: show the version bar with the implicit default,
       // so versions can be added. Non-content files get no bar.
-      if (path.indexOf('content/') === 0 && /\.md$/i.test(path) && docConfig.versions.length) {
+      const revision = revisionContextForPath(path);
+      if (revision) {
+        openVersionCtx = revision;
+      } else if (path.indexOf('content/') === 0 && /\.md$/i.test(path) && docConfig.versions.length) {
         openVersionCtx = { page: path.replace(/\.md$/i, ''), version: docConfig.default || docConfig.versions[0], flat: true };
       } else {
         openVersionCtx = null;
@@ -1233,7 +1387,7 @@
   }
 
   async function saveFile() {
-    if (!openFile || edSave.disabled) return;
+    if (!openFile || edSave.disabled || fileOperationBusy) return;
     if (versionsActive() && effectiveSaveMode() === 'revision') { return saveNewRevision(); }
     edSave.disabled = true;
     edSave.textContent = 'Saving…';
@@ -1285,11 +1439,7 @@
     expandedFolders = new Set();
     knownDirs = new Set();
     edCwd = 'content';
-    openFile = null;
-    edPath.textContent = 'No file open';
-    edText.value = '';
-    edText.disabled = true;
-    setDirty(false);
+    clearContentEditor();
     updatePortalLink();
     loadFiles();
   });
@@ -2010,6 +2160,7 @@
       ed.dirty = v;
       dirtyEl.hidden = !v;
       saveBtn.disabled = !v || !ed.path;
+      if (opts && opts.onContentChange) opts.onContentChange(text.value, v);
     }
     function setStatus(msg, cls) {
       statusEl.textContent = msg || '';
@@ -2018,6 +2169,7 @@
 
     ed.load = async function () {
       if (!sel.value) return;
+      if (opts && opts.onContentChange) opts.onContentChange('', false);
       ed.path = getPath(sel.value);
       setStatus('loading…');
       try {
@@ -2094,7 +2246,8 @@
 
   const cfEditor = fileEditor(
     { portal: 'cf-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
-    () => 'config.yall'
+    () => 'config.yall',
+    { onContentChange: renderConfigVersionBadges }
   );
 
   // ---------- Themes panel ----------
