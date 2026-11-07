@@ -1,0 +1,23 @@
+/* Portal/theme overrides.
+
+   OPTIONAL WIDE LAYOUT (disabled by default)
+   To enable: uncomment only the CSS block below.
+   Keep these instructions commented.
+
+   The wide layout gives the center article more room on desktop screens.
+   It keeps the existing navigation, sidebars, and mobile layouts.
+   For a fluid layout, change 100rem to none in the shell rule.
+*/
+
+/*
+@media (min-width: 1200px) {
+  .sheriff-shell {
+    max-width: 100rem;
+  }
+
+  .sheriff-article {
+    max-width: none;
+    min-width: 0;
+  }
+}
+*/

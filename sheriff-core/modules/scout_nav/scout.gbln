@@ -318,14 +318,8 @@ act scout_load_routes(portal)
     return routes
 xx
 
-act scout_split_anchor(target)
-    t | :trim(target)
-    if t.nix? => return {"page": .., "anchor": ..}
-
-    page | :trim(:keep_before(t, "#")) ?? t
-    anchor | :trim(:keep_after(t, "#")) ?? ..
-
-    return {"page": page, "anchor": anchor}
+act scout_split_anchor(target, routes)
+    return rjson::split_wikilink_target(target, routes)
 xx
 
 act scout_link_info_for_wikilink(portal, raw)
@@ -338,15 +332,15 @@ act scout_link_info_for_wikilink(portal, raw)
 
     core | :keep_between(s, "[[", "]]") ?? => return scout_missing_link_info()
     target | :trim(:keep_before(core, "|")) ?? core
-    split | scout_split_anchor(target)
+    routes | scout_load_routes(portal)
+    if :valtype(routes) != "array" => return scout_missing_link_info()
+
+    split | scout_split_anchor(target, routes)
     page_name | split{"page"} ?? => return scout_missing_link_info()
     anchor | split{"anchor"} ?? ..
 
     slug | rjson::normalize_to_slug(page_name)
     if slug.nix? => return scout_missing_link_info()
-
-    routes | scout_load_routes(portal)
-    if :valtype(routes) != "array" => return scout_missing_link_info()
 
     generated_fallback | ..
 

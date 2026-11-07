@@ -521,6 +521,65 @@ act canonical_to_slug(value)
     return normalize_to_slug(raw)
 xx
 
+/// A known canonical name or alias can contain a literal #.
+act wikilink_target_exists(routes, target)
+    if target.nix? => return false
+    if :valtype(routes) != "array" => return false
+
+    slug | normalize_to_slug(target)
+    if slug.nix? => return false
+
+    for meta in routes
+        if meta.nix? => skip
+        route_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
+        if route_slug == slug => return true
+
+        aliases | meta{"aliases"} ?? []
+        if :valtype(aliases) == "array"
+            for alias in aliases
+                if normalize_to_slug(alias) == slug => return true
+            xx
+        xx
+    xx
+
+    return false
+xx
+
+/// Prefer an exact page name, then the longest known page before #section.
+/// Thus [[C#]] names C#, while [[C##syntax]] names its syntax section.
+act split_wikilink_target(text, routes)
+    if text.nix? => return {"page": .., "anchor": ..}
+    t | :trim(text)
+    if t.nix? => return {"page": .., "anchor": ..}
+    if :has(t, "#") == false => return {"page": t, "anchor": ..}
+
+    if wikilink_target_exists(routes, t)
+        return {"page": t, "anchor": ..}
+    xx
+
+    page | :trim(:keep_before(t, "#")) ?? t
+    anchor | :trim(:keep_after(t, "#")) ?? ..
+    prefix | ..
+    first | true
+
+    for part in :split(t, "#")
+        if first
+            prefix |= part
+            first |= false
+        else
+            prefix |= "{prefix}#{part}"
+        xx
+
+        if prefix == t => skip
+        if wikilink_target_exists(routes, prefix)
+            page |= :trim(prefix)
+            anchor |= :trim(:keep_after(t, "{prefix}#")) ?? ..
+        xx
+    xx
+
+    return {"page": page, "anchor": anchor}
+xx
+
 act write_missing_canonical(path, md_text, canonical_slug)
     if path.nix? => send nil
     if md_text.nix? => send nil
@@ -553,7 +612,7 @@ act canonical_conflict(canonical_slug, first_path, second_path)
     :say("TRAILBOSS: second page: {second_path}")
     :say("TRAILBOSS: change one canonical value, or move the old name into aliases if it should redirect.")
 
-    normalize_to_slug()
+    :provoke(false, "TRAILBOSS: duplicate canonical [[{canonical_slug}]]. First page: {first_path}. Second page: {second_path}. Give these pages different canonical values; use aliases for alternate names of one page.")
 xx
 
 act first_canonical_owner(rows, canonical_slug)

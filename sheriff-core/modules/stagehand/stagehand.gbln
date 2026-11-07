@@ -88,7 +88,7 @@ act copy_assets(pre_ctx)
     /// ------------------------------------------------------------
     /// Theme override.css (portal-scoped, theme-scoped)
     /// If present in portal theme folder, copy it to dist as override.css
-    /// Else ensure an empty override.css exists so layouts can always link it
+    /// Else ensure a starter override.css exists so layouts can always link it
     /// ------------------------------------------------------------
     override_src  | "../site/portals/{portal}/themes/{theme_name}/override.css"
     override_dest | "../dist/{portal}/public/css/override.css"
@@ -98,8 +98,14 @@ act copy_assets(pre_ctx)
         :say("STAGEHAND: Copied override.css from portal theme folder")
     else
         if :file_exists(override_dest) == false
-            :write_text!(override_dest, "/* portal/theme overrides */\n")
-            :say("STAGEHAND: Wrote empty override.css")
+            override_starter | "../sheriff-core/themes/override-starter.css"
+            if :file_exists(override_starter)
+                :copy_file!(override_starter, override_dest)
+                :say("STAGEHAND: Wrote starter override.css")
+            else
+                :write_text!(override_dest, "/* portal/theme overrides */\n")
+                :say("STAGEHAND: Wrote empty override.css")
+            xx
         else
             :say("STAGEHAND: override.css already exists; leaving as-is")
         xx

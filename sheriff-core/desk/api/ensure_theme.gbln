@@ -2,7 +2,7 @@
 /// /api/ensure_theme?{portal}&{theme}
 /// Makes sure the portal has the theme's files before a switch:
 /// copies templates.yall from sheriff-core if the portal lacks it,
-/// creates an empty override.css if missing.
+/// creates override.css with optional layout presets if missing.
 
 query | :trim(:env("GOBLIN_QUERY_STRING"))
 parts | :split(query, "&")
@@ -74,9 +74,14 @@ else
     xx
 
     override_dest | "{portal_theme_dir}/override.css"
+    override_starter | "{themes_dir}/override-starter.css"
 
     if :file_exists(override_dest) == false
-        :write_text!(override_dest, "/* portal/theme overrides */\n")
+        if :file_exists(override_starter)
+            :copy_file!(override_starter, override_dest)
+        else
+            :write_text!(override_dest, "/* portal/theme overrides */\n")
+        xx
     xx
 
     out | {

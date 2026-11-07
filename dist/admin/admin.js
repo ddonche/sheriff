@@ -2700,7 +2700,7 @@
   }
 
   // ============================================================
-  // Patterns panel (read-only browse + copy)
+  // Patterns panel (edit, copy templates, and reuse shared content)
   // ============================================================
   const patPortal = document.getElementById('pat-portal');
   const patList = document.getElementById('pat-list');
@@ -2709,6 +2709,8 @@
   const patTokenEl = document.getElementById('pat-token');
   const patCopyScaffold = document.getElementById('pat-copy-scaffold');
   const patCopyToken = document.getElementById('pat-copy-token');
+  const patMode = document.getElementById('pat-mode');
+  const patModeHint = document.getElementById('pat-mode-hint');
 
   const patStatus = document.getElementById('pat-status');
   const patDirty = document.getElementById('pat-dirty');
@@ -2720,19 +2722,40 @@
   let patSelected = null;
   let patDirtyFlag = false;
 
-  // "::: pattern vertical Region"  -> { orientation:'vertical', name:'Region' }
-  // "::: pattern horizontal Outrider Characters" -> name:'Outrider Characters'
+  // Modes belong to each block; legacy blocks remain reusable.
   function parsePatternHeader(body) {
     const lines = String(body || '').split(/\r?\n/);
-    for (const line of lines) {
-      const m = line.match(/^:::\s*pattern\s+(\S+)\s+(.+?)\s*$/);
-      if (m) return { orientation: m[1], name: m[2].trim() };
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^:::\s*pattern\s+(\S+)\s+(.+?)\s*$/);
+      if (!m) continue;
+      let mode = 'reusable';
+      let endIndex = i + 1;
+      for (; endIndex < lines.length; endIndex++) {
+        if (/^\s*:::\s*$/.test(lines[endIndex])) break;
+        const option = lines[endIndex].match(/^\s*@mode\s*=\s*(template|reusable)\s*$/i);
+        if (option) mode = option[1].toLowerCase();
+      }
+      return { orientation: m[1], name: m[2].trim(), mode, lineIndex: i, endIndex };
     }
     return null;
   }
 
+  function setPatternMode(body, mode) {
+    const text = String(body || '');
+    const header = parsePatternHeader(text);
+    if (!header) return text;
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
+    const lines = text.split(/\r?\n/);
+    const fields = lines.slice(header.lineIndex + 1, header.endIndex)
+      .filter(line => !/^\s*@mode\s*=/.test(line.toLowerCase()));
+    const value = mode === 'template' ? 'template' : 'reusable';
+    lines.splice(header.lineIndex + 1, header.endIndex - header.lineIndex - 1,
+      '@mode = ' + value, ...fields);
+    return lines.join(eol);
+  }
+
   function patternToken(name) {
-    const up = name.toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+    const up = name.trim().replace(/ \(pattern\)|\(pattern\)|[()]/g, '').replace(/[- ]/g, '_').toUpperCase();
     return '{{{SHERIFF::PATTERN_' + up + '}}}';
   }
 
@@ -2775,7 +2798,7 @@
       btn.type = 'button';
       btn.className = 'pat-item' + (i === patSelected ? ' active' : '');
       btn.innerHTML = '<span class="pat-item-name"></span>'
-        + (header ? '<span class="pat-item-orient">' + header.orientation + '</span>' : '');
+        + (header ? '<span class="pat-item-orient">' + (header.mode === 'template' ? 'Template' : 'Reusable') + '</span>' : '');
       btn.querySelector('.pat-item-name').textContent = name;
       btn.title = p.filename;
       btn.addEventListener('click', () => selectPattern(i));
@@ -2788,6 +2811,12 @@
     patText.disabled = true;
     patName.textContent = 'No pattern selected';
     patTokenEl.textContent = '';
+    patTokenEl.hidden = true;
+    patMode.value = 'reusable';
+    patMode.disabled = true;
+    patModeHint.textContent = 'Select a pattern to choose how it is used.';
+    patCopyScaffold.textContent = 'Copy template';
+    patCopyToken.hidden = true;
     patCopyScaffold.disabled = true;
     patCopyToken.disabled = true;
     patSave.disabled = true;
@@ -2799,6 +2828,8 @@
     patDirtyFlag = v;
     patDirty.hidden = !v;
     patSave.disabled = !v || patSelected === null;
+    const header = parsePatternHeader(patText.value);
+    patCopyToken.disabled = v || !header || header.mode !== 'reusable';
   }
 
   function setPatStatus(msg, cls) {
@@ -2823,11 +2854,29 @@
   function refreshPatternMeta() {
     const header = parsePatternHeader(patText.value);
     patName.textContent = header ? header.name : '(no pattern header)';
-    patTokenEl.textContent = header ? patternToken(header.name) : '(add ::: pattern header)';
-    patCopyToken.disabled = !header;
+    const reusable = !!header && header.mode === 'reusable';
+    patTokenEl.textContent = reusable ? patternToken(header.name) : '';
+    patTokenEl.hidden = !reusable;
+    patCopyToken.hidden = !reusable;
+    patCopyToken.disabled = !reusable || patDirtyFlag;
+    patMode.disabled = !header;
+    patMode.value = header ? header.mode : 'reusable';
+    patCopyScaffold.textContent = header && header.mode === 'template' ? 'Copy template' : 'Copy source';
+    patCopyScaffold.classList.toggle('primary', !!header && header.mode === 'template');
+    patModeHint.textContent = !header ? 'Add a pattern header to choose its mode.'
+      : reusable && patDirtyFlag ? 'Save changes before copying the reusable token.'
+      : reusable ? 'Copy the token to share this saved content across pages.'
+      : 'Copy the template into a page, then fill in its fields. No token is published.';
   }
 
   patText.addEventListener('input', () => {
+    setPatDirty(true);
+    refreshPatternMeta();
+  });
+
+  patMode.addEventListener('change', () => {
+    if (patSelected === null || !parsePatternHeader(patText.value)) return;
+    patText.value = setPatternMode(patText.value, patMode.value);
     setPatDirty(true);
     refreshPatternMeta();
   });
@@ -2852,6 +2901,7 @@
       p.body = patText.value;
       setPatStatus('✓ saved', 'ok');
       setPatDirty(false);
+      refreshPatternMeta();
       renderPatternList();
     } catch (err) {
       setPatStatus(err.message || 'API unreachable', 'err');
@@ -2890,6 +2940,9 @@
   const patnewModal = document.getElementById('patnew-modal');
   const patnewName = document.getElementById('patnew-name');
   const patnewToken = document.getElementById('patnew-token');
+  const patnewTokenRow = document.getElementById('patnew-token-row');
+  const patnewMode = document.getElementById('patnew-mode');
+  const patnewModeHint = document.getElementById('patnew-mode-hint');
   const patnewErr = document.getElementById('patnew-err');
   const patnewCreate = document.getElementById('patnew-create');
 
@@ -2900,7 +2953,8 @@
   function openPatNew() {
     if (!patPortal.value) { say('Pick a portal first'); return; }
     patnewName.value = '';
-    patnewToken.textContent = '{{{SHERIFF::PATTERN_NAME}}}';
+    patnewMode.value = 'template';
+    refreshPatNewMode();
     patnewErr.hidden = true;
     document.querySelector('input[name="patnew-orient"][value="vertical"]').checked = true;
     patnewModal.hidden = false;
@@ -2916,17 +2970,28 @@
   });
 
   patnewName.addEventListener('input', () => {
-    const name = patnewName.value.trim();
-    patnewToken.textContent = name ? patternToken(name) : '{{{SHERIFF::PATTERN_NAME}}}';
+    refreshPatNewMode();
     patnewErr.hidden = true;
   });
   patnewName.addEventListener('keydown', e => { if (e.key === 'Enter') createPattern(); });
+
+  function refreshPatNewMode() {
+    const reusable = patnewMode.value === 'reusable';
+    patnewTokenRow.hidden = !reusable;
+    const name = patnewName.value.trim();
+    patnewToken.textContent = reusable ? (name ? patternToken(name) : '{{{SHERIFF::PATTERN_NAME}}}') : '';
+    patnewModeHint.textContent = reusable
+      ? 'Fill this pattern with content that will be shared wherever its token is used.'
+      : 'Copy this template into a page and fill in the fields for that page.';
+  }
+  patnewMode.addEventListener('change', refreshPatNewMode);
 
   function patnewError(msg) { patnewErr.textContent = msg; patnewErr.hidden = false; }
 
   async function createPattern() {
     const name = patnewName.value.trim();
     const orient = document.querySelector('input[name="patnew-orient"]:checked').value;
+    const mode = patnewMode.value === 'template' ? 'template' : 'reusable';
     const slug = patFileFromName(name);
 
     if (!name) { patnewError('Give the pattern a name.'); return; }
@@ -2939,6 +3004,7 @@
 
     // Blank scaffold: header + two empty field lines to start + close.
     const body = '::: pattern ' + orient + ' ' + name + '\n'
+      + '@mode = ' + mode + '\n'
       + 'label = \n'
       + 'label = \n'
       + ':::\n';
@@ -2977,13 +3043,15 @@
 
   patCopyScaffold.addEventListener('click', () => {
     if (patSelected === null) return;
-    copyText(patItems[patSelected].body, 'Scaffold copied — paste into a page and fill it in');
+    const header = parsePatternHeader(patText.value);
+    copyText(patText.value, header && header.mode === 'template'
+      ? 'Template copied — paste into a page and fill it in' : 'Pattern source copied');
   });
 
   patCopyToken.addEventListener('click', () => {
     if (patSelected === null) return;
-    const header = parsePatternHeader(patItems[patSelected].body);
-    if (!header) { say('No pattern header to build a token from'); return; }
+    const header = parsePatternHeader(patText.value);
+    if (!header || header.mode !== 'reusable' || patDirtyFlag) return;
     copyText(patternToken(header.name), 'Token copied — paste it where the pattern should appear');
   });
 

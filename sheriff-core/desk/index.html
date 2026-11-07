@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=24">
+<link rel="stylesheet" href="/admin/admin.css?v=26">
 </head>
 <body>
 
@@ -417,9 +417,17 @@
           <div class="th-editor-col">
             <div class="pat-bar">
               <span class="pat-name" id="pat-name">No pattern selected</span>
-              <span class="pat-token" id="pat-token"></span>
-              <button class="btn small" type="button" id="pat-copy-scaffold" disabled>Copy scaffold</button>
-              <button class="btn small" type="button" id="pat-copy-token" disabled>Copy token</button>
+              <span class="pat-token" id="pat-token" hidden></span>
+              <button class="btn small" type="button" id="pat-copy-scaffold" disabled>Copy template</button>
+              <button class="btn small" type="button" id="pat-copy-token" disabled hidden>Copy token</button>
+            </div>
+            <div class="pat-options">
+              <label class="ed-label" for="pat-mode">Use as</label>
+              <select id="pat-mode" class="ed-select" aria-describedby="pat-mode-hint" disabled>
+                <option value="template">Template</option>
+                <option value="reusable">Reusable content</option>
+              </select>
+              <span class="pat-mode-hint" id="pat-mode-hint">Select a pattern to choose how it is used.</span>
             </div>
             <div class="cfg-editor th-editor">
               <textarea id="pat-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a pattern on the right to preview it, or make a new one."></textarea>
@@ -684,7 +692,13 @@
     <div class="wiz-body npm-body">
       <label class="ed-label" for="patnew-name">Pattern name</label>
       <input id="patnew-name" class="wiz-input" type="text" placeholder="Region" spellcheck="false" autocomplete="off">
-      <p class="wiz-hint">Token: <span class="mono-hint" id="patnew-token">{{{SHERIFF::PATTERN_NAME}}}</span></p>
+      <label class="ed-label" for="patnew-mode">Use as</label>
+      <select id="patnew-mode" class="ed-select" aria-describedby="patnew-mode-hint">
+        <option value="template" selected>Template</option>
+        <option value="reusable">Reusable content</option>
+      </select>
+      <p class="wiz-hint" id="patnew-mode-hint">Copy this template into a page and fill in the fields for that page.</p>
+      <p class="wiz-hint" id="patnew-token-row" hidden>Token: <span class="mono-hint" id="patnew-token"></span></p>
 
       <label class="ed-label">Orientation</label>
       <div class="patnew-orient">
@@ -766,8 +780,8 @@ leadership = [[House Andergard]]</pre>
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=7"></script>
-<script src="/admin/admin.js?v=31"></script>
+<script src="/admin/help.js?v=8"></script>
+<script src="/admin/admin.js?v=32"></script>
 <script src="/admin/interactive-editor.js?v=3"></script>
 </body>
 </html>

@@ -9,3 +9,20 @@ a.sheriff-missing-link:hover{
   color: #1e7085 !important;
   text-decoration: underline;
 }
+
+/* WIDE LAYOUT (enabled)
+   Applies on screens at least 1200 CSS pixels wide.
+   To disable, comment out the @media block below.
+   Existing mobile layouts remain unchanged.
+*/
+
+@media (min-width: 1200px) {
+  .sheriff-shell {
+    max-width: 100rem;
+  }
+
+  .sheriff-article {
+    max-width: none;
+    min-width: 0;
+  }
+}

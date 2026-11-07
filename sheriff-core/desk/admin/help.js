@@ -7,6 +7,16 @@
 
   window.DESK_HELP = {
 
+  patterns: {
+    title: 'Patterns',
+    docs: D + '/guides/patterns.html',
+    sections: [
+      { title: 'Templates', html: '<p>Choose <strong>Template</strong> for a structure you want to fill out separately on each page. Use <strong>Copy template</strong>, paste into a page, and edit the fields. Templates do not publish tokens or show a token footer.</p>' },
+      { title: 'Reusable content', html: '<p>Choose <strong>Reusable content</strong> for a filled block shared across pages. <strong>Copy token</strong> inserts the saved content wherever that token is used. Editing the saved pattern updates its uses on the next build.</p>' },
+      { title: 'Changing modes', html: '<p>Use the <strong>Use as</strong> selector and save. The setting is kept in the source, so copied templates retain it. Older saved patterns without a setting keep their reusable behavior. Inline copies without a setting follow the mode of the saved pattern.</p>' }
+    ]
+  },
+
   content: {
     title: 'Writing content',
     docs: D + '/guides/writing_docs.html',

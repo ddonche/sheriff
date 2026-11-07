@@ -174,7 +174,7 @@ This also makes them easy for Sheriff Desk to search, preview, and copy later.
 
 ## Sheriff Tokens
 
-Every pattern file is automatically registered as a Sheriff token.
+Reusable patterns are registered as Sheriff tokens. Template patterns are not. Existing blocks without a mode setting remain reusable.
 
 For example, this file:
 
@@ -191,6 +191,29 @@ registers this token:
 You can put that token into a content page to inject the pattern.
 
 The token name is uppercase and based on the pattern name.
+
+---
+
+## Template And Reusable Modes
+
+Choose **Template** in Sheriff Desk for an infobox structure that should be filled out separately on each page. Use **Copy template**, paste the source into a page, and edit its fields. Templates do not register tokens or show the token footer, even after their page-specific fields are filled in.
+
+Choose **Reusable content** for a filled block that should stay the same wherever it is used. Use **Copy token** to insert the saved content. Changes to that saved pattern reach its uses on the next build.
+
+New blank patterns in Desk default to Template. Existing patterns keep reusable behavior until you change their mode. Older inline copies without their own mode setting follow the saved pattern's mode, so switching a saved pattern to Template also hides their token footers. An explicit mode inside a copied block takes precedence. The **Use as** selector changes only the mode; your field names and values are preserved. Save the change before rebuilding the site.
+
+The setting travels with copied source as a reserved metadata line:
+
+```md
+::: pattern vertical Region
+@mode = template
+_image =
+government =
+leadership =
+:::
+```
+
+Use `@mode = reusable` to explicitly enable a shared token. Omitting the line keeps the legacy reusable behavior. The `@mode` line is metadata and never appears as an infobox field. A file containing multiple blocks can set each block's mode independently.
 
 ---
 

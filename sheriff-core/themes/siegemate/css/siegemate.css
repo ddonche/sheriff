@@ -105,7 +105,6 @@ body {
 a[href^="http://"],
 a[href^="https://"] {
   position: relative;
-  padding-right: 0.75em;
 }
 
 a[href^="http://"]::after,

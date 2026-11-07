@@ -90,6 +90,37 @@ The rendered copyable link still appears as:
 
 ---
 
+## Names With Punctuation
+
+Canonical names can retain punctuation such as `#`, `+`, and `/`. They do not need to match the filename or URL.
+
+| Frontmatter canonical | Example filename | Wikilink |
+|---|---|---|
+| `canonical: C#` | `csharp.md` | `[[C#]]` |
+| `canonical: F#` | `fsharp.md` | `[[F#]]` |
+| `canonical: C++` | `cpp.md` | `[[C++]]` |
+| `canonical: PL/I` | `pl_i.md` | `[[PL/I]]` |
+
+Sheriff looks up a complete canonical name or alias before interpreting `#` as a section separator. A known page named `C#` therefore takes precedence over treating the link as page `C` with a fragment.
+
+For a section on a page whose name ends in `#`, add a second `#`:
+
+```md
+[[C##syntax-example]]
+[[F##references]]
+```
+
+Normal section links such as `[[House Andergard#history]]` keep their existing meaning. If several known page names share a prefix containing `#`, Sheriff uses the longest matching page name before the section separator.
+
+When changing a canonical name, keep the previous name in `aliases` if existing links still use it:
+
+```yall
+canonical: C#
+aliases: [csharp]
+```
+
+---
+
 ## Automatic Canonicals
 
 If a page does not have a `canonical` field, Sheriff creates one during the build.

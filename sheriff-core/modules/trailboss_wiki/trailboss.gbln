@@ -648,14 +648,12 @@ act normalize_to_slug(page)
     return slug
 xx
 
-act split_anchor(text)
-    t | s_trim(text)
-    if t.nix? => send {"page": .., "anchor": ..}
-
-    page   | s_trim(:keep_before(t, "#")) ?? t
-    anchor | s_trim(:keep_after(t, "#")) ?? ..
-
-    return {"page": page, "anchor": anchor}
+act split_anchor(text, ctx, portal)
+    routes | []
+    if !text.nix? and :has(text, "#")
+        routes |= load_routes_for_portal(ctx, portal)
+    xx
+    return rjson::split_wikilink_target(text, routes)
 xx
 
 act derive_portal_root_from_ctx(ctx, portal)
@@ -1087,7 +1085,7 @@ act resolve_wikilink(inner, ctx, portal)
             if portal_name.nix? => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
             if rest.nix?        => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
 
-            parts  | split_anchor(rest)
+            parts  | split_anchor(rest, ctx, portal_name)
             page   | parts{"page"}
             anchor | parts{"anchor"}
 
@@ -1118,7 +1116,7 @@ act resolve_wikilink(inner, ctx, portal)
             send build_wikilink_html("/users/{username}", display_label, false, "sheriff-link", ..)
 
         else:
-            parts  | split_anchor(link_part)
+            parts  | split_anchor(link_part, ctx, portal)
             page   | parts{"page"}
             anchor | parts{"anchor"}
 
@@ -1229,10 +1227,10 @@ act sweep_wikilinks(wl)
                         xx
 
                         target_portal |= portal_name
-                        parts         |= split_anchor(rest)
+                        parts         |= split_anchor(rest, ctx, portal_name)
                         target_text   |= parts{"page"}
                     else
-                        parts       |= split_anchor(link_part)
+                        parts       |= split_anchor(link_part, ctx, portal)
                         target_text |= parts{"page"}
                     xx
 
@@ -1293,11 +1291,11 @@ act sweep_wikilinks(wl)
                             backlink_ok |= false
                         else
                             target_portal |= portal_name
-                            parts         |= split_anchor(rest)
+                            parts         |= split_anchor(rest, ctx, portal_name)
                             target_text   |= parts{"page"}
                         xx
                     elif backlink_ok
-                        parts       |= split_anchor(link_part)
+                        parts       |= split_anchor(link_part, ctx, portal)
                         target_text |= parts{"page"}
                     xx
 

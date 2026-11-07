@@ -404,11 +404,14 @@ act do_create(query)
             :copy_file!(theme_templates_src, "{root}/themes/{theme_name}/templates.yall")
         xx
 
-        :write_text!(
-        "{root}/themes/{theme_name}/override.css",
-        """/* portal/theme overrides */
-    """
-        )
+        override_dest | "{root}/themes/{theme_name}/override.css"
+        override_starter | "{root_base}/sheriff-core/themes/override-starter.css"
+
+        if :file_exists(override_starter)
+            :copy_file!(override_starter, override_dest)
+        else
+            :write_text!(override_dest, "/* portal/theme overrides */\n")
+        xx
 
         logo_src    | "{root_base}/site/portals/sheriff/public/logo.png"
         favicon_src | "{root_base}/site/portals/sheriff/public/favicon.ico"

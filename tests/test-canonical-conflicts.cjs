@@ -1,0 +1,40 @@
+// Isolated routing checks; never builds a site or reads portal content.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const {spawnSync} = require('node:child_process');
+const root = path.resolve(__dirname, '..');
+const tempRoot = path.resolve(os.tmpdir());
+const fixture = fs.mkdtempSync(path.join(tempRoot, 'sheriff-canonical-conflicts-'));
+const modulePath = path.join(fixture, 'modules/trailboss_wiki/routes_json.gbln');
+fs.mkdirSync(path.dirname(modulePath), {recursive:true});
+fs.copyFileSync(path.join(root, 'sheriff-core/modules/trailboss_wiki/routes_json.gbln'), modulePath);
+function run(name, source) {
+  fs.writeFileSync(path.join(fixture, name), 'import modules/trailboss_wiki/routes_json as routes\n' + source);
+  const result = spawnSync('goblin', ['run', name], {cwd:fixture, encoding:'utf8', timeout:30000});
+  if (result.error) throw result.error;
+  return result;
+}
+const conflict = run('conflict.gbln', 'routes::canonical_conflict("shared-canonical", "content/first.md", "content/second.md")\n:say("UNEXPECTED_CONTINUATION")\n');
+const output = conflict.stdout + conflict.stderr;
+assert.equal(conflict.status, 1, output);
+for (const expected of ['duplicate canonical [[shared-canonical]]', 'content/first.md', 'content/second.md', 'different canonical values']) assert(output.includes(expected), output);
+assert(!output.includes('UNEXPECTED_CONTINUATION'), output);
+assert(!/arity|normalize_to_slug/i.test(output), output);
+const slugs = run('slugs.gbln', 'for name in ["C#", "F#", "C++", "PL/I", "Hello World"]\n    :say("SLUG_CHECK " + routes::canonical_to_slug(name))\nxx\n');
+assert.equal(slugs.status, 0, slugs.stdout + slugs.stderr);
+assert.deepEqual(slugs.stdout.split(/\r?\n/).filter(line => line.startsWith('SLUG_CHECK ')), ['SLUG_CHECK c#', 'SLUG_CHECK f#', 'SLUG_CHECK c++', 'SLUG_CHECK pl/i', 'SLUG_CHECK hello-world']);
+const desk = run('desk.gbln', 'result | :run_cmd("goblin run conflict.gbln", ".")\n:say("DESK_CHECK " + result)\n');
+assert.equal(desk.status, 0, desk.stdout + desk.stderr);
+const deskLine = desk.stdout.split(/\r?\n/).find(line => line.startsWith('DESK_CHECK '));
+assert(deskLine, desk.stdout);
+const captured = JSON.parse(deskLine.slice('DESK_CHECK '.length));
+assert.equal(captured.ok, false, deskLine);
+assert.equal(captured.code, 1, deskLine);
+for (const expected of ['shared-canonical', 'content/first.md', 'content/second.md']) assert(captured.stderr.includes(expected), deskLine);
+const resolved = path.resolve(fixture);
+assert.equal(path.dirname(resolved), tempRoot);
+assert(path.basename(resolved).startsWith('sheriff-canonical-conflicts-'));
+fs.rmSync(resolved, {recursive:true, force:true});
+console.log('Passed canonical-conflict diagnostics, nonzero exit, Desk error capture, and punctuation-preservation checks. No site builds run.');

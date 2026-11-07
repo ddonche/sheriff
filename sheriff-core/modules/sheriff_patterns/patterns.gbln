@@ -12,7 +12,8 @@
 /// leadership = [[House Andergard]]
 /// :::
 ///
-/// Each pattern registers a SHERIFF token:
+/// Reusable patterns register a SHERIFF token. Add @mode = template to a
+/// block to make an editable template without a token or token footer.
 ///   {{{SHERIFF::PATTERN_REGION}}}
 
 act s_trim(v)
@@ -68,6 +69,25 @@ act canonical_token_html(token_name)
     return "<code>&#123;&#123;&#123;SHERIFF::{safe}&#125;&#125;&#125;</code>"
 xx
 
+act explicit_pattern_mode(raw_fields)
+    mode | ..
+    for line in :split(raw_fields ?? .., "\n")
+        t | s_trim(line) ?? => skip
+        label | s_trim(:keep_before(t, "=")) ?? => skip
+        if :lower(label) != "@mode" => skip
+        value | s_trim(:keep_after(t, "=")) ?? => skip
+        value |= :lower(value)
+        if value == "template" or value == "reusable"
+            mode |= value
+        xx
+    xx
+    return mode
+xx
+
+act pattern_mode(raw_fields)
+    return explicit_pattern_mode(raw_fields) ?? "reusable"
+xx
+
 act render_pattern_block(orientation, name, raw_fields)
     if name.nix? => send ..
 
@@ -84,7 +104,18 @@ act render_pattern_block(orientation, name, raw_fields)
     token_slug | pattern_slug(name_clean)
     token_name | "PATTERN_{token_slug}"
 
-    token_html | canonical_token_html(token_name)
+    mode | explicit_pattern_mode(raw_fields)
+    if mode.nix?
+        mode_key | "\{\{\{SHERIFF_PATTERN_MODE::{token_slug}\}\}\}"
+        registered_mode | resolve_token(mode_key)
+        mode |= "reusable"
+        if registered_mode == "template" => mode |= "template"
+    xx
+    token_footer | ..
+    if mode == "reusable"
+        token_html | canonical_token_html(token_name)
+        token_footer |= "<div class=\"sheriff-pattern-canonical\">{token_html}</div>"
+    xx
 
     rows | []
     fields_text | raw_fields ?? ..
@@ -100,6 +131,7 @@ act render_pattern_block(orientation, name, raw_fields)
         value | s_trim(:keep_after(t, "=")) ?? ..
 
         if label.nix? => skip
+        if :lower(label) == "@mode" => skip
 
         wide_row | false
         image_row | false
@@ -159,11 +191,11 @@ act render_pattern_block(orientation, name, raw_fields)
     rows_html | :join(rows, "\n")
 
     return """
-<aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}">
+<aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}" data-pattern-mode="{mode}">
   <dl class="sheriff-pattern-fields">
 {rows_html}
   </dl>
-  <div class="sheriff-pattern-canonical">{token_html}</div>
+  {token_footer}
 </aside>
 """
 xx
@@ -237,6 +269,10 @@ act publish_patterns(pre_ctx)
 
     portal | pre_ctx{"portal"} ?? => send pre_ctx
 
+    /// This namespace belongs to portal-local patterns; do not retain old tokens.
+    :clear_tokens("SHERIFF")
+    :clear_tokens("SHERIFF_PATTERN_MODE")
+
     patterns_dir | "../site/portals/{portal}/patterns"
     if :file_exists(patterns_dir) == false
         :create_dir!(patterns_dir)
@@ -259,8 +295,14 @@ act publish_patterns(pre_ctx)
                 name | s_trim(:keep_after(header, " ")) ?? ..
                 if name.nix? => skip
 
+                inner | :keep_after(block, "\n") ?? ..
+                inner |= :keep_before(inner, "\n:::") ?? :keep_before(inner, ":::") ?? ..
                 token_slug | pattern_slug(name)
                 if token_slug.nix? => skip
+
+                mode | pattern_mode(inner)
+                register_token("SHERIFF_PATTERN_MODE", token_slug, mode)
+                if mode == "template" => skip
 
                 token_name | "PATTERN_{token_slug}"
                 html | render_patterns_in_text(block)
