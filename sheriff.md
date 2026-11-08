@@ -245,7 +245,7 @@ A portal defines its build steps in events.yall:
 
 pre:
   - "stagehand::copy_assets"
-  - "trailboss::build_routes_once"
+  - "trailboss::build_routes"
 
 schedule:
   - "frontier::strip_frontmatter"
@@ -638,7 +638,7 @@ Check out [[Installation]] and [[Configuration]].
 Pre-Build (Once Per Portal)
 pre:
   - "stagehand::copy_assets"
-  - "trailboss::build_routes_once"
+  - "trailboss::build_routes"
 
 
 1. stagehand::copy_assets
@@ -647,7 +647,7 @@ Copies public/ directory (logo, favicon, images)
 
 Copies CSS files from chosen theme to dist/public/css/
 
-2. trailboss::build_routes_once
+2. trailboss::build_routes
 
 Scans all content files
 

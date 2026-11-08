@@ -1,0 +1,41 @@
+/// Desk snapshots operate only on portal source and data/snapshots.
+/// No build runs here; after restore the Desk client uses the existing build API.
+act value(raw, key)
+    for part in :split(raw, "&")
+        if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
+    xx
+    return ""
+xx
+
+act handle()
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query, "&") ?? query
+    method | :env("GOBLIN_METHOD")
+    if verb != "list" and verb != "download" and verb != "create" and verb != "restore" and verb != "delete"
+        return {"ok": false, "stderr": "Unknown snapshot verb."}
+    xx
+    if (verb == "create" or verb == "restore" or verb == "delete") and method != "POST"
+        return {"ok": false, "stderr": "This snapshot verb requires POST."}
+    xx
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix? => root |= ".."
+    body | :env("GOBLIN_BODY")
+    request_file | :env("GOBLIN_REQUEST_FILE")
+    if body.nix? and !request_file.nix? and :file_exists(request_file) => body |= :read_text(request_file)
+    env | {"SHERIFF_SNAPSHOT_ROOT": ".", "SHERIFF_SNAPSHOT_ACTION": verb, "SHERIFF_SNAPSHOT_PORTAL": value(query, "portal"), "SHERIFF_SNAPSHOT_ID": value(query, "id"), "SHERIFF_SNAPSHOT_BODY": body, "PYTHONIOENCODING": "utf-8"}
+    command | "python3 sheriff-core/desk/api/snapshot-support/snapshots.py"
+    if :env("OS") == "Windows_NT"
+        command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File sheriff-core/desk/api/snapshot-support/snapshots.ps1"
+    xx
+    attempt
+        result | :json_parse(:run_cmd(command, root, env))
+        if result{"ok"} == false
+            return {"ok": false, "stderr": result{"stderr"} ?? "Snapshot helper could not start. Windows uses PowerShell; macOS/Linux require Python 3."}
+        xx
+        return :json_parse(result{"stdout"})
+    rescue
+        return {"ok": false, "stderr": "Snapshot operation could not complete. Check the workspace path and ZIP helper runtime."}
+    end
+xx
+
+:say(:json_stringify(handle()))

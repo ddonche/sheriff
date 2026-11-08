@@ -7,6 +7,16 @@
 
   window.DESK_HELP = {
 
+  snapshots: {
+    title: 'Snapshots',
+    sections: [
+      { title: 'Save a point', html: '<p>Choose a portal and click <strong>Save snapshot</strong>. Give it an optional name. Desk ZIPs the entire saved portal source, including content, assets, patterns, configuration, and portal-local module settings. Unsaved editor changes are not included.</p>' },
+      { title: 'Keep and export', html: '<p>Keep as many snapshots as your storage allows. Each shows its name, date, time, and size. <strong>Download ZIP</strong> exports a copy; <strong>Delete</strong> removes the saved ZIP.</p>' },
+      { title: 'Restore', html: '<p><strong>Restore</strong> replaces the selected portal source with the snapshot and rebuilds that portal. Changes made since the snapshot are discarded. Desk confirms before restoring and reports restore and build results separately. Other portals and Sheriff Core are left intact.</p>' },
+      { title: 'Storage', html: '<p>Snapshots live outside portal directories, under <code>data/snapshots</code>, so they are never included in another snapshot or removed by a site build. Snapshot-only portals appear in the picker so you can restore a deleted portal. Modules can recommend taking a snapshot; Desk does not decide when one is needed.</p>' }
+    ]
+  },
+
   patterns: {
     title: 'Patterns',
     docs: D + '/guides/patterns.html',
@@ -21,6 +31,7 @@
     title: 'Writing content',
     docs: D + '/guides/writing_docs.html',
     sections: [
+      { title: 'Active portal', html: '<p>The portal name and logo in the Desk header show which site you are working on. All panel portal pickers share that selection. Choose a portal once and keep working across Content, Media, Interactive, Patterns, Navigation, Config, and Themes.</p><p>Desk remembers the selection after a refresh. Switching portals checks for unsaved edits across panels; canceling keeps your current portal and edits.</p>' },
       { title: 'Content tabs', html: '<p>Group sections inside one <code>::: tabs</code> fence. Start each panel with <code>@tab Your label</code>, and close the group with <code>:::</code>.</p><pre>::: tabs\n\n@tab ALGOL 58\nContent for ALGOL 58.\n\n@tab ALGOL 60\nContent for ALGOL 60.\n\n:::</pre><p>Panels support normal Markdown, code examples, wikilinks, patterns, and badges. Each group switches independently. The first tab opens by default. Use the arrow keys, Home, and End to move between tabs. Without JavaScript, every panel stays visible.</p>' },
       { title: 'Inline version badges', html: '<p>Every label in <code>documentation.versions</code> has a badge token: for example, <code>{{{SHERIFF::v1.0.0}}}</code>. Use <strong>Copy badge token</strong> in the Content version bar, or open <strong>Config → Version badge tokens</strong>. Paste it beside regular text, a heading, or inside a table.</p><p>The badge uses a tag icon and the exact version label. A separate page version is not required. Tokens inside code examples stay literal.</p>' },
       { title: 'Rename and delete', html: '<p>Use the <strong>⋯</strong> button beside a file or folder, or right-click its row, to rename or delete it. The editor toolbar also has Rename and Delete for the open page. Renaming a versioned page moves all its versions and revisions together. Deleting a page or folder removes everything inside it after confirmation.</p><p>Renaming keeps page content and its canonical name. Filename-based URLs change; rebuild the portal and update any direct links or navigation paths that use the old filename.</p>' },

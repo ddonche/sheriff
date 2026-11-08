@@ -17,6 +17,7 @@
   var wired = false;
   var portals = [], PORT = "5173";
   var els = {};
+  var saving = false;
   var S = null; // { portal, imagePath, sidecarPath, model, sel, fit, ox, oy, dirty, icons }
   var IMG_EXT = { png:1, jpg:1, jpeg:1, gif:1, webp:1, svg:1, avif:1 };
   var ICON_ROOT = "public/images/icons";
@@ -30,6 +31,12 @@
   function portalUrl(sub){ return "http://" + S.portal + ".localhost:" + PORT + "/" + sub; }
 
   // ---------- API ----------
+  function mutation(url, options){
+    var release = window.SheriffPortalContext ? window.SheriffPortalContext.lock() : function(){};
+    return fetch(url, options).then(function(response){
+      return response.clone().arrayBuffer().then(function(){ release(); return response; }, function(error){ release(); throw error; });
+    }, function(error){ release(); throw error; });
+  }
   function apiList(portal){
     return fetch("/api/file?list&" + encodeURIComponent(portal), {cache:"no-store"})
       .then(function(r){return r.json();}).catch(function(){return {ok:false};});
@@ -41,22 +48,22 @@
   }
   function apiWrite(portal, path, content){
     var q = "portal="+encodeURIComponent(portal)+"&path="+encodeURIComponent(path);
-    return fetch("/api/file?write&"+q,{method:"POST",body:content})
+    return mutation("/api/file?write&"+q,{method:"POST",body:content})
       .then(function(r){return r.json();}).catch(function(){return {ok:false,stderr:"API unreachable"};});
   }
   function apiUpload(portal, path, file){
     var q = "portal="+encodeURIComponent(portal)+"&path="+encodeURIComponent(path);
-    return fetch("/api/file?upload&"+q,{method:"POST",body:file})
+    return mutation("/api/file?upload&"+q,{method:"POST",body:file})
       .then(function(r){return r.json();}).catch(function(){return {ok:false};});
   }
   function apiDelete(portal, path){
     var q = encodeURIComponent(portal)+"&"+encodeURIComponent(path);
-    return fetch("/api/file?delete&"+q)
+    return mutation("/api/file?delete&"+q)
       .then(function(r){return r.json();}).catch(function(){return {ok:false};});
   }
   function apiMkdir(portal, path){
     var q = encodeURIComponent(portal)+"&"+encodeURIComponent(path);
-    return fetch("/api/file?mkdir&"+q)
+    return mutation("/api/file?mkdir&"+q)
       .then(function(r){return r.json();}).catch(function(){return {ok:false};});
   }
 
@@ -72,7 +79,8 @@
         els.portal.appendChild(o);
       });
     }
-    if (els.portal.value) loadPortal();
+    if (window.SheriffPortalContext) window.SheriffPortalContext.mount(els.portal);
+    if (els.portal.value && (!S || S.portal !== els.portal.value)) loadPortal();
   }
 
   function cacheEls(){
@@ -150,7 +158,9 @@
     resetCanvas();
     status("");
     if (!S.portal) return;
-    apiList(S.portal).then(function(data){
+    var state = S;
+    apiList(state.portal).then(function(data){
+      if (S !== state) return;
       var files = (data && Array.isArray(data.files)) ? data.files.map(String) : [];
       var dirs  = (data && Array.isArray(data.dirs))  ? data.dirs.map(String)  : [];
       // images to annotate: public/images/*, excluding the icons tree and sidecars
@@ -188,7 +198,9 @@
 
   function reloadIcons(){
     if (!S) return;
-    apiList(S.portal).then(function(data){
+    var state = S;
+    apiList(state.portal).then(function(data){
+      if (S !== state) return;
       var files = (data && Array.isArray(data.files)) ? data.files.map(String) : [];
       var dirs  = (data && Array.isArray(data.dirs))  ? data.dirs.map(String)  : [];
       computeIcons(files, dirs);
@@ -320,9 +332,12 @@
     els.img.src = portalUrl(path);
     status("Loading\u2026");
 
+    var state = S, imagePath = path;
     var probe = new Image();
     probe.onload = function(){
-      apiRead(S.portal, S.sidecarPath).then(function(res){
+      if (S !== state || S.imagePath !== imagePath) return;
+      apiRead(state.portal, state.sidecarPath).then(function(res){
+        if (S !== state || S.imagePath !== imagePath) return;
         var model = null;
         if (res && res.ok && res.content){
           try { model = JSON.parse(res.content); } catch(e){ model = null; }
@@ -337,6 +352,7 @@
       });
     };
     probe.onerror = function(){
+      if (S !== state || S.imagePath !== imagePath) return;
       S.model = { version:1, image:{width:0,height:0}, markers:[] };
       status("Could not load image \u2014 build the portal first?");
       els.save.disabled = false;
@@ -425,6 +441,7 @@
   // ---------- selection / inspector ----------
   function selMarker(){ return (S && S.sel!=null) ? S.model.markers[S.sel] : null; }
   function select(i){
+    if (!S) { els.inspEmpty.hidden = true; els.inspFields.hidden = true; return; }
     S.sel = (i==null) ? null : i;
     renderMarkers();
     var mk = selMarker();
@@ -465,13 +482,25 @@
   function save(){
     if (!S || !S.imagePath) return;
     status("Saving\u2026");
+    saving = true;
     els.save.disabled = true;
     apiWrite(S.portal, S.sidecarPath, serialize()).then(function(res){
+      saving = false;
       els.save.disabled = false;
       if (res && res.ok !== false){ S.dirty = false; status("Saved \u2014 portal rebuilt"); }
       else status((res && res.stderr) || "Save failed");
     });
   }
 
-  window.SheriffInteractive = { enter: enter };
+  function reset(){
+    if (!wired) { S = null; return; }
+    S = null; els.save.disabled = true;
+    resetCanvas();
+    els.image.innerHTML = '<option value="">Choose an image\u2026</option>';
+    els.iconList.innerHTML = ''; els.iconCrumbs.innerHTML = ''; status('');
+  }
+  window.SheriffInteractive = { enter: enter, reset: reset,
+    isDirty: function(){ return !!(S && S.dirty); },
+    isSaving: function(){ return saving; } };
+  if (location.hash === "#interactive" && window.SheriffPortalContext) enter(window.SheriffPortalContext.portals, location.port || "5173");
 })();

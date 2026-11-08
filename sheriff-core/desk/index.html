@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=28">
+<link rel="stylesheet" href="/admin/admin.css?v=31">
 </head>
 <body>
 
@@ -31,8 +31,9 @@
 
   <!-- header -->
   <header>
+    <select id="desk-portal" data-portal-select data-portal-primary aria-label="Active portal"></select>
     <span class="env-tag">LOCAL ADMIN</span>
-    <span class="header-host">localhost:5173</span>
+
     <div class="header-actions">
       <a class="btn ghost" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -84,6 +85,10 @@
     <a href="#config" data-view="config">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
       Config
+    </a>
+    <a href="#snapshots" data-view="snapshots">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v11h14V9M10 13h4"/></svg>
+      Snapshots
     </a>
     <div class="nav-label">Deploy</div>
     <a href="#cloud" data-view="cloud">
@@ -226,7 +231,7 @@
 
         <aside class="editor-side">
           <label class="ed-label" for="ed-portal">Portal</label>
-          <select id="ed-portal" class="ed-select"></select>
+          <select id="ed-portal" data-portal-select class="ed-select"></select>
 
           <input id="ed-filter" class="ed-filter" type="text" placeholder="Filter files…" spellcheck="false">
           <label class="ed-revision-toggle"><input id="ed-raw-revisions" type="checkbox"> Show revision files</label>
@@ -298,6 +303,20 @@
       </template>
     </section>
 
+    <!-- ============ SNAPSHOTS VIEW ============ -->
+    <section class="view" id="view-snapshots" hidden>
+      <div class="snapshot-view">
+        <div class="snapshot-heading"><div><h1>Snapshots</h1><p>Save a point you can return to.</p></div><button class="btn primary" id="ss-create" type="button">+ Save snapshot</button></div>
+        <div class="snapshot-toolbar"><div><label for="ss-portal">Portal</label><select id="ss-portal" class="ed-select" data-portal-select></select></div><div class="snapshot-total" id="ss-total"></div><button class="btn small" id="ss-refresh" type="button">Refresh</button><button class="help-btn" type="button" data-help="snapshots" title="Snapshot help">?</button></div>
+        <p class="snapshot-archived" id="ss-archived" hidden>This portal only has snapshots. Restore one to recreate its source.</p>
+        <p class="snapshot-status" id="ss-status" role="status" aria-live="polite"></p>
+        <div class="snapshot-table-wrap" id="ss-table"><table class="snapshot-table"><thead><tr><th scope="col">Name</th><th scope="col">Date and time</th><th scope="col">Size</th><th scope="col" class="snapshot-actions-head">Actions</th></tr></thead><tbody id="ss-rows"></tbody></table></div>
+        <div class="snapshot-empty" id="ss-empty" hidden><h2>No snapshots yet</h2><p>Save your first snapshot of this portal.</p><button class="btn primary" id="ss-first" type="button">Save snapshot</button></div>
+        <p class="snapshot-footer">Each snapshot includes all saved source files and assets in the selected portal.</p>
+        <details class="snapshot-build-log" id="ss-build-log" hidden><summary>Build output</summary><pre id="ss-build-output"></pre></details>
+      </div>
+    </section>
+
     <!-- ============ MEDIA VIEW ============ -->
     <section class="view" id="view-media" hidden>
       <div class="media-wrap">
@@ -307,7 +326,7 @@
           <div class="media-controls">
             <div class="media-field">
               <label class="ed-label" for="md-portal">Portal</label>
-              <select id="md-portal" class="ed-select"></select>
+              <select id="md-portal" data-portal-select class="ed-select"></select>
             </div>
             <div class="media-field grow">
               <label class="ed-label" for="md-folder">Upload to</label>
@@ -357,7 +376,7 @@
           <div class="media-controls">
             <div class="media-field">
               <label class="ed-label" for="ii-portal">Portal</label>
-              <select id="ii-portal" class="ed-select"></select>
+              <select id="ii-portal" data-portal-select class="ed-select"></select>
             </div>
             <div class="media-field grow">
               <label class="ed-label" for="ii-image">Image</label>
@@ -445,7 +464,7 @@
 
           <aside class="th-side">
             <label class="ed-label" for="pat-portal">Portal</label>
-            <select id="pat-portal" class="ed-select"></select>
+            <select id="pat-portal" data-portal-select class="ed-select"></select>
             <div class="pat-list" id="pat-list">
               <div class="tree-msg">Pick a portal.</div>
             </div>
@@ -463,7 +482,7 @@
         <div class="cfg-bar">
           <div class="media-field">
             <label class="ed-label" for="nv-portal">Portal</label>
-            <select id="nv-portal" class="ed-select"></select>
+            <select id="nv-portal" data-portal-select class="ed-select"></select>
           </div>
         </div>
         <div class="cfg-editor">
@@ -498,7 +517,7 @@
 
           <aside class="th-side">
             <label class="ed-label" for="th-portal">Portal</label>
-            <select id="th-portal" class="ed-select"></select>
+            <select id="th-portal" data-portal-select class="ed-select"></select>
             <div class="theme-cards" id="th-cards">
               <div class="tree-msg">Pick a portal.</div>
             </div>
@@ -516,7 +535,7 @@
         <div class="cfg-bar">
           <div class="media-field">
             <label class="ed-label" for="cf-portal">Portal</label>
-            <select id="cf-portal" class="ed-select"></select>
+            <select id="cf-portal" data-portal-select class="ed-select"></select>
           </div>
         </div>
         <details class="cfg-version-badges" id="cf-version-badges" hidden>
@@ -786,10 +805,14 @@ leadership = [[House Andergard]]</pre>
   </div>
 </div>
 
+<dialog class="snapshot-dialog" id="ss-dialog" aria-labelledby="ss-dialog-title"><form id="ss-form"><h2 id="ss-dialog-title"></h2><div id="ss-dialog-body"></div><div class="actions"><button class="btn" id="ss-cancel" type="button">Cancel</button><button class="btn primary" id="ss-confirm" type="submit"></button></div></form></dialog>
+
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=11"></script>
-<script src="/admin/admin.js?v=34"></script>
-<script src="/admin/interactive-editor.js?v=3"></script>
+<script src="/admin/help.js?v=13"></script>
+<script src="/admin/portal-context.js?v=2"></script>
+<script src="/admin/admin.js?v=36"></script>
+<script src="/admin/interactive-editor.js?v=4"></script>
+<script src="/admin/snapshots.js?v=1"></script>
 </body>
 </html>

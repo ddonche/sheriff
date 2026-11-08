@@ -53,15 +53,15 @@ xx
 /// 1) ROUTE JSON GENERATION (ONE routes.json PER PORTAL)
 /// ======================================================================
 
-act build_routes_once(pre_ctx)
+act build_routes(pre_ctx)
     if pre_ctx.nix?
-        :say("TRAILBOSS.build_routes_once: pre_ctx is nix; skipping routes.json.")
+        :say("TRAILBOSS.build_routes: pre_ctx is nix; skipping routes.json.")
         send pre_ctx
     xx
 
     portal | pre_ctx{"portal"}
     if portal.nix?
-        :say("TRAILBOSS.build_routes_once: portal missing; skipping routes.json.")
+        :say("TRAILBOSS.build_routes: portal missing; skipping routes.json.")
         send pre_ctx
     xx
 

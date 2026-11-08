@@ -6,6 +6,46 @@
   'use strict';
 
   const PORT = location.port || '5173';
+  const portalContext = window.SheriffPortalContext;
+
+  // Keep the portal stable until a mutating API response has finished arriving.
+  async function fetch(input, options) {
+    const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+    const mutation = /^\/api\/(build|ensure_theme|portal)(?:$|\?)/.test(url.pathname + url.search)
+      || (url.pathname === '/api/file' && /^\?(write|delete|move|upload|mkdir)(?:&|$)/.test(url.search));
+    const release = mutation ? portalContext.lock() : null;
+    try {
+      const response = await window.fetch(input, options);
+      if (release) await response.clone().arrayBuffer();
+      return response;
+    } finally { if (release) release(); }
+  }
+
+  const identityRequests = new Map();
+  async function loadPortalIdentity(portal) {
+    if (!portal) return;
+    const request = (identityRequests.get(portal) || 0) + 1;
+    identityRequests.set(portal, request);
+    try {
+      const response = await fetch('/api/file?read&portal=' + encodeURIComponent(portal) + '&path=config.yall', {cache:'no-store'});
+      const data = await apiJson(response);
+      if (identityRequests.get(portal) !== request || data.ok === false) return;
+      const text = String(data.content || '');
+      const scalar = value => String(value || '').trim().replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/, (_, a, b) => a === undefined ? b : a);
+      const name = text.match(/^name:\s*(.+)$/m);
+      const theme = text.match(/^theme:[ \t]*\r?\n((?:[ \t]+[^\n]*\n|[ \t]*\n)*)/m);
+      const logo = theme && theme[1].match(/^[ \t]+logo:[ \t]*(.+)$/m);
+      let path = scalar(logo && logo[1]) || 'logo.png';
+      path = path.replace(/^\/?public\//, '').replace(/^\/+/, '');
+      if (path.includes('..') || /[\\:]/.test(path)) path = 'logo.png';
+      const url = new URL('http://' + portal + '.localhost:' + PORT + '/public/' + path);
+      portalContext.setMetadata(portal, {name:scalar(name && name[1]) || portal, logo:url.href});
+    } catch (_) { /* The shared picker keeps a readable name/initials fallback. */ }
+  }
+
+  function isCurrentPortal(portal, revision) {
+    return portalContext.current === portal && portalContext.revision === revision;
+  }
 
   // ---------- toast ----------
   const toast = document.getElementById('toast');
@@ -50,8 +90,9 @@
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
     config:     { el: 'view-config' },
+    snapshots:  { el: 'view-snapshots' },
     cloud:      { el: 'view-placeholder', title: 'Cloud Sync',
-                  text: 'Sheriff Cloud sync isn\u2019t built yet. Push, pull, and backups land here.' },
+                  text: 'Sheriff Cloud sync isn\u2019t built yet. Push and pull will live here. Local save points are under Snapshots.' },
     settings:   { el: 'view-placeholder', title: 'Settings',
                   text: 'Desk settings \u2014 nothing to set yet. Your site\u2019s configuration lives under Config.' }
   };
@@ -66,6 +107,13 @@
 
   function showView() {
     const key = currentViewKey();
+    if (window.SheriffSnapshots && window.SheriffSnapshots.isBlocking() && key !== 'snapshots') {
+      location.hash = '#snapshots'; say('Wait for the snapshot operation to finish.'); return;
+    }
+    if (window.SheriffSnapshots && window.SheriffSnapshots.isArchived(portalContext.current)
+        && ['content','media','interactive','patterns','navigation','config','themes'].includes(key)) {
+      location.hash = '#snapshots'; say('Restore this portal from a snapshot before editing it.'); return;
+    }
     const view = VIEWS[key];
 
     document.querySelectorAll('.view').forEach(v => { v.hidden = true; });
@@ -88,6 +136,7 @@
     if (key === 'config') cfEditor.enter();
     if (key === 'themes') themesEnter();
     if (key === 'patterns') patternsEnter();
+    if (key === 'snapshots' && window.SheriffSnapshots) window.SheriffSnapshots.enter(portalNames);
   }
 
   window.addEventListener('hashchange', showView);
@@ -169,8 +218,8 @@
       a.target = '_blank';
       a.rel = 'noopener';
 
-      node.querySelector('.portal-edit').addEventListener('click', () => {
-        editorPendingPortal = name;
+      node.querySelector('.portal-edit').addEventListener('click', event => {
+        if (!portalContext.select(name)) event.preventDefault();
       });
 
       node.querySelector('.portal-build').addEventListener('click', e => {
@@ -181,7 +230,7 @@
     });
   }
 
-  async function loadPortals() {
+  async function loadPortals(preferred) {
     try {
       const res = await fetch('/api/portals');
       const data = await res.json();
@@ -190,12 +239,15 @@
       if (portalNames.length === 0) {
         emptyState('No portals found in site/portals. Create one to get started.');
         statPortals.textContent = '0';
-        maybeAutoWizard();
+        if (currentViewKey() !== 'snapshots') maybeAutoWizard();
       } else {
         renderPortals(portalNames);
         statPortals.textContent = String(portalNames.length) + ' detected';
         statPortals.classList.remove('placeholder');
       }
+      if (window.SheriffSnapshots) window.SheriffSnapshots.setSourcePortals(portalNames, preferred);
+      else portalContext.setPortals(portalNames, {preferred});
+      loadPortalIdentity(portalContext.current);
       fillPortalSelect();
     } catch (err) {
       emptyState('API unreachable — start Sheriff with goblin start from dist.');
@@ -257,8 +309,8 @@
       a.target = '_blank';
       a.rel = 'noopener';
 
-      node.querySelector('.portal-edit').addEventListener('click', () => {
-        editorPendingPortal = name;
+      node.querySelector('.portal-edit').addEventListener('click', event => {
+        if (!portalContext.select(name)) event.preventDefault();
       });
       node.querySelector('.portal-build').addEventListener('click', e => {
         buildPortal(name, e.currentTarget);
@@ -377,7 +429,7 @@
       return;
     }
     if (portalNames.includes(to)) { rpError('A portal named ' + to + ' already exists.'); return; }
-    if (!confirmDiscard()) return;
+    if (portalContext.current === from && !confirmPortalChange(to)) return;
 
     rpBtn.disabled = true;
     rpBtn.textContent = 'Renaming\u2026';
@@ -394,6 +446,7 @@
 
       closeRenamePortal();
       say('Renamed ' + from + ' to ' + to);
+      const preferred = portalContext.current === from ? to : undefined;
 
       // The editor was pointed at a portal that no longer exists under that name.
       if (edPortal.value === from) {
@@ -407,10 +460,10 @@
         edText.disabled = true;
         setDirty(false);
         edPath.textContent = 'No file open';
-        editorPendingPortal = to;
+
       }
 
-      await loadPortals();
+      await loadPortals(preferred);
       renderManageList();
 
       // dist/{from} was discarded, so the portal is unserved until this finishes.
@@ -479,7 +532,6 @@
   const edDelete = document.getElementById('ed-delete');
   const edRawRevisions = document.getElementById('ed-raw-revisions');
 
-  let editorPendingPortal = null;   // set by dashboard "Edit content"
   let edFiles = [];
   let edDirs = [];
   // Folders created this session. An empty folder has no file to imply it,
@@ -511,25 +563,11 @@
     edStatus.className = 'ed-status' + (cls ? ' ' + cls : '');
   }
 
-  function fillPortalSelect() {
-    edPortal.innerHTML = '';
-    portalNames.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      edPortal.appendChild(opt);
-    });
-  }
+  function fillPortalSelect() { portalContext.mount(edPortal); }
 
   function editorEnter() {
-    if (edPortal.options.length === 0 && portalNames.length > 0) fillPortalSelect();
-    if (editorPendingPortal) {
-      edPortal.value = editorPendingPortal;
-      editorPendingPortal = null;
-      loadFiles();
-    } else if (edFiles.length === 0 && edPortal.value) {
-      loadFiles();
-    }
+    fillPortalSelect();
+    if (edFiles.length === 0 && edPortal.value) loadFiles();
     updatePortalLink();
   }
 
@@ -608,12 +646,13 @@
   }
 
   async function loadDocConfig(portal) {
+    const revision = portalContext.revision;
     docConfig = { versions: [], default: null, mode: 'manual' };
     try {
       const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
       const res = await fetch('/api/file?read&' + q, { cache: 'no-store' });
       const data = await res.json();
-      if (data && data.ok !== false && data.content) docConfig = parseDocConfig(data.content);
+      if (isCurrentPortal(portal, revision) && data && data.ok !== false && data.content) docConfig = parseDocConfig(data.content);
     } catch (err) { /* no config → no versions, everything stays legacy-flat */ }
   }
 
@@ -687,10 +726,12 @@
     }
     const revs = info.versions[ver];
     const latest = revs[revs.length - 1];
+    const portal = edPortal.value, revision = portalContext.revision;
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(latest.path);
       const res = await fetch('/api/file?read&' + q);
       const data = await res.json();
+      if (!isCurrentPortal(portal, revision)) return;
       if (data.ok === false) { say(data.stderr || 'Could not open revision'); return; }
       openFile = latest.path;
       edPath.textContent = page.replace(/^content\//, '');
@@ -701,7 +742,7 @@
       renderVersionBar();
       renderTree();
       edText.focus();
-    } catch (err) { say('API unreachable'); }
+    } catch (err) { if (isCurrentPortal(portal, revision)) say('API unreachable'); }
   }
 
   function addableVersions(page, isFlat) {
@@ -1128,10 +1169,12 @@
 
   async function loadFiles() {
     if (!edPortal.value) return;
+    const portal = edPortal.value, revision = portalContext.revision;
     tree.innerHTML = '<div class="tree-msg">Loading files\u2026</div>';
     try {
       const res = await fetch('/api/file?list&' + encodeURIComponent(edPortal.value), { cache: 'no-store' });
       const data = await res.json();
+      if (!isCurrentPortal(portal, revision)) return;
       if (data.ok === false) {
         tree.innerHTML = '';
         const div = document.createElement('div');
@@ -1149,7 +1192,8 @@
         if (!edDirs.includes(d)) edDirs.push(d);
       }
 
-      await loadDocConfig(edPortal.value);
+      await loadDocConfig(portal);
+      if (!isCurrentPortal(portal, revision)) return;
       versionedPages = detectVersionedPages(edFiles);
       versionedPageSet = new Set(Object.keys(versionedPages));
       if (openFile && !edFiles.includes(openFile)) clearContentEditor();
@@ -1165,6 +1209,7 @@
 
       renderTree();
     } catch (err) {
+      if (!isCurrentPortal(portal, revision)) return;
       tree.innerHTML = '<div class="tree-msg">API unreachable.</div>';
       edFiles = [];
       edDirs = [];
@@ -1349,6 +1394,7 @@
 
   async function openPath(path) {
     if (!confirmDiscard()) return;
+    const portal = edPortal.value, portalRevision = portalContext.revision;
     if (versionedPageSet.has(path)) { openVersionedPage(path); return; }
     if (IMAGE_EXTS.has(fileExt(path))) {
       say('Image viewer lands with the Media panel');
@@ -1359,6 +1405,7 @@
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(path);
       const res = await fetch('/api/file?read&' + q);
       const data = await res.json();
+      if (!isCurrentPortal(portal, portalRevision)) return;
       if (data.ok === false) {
         say(data.stderr || 'Could not open file');
         return;
@@ -1382,7 +1429,7 @@
       renderTree();
       edText.focus();
     } catch (err) {
-      say('API unreachable');
+      if (isCurrentPortal(portal, portalRevision)) say('API unreachable');
     }
   }
 
@@ -1777,10 +1824,12 @@
 
   async function loadMedia() {
     if (!mdPortal.value) return;
+    const portal = mdPortal.value, revision = portalContext.revision;
     mdGrid.innerHTML = '<div class="portal-empty">Loading media…</div>';
     try {
       const res = await fetch('/api/file?list&' + encodeURIComponent(mdPortal.value), { cache: 'no-store' });
       const data = await res.json();
+      if (!isCurrentPortal(portal, revision)) return;
       if (data.ok === false) {
         mdGrid.innerHTML = '<div class="portal-empty">' + (data.stderr || 'Could not load media.') + '</div>';
         return;
@@ -1800,6 +1849,7 @@
       if (!mediaDirs.includes(mediaCwd)) mediaCwd = 'public';
       renderMedia();
     } catch (err) {
+      if (!isCurrentPortal(portal, revision)) return;
       mdGrid.innerHTML = '<div class="portal-empty">API unreachable.</div>';
     }
   }
@@ -2136,16 +2186,7 @@
   // ============================================================
   // Single-file editors (Navigation, Config) + Themes panel
   // ============================================================
-  function fillPortalSel(sel) {
-    if (sel.options.length === 0 && portalNames.length > 0) {
-      portalNames.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        sel.appendChild(opt);
-      });
-    }
-  }
+  function fillPortalSel(sel) { portalContext.mount(sel); }
 
   function fileEditor(ids, getPath, opts) {
     const sel = document.getElementById(ids.portal);
@@ -2154,7 +2195,8 @@
     const statusEl = document.getElementById(ids.status);
     const saveBtn = document.getElementById(ids.save);
 
-    const ed = { path: null, dirty: false, missing: false };
+    const ed = { path: null, portal: null, dirty: false, missing: false, saving: false };
+    let loadRequest = 0;
 
     function setDirty(v) {
       ed.dirty = v;
@@ -2169,13 +2211,17 @@
 
     ed.load = async function () {
       if (!sel.value) return;
+      const portal = sel.value, request = ++loadRequest;
       if (opts && opts.onContentChange) opts.onContentChange('', false);
-      ed.path = getPath(sel.value);
+      ed.path = getPath(portal);
+      ed.portal = portal;
+      text.value = ''; text.disabled = true; setDirty(false);
       setStatus('loading…');
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
         const res = await fetch('/api/file?read&' + q);
         const data = await apiJson(res);
+        if (request !== loadRequest || sel.value !== portal) return;
         if (data.ok === false) {
           ed.missing = true;
           text.value = '';
@@ -2189,12 +2235,14 @@
         }
         setDirty(false);
       } catch (err) {
+        if (request !== loadRequest || sel.value !== portal) return;
         setStatus(err.message || 'API unreachable', 'err');
       }
     };
 
     ed.save = async function () {
-      if (!ed.path || saveBtn.disabled) return;
+      if (!ed.path || saveBtn.disabled || ed.portal !== sel.value) return;
+      ed.saving = true;
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
       setStatus('rebuilding…');
@@ -2213,13 +2261,20 @@
         const secs = ((Date.now() - started) / 1000).toFixed(1);
         setStatus('✓ saved · portal rebuilt in ' + secs + 's', 'ok');
         setDirty(false);
+        if (opts && opts.onSave) opts.onSave(ed.portal);
       } catch (err) {
         setStatus(err.message || 'API unreachable', 'err');
         setDirty(true);
       } finally {
+        ed.saving = false;
         saveBtn.textContent = 'Save & rebuild';
         saveBtn.disabled = !ed.dirty;
       }
+    };
+
+    ed.reset = function () {
+      loadRequest++; ed.path = null; ed.portal = null; ed.missing = false;
+      text.value = ''; text.disabled = true; setDirty(false); setStatus('');
     };
 
     ed.enter = function () {
@@ -2247,7 +2302,7 @@
   const cfEditor = fileEditor(
     { portal: 'cf-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
     () => 'config.yall',
-    { onContentChange: renderConfigVersionBadges }
+    { onContentChange: renderConfigVersionBadges, onSave: loadPortalIdentity }
   );
 
   // ---------- Themes panel ----------
@@ -2257,6 +2312,7 @@
   let thCurrentTheme = null;   // the theme the portal actually uses
   let thSelected = null;       // the theme whose files are shown below
   let thFile = 'templates.yall';
+  let thLoadedPortal = null, thRequest = 0;
 
   const thEditor = fileEditor(
     { portal: 'th-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
@@ -2295,13 +2351,16 @@
   }
 
   async function renderThemeCards() {
+    const revision = portalContext.revision;
     thCards.innerHTML = '<div class="tree-msg">Loading themes…</div>';
     let themes = [];
     try {
       const res = await fetch('/api/list_themes');
       const data = await apiJson(res);
+      if (revision !== portalContext.revision) return;
       themes = Array.isArray(data.themes) ? data.themes : [];
     } catch (err) {
+      if (revision !== portalContext.revision) return;
       thCards.innerHTML = '<div class="tree-msg">Could not load themes.</div>';
       return;
     }
@@ -2360,12 +2419,13 @@
   }
 
   async function ensureAndLoadTheme(theme) {
+    const portal = thPortal.value, revision = portalContext.revision;
     // A theme the portal has never used has no files yet; seed them so the
     // editor can show templates.yall / override.css without an Apply.
     try {
       await fetch('/api/ensure_theme?' + encodeURIComponent(thPortal.value) + '&' + encodeURIComponent(theme));
     } catch (err) { /* editor will show (new file) if this fails */ }
-    thEditor.load();
+    if (isCurrentPortal(portal, revision) && thSelected === theme) thEditor.load();
   }
 
   async function switchTheme(theme) {
@@ -2408,21 +2468,14 @@
 
   async function themesEnter() {
     fillPortalSel(thPortal);
-    if (!thPortal.value) return;
-    thCurrentTheme = await detectCurrentTheme(thPortal.value);
-    thSelected = thCurrentTheme;
-    renderThemeCards();
-    renderThTabs();
-    if (thSelected && !thEditor.dirty) thEditor.load();
-  }
-
-  thPortal.addEventListener('change', async () => {
-    if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
-    thCurrentTheme = await detectCurrentTheme(thPortal.value);
-    thSelected = thCurrentTheme;
-    renderThemeCards();
+    const portal = thPortal.value, revision = portalContext.revision, request = ++thRequest;
+    if (!portal || thLoadedPortal === portal) return;
+    const theme = await detectCurrentTheme(portal);
+    if (request !== thRequest || !isCurrentPortal(portal, revision)) return;
+    thLoadedPortal = portal; thCurrentTheme = theme; thSelected = theme;
+    renderThemeCards(); renderThTabs();
     if (thSelected) thEditor.load();
-  });
+  }
 
   // ---------- help drawer ----------
   const helpDrawer = document.getElementById('help-drawer');
@@ -2912,28 +2965,33 @@
     return '{{{SHERIFF::PATTERN_' + up + '}}}';
   }
 
+  let patLoadedPortal = null, patRequest = 0;
   function patternsEnter() {
     fillPortalSel(patPortal);
-    if (patPortal.value) loadPatterns();
+    if (patPortal.value && patLoadedPortal !== patPortal.value) loadPatterns();
   }
 
   patPortal.addEventListener('change', loadPatterns);
 
   async function loadPatterns() {
     if (!patPortal.value) return;
+    const portal = patPortal.value, revision = portalContext.revision, request = ++patRequest;
     patList.innerHTML = '<div class="tree-msg">Loading…</div>';
     patSelected = null;
     clearPatternPreview();
     try {
       const res = await fetch('/api/list_patterns?' + encodeURIComponent(patPortal.value));
       const data = await apiJson(res);
+      if (request !== patRequest || !isCurrentPortal(portal, revision)) return;
       if (data.ok === false) {
         patList.innerHTML = '<div class="tree-msg">' + (data.stderr || 'Could not load patterns.') + '</div>';
         return;
       }
+      patLoadedPortal = portal;
       patItems = Array.isArray(data.patterns) ? data.patterns : [];
       renderPatternList();
     } catch (err) {
+      if (request !== patRequest || !isCurrentPortal(portal, revision)) return;
       patList.innerHTML = '<div class="tree-msg">' + (err.message || 'API unreachable') + '</div>';
     }
   }
@@ -3209,6 +3267,53 @@
   });
 
   // ---------- boot ----------
+  function unsavedPanels() {
+    const pending = [];
+    if (dirty) pending.push('Content');
+    if (nvEditor.dirty) pending.push('Navigation');
+    if (cfEditor.dirty) pending.push('Config');
+    if (thEditor.dirty) pending.push('Themes');
+    if (patDirtyFlag) pending.push('Patterns');
+    if (window.SheriffInteractive && window.SheriffInteractive.isDirty()) pending.push('Interactive');
+    return pending;
+  }
+
+  function confirmPortalChange(next) {
+    if (fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
+        || edSave.textContent.includes('Saving') || patSave.textContent.includes('Saving')
+        || (window.SheriffInteractive && window.SheriffInteractive.isSaving())) {
+      say('Wait for the current save or file operation to finish.'); return false;
+    }
+    const pending = unsavedPanels();
+    return !pending.length || window.confirm('Switch to ' + next + '? Unsaved changes in ' + pending.join(', ') + ' will be discarded.');
+  }
+
+  function resetPortalPanels() {
+    expandedFolders = new Set(); knownDirs = new Set(); edFiles = []; edDirs = [];
+    edCwd = 'content'; edFilter.value = ''; renamingPath = null; hideFileMenu();
+    docConfig = {versions:[],default:null,mode:'manual'}; versionedPages = {}; versionedPageSet = new Set();
+    clearContentEditor(); tree.innerHTML = '';
+    nvEditor.reset(); cfEditor.reset(); thEditor.reset();
+    thLoadedPortal = null; thRequest++; thCurrentTheme = null; thSelected = null; thCards.innerHTML = '';
+    patLoadedPortal = null; patRequest++; patItems = []; patSelected = null; clearPatternPreview(); patList.innerHTML = '';
+    mediaFiles = []; mediaDirs = []; mediaCwd = 'public'; mdFolder.value = 'public'; mdGrid.innerHTML = ''; closeLightbox();
+    if (window.SheriffInteractive) window.SheriffInteractive.reset();
+    updatePortalLink();
+  }
+
+  window.SheriffDesk = {
+    unsavedPanels,
+    portals: () => portalNames.slice(),
+    async portalRestored(portal) {
+      if (portal === portalContext.current) resetPortalPanels();
+      await loadPortals(portal);
+    }
+  };
+  portalContext.guard(confirmPortalChange);
+  portalContext.subscribe((portal, previous) => {
+    resetPortalPanels(); loadPortalIdentity(portal);
+    if (previous) showView();
+  });
   loadPortals().then(showView);
   showView();
 })();
