@@ -804,8 +804,9 @@ act do_upload(query)
 
     parts | :split(query, "&")
 
-    portal  | :trim(parts[0])
-    subpath | normalize_rel_path(parts[1])
+    portal  | :trim(:url_decode(parts[0]))
+    subpath | :trim(:url_decode(parts[1]))
+    :update_where!(subpath, "\\", "/")
     src     | :env("GOBLIN_REQUEST_FILE")
 
     root_base | :trim(:env("SHERIFF_ROOT"))
@@ -879,6 +880,10 @@ act do_upload(query)
         dest     | :path_join(root, subpath)
         dest_dir | :dirname(dest)
 
+        if parse_query_value(query, "no_overwrite") == "1" and :file_exists(dest)
+            :say(:json_stringify({"ok": false, "stderr": "An image already exists at this path. Choose the existing image or another folder."}))
+            return nil
+        xx
         :create_dir!(dest_dir)
         :copy_file!(src, dest)
 
@@ -905,13 +910,10 @@ act do_mkdir(query)
 
     parts | :split(query, "&")
 
-    portal | :trim(parts[0])
-    path   | :trim(parts[1])
+    portal | :trim(:url_decode(parts[0]))
+    path   | :trim(:url_decode(parts[1]))
 
     :update_where!(path, "\\", "/")
-    :update_where!(path, "%2F", "/")
-    :update_where!(path, "%2f", "/")
-    :update_where!(path, "%20", " ")
 
     root_base | :trim(:env("SHERIFF_ROOT"))
 

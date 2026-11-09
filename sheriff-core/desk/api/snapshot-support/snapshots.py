@@ -16,6 +16,7 @@ ROOT = Path(os.environ.get('SHERIFF_SNAPSHOT_ROOT', '.')).resolve()
 PORTAL = os.environ.get('SHERIFF_SNAPSHOT_PORTAL', '')
 ACTION = os.environ.get('SHERIFF_SNAPSHOT_ACTION', '')
 ID = os.environ.get('SHERIFF_SNAPSHOT_ID', '')
+SNAPSHOT_DIR = 'site/.desk/snapshots' if os.environ.get('SHERIFF_RUNTIME_MODE') == 'cloud' else 'data/snapshots'
 
 def inside(relative):
     path = Path(os.path.abspath(ROOT / relative))
@@ -48,8 +49,8 @@ def checksum(path):
 def snapshot(snapshot_id):
     if not re.fullmatch(r'[a-f0-9]{32}', snapshot_id):
         raise ValueError('Invalid snapshot ID.')
-    meta_path = inside(f'data/snapshots/{PORTAL}/{snapshot_id}.json')
-    archive = inside(f'data/snapshots/{PORTAL}/{snapshot_id}.zip')
+    meta_path = inside(f'{SNAPSHOT_DIR}/{PORTAL}/{snapshot_id}.json')
+    archive = inside(f'{SNAPSHOT_DIR}/{PORTAL}/{snapshot_id}.zip')
     if not meta_path.is_file() or not archive.is_file():
         raise ValueError('Snapshot not found.')
     meta = json.loads(meta_path.read_text(encoding='utf-8-sig'))
@@ -113,20 +114,20 @@ def extract(archive, destination):
                 os.utime(target, (stamp, stamp))
 
 def main():
-    base = inside('data/snapshots')
+    base = inside(SNAPSHOT_DIR)
     if ACTION == 'list' and not PORTAL:
         portals = []
         if base.is_dir():
             for folder in base.iterdir():
                 if folder.is_dir():
                     portal_id(folder.name)
-                    checked = inside(f'data/snapshots/{folder.name}')
+                    checked = inside(f'{SNAPSHOT_DIR}/{folder.name}')
                     if any(checked.glob('*.json')):
                         portals.append(folder.name)
         return {'ok': True, 'portals': sorted(portals)}
     portal_id(PORTAL)
     source = inside(f'site/portals/{PORTAL}')
-    folder = inside(f'data/snapshots/{PORTAL}')
+    folder = inside(f'{SNAPSHOT_DIR}/{PORTAL}')
     if ACTION == 'list':
         items = [snapshot(path.stem)[0] for path in folder.glob('*.json')] if folder.is_dir() else []
         return {'ok': True, 'snapshots': sorted(items, key=lambda item: item['created_at'], reverse=True)}
@@ -149,9 +150,9 @@ def main():
             if len(name) > 160:
                 raise ValueError('Snapshot name must be 160 characters or fewer.')
             new_id = uuid.uuid4().hex
-            archive = inside(f'data/snapshots/{PORTAL}/{new_id}.zip')
-            partial = inside(f'data/snapshots/{PORTAL}/{new_id}.partial')
-            meta_path = inside(f'data/snapshots/{PORTAL}/{new_id}.json')
+            archive = inside(f'{SNAPSHOT_DIR}/{PORTAL}/{new_id}.zip')
+            partial = inside(f'{SNAPSHOT_DIR}/{PORTAL}/{new_id}.partial')
+            meta_path = inside(f'{SNAPSHOT_DIR}/{PORTAL}/{new_id}.json')
             meta_partial = meta_path.with_suffix('.json.partial')
             try:
                 with zipfile.ZipFile(partial, 'w', compression=zipfile.ZIP_DEFLATED, allowZip64=True) as writer:
@@ -173,14 +174,14 @@ def main():
             return {'ok': True, 'filename': f'{PORTAL}-{ID}.zip', 'zip_base64': base64.b64encode(archive.read_bytes()).decode('ascii')}
         if ACTION == 'delete':
             archive.unlink()
-            inside(f'data/snapshots/{PORTAL}/{ID}.json').unlink()
+            inside(f'{SNAPSHOT_DIR}/{PORTAL}/{ID}.json').unlink()
             return {'ok': True}
         if ACTION == 'restore':
             if checksum(archive) != meta.get('sha256'):
                 raise ValueError('Snapshot ZIP failed its integrity check. Current portal files were kept.')
             if source.exists():
                 source_ok(source)
-            stage = inside(f'data/snapshots/{PORTAL}/.restore-{uuid.uuid4().hex}')
+            stage = inside(f'{SNAPSHOT_DIR}/{PORTAL}/.restore-{uuid.uuid4().hex}')
             fresh, previous = stage / 'source', stage / 'previous'
             try:
                 extract(archive, fresh)

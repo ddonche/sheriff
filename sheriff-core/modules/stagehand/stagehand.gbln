@@ -62,6 +62,15 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: Theme CSS NOT FOUND for theme '{theme_name}' at {theme_css_src}")
     xx
+    /// Core icon defaults are copied before portal public assets, so portals can override them.
+    core_icons | "../sheriff-core/assets/icons"
+    if :file_exists(core_icons)
+        :create_dir!("../dist/{portal}/public/icons")
+        for icon_path in :walk(core_icons, "*.svg")
+            icon_file | :basename(icon_path)
+            :copy_file!(icon_path, "../dist/{portal}/public/icons/{icon_file}")
+        xx
+    xx
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
     public_src  | "../site/portals/{portal}/public"
     public_dest | "../dist/{portal}/public"
@@ -123,6 +132,12 @@ act copy_assets(pre_ctx)
         :copy_file!(index_src, index_dest)
         :say("STAGEHAND: Copied custom index.html to dist/{portal}/index.html")
     xx
+    /// Hosted Sheriff keeps its own application and API files in dist.
+    if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud"
+        :say("STAGEHAND: Cloud mode; skipping local Sheriff Desk sync")
+        return pre_ctx
+    xx
+
     /// ------------------------------------------------------------
     /// 5) Sync Sheriff Desk (local admin) from sheriff-core → dist root
     /// desk/index.html → dist/index.html, desk/admin/ → dist/admin/
@@ -173,7 +188,13 @@ act build_slot_value(slot_tokens)
     for tok in slot_tokens
         open  | raw "{{{"
         close | raw "}}}"
-        :update!(value, value ++ open + tok + close)
+        token | :trim(tok)
+        if token.nix? => skip
+        if :starts_with(token, open) and :ends_with(token, close)
+            :update!(value, value ++ token)
+        else
+            :update!(value, value ++ open + token + close)
+        xx
     xx
 
     return value

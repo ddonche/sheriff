@@ -10,7 +10,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
+  padding: 1.25rem 0;
   gap: 1.5rem;
 }
 
@@ -52,7 +52,7 @@
 
 .sheriff-logo-text-wrap {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.4rem;
 }
 
@@ -68,7 +68,9 @@
   gap: 0.4rem;
 }
 
-.sheriff-page-count-badge {
+.sheriff-page-count-badge,
+.sheriff-image-count-badge,
+.sheriff-video-count-badge {
   display: inline-flex;
   align-items: center;
 

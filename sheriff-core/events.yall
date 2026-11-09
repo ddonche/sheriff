@@ -11,6 +11,7 @@ pre:
   - "rjson::build_redirect_pages_once"
   - "rjson::build_all_pages_once"
   - "sheriff::publish_patterns"
+  - "portal_stats::collect"
   - "scout::publish_nav_tokens"
   - "campfire::build_index_once"
 

@@ -283,6 +283,36 @@ act publish_readtime(ctx)
     return ctx
 xx
 
+/// Read generated counts defensively; older reports lack media totals.
+act report_count(report, key)
+    if :valtype(report) != "map" => return 0
+    value | report{key} ?? 0
+    if :is_int(value) == false => return 0
+    if value < 0 => return 0
+    return value
+xx
+
+act stat_label(kind, count)
+    label | kind.title
+    if count != 1 => label |= label + "s"
+    return label
+xx
+
+act build_count_badge(kind, count)
+    label | stat_label(kind, count)
+    return "<span class=\"sheriff-{kind}-count-badge\">{count} {label}</span>"
+xx
+
+act build_stats(report)
+    items | []
+    for kind in ["page", "image", "video"]
+        count | report_count(report, kind + "s")
+        label | stat_label(kind, count)
+        :put_last!(items, "<div class=\"sheriff-portal-stat\" data-stat=\"{kind}s\"><span class=\"sheriff-stat-label\">{label}</span><span class=\"sheriff-stat-count\">{count}</span></div>")
+    xx
+    return "<div class=\"sheriff-portal-stats\" role=\"group\" aria-label=\"Portal statistics\">" + :pack(items) + "</div>"
+xx
+
 /// MAIN ENTRY
 act apply_tokens(ctx)
     portal | ctx{"portal"} ?? => return ctx
@@ -308,25 +338,15 @@ act apply_tokens(ctx)
         register_token("BADGE", "REPO", html_repo)
     xx
 
-    /// BADGE::PAGE_COUNT
-    report | load_report(portal)
-
-    page_count | 0
-
-    if :valtype(report) == "map"
-        pages | report{"pages"}
-        if !pages.nix?
-            page_count |= pages
-        xx
-    xx
-
-    html_pages | """
-    <span class="sheriff-page-count-badge">
-      {page_count} Pages
-    </span>
-    """
-
-    register_token("BADGE", "PAGE_COUNT", html_pages)
+    /// Reuse this build's report; isolated callers can still read report.json.
+    report | ctx{"portal_stats"} ?? load_report(portal)
+    page_count | report_count(report, "pages")
+    image_count | report_count(report, "images")
+    video_count | report_count(report, "videos")
+    register_token("BADGE", "PAGE_COUNT", build_count_badge("page", page_count))
+    register_token("BADGE", "IMAGE_COUNT", build_count_badge("image", image_count))
+    register_token("BADGE", "VIDEO_COUNT", build_count_badge("video", video_count))
+    register_token("BADGE", "STATS", build_stats(report))
 
     util_icons_html | ""
     :update!(util_icons_html, build_util_icons_html())
@@ -348,7 +368,18 @@ act apply_tokens(ctx)
     register_token("BADGE", "SOCIAL_SHARE", social_share_html)
     ////
 
-    rendered | :resolve_token(body)
+    protected | stash_version_badge_examples(body)
+    working | protected{"body"}
+    /// The combined widget is block HTML, so remove a standalone Markdown paragraph.
+    :update_where!(working, "<p>{{{BADGE::STATS}}}</p>", "{{{BADGE::STATS}}}")
+    rendered | :resolve_token(working)
+    for entry in protected{"stash"}
+        :update_where!(rendered, entry{"key"}, entry{"value"})
+    xx
+    /// Prevent these values from expanding early on the next page or portal.
+    for name in ["PAGE_COUNT", "IMAGE_COUNT", "VIDEO_COUNT", "STATS"]
+        clear_token("BADGE", name)
+    xx
 
     :update!(ctx{"body"}, rendered)
 

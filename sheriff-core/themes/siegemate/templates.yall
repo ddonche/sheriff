@@ -110,6 +110,8 @@ layouts:
         - "BRINDLE::BRANDNAME"
       VERSION:
         - "BADGE::VERSION"
+      PAGECOUNT:
+        - "BADGE::PAGE_COUNT"
       THEMESWITCHER:
         - "BRINDLE::THEMESWITCHER"
       REPO:

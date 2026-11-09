@@ -1,0 +1,34 @@
+/// /api/list_icons?{portal}: Core icons plus portal-local overrides. Read-only.
+root | :trim(:env("SHERIFF_ROOT"))
+if root == "" => root |= ".."
+portal | :trim(:url_decode(:env("GOBLIN_QUERY_STRING")))
+known | :list_dirs("{root}/site/portals")
+valid_portal | false
+for name in known
+    if name == portal => valid_portal |= true
+xx
+if !portal.nix? and valid_portal == false
+    :say(:json_stringify({"ok": false, "stderr": "Unknown portal", "icons": []}))
+else
+    by_name | {}
+    names | []
+    folders | [{"path": "{root}/sheriff-core/assets/icons", "source": "Core"}]
+    if valid_portal
+        :put_last!(folders, {"path": "{root}/site/portals/{portal}/public/icons", "source": "Portal"})
+    xx
+    for folder in folders
+        dir | folder{"path"}
+        if :file_exists(dir) == false => skip
+        for file in :walk(dir, "*.svg")
+            name | :stem(file)
+            if :slug(name) != name => skip
+            if :has(by_name, name) == false => :put_last!(names, name)
+            :update!(by_name{name}, {"name": name, "source": folder{"source"}, "svg": :read_text(file)})
+        xx
+    xx
+    icons | []
+    for name in :sort(names)
+        :put_last!(icons, by_name{name})
+    xx
+    :say(:json_stringify({"ok": true, "icons": icons}))
+xx

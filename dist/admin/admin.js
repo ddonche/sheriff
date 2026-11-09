@@ -15,7 +15,7 @@
       || (url.pathname === '/api/file' && /^\?(write|delete|move|upload|mkdir)(?:&|$)/.test(url.search));
     const release = mutation ? portalContext.lock() : null;
     try {
-      const response = await window.fetch(input, options);
+      const response = await window.SheriffBuildLog.fetch(input, options);
       if (release) await response.clone().arrayBuffer();
       return response;
     } finally { if (release) release(); }
@@ -87,6 +87,7 @@
     media:      { el: 'view-media' },
     interactive:{ el: 'view-interactive' },
     patterns:   { el: 'view-patterns' },
+    icons:      { el: 'view-icons' },
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
     config:     { el: 'view-config' },
@@ -136,30 +137,11 @@
     if (key === 'config') cfEditor.enter();
     if (key === 'themes') themesEnter();
     if (key === 'patterns') patternsEnter();
+    if (key === 'icons' && window.SheriffIcons) window.SheriffIcons.enter();
     if (key === 'snapshots' && window.SheriffSnapshots) window.SheriffSnapshots.enter(portalNames);
   }
 
   window.addEventListener('hashchange', showView);
-
-  // ---------- build log (dashboard) ----------
-  const buildLog = document.getElementById('build-log');
-
-  function logLine(text, cls) {
-    const line = document.createElement('span');
-    if (cls) line.className = cls;
-    line.textContent = text;
-    buildLog.appendChild(document.createTextNode('\n'));
-    buildLog.appendChild(line);
-    buildLog.scrollTop = buildLog.scrollHeight;
-  }
-
-  function logReset(text) {
-    buildLog.textContent = '';
-    const line = document.createElement('span');
-    line.className = 'dim';
-    line.textContent = text;
-    buildLog.appendChild(line);
-  }
 
   // ---------- shared build result parsing ----------
   function buildFailed(data) {
@@ -170,20 +152,15 @@
 
   async function buildPortal(name, btn) {
     if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
-    logLine('→ building ' + name);
     try {
       const res = await fetch('/api/build?' + encodeURIComponent(name));
       const data = await res.json();
       if (buildFailed(data)) {
-        logLine('✗ ' + name + ' failed', '');
-        if (data.stderr) logLine(String(data.stderr).trim(), 'dim');
         say('Build failed: ' + name);
         return false;
       }
-      logLine('✓ ' + name + ' built', 'ok');
       return true;
     } catch (err) {
-      logLine('✗ ' + name + ': API unreachable', '');
       say('API unreachable — is goblin start running?');
       return false;
     } finally {
@@ -259,15 +236,18 @@
   const buildAll = document.getElementById('build-all');
 
   async function runBuildAll() {
+    if (buildAll.disabled) return;
     if (portalNames.length === 0) { say('No portals to build'); return; }
     buildAll.disabled = true;
     buildAll.textContent = 'Building…';
-    logReset('build all · ' + new Date().toLocaleTimeString());
-    for (const name of portalNames) {
-      await buildPortal(name, null);
+    window.SheriffBuildLog.startBatch('Build all portals');
+    try {
+      for (const name of portalNames) await buildPortal(name, null);
+    } finally {
+      window.SheriffBuildLog.endBatch();
+      buildAll.disabled = false;
+      buildAll.textContent = 'Build all portals';
     }
-    buildAll.disabled = false;
-    buildAll.textContent = 'Build all portals';
   }
 
   buildAll.addEventListener('click', runBuildAll);
@@ -518,7 +498,7 @@
   // ============================================================
   // Pages editor
   // ============================================================
-  const edPortal = document.getElementById('ed-portal');
+  const edPortal = document.getElementById('desk-portal');
   const edFilter = document.getElementById('ed-filter');
   const tree = document.getElementById('file-tree');
   const edPath = document.getElementById('ed-path');
@@ -528,8 +508,6 @@
   const edText = document.getElementById('ed-text');
   const edOpenPortal = document.getElementById('ed-open-portal');
   const newBtn = document.getElementById('ed-new');
-  const edRename = document.getElementById('ed-rename');
-  const edDelete = document.getElementById('ed-delete');
   const edRawRevisions = document.getElementById('ed-raw-revisions');
 
   let edFiles = [];
@@ -537,7 +515,7 @@
   // Folders created this session. An empty folder has no file to imply it,
   // so if the API's dirs list drops it the tree would too. This keeps it.
   let knownDirs = new Set();
-  let openFile = null;
+  let openFile = null, editorGeneration = 0;
 
   // --- documentation versions/revisions (mirrors routes_json.gbln rules) ---
   let docConfig = { versions: [], default: null, mode: 'manual' };
@@ -634,7 +612,7 @@
       copy.addEventListener('click', () => copyText(versionBadgeToken(version), 'Version badge token copied'));
       row.append(label, token, copy); list.appendChild(row);
     });
-    if (!dirty && text && document.getElementById('cf-portal').value === edPortal.value) {
+    if (!dirty && text && document.getElementById('desk-portal').value === edPortal.value) {
       docConfig = parseDocConfig(text);
       versionedPages = detectVersionedPages(edFiles);
       versionedPageSet = new Set(Object.keys(versionedPages));
@@ -714,7 +692,7 @@
     return ordered;
   }
 
-  async function openVersionedPage(page, version) {
+  async function openVersionedPage(page, version, savedContent) {
     if (!confirmDiscard()) return;
     const info = versionedPages[page];
     if (!info) { say('No versions for this page'); return; }
@@ -733,11 +711,13 @@
       const data = await res.json();
       if (!isCurrentPortal(portal, revision)) return;
       if (data.ok === false) { say(data.stderr || 'Could not open revision'); return; }
-      openFile = latest.path;
+      const pendingEdits = savedContent !== undefined && edText.value !== savedContent;
+      const nextText = pendingEdits ? edText.value : data.content || '';
+      openFile = latest.path; editorGeneration++;
       edPath.textContent = page.replace(/^content\//, '');
-      edText.value = data.content || '';
+      edText.value = nextText;
       edText.disabled = false;
-      setDirty(false);
+      setDirty(pendingEdits);
       openVersionCtx = { page: page, version: ver, revNum: latest.num, flat: false };
       renderVersionBar();
       renderTree();
@@ -939,9 +919,9 @@
       }
       const secs = ((Date.now() - started) / 1000).toFixed(1);
       setStatus('✓ saved R' + openRev + ' · page built in ' + secs + 's', 'ok');
-      setDirty(false);
+      setDirty(edText.value !== content);
       await loadFiles();
-      await openVersionedPage(ctx.page, openVer);
+      await openVersionedPage(ctx.page, openVer, content);
     } catch (err) {
       setStatus('API unreachable', 'err');
       setDirty(true);
@@ -1234,21 +1214,12 @@
     return {page:parts.slice(0,-2).join('/'), version, revNum:Number(match[1]), flat:false};
   }
 
-  function currentManagedPath() {
-    if (!edRawRevisions.checked && openVersionCtx && !openVersionCtx.flat && pathWithin(openVersionCtx.page, openFile)) return openVersionCtx.page;
-    return openFile;
-  }
-
   function updateFileActions() {
-    const target = currentManagedPath();
-    edRename.disabled = edDelete.disabled = fileOperationBusy || !canManageItem(target);
-    const page = target && versionedPageSet.has(target);
-    edRename.textContent = page ? 'Rename page' : 'Rename';
-    edDelete.textContent = page ? 'Delete page' : 'Delete';
+    window.dispatchEvent(new Event('sheriff:editor-change'));
   }
 
   function clearContentEditor() {
-    openFile = null; openVersionCtx = null;
+    openFile = null; openVersionCtx = null; editorGeneration++;
     edPath.textContent = 'No file open'; edText.value = ''; edText.disabled = true;
     setDirty(false); renderVersionBar(); setStatus('');
   }
@@ -1351,8 +1322,6 @@
     finally { fileOperationBusy = false; edPortal.disabled = false; updateFileActions(); }
   }
 
-  edRename.addEventListener('click', () => startRename(currentManagedPath()));
-  edDelete.addEventListener('click', () => deleteFilePath(currentManagedPath()));
   edRawRevisions.addEventListener('change', () => { renamingPath = null; hideFileMenu(); renderTree(); updateFileActions(); });
 
   // ---------- context menu ----------
@@ -1394,6 +1363,7 @@
 
   async function openPath(path) {
     if (!confirmDiscard()) return;
+    window.SheriffBuildLog.showEditor();
     const portal = edPortal.value, portalRevision = portalContext.revision;
     if (versionedPageSet.has(path)) { openVersionedPage(path); return; }
     if (IMAGE_EXTS.has(fileExt(path))) {
@@ -1410,7 +1380,7 @@
         say(data.stderr || 'Could not open file');
         return;
       }
-      openFile = path;
+      openFile = path; editorGeneration++;
       edPath.textContent = path;
       edText.value = data.content || '';
       edText.disabled = false;
@@ -1434,8 +1404,10 @@
   }
 
   async function saveFile() {
+    if (window.SheriffContentImages && window.SheriffContentImages.isBusy()) { say('Wait for the image operation to finish.'); return; }
     if (!openFile || edSave.disabled || fileOperationBusy) return;
     if (versionsActive() && effectiveSaveMode() === 'revision') { return saveNewRevision(); }
+    const content = edText.value;
     edSave.disabled = true;
     edSave.textContent = 'Saving…';
     setStatus('building…');
@@ -1445,7 +1417,7 @@
       const res = await fetch('/api/file?write&' + q, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
-        body: edText.value
+        body: content
       });
       const data = await res.json();
       if (buildFailed(data)) {
@@ -1457,7 +1429,7 @@
       const secs = ((Date.now() - started) / 1000).toFixed(1);
       const isPage = openFile.startsWith('content/') && openFile.endsWith('.md');
       setStatus('✓ saved · ' + (isPage ? 'page built' : 'portal rebuilt') + ' in ' + secs + 's', 'ok');
-      setDirty(false);
+      setDirty(edText.value !== content);
     } catch (err) {
       setStatus('API unreachable', 'err');
       setDirty(true);
@@ -1479,16 +1451,6 @@
       if (k === 'themes') { e.preventDefault(); thSave(); }
       if (k === 'patterns') { e.preventDefault(); savePattern(); }
     }
-  });
-
-  edPortal.addEventListener('change', () => {
-    if (!confirmDiscard()) return;
-    expandedFolders = new Set();
-    knownDirs = new Set();
-    edCwd = 'content';
-    clearContentEditor();
-    updatePortalLink();
-    loadFiles();
   });
 
   edFilter.addEventListener('input', renderTree);
@@ -1751,7 +1713,7 @@
     // ============================================================
   // Media manager
   // ============================================================
-  const mdPortal = document.getElementById('md-portal');
+  const mdPortal = document.getElementById('desk-portal');
   const mdFolder = document.getElementById('md-folder');
   const mdUploadBtn = document.getElementById('md-upload-btn');
   const mdFileInput = document.getElementById('md-file-input');
@@ -1805,22 +1767,8 @@
   }
 
   function mediaEnter() {
-    if (mdPortal.options.length === 0 && portalNames.length > 0) {
-      portalNames.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        mdPortal.appendChild(opt);
-      });
-    }
     if (mdPortal.value) loadMedia();
   }
-
-  mdPortal.addEventListener('change', () => {
-    mediaCwd = 'public';
-    mdFolder.value = mediaCwd;
-    loadMedia();
-  });
 
   async function loadMedia() {
     if (!mdPortal.value) return;
@@ -2284,29 +2232,23 @@
 
     text.addEventListener('input', () => setDirty(true));
     saveBtn.addEventListener('click', ed.save);
-    if (!opts || opts.autoChange !== false) {
-      sel.addEventListener('change', () => {
-        if (ed.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
-        ed.load();
-      });
-    }
 
     return ed;
   }
 
   const nvEditor = fileEditor(
-    { portal: 'nv-portal', text: 'nv-text', dirty: 'nv-dirty', status: 'nv-status', save: 'nv-save' },
+    { portal: 'desk-portal', text: 'nv-text', dirty: 'nv-dirty', status: 'nv-status', save: 'nv-save' },
     () => 'nav.yall'
   );
 
   const cfEditor = fileEditor(
-    { portal: 'cf-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
+    { portal: 'desk-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
     () => 'config.yall',
     { onContentChange: renderConfigVersionBadges, onSave: loadPortalIdentity }
   );
 
   // ---------- Themes panel ----------
-  const thPortal = document.getElementById('th-portal');
+  const thPortal = document.getElementById('desk-portal');
   const thCards = document.getElementById('th-cards');
   const thTabs = document.getElementById('th-tabs');
   let thCurrentTheme = null;   // the theme the portal actually uses
@@ -2315,9 +2257,8 @@
   let thLoadedPortal = null, thRequest = 0;
 
   const thEditor = fileEditor(
-    { portal: 'th-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
-    () => 'themes/' + thSelected + '/' + thFile,
-    { autoChange: false }
+    { portal: 'desk-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
+    () => 'themes/' + thSelected + '/' + thFile
   );
 
   function thSave() { thEditor.save(); }
@@ -2467,7 +2408,7 @@
   }
 
   async function themesEnter() {
-    fillPortalSel(thPortal);
+
     const portal = thPortal.value, revision = portalContext.revision, request = ++thRequest;
     if (!portal || thLoadedPortal === portal) return;
     const theme = await detectCurrentTheme(portal);
@@ -2908,7 +2849,7 @@
   // ============================================================
   // Patterns panel (edit, copy templates, and reuse shared content)
   // ============================================================
-  const patPortal = document.getElementById('pat-portal');
+  const patPortal = document.getElementById('desk-portal');
   const patList = document.getElementById('pat-list');
   const patText = document.getElementById('pat-text');
   const patName = document.getElementById('pat-name');
@@ -2971,7 +2912,6 @@
     if (patPortal.value && patLoadedPortal !== patPortal.value) loadPatterns();
   }
 
-  patPortal.addEventListener('change', loadPatterns);
 
   async function loadPatterns() {
     if (!patPortal.value) return;
@@ -3303,6 +3243,19 @@
 
   window.SheriffDesk = {
     unsavedPanels,
+    notify: say,
+    contentEditor: () => ({portal:portalContext.current,path:openFile,element:edText,generation:editorGeneration}),
+    patternHeader: parsePatternHeader,
+    patternToken,
+    patternSource: body => setPatternMode(body, 'template'),
+    refreshFiles: loadFiles,
+    insertContent(text, target) {
+      if (target.portal !== portalContext.current || target.path !== openFile || edText.disabled || fileOperationBusy || (target.generation !== undefined && target.generation !== editorGeneration)) return false;
+      edText.setRangeText(text, target.start, target.end, 'end');
+      edText.dispatchEvent(new Event('input', {bubbles:true}));
+      return true;
+    },
+    insertContentImage(text, target) { return this.insertContent(text, target); },
     portals: () => portalNames.slice(),
     async portalRestored(portal) {
       if (portal === portalContext.current) resetPortalPanels();

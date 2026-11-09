@@ -13,6 +13,7 @@
 
 (function () {
   "use strict";
+  const fetch = (...args) => window.SheriffDeskBackend.fetch(...args);
 
   var wired = false;
   var portals = [], PORT = "5173";
@@ -28,7 +29,7 @@
   function clamp(v,lo,hi){ return v<lo?lo:(v>hi?hi:v); }
   function parentOf(p){ return p.split("/").slice(0,-1).join("/"); }
   function status(m){ if (els.status) els.status.textContent = m || ""; }
-  function portalUrl(sub){ return "http://" + S.portal + ".localhost:" + PORT + "/" + sub; }
+  function portalUrl(sub){ return window.SheriffDeskBackend.assetUrl(S.portal, sub); }
 
   // ---------- API ----------
   function mutation(url, options){
@@ -73,19 +74,13 @@
     PORT = port || (location.port || "5173");
     cacheEls();
     if (!els.portal) return;
-    if (els.portal.options.length === 0 && portals.length){
-      portals.forEach(function(n){
-        var o = document.createElement("option"); o.value=n; o.textContent=n;
-        els.portal.appendChild(o);
-      });
-    }
     if (window.SheriffPortalContext) window.SheriffPortalContext.mount(els.portal);
     if (els.portal.value && (!S || S.portal !== els.portal.value)) loadPortal();
   }
 
   function cacheEls(){
     if (wired) return;
-    els.portal   = document.getElementById("ii-portal");
+    els.portal   = document.getElementById("desk-portal");
     els.image    = document.getElementById("ii-image");
     els.save     = document.getElementById("ii-save");
     els.status   = document.getElementById("ii-status");
@@ -106,7 +101,6 @@
     if (!els.portal) return;
     wired = true;
 
-    els.portal.addEventListener("change", loadPortal);
     els.image.addEventListener("change", function(){ selectImage(els.image.value); });
     els.save.addEventListener("click", save);
     els.addIcon.addEventListener("click", function(){ els.iconInput.click(); });

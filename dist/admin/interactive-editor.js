@@ -73,19 +73,13 @@
     PORT = port || (location.port || "5173");
     cacheEls();
     if (!els.portal) return;
-    if (els.portal.options.length === 0 && portals.length){
-      portals.forEach(function(n){
-        var o = document.createElement("option"); o.value=n; o.textContent=n;
-        els.portal.appendChild(o);
-      });
-    }
     if (window.SheriffPortalContext) window.SheriffPortalContext.mount(els.portal);
     if (els.portal.value && (!S || S.portal !== els.portal.value)) loadPortal();
   }
 
   function cacheEls(){
     if (wired) return;
-    els.portal   = document.getElementById("ii-portal");
+    els.portal   = document.getElementById("desk-portal");
     els.image    = document.getElementById("ii-image");
     els.save     = document.getElementById("ii-save");
     els.status   = document.getElementById("ii-status");
@@ -106,7 +100,6 @@
     if (!els.portal) return;
     wired = true;
 
-    els.portal.addEventListener("change", loadPortal);
     els.image.addEventListener("change", function(){ selectImage(els.image.value); });
     els.save.addEventListener("click", save);
     els.addIcon.addEventListener("click", function(){ els.iconInput.click(); });

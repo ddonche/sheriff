@@ -416,6 +416,11 @@ act do_create(query)
         logo_src    | "{root_base}/site/portals/sheriff/public/logo.png"
         favicon_src | "{root_base}/site/portals/sheriff/public/favicon.ico"
 
+        if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud"
+            logo_src |= "{root_base}/sheriff-core/desk/admin/logo.png"
+            favicon_src |= "{root_base}/sheriff-core/desk/admin/favicon.ico"
+        xx
+
         if :file_exists(logo_src)
             :copy_file!(logo_src, "{root}/public/logo.png")
         xx
@@ -426,7 +431,7 @@ act do_create(query)
 
         js_src | "{root_base}/site/portals/sheriff/public/js"
 
-        if :file_exists(js_src)
+        if :file_exists(js_src) and :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) != "cloud"
             :create_dir!("{root}/public/js")
 
             for asset in :walk(js_src, "**/*.js")

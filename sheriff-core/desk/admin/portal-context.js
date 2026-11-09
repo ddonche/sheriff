@@ -2,12 +2,12 @@
 // subscribe to changes, and register a guard or an operation lock.
 (function () {
   'use strict';
-  const key = 'desk.activePortal';
+  const key = window.SheriffDeskBackend?.mode === 'cloud' ? 'desk.activePortal.cloud' : 'desk.activePortal';
   const selectors = new Map(), metadata = new Map(), listeners = new Set(), guards = new Set(), locks = new Set();
   let names = [], current = '', revision = 0, remembered = '';
   try { remembered = localStorage.getItem(key) || ''; } catch (_) {}
   const port = location.port || '5173';
-  function host(portal) { return portal ? portal + '.localhost:' + port : ''; }
+  function host(portal) { return portal ? new URL(window.SheriffDeskBackend.portalUrl(portal)).host : ''; }
   function fallback(name) { return name.trim().split(/[\s_-]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?'; }
   function render() {
     selectors.forEach((parts, select) => {
@@ -19,7 +19,7 @@
       select.value = current;
       select.disabled = !names.length || locks.size > 0;
       const info = metadata.get(current) || {}, name = info.name || current;
-      const src = current ? info.logo || 'http://' + host(current) + '/public/logo.png' : '';
+      const src = current ? info.logo || window.SheriffDeskBackend.assetUrl(current, 'public/logo.png') : '';
       parts.root.dataset.portal = current;
       parts.initials.textContent = fallback(name);
       parts.initials.hidden = !current || (!parts.img.hidden && parts.img.dataset.loaded === src);

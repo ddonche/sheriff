@@ -70,15 +70,16 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
   const target=await row.getAttribute('title');await row.click();
   await page.waitForFunction(target=>document.getElementById('ed-path').textContent===(target.endsWith('.md')?target:target.replace(/^content\//,'')),target);
  }
- async function renameOpen(newName){await page.locator('#ed-rename').click();const input=page.locator('.rename-input');await input.fill(newName);await input.press('Enter');await until(()=>!document.querySelector('.rename-input'));}
+ async function renameOpen(newName){await itemMenu((await page.locator('#ed-path').textContent()).split('/').pop(),'rename');const input=page.locator('.rename-input');await input.fill(newName);await input.press('Enter');await until(()=>!document.querySelector('.rename-input'));}
  async function itemMenu(name,action){await page.getByRole('button',{name:'Actions for '+name,exact:true}).click();await page.locator('.ctx-menu button[data-act="'+action+'"]').click();}
  await page.goto('http://desk.test/#content');
  await until(()=>document.querySelector('.tree-item .node-name')?.textContent);
  assert.equal(await page.locator('#ed-raw-revisions').isChecked(),false);
+ assert.equal(await page.locator('#ed-rename,#ed-delete').count(),0);
  assert.equal(await page.getByRole('button',{name:'Actions for book',exact:true}).count(),1);
  assert.equal(await page.getByRole('button',{name:'Actions for content',exact:true}).count(),0);
  await openFile('notes.md');await page.locator('#ed-text').fill('Unsaved notes stay open');
- acceptDialog=false;await page.locator('#ed-delete').click();
+ acceptDialog=false;await itemMenu('notes.md','delete');
  assert(files.has('content/notes.md'));assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved notes stay open');
  await renameOpen('collision.md');
  assert(files.has('content/notes.md'));assert.equal(files.get('content/collision.md'),'Do not replace');
@@ -90,19 +91,21 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  // The flat-page revision context must also follow the new filename.
  await page.locator('#ed-save').click();
  await until(()=>document.querySelector('#ed-version-bar .ed-vb-rev')?.textContent==='editing R2');
+ assert.equal(await page.locator('#ed-tab-log').getAttribute('aria-selected'),'true');
+ await page.locator('#ed-tab-editor').click();
  assert(files.has('content/renamed/current/R2.md'));assert(![...files.keys()].some(p=>p.startsWith('content/notes/')));
  await openFolder('drafts');await openFolder('nested');await openFile('leaf.md');
  await page.locator('#ed-text').fill('Unsaved draft text');
  await page.locator('#ed-filter').fill('drafts');
  await itemMenu('drafts','rename');assert.equal(await page.locator('.rename-input').inputValue(),'drafts');await page.locator('.rename-input').fill('archive');await page.locator('.rename-input').press('Enter');
- await until(()=>!document.getElementById('ed-portal').disabled && document.getElementById('ed-path').textContent==='content/archive/nested/leaf.md');
+ await until(()=>!document.getElementById('desk-portal').disabled && document.getElementById('ed-path').textContent==='content/archive/nested/leaf.md');
  assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved draft text');
  await page.locator('#ed-filter').fill('');
  await itemMenu('archive','rename');await page.locator('.rename-input').fill('Archive');await page.locator('.rename-input').press('Enter');
- await until(()=>!document.getElementById('ed-portal').disabled && document.getElementById('ed-path').textContent==='content/Archive/nested/leaf.md');
+ await until(()=>!document.getElementById('desk-portal').disabled && document.getElementById('ed-path').textContent==='content/Archive/nested/leaf.md');
  assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved draft text');
  await itemMenu('Archive','rename');await page.locator('.rename-input').fill('archive');await page.locator('.rename-input').press('Enter');
- await until(()=>!document.getElementById('ed-portal').disabled && document.getElementById('ed-path').textContent==='content/archive/nested/leaf.md');
+ await until(()=>!document.getElementById('desk-portal').disabled && document.getElementById('ed-path').textContent==='content/archive/nested/leaf.md');
  assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved draft text');
  await itemMenu('archive','delete');
  await until(()=>document.getElementById('ed-text').disabled);
@@ -119,9 +122,11 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert.equal(await page.getByText('Overwrite this revision',{exact:true}).count(),1);
  await page.locator('#ed-text').fill('New revision copied from old text');await page.locator('#ed-save').click();
  await until(()=>document.querySelector('#ed-version-bar .ed-vb-rev')?.textContent==='editing R4');
+ assert.equal(await page.locator('#ed-tab-log').getAttribute('aria-selected'),'true');
+ await page.locator('#ed-tab-editor').click();
  assert.equal(files.get('content/handbook/current/R3.md'),'Book revision three');
  assert.equal(files.get('content/handbook/current/R4.md'),'New revision copied from old text');
- await page.locator('#ed-delete').click();
+ await itemMenu('R4.md','delete');
  await until(()=>document.querySelector('#ed-version-bar .ed-vb-rev')?.textContent==='editing R3');
  assert.equal(await page.locator('#ed-text').inputValue(),'Book revision three');
  assert(!files.has('content/handbook/current/R4.md'));
@@ -131,11 +136,11 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert.equal(await page.locator('#ed-save').isDisabled(),false);
  await page.locator('#ed-text').fill('Book revision three');
  // Revision files keep their required naming convention.
- await page.locator('#ed-rename').click();await page.locator('.rename-input').fill('bad.md');await page.locator('.rename-input').press('Enter');
+ await itemMenu('R3.md','rename');await page.locator('.rename-input').fill('bad.md');await page.locator('.rename-input').press('Enter');
  assert(files.has('content/handbook/current/R3.md'));assert(!files.has('content/handbook/current/bad.md'));
  await page.locator('#ed-raw-revisions').uncheck();
  if(process.env.SHERIFF_UI_SCREENSHOT)await page.screenshot({path:process.env.SHERIFF_UI_SCREENSHOT,fullPage:true});
- await page.locator('#ed-delete').click();
+ await itemMenu('handbook','delete');
  await until(()=>document.getElementById('ed-text').disabled);
  assert(![...files.keys()].some(p=>p.startsWith('content/handbook/')));
  assert(dialogs.some(d=>d.includes('ALL its versions and revisions')));

@@ -26,6 +26,7 @@ act process_wikilinks(ctx)
     pipeline | [
         "stash_code_for_wikilinks",
         "sweep_wikilinks",
+        "render_video_groups",
         "inject_focus_panel",
         "restore_code_for_wikilinks"
     ]
@@ -167,7 +168,7 @@ act sweep_fences(fences)
 
     /// admon locals; using broadcast tether
     is_known_kind | false
-    kind, title, title_t, inner, custom | nil
+    kind, title, title_t, inner, custom, leading_icon, icon_header | nil
     repl | ..
 
     /// stub locals
@@ -190,7 +191,7 @@ act sweep_fences(fences)
             if self.nix? => skip
 
             /// IMPORTANT: reset per-fence replacement so nothing leaks
-            repl, header_rest, body_part |= ..
+            repl, header_rest, body_part, leading_icon |= ..
 
             block |= self
 
@@ -214,6 +215,16 @@ act sweep_fences(fences)
                 body_part |= :keep_after(block, "</p>") ?? ..
                 body_part |= :keep_before(body_part, "<p>:::</p>") ?? ..
                 body_part |= s_trim(body_part) ?? ..
+            xx
+
+            /// An optional icon may precede the kind, including colors with spaces.
+            /// Keep it as syntax until the later wikilink/icon rendering pass.
+            if :starts_with(header_rest, "[[icon|")
+                icon_header |= :keep_before(header_rest, "]]")
+                if !icon_header.nix?
+                    leading_icon |= icon_header + "]]"
+                    header_rest |= s_trim(:keep_after(header_rest, "]]")) ?? ..
+                xx
             xx
 
             first_tok |= s_trim(:keep_before(header_rest, " ")) ?? header_rest
@@ -420,6 +431,8 @@ act sweep_fences(fences)
 
                 custom |= s_trim(:keep_after(header_rest, " "))
                 if !custom.nix? => title |= custom
+
+                if leading_icon != .. => title |= leading_icon + " " + title
 
                 title_t |= escape_text(title)
                 inner   |= s_trim(body_part) ?? ..
@@ -828,6 +841,47 @@ xx
 /// 4) MISSING PAGE ROUTING (NO FALLBACKS, NO "#")
 /// ======================================================================
 
+/// Inline icons share Core defaults and portal-local replacements.
+act icon_name_valid(name)
+    if name.nix? => return false
+    return :slug(name) == name
+xx
+
+act icon_color_valid(color)
+    if color.nix? => return false
+    if color.len > 120 => return false
+    allowed | "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#(),.% /+-"
+    for ch in :split(color, "")
+        if :has(allowed, ch) == false => return false
+    xx
+    return true
+xx
+
+act render_icon(inner, portal)
+    parts | :split(inner, "|")
+    name, color | ""
+    if parts.len > 1 => name |= :trim(parts[1])
+    if parts.len > 2 => color |= :trim(parts[2])
+    valid | icon_name_valid(name)
+    exists | false
+    if valid and parts.len <= 3
+        if !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
+            exists |= true
+        elif :file_exists("assets/icons/{name}.svg")
+            exists |= true
+        xx
+    xx
+    if exists == false
+        safe | escape_attr(escape_text(name))
+        return "<span class=\"sheriff-icon-missing\" role=\"img\" aria-label=\"Unknown icon: {safe}\" title=\"Unknown icon: {safe}\">?</span>"
+    xx
+    color_style | ""
+    if icon_color_valid(color)
+        color_style |= "color:{color};"
+    xx
+    return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" role=\"img\" aria-label=\"{name}\" style=\"--sheriff-icon-url:url('/public/icons/{name}.svg');{color_style}\"></span>"
+xx
+
 act missing_page_href()
     return "/docs/missing.html"
 xx
@@ -908,6 +962,10 @@ act resolve_wikilink(inner, ctx, portal)
     core | :keep_between(raw, "[[", "]]") ?? raw
 
     inner_text | s_trim(core) ?? => send ..
+
+    if :starts_with(:lower(inner_text), "icon|")
+        return render_icon(inner_text, portal)
+    xx
 
     /// Reject deprecated video shorthand
     if :starts_with(:lower(inner_text), "video|")
@@ -1041,7 +1099,7 @@ act resolve_wikilink(inner, ctx, portal)
         cap_a | escape_attr(caption)
         cap_t | escape_text(caption)
 
-        wrap_class | "sheriff-video sheriff-video-{size}"
+        wrap_class | "sheriff-video sheriff-video-{size} sheriff-video-align-{align}"
         frame_class | "sheriff-video-frame sheriff-align-{align}"
 
         return """
@@ -1182,6 +1240,15 @@ act sweep_wikilinks(wl)
             if self.nix? => skip
 
             core |= :trim(:keep_between(self, "[[", "]]")) ?? => skip
+
+            if :starts_with(:lower(core), "icon|")
+                repl |= render_icon(core, portal)
+                :update_where!(result, self, repl)
+                skip
+            xx
+
+            /// Render videos together after other wikilinks, before code is restored.
+            if :starts_with(core, "video:") => skip
 
             if :starts_with(core, "focuspanel:")
                 if focus_html.nix?
@@ -1375,6 +1442,83 @@ act sweep_wikilinks(wl)
     :update!(wl{"ctx"}, ctx)
     :update!(wl{"result"}, result)
     :update!(wl{"focus_html"}, focus_html)
+    return wl
+xx
+
+/// Only unwrap paragraphs made entirely of video tags; prose remains a boundary.
+act video_tags_only(text)
+    rest | :trim(text)
+    for n in :range(0, :split(text, "[[video:").len)
+        if rest.nix? => return true
+        if :starts_with(rest, "[[video:") == false => return false
+        if :has(rest, "]]") == false => return false
+        rest |= :trim(:keep_after(rest, "]]" ) ?? "")
+    xx
+    return rest.nix?
+xx
+
+/// Consecutive videos form one contained block, including across blank lines.
+/// HTML boundaries (patterns, tabs, paragraphs with prose) end the group.
+act render_video_groups(wl)
+    html | wl{"result"}
+    if :has(html, "[[video:") == false => return wl
+    sweep html
+        "<p>" ... "</p>":
+            inner | :trim(:keep_between(self, "<p>", "</p>") ?? "")
+            if video_tags_only(inner) => :update_where!(html, self, inner)
+    xx
+    rest | html
+    out | ""
+    for n in :range(0, :split(html, "[[video:").len)
+        if :has(rest, "[[video:") == false => stop
+        prefix | :keep_before(rest, "[[video:") ?? ""
+        tail | :keep_after(rest, "[[video:") ?? ""
+        if :has(tail, "]]") == false => stop
+        out |= out + prefix
+        rest |= "[[video:" + tail
+        videos | []
+        for k in :range(0, :split(rest, "[[video:").len)
+            candidate | :trim(rest)
+            if :starts_with(candidate, "[[video:") == false => stop
+            if :has(candidate, "]]") == false => stop
+            video_inner | :keep_before(:keep_after(candidate, "[["), "]]") ?? ""
+            tag | "[[" + video_inner + "]]"
+            rendered | resolve_wikilink(tag, wl{"ctx"}, wl{"portal"})
+            :put_last!(videos, rendered)
+            rest |= :keep_after(candidate, "]]") ?? ""
+        xx
+        content | :join(videos, "\n")
+        group_class | "sheriff-video-group"
+        floated | false
+        if videos.len == 1 and (:has(content, "sheriff-video-half ") or :has(content, "sheriff-video-thumb "))
+            if :has(content, "sheriff-video-align-left")
+                group_class |= group_class + " sheriff-video-float-left"
+                floated |= true
+            elif :has(content, "sheriff-video-align-right")
+                group_class |= group_class + " sheriff-video-float-right"
+                floated |= true
+            xx
+            if floated and :has(content, "sheriff-video-thumb ") => group_class |= group_class + " sheriff-video-float-thumb"
+        xx
+        group_html | "<div class=\"" + group_class + "\"><div class=\"sheriff-video-grid\">\n" + content + "\n</div></div>"
+        if floated
+            /// Share the available column with adjacent prose, including beside infoboxes.
+            prose | []
+            for p in :range(0, :split(rest, "<p>").len)
+                next | :trim(rest)
+                if :starts_with(next, "<p>") == false => stop
+                if :has(next, "</p>") == false => stop
+                paragraph | :keep_before(next, "</p>") + "</p>"
+                if :has(paragraph, "[[video:") => stop
+                :put_last!(prose, paragraph)
+                rest |= :keep_after(next, "</p>") ?? ""
+            xx
+            prose_html | :join(prose, "\n")
+            group_html |= "<div class=\"sheriff-video-flow\">\n" + group_html + prose_html + "\n</div>"
+        xx
+        out |= out + group_html
+    xx
+    :update!(wl{"result"}, out + rest)
     return wl
 xx
 

@@ -12,11 +12,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 0 0.5rem 0;       /* changed only the top padding from 0.5rem to 0 */
+  padding: 0 0 1.125rem 0; /* Balance the shell top padding around the branding row. */
   gap: 1.5rem;
 }
 
-/* Everything below is untouched from your original */
+@media (max-width: 820px) {
+  .sheriff-header-top {
+    padding-bottom: 0.875rem;
+  }
+}
 .sheriff-header-bottom {
   display: flex;
   align-items: center;
@@ -53,7 +57,7 @@
 }
 .sheriff-logo-text-wrap {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.4rem;
 }
 .sheriff-logo-text {
@@ -68,7 +72,9 @@
   gap: 0.4rem;
 }
 
-.sheriff-page-count-badge {
+.sheriff-page-count-badge,
+.sheriff-image-count-badge,
+.sheriff-video-count-badge {
   display: inline-flex;
   align-items: center;
 

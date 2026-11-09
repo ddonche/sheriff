@@ -1,0 +1,14 @@
+// Image API fixtures: uploads/mkdir/list only. Never invokes a site build.
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),tempRoot=path.resolve(os.tmpdir()),fixture=fs.mkdtempSync(path.join(tempRoot,'sheriff-image-api-'));
+try{const portal=path.join(fixture,'site/portals/example');fs.mkdirSync(portal,{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/desk/api/file.gbln'),path.join(fixture,'file.gbln'));const source=path.join(fixture,'upload-body.bin'),bytes=Buffer.from([0,255,128,42,0,17]);fs.writeFileSync(source,bytes);
+function api(verb,subpath='',noOverwrite=false){const query=verb+'&example'+(subpath?'&'+encodeURIComponent(subpath):'')+(noOverwrite?'&no_overwrite=1':'');const result=spawnSync('goblin',['run','file.gbln'],{cwd:fixture,encoding:'utf8',timeout:15000,env:{...process.env,SHERIFF_ROOT:fixture.replaceAll('\\','/'),GOBLIN_QUERY_STRING:query,GOBLIN_METHOD:'POST',GOBLIN_REQUEST_FILE:source}});assert.equal(result.status,0,result.stdout+'\n'+result.stderr);return JSON.parse(result.stdout.trim());}
+let checks=0;
+const folder='public/images/Characters # & É';assert.equal(api('mkdir',folder).ok,true);assert(fs.statSync(path.join(portal,folder)).isDirectory());assert(api('list').dirs.includes(folder));checks++;
+const target=folder+'/C# & F+ ü.png';const upload=api('upload',target,true);assert.equal(upload.ok,true,JSON.stringify(upload));assert.equal(upload.path,target);assert(fs.readFileSync(path.join(portal,target)).equals(bytes));assert(api('list').files.includes(target));checks++;
+fs.writeFileSync(source,'replacement');assert.equal(api('upload',target,true).ok,false);assert(fs.readFileSync(path.join(portal,target)).equals(bytes));checks++;
+assert.equal(api('upload',target,false).ok,true);assert.equal(fs.readFileSync(path.join(portal,target),'utf8'),'replacement');checks++;
+const literal='public/images/literal%2F.png';assert.equal(api('upload',literal,true).ok,true);assert(fs.existsSync(path.join(portal,literal)));assert(!fs.existsSync(path.join(portal,'public/images/literal/.png')));checks++;
+assert.equal(api('upload','public/images/../../escape.png',true).ok,false);assert.equal(api('upload','content/wrong.png',true).ok,false);assert.equal(api('mkdir','public/images/../escape').ok,false);assert(!fs.existsSync(path.join(fixture,'escape.png')));checks++;
+console.log('Passed '+checks+' image API checks: binary uploads, nested Unicode/punctuation paths, single decoding, no-overwrite protection, existing Media replacement behavior, and traversal rejection. No site builds run.');
+}finally{assert.equal(path.dirname(fixture),tempRoot);assert(path.basename(fixture).startsWith('sheriff-image-api-'));fs.rmSync(fixture,{recursive:true,force:true});}

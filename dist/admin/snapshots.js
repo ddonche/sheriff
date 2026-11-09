@@ -152,7 +152,7 @@
     status('Source restored. Rebuilding ' + portal + '…');
     let message, failed = false;
     try {
-      const response = await fetch('/api/build?' + encodeURIComponent(portal));
+      const response = await window.SheriffBuildLog.fetch('/api/build?' + encodeURIComponent(portal));
       const build = await response.json();
       failed = !response.ok || build.ok === false || (build.code !== undefined && build.code !== null && build.code !== 0);
       message = failed ? 'Snapshot restored, but the rebuild failed.' : 'Snapshot restored and site rebuilt.';

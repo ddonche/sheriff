@@ -1,0 +1,110 @@
+/// Portal source statistics, calculated once in the pre-build schedule.
+import modules/trailboss_wiki/routes_json as stats_routes
+import modules/frontier_fm/frontier as stats_frontier
+import modules/sheriff_patterns/patterns as stats_patterns
+import modules/markdown_core/markdown as stats_markdown
+
+act image_count(portal)
+    root | "../site/portals/{portal}/public/images"
+    if :file_exists(root) == false => return 0
+    extensions | ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "ico", "bmp", "tif", "tiff", "jfif"]
+    count | 0
+    for file in :walk(root, "**/*")
+        if :is_dir(file) => skip
+        name | :lower(:basename(file))
+        parts | :split(name, ".")
+        if parts.len < 2 => skip
+        extension | parts[parts.len - 1]
+        if :has(extensions, extension) => count += 1
+    xx
+    return count
+xx
+
+/// Discard rendered code and non-content HTML before looking for embeds.
+act content_only(html)
+    out | html
+    sweep out
+        "<pre" ... "</pre>":
+            :update_where!(out, self, "")
+    xx
+    sweep out
+        "<code" ... "</code>":
+            :update_where!(out, self, "")
+    xx
+    sweep out
+        "<script" ... "</script>":
+            :update_where!(out, self, "")
+    xx
+    sweep out
+        "<style" ... "</style>":
+            :update_where!(out, self, "")
+    xx
+    sweep out
+        "<textarea" ... "</textarea>":
+            :update_where!(out, self, "")
+    xx
+    sweep out
+        "<!--" ... "-->":
+            :update_where!(out, self, "")
+    xx
+    return out
+xx
+
+act video_key(inner)
+    parts | :split(inner, "|")
+    if parts.len < 2 => return ""
+    provider | :lower(:trim(parts[0]))
+    id | :trim(parts[1])
+    if id.nix? => return ""
+    if provider != "youtube" and provider != "vimeo" => return ""
+    allowed | "0123456789"
+    if provider == "youtube"
+        allowed |= allowed + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"
+    xx
+    for ch in :split(id, "")
+        if :has(allowed, ch) == false => return ""
+    xx
+    return provider + "|" + id
+xx
+
+act video_count(portal)
+    seen | []
+    /// Current version rows select the latest revision of each published version.
+    for record in stats_routes::build_render_records(portal)
+        raw | :read_text(record{"path"})
+        ctx | {"portal": portal, "body": raw, "frontmatter": {}}
+        ctx |= stats_frontier::strip_frontmatter(ctx)
+        ctx |= stats_patterns::apply_patterns(ctx)
+        if :has(ctx{"body"}, "[[video:") == false => skip
+        ctx |= stats_markdown::render(ctx)
+        text | content_only(ctx{"body"})
+        sweep text
+            "[[video:" ... "]]":
+                inner | :keep_between(self, "[[video:", "]]") ?? ""
+                key | video_key(inner)
+                if !key.nix? and :has(seen, key) == false
+                    :put_last!(seen, key)
+                xx
+        xx
+    xx
+    return seen.len
+xx
+
+act collect(pre_ctx)
+    portal | pre_ctx{"portal"} ?? => return pre_ctx
+    /// Stats tokens resolve only during Badge's page pass, never in code examples.
+    for name in ["PAGE_COUNT", "IMAGE_COUNT", "VIDEO_COUNT", "STATS"]
+        clear_token("BADGE", name)
+    xx
+    path | "../site/portals/{portal}/report.json"
+    report | {}
+    if :file_exists(path)
+        report |= :read_json(path)
+        if :valtype(report) != "map" => report |= {}
+    xx
+    :update!(report{"images"}, image_count(portal))
+    :update!(report{"videos"}, video_count(portal))
+    :write_json!(path, report)
+    :update!(pre_ctx{"portal_stats"}, report)
+    return pre_ctx
+xx

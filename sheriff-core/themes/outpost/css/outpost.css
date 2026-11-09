@@ -863,7 +863,7 @@ details.sheriff-spoiler[open] > summary::before {
 /* ========================================================================== */
 
 .sheriff-video{
-  display: inline-block;
+  display: block;
   width: fit-content;
   max-width: 100%;
   margin: 1.25rem 0;
@@ -897,31 +897,58 @@ details.sheriff-spoiler[open] > summary::before {
   border: 0;
 }
 
-.sheriff-video-thumb{ width: 260px; max-width: 100%; }
-.sheriff-video-half{ width: 420px; max-width: 50vw; }
-.sheriff-video-full{ width: 100%; max-width: 820px; }
-
-.sheriff-video:has(.sheriff-align-left){
-  float: left;
-  margin: 0 1rem 0.75rem 0;
+/* A formatting context keeps the group beside an earlier floated infobox. */
+.sheriff-video-group {
+  display: flow-root;
+  min-width: 0;
+  margin: 1.25rem 0;
+  container: sheriff-videos / inline-size;
 }
-
-.sheriff-video:has(.sheriff-align-right){
-  float: right;
-  margin: 0 0 0.75rem 1rem;
+.sheriff-video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 1rem;
+  width: 100%;
+  max-width: 820px;
+  margin-inline: auto;
 }
-
-.sheriff-video:has(.sheriff-align-center),
-.sheriff-video:has(.sheriff-video-full){
-  float: none;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+.sheriff-video-thumb { width: 260px; max-width: 100%; }
+.sheriff-video-half { width: calc((100% - 1rem) / 2); max-width: 100%; }
+.sheriff-video-full { width: 100%; max-width: 820px; }
+.sheriff-video:has(.sheriff-align-left) { margin-left: 0; margin-right: auto; }
+.sheriff-video:has(.sheriff-align-right) { margin-left: auto; margin-right: 0; }
+.sheriff-video-grid > .sheriff-video { float: none; min-width: 0; margin: 0; justify-self: center; }
+.sheriff-video-grid > .sheriff-video-full { grid-column: 1 / -1; }
+.sheriff-video-grid > .sheriff-video-half { width: 100%; }
+.sheriff-video-grid > .sheriff-video:only-child { grid-column: 1 / -1; }
+.sheriff-video-grid > .sheriff-video-half:only-child { width: calc((100% - 1rem) / 2); }
+.sheriff-video-grid > .sheriff-video-align-left { justify-self: start; }
+.sheriff-video-grid > .sheriff-video-align-right { justify-self: end; }
+/* Single directional videos share their row with adjacent prose. */
+.sheriff-video-flow { display: flow-root; min-width: 0; margin: 1.25rem 0; }
+.sheriff-video-float-left,
+.sheriff-video-float-right {
+  width: calc((100% - 1rem) / 2);
+  max-width: calc((820px - 1rem) / 2);
 }
-
-@media (max-width: 860px){
-  .sheriff-video{ width: 100%; }
-  .sheriff-video-half{ width: 100%; max-width: 100%; }
+.sheriff-video-float-left { float: left; margin: 0 1rem 0.75rem 0; }
+.sheriff-video-float-right { float: right; margin: 0 0 0.75rem 1rem; }
+.sheriff-video-float-thumb { width: 260px; max-width: 100%; }
+.sheriff-video-float-left > .sheriff-video-grid > .sheriff-video,
+.sheriff-video-float-right > .sheriff-video-grid > .sheriff-video { width: 100%; }
+.sheriff-video-flow > p:first-of-type { margin-top: 0; }
+.sheriff-video-flow > p:last-child { margin-bottom: 0; }
+@container sheriff-videos (max-width: 32rem) {
+  .sheriff-video-grid { grid-template-columns: minmax(0, 1fr); }
+  .sheriff-video-grid > .sheriff-video-half:only-child { width: 100%; }
+}
+@media (max-width: 600px) {
+  .sheriff-video-float-left,
+  .sheriff-video-float-right { float: none; width: 100%; max-width: 100%; margin: 0 0 1rem; }
+  .sheriff-video-grid { grid-template-columns: minmax(0, 1fr); }
+  .sheriff-video-half,
+  .sheriff-video-grid > .sheriff-video-half:only-child { width: 100%; }
 }
 
 /* ========================================================================== */
@@ -2623,3 +2650,74 @@ a.sheriff-missing-link:hover {
   .sheriff-content-tabs > .sheriff-content-tab-panel[hidden]{display:flow-root!important;}
   .sheriff-content-tabs-ready > .sheriff-content-tab-panel > .sheriff-content-tab-heading{display:block;}
 }
+
+
+/* Current-page navigation uses the theme's panel and link palette. */
+.sheriff-left-nav a.sheriff-nav-active,
+.sheriff-header-nav a.sheriff-nav-active,
+.sheriff-footer-links a.sheriff-nav-active {
+  color: var(--sheriff-link);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sheriff-left-nav a.sheriff-nav-active {
+  background: var(--sheriff-panel);
+  border-radius: 4px;
+  padding-inline: 0.4rem;
+  margin-inline: -0.4rem;
+  opacity: 1;
+}
+
+/* Alphabetical generated indexes: letter groups share the theme's heading styles. */
+.sheriff-directory { margin: 1.5rem 0; }
+.sheriff-directory-columns {
+  column-width: 14rem;
+  column-count: 2;
+  column-gap: 2rem;
+}
+.sheriff-directory-group {
+  break-inside: avoid-column;
+  margin: 0 0 1.5rem;
+}
+.sheriff-article .sheriff-directory-group > h2 {
+  margin-top: 0;
+  break-after: avoid-column;
+}
+.sheriff-article .sheriff-directory-group > ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+.sheriff-directory-group li { overflow-wrap: anywhere; }
+.sheriff-directory-group .anchor { scroll-margin-top: 1.5rem; }
+@media (max-width: 640px) {
+  .sheriff-directory-columns { column-count: 1; }
+}
+
+/* Inline article icons inherit the local text/admonition/pattern color. */
+.sheriff-icon {
+  display: inline-block;
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: -0.25em;
+  background-color: currentColor;
+  -webkit-mask: var(--sheriff-icon-url) no-repeat center / contain;
+  mask: var(--sheriff-icon-url) no-repeat center / contain;
+}
+.sheriff-icon-missing { display: inline-block; font-weight: 600; cursor: help; }
+
+/* Keep menu icons spaced consistently with their labels. */
+.sheriff-nav-icon { margin-inline-end: 0.35em; }
+
+/* Portal totals can be placed in article content or custom landing pages. */
+.sheriff-portal-stats{display:flex;flex-wrap:wrap;gap:1rem 2rem;align-items:flex-start;margin:1.5rem 0;padding:1rem 0;border-top:1px solid var(--sheriff-border);border-bottom:1px solid var(--sheriff-border);color:var(--sheriff-text);font-family:inherit}
+.sheriff-portal-stat{display:flex;flex:1 1 6rem;min-width:0;flex-direction:column;gap:.35rem;text-align:center}
+.sheriff-stat-label{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--sheriff-muted)}
+.sheriff-stat-count{font-size:2.25rem;line-height:1.2;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+@media(max-width:480px){.sheriff-portal-stats{gap:.75rem}.sheriff-portal-stat{flex-basis:4.5rem}.sheriff-stat-count{font-size:1.8rem}.sheriff-stat-label{font-size:.68rem}}
+
+/* The same stats token stays compact when used beside the site name. */
+.sheriff-logo-text-wrap:has(> .sheriff-portal-stats){align-items:center;flex-wrap:wrap;row-gap:.5rem}
+.sheriff-logo-text-wrap > .sheriff-portal-stats{flex:0 1 auto;flex-wrap:nowrap;gap:.8rem;margin:0 0 0 .5rem;padding:0 0 0 .8rem;border:0;border-left:1px solid var(--sheriff-border)}
+.sheriff-logo-text-wrap > .sheriff-portal-stats > .sheriff-portal-stat{flex:0 0 auto;min-width:2.5rem;gap:.15rem}
+.sheriff-logo-text-wrap > .sheriff-portal-stats .sheriff-stat-label{font-size:.6rem;letter-spacing:.03em}
+.sheriff-logo-text-wrap > .sheriff-portal-stats .sheriff-stat-count{font-size:1.15rem;line-height:1.2}

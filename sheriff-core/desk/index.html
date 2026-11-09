@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=31">
+<link rel="stylesheet" href="/admin/admin.css?v=38">
 </head>
 <body>
 
@@ -33,6 +33,7 @@
   <header>
     <select id="desk-portal" data-portal-select data-portal-primary aria-label="Active portal"></select>
     <span class="env-tag">LOCAL ADMIN</span>
+    <button class="btn primary" id="desk-publish" type="button" hidden>Publish</button><span id="desk-publish-status" role="status"></span>
 
     <div class="header-actions">
       <a class="btn ghost" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">
@@ -69,6 +70,10 @@
     <a href="#interactive" data-view="interactive">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/><path d="M18 3v4M16 5h4"/></svg>
       Interactive
+    </a>
+    <a href="#icons" data-view="icons">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>
+      Icons
     </a>
     <a href="#patterns" data-view="patterns">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -230,9 +235,6 @@
       <div class="editor-shell">
 
         <aside class="editor-side">
-          <label class="ed-label" for="ed-portal">Portal</label>
-          <select id="ed-portal" data-portal-select class="ed-select"></select>
-
           <input id="ed-filter" class="ed-filter" type="text" placeholder="Filter files…" spellcheck="false">
           <label class="ed-revision-toggle"><input id="ed-raw-revisions" type="checkbox"> Show revision files</label>
 
@@ -250,17 +252,60 @@
 
         <div class="editor-main">
           <div class="editor-bar">
+            <div class="ed-workspace-tabs" role="tablist" aria-label="Content workspace">
+              <button type="button" id="ed-tab-editor" role="tab" aria-selected="true" aria-controls="ed-editor-panel">Editor</button>
+              <button type="button" id="ed-tab-log" role="tab" aria-selected="false" aria-controls="ed-log-panel" tabindex="-1">Log <span class="build-state-dot" id="ed-log-dot" hidden aria-hidden="true"></span></button>
+            </div>
             <span class="ed-path" id="ed-path">No file open</span>
             <span class="ed-dirty" id="ed-dirty" hidden>● unsaved</span>
             <span class="ed-status" id="ed-status"></span>
-            <button class="btn small" type="button" id="ed-rename" disabled>Rename</button>
-            <button class="btn small" type="button" id="ed-delete" disabled>Delete</button>
             <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
             <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
           </div>
-          <div class="ed-version-bar" id="ed-version-bar" hidden></div>
-          <textarea id="ed-text" class="ed-text" spellcheck="false" disabled placeholder="Select a file from the left to start editing."></textarea>
+          <div id="ed-editor-panel" class="ed-editor-panel" role="tabpanel" aria-labelledby="ed-tab-editor">
+            <div class="content-tools"><button class="btn small" type="button" id="ci-toggle" aria-expanded="false" aria-controls="ci-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Insert image</button>
+              <button class="btn small" type="button" id="cx-icons-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>Insert icon</button>
+              <button class="btn small" type="button" id="cx-patterns-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Insert pattern</button>
+            </div>
+            <section id="ci-panel" class="content-image-panel" aria-label="Insert image" hidden>
+              <form id="ci-form">
+                <div class="content-source-tabs" role="group" aria-label="Image source"><button type="button" data-ci-source="existing" aria-pressed="true">Existing images</button><button type="button" data-ci-source="upload" aria-pressed="false">Upload new</button></div>
+                <div class="ci-grid">
+                  <select id="ci-source" aria-label="Image source" hidden><option value="existing">Existing image</option><option value="upload">Upload image</option></select>
+                  <div class="ci-field ci-folder-field"><label for="ci-folder">Image folder</label><div class="ci-folder-row"><select id="ci-folder"></select><button class="btn small" type="button" id="ci-newfolder">New folder</button></div></div>
+                  <div class="ci-field ci-file-field" id="ci-upload-row"><label for="ci-file">Image file</label><input id="ci-file" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.ico"></div>
+                  <div class="ci-field ci-file-field" id="ci-existing-row"><label for="ci-existing">Images in this folder</label><select id="ci-existing"><option value="">Choose an image…</option></select><div id="ci-library" class="ci-library" role="group" aria-label="Existing images"></div><p id="ci-library-empty" class="cx-muted" hidden>No images in this folder. Choose another folder or Upload new.</p></div>
+                  <div class="ci-field"><label for="ci-size">Size</label><select id="ci-size"><option value="full">Full</option><option value="half">Half</option><option value="thumb">Thumbnail</option><option value="mini">Mini</option><option value="icon">Icon</option></select></div>
+                  <div class="ci-field"><label for="ci-align">Alignment</label><select id="ci-align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></div>
+                  <div class="ci-field ci-caption-field"><label for="ci-caption">Caption (optional)</label><input id="ci-caption" type="text" placeholder="A description of the image"></div>
+                </div>
+                <div id="ci-newfolder-row" class="ci-newfolder-row" hidden><label for="ci-folder-name">New folder name</label><div><input id="ci-folder-name" type="text" placeholder="characters" autocomplete="off"><button class="btn small" type="button" id="ci-create-folder">Create folder</button><button class="btn small" type="button" id="ci-cancel-folder">Cancel</button></div></div>
+                <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; use Save &amp; build when ready.</p></div></div>
+                <p id="ci-status" class="ci-status" role="status" aria-live="polite"></p>
+                <div class="ci-actions"><button class="btn primary small" id="ci-insert" type="submit" disabled>Insert image</button><button class="btn small" type="button" id="ci-cancel">Cancel</button></div>
+              </form>
+            </section>
+            <section id="cx-panel" class="content-image-panel content-insert-panel" aria-labelledby="cx-title" hidden>
+              <div class="cx-heading"><h3 id="cx-title">Insert icon</h3><a id="cx-manage" href="#icons">Manage icons ↗</a></div>
+              <div class="cx-layout">
+                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div></div>
+                <div class="cx-detail">
+                  <div id="cx-icon-detail"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
+                  <h4 id="cx-name">Select an icon</h4><p id="cx-description" class="cx-muted"></p>
+                  <div id="cx-pattern-detail" hidden><label for="cx-pattern-use">Insert as</label><select id="cx-pattern-use"><option value="token">Reusable token</option><option value="source">Editable copy</option></select></div>
+                  <label for="cx-syntax">Will insert</label><textarea id="cx-syntax" readonly spellcheck="false" rows="4"></textarea>
+                </div>
+              </div>
+              <div class="ci-actions"><button class="btn primary small" type="button" id="cx-insert" disabled>Insert icon</button><button class="btn small" type="button" id="cx-cancel">Cancel</button></div>
+            </section>
+            <div class="ed-version-bar" id="ed-version-bar" hidden></div>
+            <textarea id="ed-text" class="ed-text" spellcheck="false" disabled placeholder="Select a file from the left to start editing."></textarea>
+          </div>
+          <div id="ed-log-panel" class="desk-build-panel" role="tabpanel" aria-labelledby="ed-tab-log" data-build-log="content" hidden>
+            <div class="desk-build-heading"><div><strong data-build-title>Build log</strong><span data-build-status role="status" aria-live="polite">Idle</span></div><button class="btn small" type="button" data-build-copy disabled>Copy log</button></div>
+            <pre class="desk-build-output" data-build-output tabindex="0" aria-label="Content build output">Build this page to see its output here.</pre>
+          </div>
         </div>
 
       </div>
@@ -268,6 +313,7 @@
 
     <!-- ============ PORTALS VIEW ============ -->
     <section class="view" id="view-portals" hidden>
+      <div class="portals-layout">
       <div class="portals-wrap">
         <div class="view-head"><h2 class="bracket">Portals</h2><button class="help-btn" type="button" data-help="portals" title="Help">?</button></div>
 
@@ -284,6 +330,12 @@
         <div class="portal-list" id="portal-manage-list">
           <div class="portal-empty">Detecting portals…</div>
         </div>
+      </div>
+
+      <aside class="desk-build-panel portals-build-panel" data-build-log="portals" aria-label="Portal build log">
+        <div class="desk-build-heading"><div><strong data-build-title>Build log</strong><span data-build-status role="status" aria-live="polite">Idle</span></div><button class="btn small" type="button" data-build-copy disabled>Copy log</button></div>
+        <pre class="desk-build-output" data-build-output tabindex="0" aria-label="Portal build output">Build a portal to see its output here.</pre>
+      </aside>
       </div>
 
       <template id="portal-manage-card">
@@ -307,7 +359,7 @@
     <section class="view" id="view-snapshots" hidden>
       <div class="snapshot-view">
         <div class="snapshot-heading"><div><h1>Snapshots</h1><p>Save a point you can return to.</p></div><button class="btn primary" id="ss-create" type="button">+ Save snapshot</button></div>
-        <div class="snapshot-toolbar"><div><label for="ss-portal">Portal</label><select id="ss-portal" class="ed-select" data-portal-select></select></div><div class="snapshot-total" id="ss-total"></div><button class="btn small" id="ss-refresh" type="button">Refresh</button><button class="help-btn" type="button" data-help="snapshots" title="Snapshot help">?</button></div>
+        <div class="snapshot-toolbar"><div class="snapshot-total" id="ss-total"></div><button class="btn small" id="ss-refresh" type="button">Refresh</button><button class="help-btn" type="button" data-help="snapshots" title="Snapshot help">?</button></div>
         <p class="snapshot-archived" id="ss-archived" hidden>This portal only has snapshots. Restore one to recreate its source.</p>
         <p class="snapshot-status" id="ss-status" role="status" aria-live="polite"></p>
         <div class="snapshot-table-wrap" id="ss-table"><table class="snapshot-table"><thead><tr><th scope="col">Name</th><th scope="col">Date and time</th><th scope="col">Size</th><th scope="col" class="snapshot-actions-head">Actions</th></tr></thead><tbody id="ss-rows"></tbody></table></div>
@@ -324,10 +376,6 @@
 
         <div class="panel media-bar">
           <div class="media-controls">
-            <div class="media-field">
-              <label class="ed-label" for="md-portal">Portal</label>
-              <select id="md-portal" data-portal-select class="ed-select"></select>
-            </div>
             <div class="media-field grow">
               <label class="ed-label" for="md-folder">Upload to</label>
               <input id="md-folder" class="ed-filter" type="text" value="public" spellcheck="false">
@@ -374,10 +422,6 @@
 
         <div class="panel ii-bar">
           <div class="media-controls">
-            <div class="media-field">
-              <label class="ed-label" for="ii-portal">Portal</label>
-              <select id="ii-portal" data-portal-select class="ed-select"></select>
-            </div>
             <div class="media-field grow">
               <label class="ed-label" for="ii-image">Image</label>
               <select id="ii-image" class="ed-select"><option value="">Pick a portal first</option></select>
@@ -463,8 +507,7 @@
           </div>
 
           <aside class="th-side">
-            <label class="ed-label" for="pat-portal">Portal</label>
-            <select id="pat-portal" data-portal-select class="ed-select"></select>
+            <div class="ed-label">Patterns</div>
             <div class="pat-list" id="pat-list">
               <div class="tree-msg">Pick a portal.</div>
             </div>
@@ -479,12 +522,6 @@
       <div class="cfg-wrap">
         <div class="view-head"><h2 class="bracket">Navigation</h2><button class="help-btn" type="button" data-help="navigation" title="Help">?</button></div>
         <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Saving rebuilds the portal.</p>
-        <div class="cfg-bar">
-          <div class="media-field">
-            <label class="ed-label" for="nv-portal">Portal</label>
-            <select id="nv-portal" data-portal-select class="ed-select"></select>
-          </div>
-        </div>
         <div class="cfg-editor">
           <textarea id="nv-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a portal."></textarea>
           <div class="cfg-foot">
@@ -516,8 +553,8 @@
           </div>
 
           <aside class="th-side">
-            <label class="ed-label" for="th-portal">Portal</label>
-            <select id="th-portal" data-portal-select class="ed-select"></select>
+            <div class="ed-label">Available themes</div>
+
             <div class="theme-cards" id="th-cards">
               <div class="tree-msg">Pick a portal.</div>
             </div>
@@ -532,12 +569,6 @@
       <div class="cfg-wrap">
         <div class="view-head"><h2 class="bracket">Config</h2><button class="help-btn" type="button" data-help="config" title="Help">?</button></div>
         <p class="np-hint" style="margin-bottom:4px">Your site's configuration (config.yall). Saving rebuilds the portal.</p>
-        <div class="cfg-bar">
-          <div class="media-field">
-            <label class="ed-label" for="cf-portal">Portal</label>
-            <select id="cf-portal" data-portal-select class="ed-select"></select>
-          </div>
-        </div>
         <details class="cfg-version-badges" id="cf-version-badges" hidden>
           <summary>Version badge tokens</summary>
           <p id="cf-version-badge-note" class="np-hint"></p>
@@ -549,6 +580,42 @@
             <span class="ed-status" id="cf-status"></span>
             <span class="ed-dirty" id="cf-dirty" hidden>● unsaved</span>
             <button class="btn primary small" type="button" id="cf-save" disabled>Save &amp; rebuild</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ICONS VIEW ============ -->
+    <section class="view" id="view-icons" hidden>
+      <div class="icons-wrap">
+        <div class="view-head"><h2 class="bracket">Icons</h2></div>
+        <p class="icons-intro">Find an icon, choose a color, and copy it into your content.</p>
+        <div class="icons-layout">
+          <aside class="icons-customizer" aria-label="Icon options and selection">
+            <div class="panel icons-options">
+              <h3>Appearance</h3>
+              <label for="ic-color">Color <span>(optional)</span></label>
+              <div class="icons-color-control"><input id="ic-color-picker" type="color" value="#22282c" aria-label="Choose icon color"><input id="ic-color" type="text" placeholder="Inherit styling" maxlength="120" spellcheck="false"></div>
+              <div class="icons-color-footer"><span>Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
+            </div>
+            <div class="panel icons-selection" id="ic-selection">
+              <div class="icons-selection-preview"><span id="ic-selected-preview" class="icons-preview" role="img" aria-label="Selected icon" hidden></span></div>
+              <h3 id="ic-selected-name">Select an icon</h3>
+              <span id="ic-selected-source" class="icons-source"></span>
+              <label for="ic-syntax">Paste into your content</label>
+              <textarea id="ic-syntax" readonly rows="3" spellcheck="false" aria-label="Selected icon syntax"></textarea>
+              <button id="ic-copy" class="btn primary" type="button" disabled>Copy syntax</button>
+              <span id="ic-copy-status" class="icons-copy-status" role="status" aria-live="polite"></span>
+            </div>
+          </aside>
+          <div class="icons-browser">
+            <div class="icons-search-bar">
+              <div class="icons-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="ic-search" type="search" placeholder="Search icons…" aria-label="Find an icon" autocomplete="off"></div>
+              <button id="ic-refresh" class="btn" type="button">Refresh</button>
+            </div>
+            <p id="ic-status" class="icons-status" role="status" aria-live="polite"></p>
+            <div class="icons-grid" id="ic-grid" role="group" aria-label="Available icons"></div>
+            <div class="icons-empty" id="ic-empty" hidden><p>No matching icons.</p><button id="ic-clear-search" class="btn small" type="button">Clear search</button></div>
           </div>
         </div>
       </div>
@@ -809,10 +876,15 @@ leadership = [[House Andergard]]</pre>
 
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=13"></script>
+<script src="/admin/help.js?v=17"></script>
+<script src="/admin/backend.js?v=1"></script>
 <script src="/admin/portal-context.js?v=2"></script>
-<script src="/admin/admin.js?v=36"></script>
-<script src="/admin/interactive-editor.js?v=4"></script>
-<script src="/admin/snapshots.js?v=1"></script>
+<script src="/admin/build-log.js?v=2"></script>
+<script src="/admin/admin.js?v=42"></script>
+<script src="/admin/content-images.js?v=2"></script>
+<script src="/admin/content-inserts.js?v=1"></script>
+<script src="/admin/icons.js?v=2"></script>
+<script src="/admin/interactive-editor.js?v=5"></script>
+<script src="/admin/snapshots.js?v=2"></script>
 </body>
 </html>

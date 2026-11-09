@@ -1,0 +1,12 @@
+// Hosted-mode regression checks against temporary copies only.
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),tempRoot=path.resolve(os.tmpdir()),fixture=fs.mkdtempSync(path.join(tempRoot,'sheriff-hosted-')),core=path.join(fixture,'sheriff-core');
+try{
+fs.cpSync(path.join(root,'sheriff-core'),core,{recursive:true});const portal=path.join(fixture,'site/portals/test');fs.mkdirSync(portal,{recursive:true});fs.writeFileSync(path.join(portal,'config.yall'),'theme:\n  name: compendium\n');
+const sentinels={'dist/index.html':'Cloud app','dist/admin/api/build.gbln':'Cloud build API','dist/api/owned.gbln':'Cloud API'};function seed(){for(const [name,body]of Object.entries(sentinels)){const file=path.join(fixture,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,body);}}
+fs.writeFileSync(path.join(core,'verify.gbln'),'import modules/stagehand/stagehand as stagehand\n:say(:json_stringify(stagehand::copy_assets({"portal":"test","marker":"retained"})))\n');
+function run(mode){const env={...process.env,SHERIFF_RUNTIME_MODE:mode};const r=spawnSync(process.env.SHERIFF_GOBLIN||'goblin',['run','verify.gbln'],{cwd:core,encoding:'utf8',timeout:30000,env});assert.equal(r.status,0,r.stdout+'\n'+r.stderr);assert(r.stdout.includes('retained'));return r.stdout;}
+seed();assert(run('cloud').includes('skipping local Sheriff Desk sync'));for(const [name,body]of Object.entries(sentinels))assert.equal(fs.readFileSync(path.join(fixture,name),'utf8'),body,name+' preserved');assert(fs.existsSync(path.join(fixture,'dist/test/public/css/compendium.css')));assert(fs.existsSync(path.join(fixture,'dist/test/public/icons/book.svg')));
+for(const mode of ['','local']){seed();assert(run(mode).includes('Synced Sheriff Desk'));assert.equal(fs.readFileSync(path.join(fixture,'dist/index.html'),'utf8'),fs.readFileSync(path.join(core,'desk/index.html'),'utf8'));assert(!fs.existsSync(path.join(fixture,'dist/admin/api/build.gbln')));assert(fs.existsSync(path.join(fixture,'dist/api/build.gbln')));}
+console.log('Passed hosted-mode checks: Cloud app/admin/API preserved, portal assets copied, CTX retained, and normal/explicit local Desk sync unchanged. No user sites built.');
+}finally{assert.equal(path.dirname(fixture),tempRoot);assert(path.basename(fixture).startsWith('sheriff-hosted-'));fs.rmSync(fixture,{recursive:true,force:true});}

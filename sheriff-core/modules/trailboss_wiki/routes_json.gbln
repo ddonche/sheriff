@@ -780,6 +780,71 @@ act letter_key(page_title)
     return "#"
 xx
 
+/// Shared generated directories: real headings feed Scout's existing TOC.
+/// Sort by letter and case-insensitive display title; preserve canonical targets.
+act render_alphabetical_index(items)
+    if items.nix? => return ""
+    if items.len == 0 => return ""
+
+    sort_keys | []
+    grouped | {}
+    for item in items
+        title | item{"title"}
+        bucket | letter_key(title)
+        sort_title | :lower(:trim(title))
+        sort_key | "{bucket}|||{sort_title}"
+        if :has(grouped, sort_key) == false
+            :put_last!(sort_keys, sort_key)
+        xx
+        matches | grouped{sort_key} ?? []
+        :put_last!(matches, item)
+        :update!(grouped{sort_key}, matches)
+    xx
+    sorted_items | []
+    for sort_key in :sort(sort_keys)
+        for item in grouped{sort_key}
+            :put_last!(sorted_items, item)
+        xx
+    xx
+
+    directory_class | "sheriff-directory"
+    if items.len >= 12
+        directory_class |= "{directory_class} sheriff-directory-columns"
+    xx
+    lines | ["<div class=\"{directory_class}\">", ""]
+    current_letter | ""
+
+    for item in sorted_items
+        bucket | letter_key(item{"title"})
+        line | item{"line"}
+
+        if bucket != current_letter
+            if current_letter != ""
+                :put_last!(lines, "")
+                :put_last!(lines, "</section>")
+                :put_last!(lines, "")
+            xx
+            :put_last!(lines, "<section class=\"sheriff-directory-group\">")
+            :put_last!(lines, "")
+            if bucket == "#"
+                /// Markdown treats a bare # as a closing marker, so supply its heading.
+                :put_last!(lines, "<h2><a href=\"#other\" aria-hidden=\"true\" class=\"anchor\" id=\"other\"></a>#</h2>")
+            else
+                :put_last!(lines, "## {bucket}")
+            xx
+            :put_last!(lines, "")
+            current_letter |= bucket
+        xx
+        :put_last!(lines, line)
+    xx
+
+    :put_last!(lines, "")
+    :put_last!(lines, "</section>")
+    :put_last!(lines, "")
+    :put_last!(lines, "</div>")
+    return :join(lines, "\n")
+xx
+
 act write_sitemap_xml(path, site_url, routes)
     lines | []
 
@@ -1216,6 +1281,7 @@ categories: []
 """
 
     index_lines | [index_frontmatter]
+    index_items | []
 
     sorted_category_rows | :sort(category_rows)
 
@@ -1248,10 +1314,11 @@ categories: []
                 page_word |= "page"
             xx
 
-            :put_last!(index_lines, "* {category_link} - {category_count} {page_word}")
+            :put_last!(index_items, {"title": category_name, "line": "* {category_link} - {category_count} {page_word}"})
         xx
     xx
 
+    :put_last!(index_lines, render_alphabetical_index(index_items))
     :write_text!(index_path, :join(index_lines, "\n"))
 
     for row in sorted_category_rows
@@ -1278,7 +1345,8 @@ categories: []
 
             if route_has_category
                 route_title | route{"title"} ?? route{"slug"} ?? "Untitled"
-                :put_last!(page_rows, route_title)
+                canonical | route{"canonical_slug"} ?? route{"slug"} ?? route_title
+                :put_last!(page_rows, {"title": route_title, "line": "* [[{canonical}|{route_title}]]"})
             xx
         xx
 
@@ -1305,16 +1373,11 @@ categories: []
 
         category_lines | [category_frontmatter]
 
-        sorted_page_rows | :sort(page_rows)
-
-        if sorted_page_rows.nix?
+        if page_rows.len == 0
             :put_last!(category_lines, "")
             :put_last!(category_lines, "No pages in this category.")
         else
-            for page_row in sorted_page_rows
-                route_title | page_row ?? => skip
-                :put_last!(category_lines, "* [[{route_title}]]")
-            xx
+            :put_last!(category_lines, render_alphabetical_index(page_rows))
         xx
 
         :write_text!(category_path, :join(category_lines, "\n"))
@@ -1479,35 +1542,10 @@ summary: Alphabetical index of all pages.
         route_title | route{"title"}
         canonical_slug | route{"canonical_slug"} ?? slug
 
-        :put_last!(page_rows, "{route_title}|||{route_title}|||{canonical_slug}")
+        :put_last!(page_rows, {"title": route_title, "line": "* [[{canonical_slug}|{route_title}]]"})
     xx
 
-    sorted | :sort(page_rows)
-
-    current_letter | ""
-
-    for row in sorted
-        rest | :keep_after(row, "|||") ?? ..
-        if rest.nix? => skip
-
-        route_title | :keep_before(rest, "|||") ?? ..
-        if route_title.nix? => skip
-
-        canonical_slug | :keep_after(rest, "|||") ?? ..
-        if canonical_slug.nix? => skip
-
-        bucket | letter_key(route_title)
-
-        if bucket != current_letter
-            :put_last!(lines, "")
-            :put_last!(lines, "## {bucket}")
-
-            current_letter |= bucket
-        xx
-
-        display_link | "[[{canonical_slug}|{route_title}]]"
-        :put_last!(lines, "* {display_link}")
-    xx
+    :put_last!(lines, render_alphabetical_index(page_rows))
 
     :write_text!(out_path, :join(lines, "\n"))
 
