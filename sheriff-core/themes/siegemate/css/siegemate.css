@@ -43,6 +43,7 @@
   --sheriff-inline-code-bg:    var(--vk-bg-elevated);
   --sheriff-codeblock-bg:      var(--vk-bg-header);
   --sheriff-blockquote-bg:     var(--vk-bg-surface);
+  --sheriff-blockquote-text:   #ded7c8;
   --sheriff-tablehead-bg:      var(--vk-bg-elevated);
   --sheriff-row-hover-bg:      var(--vk-bg-elevated);
   --sheriff-video-border:      var(--vk-border-subtle);
@@ -62,6 +63,7 @@
   --sheriff-inline-code-bg:    #e8e4da;
   --sheriff-codeblock-bg:      #dedad0;
   --sheriff-blockquote-bg:     #faf8f3;
+  --sheriff-blockquote-text:   #3d3528;
   --sheriff-tablehead-bg:      #ede9df;
   --sheriff-row-hover-bg:      #f0ece3;
   --sheriff-video-border:      rgba(0,0,0,0.10);
@@ -1493,19 +1495,36 @@ a.sheriff-missing-link:hover {
 /* BLOCKQUOTES                                                                */
 /* ========================================================================== */
 
+/* A flow root keeps the quote's background beside floated infoboxes. */
 .sheriff-article blockquote {
+  display: flow-root;
+  min-width: 0;
   border-left: 2px solid var(--vk-gold);
-  padding-left: 1.1rem;
-  margin: 1rem 2rem 1.75rem 2rem;
-  font-style: italic;
-  color: var(--sheriff-muted);
+  padding: .95rem 1.15rem;
+  margin: 1.25rem 0 1.75rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-style: normal;
+  color: var(--sheriff-blockquote-text);
   background: var(--sheriff-blockquote-bg);
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
+  overflow-wrap: break-word;
+}
+
+.sheriff-article blockquote p,
+.sheriff-article blockquote li {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  opacity: 1;
 }
 
 .sheriff-article blockquote p {
-  margin: 0;
+  margin: 0 0 .8em;
+}
+
+.sheriff-article blockquote > :last-child {
+  margin-bottom: 0;
 }
 
 /* ========================================================================== */
