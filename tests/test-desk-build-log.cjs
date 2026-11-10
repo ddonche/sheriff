@@ -41,7 +41,7 @@ const delayed=gate();state.buildGate=delayed;await portalBuild('other');await de
 await page.evaluate(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.copiedBuildLog=value;}}});});await portalPanel.locator('[data-build-copy]').click();assert((await page.evaluate(()=>window.copiedBuildLog)).includes('Build line 139'));checks++;
 state.mode='failure';await portalBuild('example');await result(portalPanel,'failed');assert((await portalPanel.textContent()).includes('Output before the failure'));assert((await portalPanel.textContent()).includes('Compiler error'));assert((await portalPanel.textContent()).includes('Exit code: 1'));checks++;
 // Match Goblin's actual printed HTTP-envelope output; keep ordinary JSON and diagnostics intact.
-state.mode='wrapped';await portalBuild('example');await result(portalPanel,'success');let clean=await portalPanel.locator('[data-build-output]').textContent();assert(clean.startsWith('BUILD SUCCESS — example\n========================================\nExit code: 0'));assert(clean.includes('Building portal:\nexample\n---- RUNNING PRE ACT ----\nscout::publish_nav_tokens'));assert(clean.includes('C:\\wiki\\new\\notes.md'));assert(!clean.includes('"cookies"'));assert(!clean.includes('"headers"'));assert(!clean.includes('"body"'));assert(!clean.includes('--- stderr ---'));assert(!clean.includes('goblin run main.gbln'));assert(!clean.includes('Started:'));await portalPanel.locator('[data-build-copy]').click();assert.equal(await page.evaluate(()=>window.copiedBuildLog),clean);checks++;
+state.mode='wrapped';await portalBuild('example');await result(portalPanel,'success');let clean=await portalPanel.locator('[data-build-output]').textContent();assert(clean.startsWith('BUILD SUCCESS — example\n========================================\nExit code: 0'));assert(clean.includes('Building portal:\nexample\n---- RUNNING PRE ACT ----\nscout::publish_nav_tokens'));assert(clean.includes('C:\\wiki\\new\\notes.md'));assert(!clean.includes('"cookies"'));assert(!clean.includes('"headers"'));assert(!clean.includes('"body"'));assert(!clean.includes('--- stderr ---'));assert(!clean.includes('goblin run main.gbln'));assert(!clean.includes('Started:'));assert.match(clean,/Build: 4\.12s/);assert.match(clean,/Total elapsed:/);await portalPanel.locator('[data-build-copy]').click();assert.equal(await page.evaluate(()=>window.copiedBuildLog),clean);checks++;
 state.mode='nested';await portalBuild('example');await result(portalPanel,'success');clean=await portalPanel.locator('[data-build-output]').textContent();assert(clean.includes('Nested build output\nSecond line'));assert(clean.includes('A genuine warning'));assert(!clean.includes('goblin run main.gbln'));checks++;
 state.mode='wrapped-failure';await portalBuild('example');await result(portalPanel,'failed');assert((await portalPanel.textContent()).includes('Compiler error: T0205\nmodules/test.gbln:42'));assert((await portalPanel.locator('[data-build-output]').textContent()).startsWith('BUILD FAILED'));checks++;
 state.mode='plain-json';await portalBuild('example');await result(portalPanel,'success');assert((await portalPanel.textContent()).includes('{"body":"Keep literal \\n and \\t","status":200}'));checks++;
@@ -56,6 +56,35 @@ state.mode='invalid';await view('Portals');await portalBuild('other');await resu
 state.mode='array';await portalBuild('other');await result(portalPanel,'failed');assert((await portalPanel.textContent()).includes('unreadable response'));checks++;
 state.mode='network';await portalBuild('other');await result(portalPanel,'failed');assert((await portalPanel.textContent()).includes('Failed to fetch'));state.mode='success';checks++;
 await view('Dashboard');await page.locator('#build-all').click();await page.waitForFunction(()=>!document.getElementById('build-all').disabled);const aggregate=await page.locator('#build-log').textContent();assert(aggregate.includes('Full portal output for example'));assert(aggregate.includes('Full portal output for other'));assert.equal((aggregate.match(/END OF OUTPUT/g)||[]).length,2);checks++;
+// Stream chunks can split JSON lines and UTF-8 characters. Never wait for R2 to finish to show build success.
+await view('Portals');
+await page.evaluate(()=>{
+  const backend=window.SheriffDeskBackend;window.savedPhaseBackend={fetch:backend.fetch,mode:backend.mode};
+  backend.mode='cloud';backend.fetch=async(_input,options)=>{
+    if(new Headers(options.headers).get('Accept')!=='application/x-ndjson')throw Error('Missing streaming request');
+    return new Response(new ReadableStream({start(controller){window.phaseController=controller;}}),{headers:{'Content-Type':'application/x-ndjson'}});
+  };
+  window.phaseBuild={ok:true,code:0,build_code:0,build_ms:123,build_stdout:'Sheriff output λ',build_stderr:''};
+  window.phaseRequest=window.SheriffBuildLog.fetch('/api/build?example');
+});
+await page.waitForFunction(()=>!!window.phaseController);
+await page.evaluate(()=>{
+  const bytes=new TextEncoder().encode(JSON.stringify({phase:'uploading',...window.phaseBuild})+'\n');
+  for(let offset=0;offset<bytes.length;offset+=3)window.phaseController.enqueue(bytes.slice(offset,offset+3));
+});
+await portalPanel.locator('[data-build-status]').filter({hasText:'Uploading to R2…'}).waitFor();
+assert.match(await portalPanel.locator('[data-build-output]').textContent(),/Sheriff output λ\n\nBUILD SUCCESS · Sheriff: 0\.12s\nUploading to R2…/);checks++;
+await page.evaluate(async()=>{
+  window.phaseController.enqueue(new TextEncoder().encode(JSON.stringify({phase:'result',...window.phaseBuild,published:true,upload_ms:345,upload_stdout:'Upload output',stdout:'Sheriff output λ\nUpload output'})+'\n'));
+  window.phaseController.close();window.phaseResponse=await (await window.phaseRequest).json();
+});
+await result(portalPanel,'success');assert.match(await portalPanel.locator('[data-build-status]').textContent(),/Build: 0\.12s · R2 upload: 0\.34s/);assert.match(await portalPanel.locator('[data-build-output]').textContent(),/UPLOAD SUCCESS · R2 upload: 0\.34s/);checks++;
+// A dropped connection after building must remain visibly failed, with its diagnostic retained.
+await page.evaluate(()=>{window.phaseRequest=window.SheriffBuildLog.fetch('/api/build?example');});
+await page.evaluate(()=>{window.phaseController.enqueue(new TextEncoder().encode(JSON.stringify({phase:'uploading',...window.phaseBuild})+'\n'));window.phaseController.close();});
+await page.evaluate(async()=>{window.phaseResponse=await (await window.phaseRequest).json();});
+await result(portalPanel,'failed');assert.match(await portalPanel.locator('[data-build-output]').textContent(),/unreadable response/);assert(!(await page.evaluate(()=>window.phaseResponse)).ok);checks++;
+await page.evaluate(()=>{Object.assign(window.SheriffDeskBackend,window.savedPhaseBackend);});
 if(process.env.SHERIFF_BUILD_LOG_PREVIEW_DIR){await page.evaluate(()=>document.getElementById('toast').classList.remove('show'));const out=path.resolve(process.env.SHERIFF_BUILD_LOG_PREVIEW_DIR);fs.mkdirSync(out,{recursive:true});await view('Portals');state.mode='wrapped';await portalBuild('example');await result(portalPanel,'success');state.mode='success';await page.screenshot({path:path.join(out,'portals.png'),fullPage:true});await page.locator('#desk-portal').selectOption('example');await view('Content');await page.locator('#ed-filter').fill('notes.md');await page.locator('#file-tree').getByText('content/notes.md',{exact:true}).click();await page.waitForFunction(()=>!document.getElementById('ed-text').disabled);await page.locator('#ed-text').fill('Updated fixture content');await page.locator('#ed-build-page').click();await result(contentPanel,'success');await page.screenshot({path:path.join(out,'content-log.png'),fullPage:true});await page.locator('#ed-tab-editor').click();await page.screenshot({path:path.join(out,'content-editor.png'),fullPage:true});await view('Portals');await page.setViewportSize({width:600,height:900});await page.screenshot({path:path.join(out,'narrow.png'),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Narrow layout overflow');const box=await page.locator('.portals-wrap').boundingBox(),logBox=await portalPanel.boundingBox();assert(logBox.y>=box.y+box.height,'Narrow log should sit below portal cards');checks++;}
 assert.deepEqual(errors,[]);console.log('Passed '+checks+' build-log browser scenarios: decoded transport envelopes, literal JSON/backslashes, preserved warnings/errors, failure status, clean copy output, placement, full stdout/stderr, status/exit code, copy, automatic tabs, editor preservation, keyboard controls, portal isolation, retained results, failures, batch output, and responsive layout. All build/file APIs mocked.');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

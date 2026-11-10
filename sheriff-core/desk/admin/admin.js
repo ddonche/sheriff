@@ -1413,14 +1413,14 @@
         }
       }
       if (!response.ok || buildFailed(data)) {
-        setStatus((saved ? 'Saved · ' : '') + (build === 'none' ? 'save failed' : 'build failed'),'err');
+        setStatus((saved ? 'Saved · ' : '') + (build === 'none' ? 'save failed' : Number.isFinite(data.upload_ms) ? 'upload failed' : 'build failed'),'err');
         if (!saved) setDirty(true);
         if (data.stderr) say(String(data.stderr).trim().slice(0,160));
         return;
       }
-      const seconds = ((Date.now()-started)/1000).toFixed(1);
+      const timing = window.SheriffBuildLog.duration(data,Date.now()-started);
       setStatus(build === 'none' ? '✓ Saved' : '✓ Saved · ' + (build === 'page' ? 'page' : 'portal')
-        + (data.published ? ' built and published' : ' built') + ' in ' + seconds + 's','ok');
+        + (data.published ? ' built and published' : ' built') + ' · ' + timing,'ok');
     } catch (error) {
       setStatus(error.message || 'API unreachable','err');
       if (!saved) setDirty(true);
@@ -2195,12 +2195,11 @@
         });
         const data = await apiJson(res);
         if (buildFailed(data)) {
-          setStatus('build failed — ' + String(data.stderr || '').trim().slice(0, 120), 'err');
+          setStatus((Number.isFinite(data.upload_ms) ? 'upload failed — ' : 'build failed — ') + String(data.stderr || '').trim().slice(0, 120), 'err');
           setDirty(true);
           return;
         }
-        const secs = ((Date.now() - started) / 1000).toFixed(1);
-        setStatus('✓ saved · portal rebuilt in ' + secs + 's', 'ok');
+        setStatus('✓ saved · portal rebuilt · ' + window.SheriffBuildLog.duration(data,Date.now()-started), 'ok');
         setDirty(false);
         if (opts && opts.onSave) opts.onSave(ed.portal);
       } catch (err) {

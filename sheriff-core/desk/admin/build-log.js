@@ -21,14 +21,38 @@
     event.preventDefault();
     showTab(event.key === 'Home' ? 'editor' : event.key === 'End' ? 'log' : button === editor ? 'log' : 'editor', true);
   });
+  const seconds = ms => (ms/1000).toFixed(2) + 's';
+  function duration(data, total) {
+    const parts = [];
+    if (Number.isFinite(data.build_ms)) parts.push('Build: ' + seconds(data.build_ms));
+    if (Number.isFinite(data.upload_ms)) parts.push('R2 upload: ' + seconds(data.upload_ms));
+    return parts.join(' · ') || 'Total: ' + seconds(total);
+  }
+  function phaseStatus(job) {
+    if (job.state !== 'running') return (job.state === 'success' ? 'Success' : Number.isFinite(job.upload_ms) ? 'Upload failed' : 'Failed') + ' · ' + duration(job,job.ended-job.started);
+    return job.phase === 'uploading' ? 'Build: ' + seconds(job.build_ms) + ' · Uploading to R2…' : job.phase === 'queued' ? 'Waiting to build…' : 'Building…';
+  }
   function text(job) {
     if (!job) return '';
-    const heading = (job.state === 'running' ? 'BUILDING' : job.state === 'success' ? 'BUILD SUCCESS' : 'BUILD FAILED') + ' — ' + job.portal;
+    const heading = (job.state === 'running' ? job.phase === 'uploading' ? 'UPLOADING' : 'BUILDING' : job.state === 'success' ? 'BUILD SUCCESS' : Number.isFinite(job.upload_ms) ? 'UPLOAD FAILED' : 'BUILD FAILED') + ' — ' + job.portal;
     const lines = [heading, '='.repeat(40)];
-    if (job.state === 'running') lines.push('Building…');
-    else lines.push('Exit code: ' + (job.code === undefined || job.code === null ? 'unavailable' : job.code) + ' · Duration: ' + ((job.ended-job.started)/1000).toFixed(2) + 's');
-    if (job.stdout) lines.push('', job.stdout);
-    if (job.stderr) lines.push('', job.stderr);
+    if (job.state === 'running' && job.phase !== 'uploading') lines.push(phaseStatus(job));
+    else if (job.state !== 'running') lines.push('Exit code: ' + (job.code ?? 'unavailable') + ' · ' + duration(job,job.ended-job.started), 'Total elapsed: ' + seconds(job.ended-job.started));
+    if (Object.hasOwn(job,'build_stdout')) {
+      if (job.build_stdout) lines.push('',job.build_stdout);
+      if (job.build_stderr) lines.push('',job.build_stderr);
+      lines.push('',(job.build_code === 0 ? 'BUILD SUCCESS' : 'BUILD FAILED') + ' · Sheriff: ' + seconds(job.build_ms));
+      if (job.phase === 'uploading' || Number.isFinite(job.upload_ms)) {
+        lines.push('Uploading to R2…');
+        if (job.upload_stdout) lines.push(job.upload_stdout);
+        if (job.upload_stderr) lines.push(job.upload_stderr);
+        if (Number.isFinite(job.upload_ms)) lines.push((job.published ? 'UPLOAD SUCCESS' : 'UPLOAD FAILED') + ' · R2 upload: ' + seconds(job.upload_ms));
+      }
+    } else {
+      if (job.stdout) lines.push('',job.stdout);
+      if (job.stderr) lines.push('',job.stderr);
+    }
+    if (job.request_error) lines.push('',job.request_error);
     if (job.state !== 'running' && !job.stdout && !job.stderr) lines.push('', 'No output returned.');
     return lines.join('\n');
   }
@@ -41,7 +65,7 @@
       const job = latest.get(portal);
       panel.dataset.state = job ? job.state : 'idle';
       panel.querySelector('[data-build-title]').textContent = job ? job.label + ' · ' + job.portal : 'Build log' + (portal ? ' · ' + portal : '');
-      panel.querySelector('[data-build-status]').textContent = job ? job.state === 'running' ? 'Building…' : job.state === 'success' ? 'Success · ' + ((job.ended-job.started)/1000).toFixed(2) + 's' : 'Failed · ' + ((job.ended-job.started)/1000).toFixed(2) + 's' : 'Idle';
+      panel.querySelector('[data-build-status]').textContent = job ? phaseStatus(job) : 'Idle';
       panel.querySelector('[data-build-copy]').disabled = !job;
       setOutput(panel.querySelector('[data-build-output]'), text(job) || 'Build ' + (portal || 'a portal') + ' to see its output here.');
     }
@@ -95,10 +119,15 @@
       else { data = {ok:!transportFailed, stdout:data.body}; break; }
     }
     const stdout = output(data.stdout), stderr = output(data.stderr);
-    // Exit code and duration are already displayed in the log header.
+    // The runtime footer measures Sheriff, unlike the browser's whole-request timer.
+    const footer = stderr.text.match(/goblin run .+ → exit \d+ in (\d+)ms \([\d.]+s\)/);
+    if (!Number.isFinite(data.build_ms) && footer) data.build_ms = Number(footer[1]);
+    const cleanError = value => output(value).text.split(/\r?\n/).filter(line => !/^goblin run .+ → exit \d+ in \d+ms \([\d.]+s\)\s*$/.test(line)).join('\n').trim();
+    const phases = Object.hasOwn(data,'build_stdout') ? {build_stdout:output(data.build_stdout).text,build_stderr:cleanError(data.build_stderr),upload_stdout:output(data.upload_stdout).text,upload_stderr:cleanError(data.upload_stderr)} : {};
+
     const errors = stderr.text.split(/\r?\n/).filter(line => !/^goblin run .+ → exit \d+ in \d+ms \([\d.]+s\)\s*$/.test(line)).join('\n').trim();
     const failed = transportFailed || stdout.failed || stderr.failed;
-    return {...data, ...(failed ? {ok:false} : {}), stdout:stdout.text, stderr:errors};
+    return {...data, ...phases, ...(failed ? {ok:false} : {}), stdout:stdout.text, stderr:errors};
   }
   async function buildFetch(input, options) {
     const info = describe(input, options);
@@ -109,27 +138,51 @@
     if (location.hash === '#content' && job.portal === context.current) showTab('log');
     render();
     try {
-      const response = options?.deskOperation ? await window.SheriffDeskBackend.request(options.deskOperation, {portal:info.portal}) : await (window.SheriffDeskBackend ? window.SheriffDeskBackend.fetch(input, options) : window.fetch(input, options));
+      const headers = new Headers(options?.headers);
+      if (window.SheriffDeskBackend?.mode === 'cloud') headers.set('Accept','application/x-ndjson');
+      const requestOptions = {...options,headers};
+      const response = options?.deskOperation ? await window.SheriffDeskBackend.request(options.deskOperation, {portal:info.portal}, requestOptions) : await (window.SheriffDeskBackend ? window.SheriffDeskBackend.fetch(input, requestOptions) : window.fetch(input, requestOptions));
       let data;
-      try { data = JSON.parse(await response.clone().text()); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid build result'); }
+      try {
+        if ((response.headers.get('content-type') || '').includes('application/x-ndjson')) {
+          const reader = response.body.getReader(), decoder = new TextDecoder();
+          let pending = '', final = false;
+          function event(line) {
+            if (!line.trim()) return;
+            const update = JSON.parse(line);
+            if (update.phase === 'result') { data = update; final = true; }
+            else { Object.assign(job,normalize(update)); render(); }
+          }
+          for (;;) {
+            const {value,done} = await reader.read();
+            pending += decoder.decode(value,{stream:!done});
+            const lines = pending.split('\n'); pending = lines.pop();
+            lines.forEach(event);
+            if (done) break;
+          }
+          event(pending);
+          if (!final) throw Error('Incomplete build response');
+        } else data = JSON.parse(await response.clone().text()); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid build result'); }
       catch (_) { data = {ok:false,code:null,stdout:'',stderr:'The build API returned an unreadable response (HTTP ' + response.status + ').'}; }
       if (data) {
         data = normalize(data);
         if (!response.ok) data.ok = false;
+        if (Object.hasOwn(job,'build_stdout') && !Object.hasOwn(data,'build_stdout') && data.ok === false) job.request_error = data.stderr;
+        Object.assign(job,data);
         job.code = data.code;
         job.stdout = data.stdout == null ? '' : String(data.stdout);
         job.stderr = data.stderr == null ? '' : String(data.stderr);
         job.state = !response.ok || data.ok === false || (data.code !== undefined && data.code !== null && data.code !== 0) ? 'failed' : 'success';
       }
       // Consumers (page saving, portal builds, restores) receive the same clean result.
-      const headers = new Headers(response.headers); headers.delete('content-length'); headers.delete('content-encoding'); headers.set('content-type', 'application/json');
-      return new Response(JSON.stringify(data), {status:response.status, statusText:response.statusText, headers});
-    } catch (error) { job.state = 'failed'; job.stderr = error.message || 'The build API could not be reached.'; throw error; }
+      const resultHeaders = new Headers(response.headers); resultHeaders.delete('content-length'); resultHeaders.delete('content-encoding'); resultHeaders.set('content-type', 'application/json');
+      return new Response(JSON.stringify(data), {status:response.status, statusText:response.statusText, headers:resultHeaders});
+    } catch (error) { job.state = 'failed'; job.stderr = error.message || 'The build API could not be reached.'; job.request_error = job.stderr; throw error; }
     finally { job.ended = Date.now(); render(); }
   }
   context.subscribe(portal => { selectedPortal = portal; showTab('editor'); render(); });
   window.SheriffBuildLog = {
-    fetch:buildFetch, publish:portal => buildFetch('/api/build?' + encodeURIComponent(portal), {deskOperation:'portal.publish'}), showEditor:() => showTab('editor'),
+    duration, fetch:buildFetch, publish:portal => buildFetch('/api/build?' + encodeURIComponent(portal), {deskOperation:'portal.publish'}), showEditor:() => showTab('editor'),
     startBatch(label) { batch = {label,jobs:[]}; lastBatch = null; render(); },
     endBatch() { lastBatch = batch; batch = null; render(); }
   };
