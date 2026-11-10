@@ -304,6 +304,8 @@ act publish_patterns(pre_ctx)
 xx
 
 act apply_patterns(ctx)
+    /// Page rendering owns its tokens; no portal pre/post schedule is run.
+    if ctx{"build_mode"} == "page" => ctx |= publish_patterns(ctx)
     body | ctx{"body"} ?? => send ctx
 
     stashed | stash_pattern_code_segments(body)

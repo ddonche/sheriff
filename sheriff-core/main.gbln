@@ -327,14 +327,11 @@ act build_one_page(target)
     output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
     href_abs | rjson::build_href(url_root, output_rel_no_ext)
 
-    /// Run pre-build schedule once
-    pre_ctx | run_pre_schedule(cfg)
-    :update!(pre_ctx{"schedule"}, schedule)
-
     raw | :read_text(md_path)
 
     ctx | {
         "body": raw,
+        "build_mode": "page",
         "frontmatter": {},
         "tokens": {},
         "path": md_path,
@@ -349,18 +346,15 @@ act build_one_page(target)
         "storage_kind": record{"storage_kind"},
         "portal": #local::portal,
         "href": href_abs,
-        "wanted_pages": pre_ctx{"wanted_pages"},
-        "backlinks": pre_ctx{"backlinks"},
+        "wanted_pages": [],
+        "backlinks": [],
         "schedule": schedule
     }
 
-    ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
-
+    /// Single-page builds execute only the page schedule. No pre/post acts.
     :clear_tokens("SLOT")
 
     ctx |= :summon(ctx, schedule)
-    :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
-    :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)

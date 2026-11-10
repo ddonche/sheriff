@@ -254,6 +254,8 @@ xx
 /// Apply tokens (per page)
 /// ------------------------------------------------------
 act apply_tokens(ctx)
+    /// Page rendering owns its tokens; no portal pre/post schedule is run.
+    if ctx{"build_mode"} == "page" => ctx |= build_index_once(ctx)
 
     body | ctx{"body"} ?? => return ctx
 

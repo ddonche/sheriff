@@ -38,6 +38,8 @@ xx
 /// Call this right after frontier::strip_frontmatter
 /// ----------------------------------------------------------------------
 act index_page(ctx)
+    /// A partial render must never replace or append to the full search index.
+    if ctx{"build_mode"} == "page" => return ctx
     portal | ctx{"portal"} ?? => return ctx 
     body   | ctx{"body"} ?? => return ctx 
     fm     | ctx{"frontmatter"}

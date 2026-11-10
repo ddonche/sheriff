@@ -38,6 +38,8 @@ xx
 /// Call this right after frontier::strip_frontmatter
 /// ----------------------------------------------------------------------
 act index_page(ctx)
+    /// Page builds leave the complete portal search index untouched.
+    if ctx{"build_mode"} == "page" => return ctx
     body | ctx{"body"} ?? => return ctx
     fm   | ctx{"frontmatter"}
     path | ctx{"path"}

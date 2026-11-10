@@ -222,6 +222,8 @@ xx
 /// After layout + wire_slots, before Brindle resolves tokens.
 /// ------------------------------------------------------------------------
 act apply_tokens(ctx)
+    /// Page rendering owns its tokens; no portal pre/post schedule is run.
+    if ctx{"build_mode"} == "page" => ctx |= publish_nav_tokens(ctx)
     body | ctx{"body"} ?? => return ctx 
 
     /// Always clear first so nothing leaks between pages
