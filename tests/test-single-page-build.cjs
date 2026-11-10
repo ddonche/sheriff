@@ -12,7 +12,7 @@ try{
  put('site/portals/test/nav.yall','menus:\n  left_docs:\n    Notes: /notes.html\n    Unrelated: "[[unrelated]]"\n  header:\n    Home: /\n  footer_left:\n    Home: /\n  footer_right:\n    Home: /\n');
  put('site/portals/test/content/notes.md','^^^^\ntitle: Notes\nlayout: wiki\ncategories:\n  - Examples\n^^^^\n\n# Notes\n\n[[unrelated]] [[icon|book]] [[image:used.svg|half|left|Used]]\n\n{{{SHERIFF::PATTERN_NOTICE}}}\n\n{{{BADGE::STATS}}}\n');
  put('site/portals/test/content/unrelated.md','^^^^\ntitle: Unrelated\nlayout: wiki\ncategories:\n  - Examples\n^^^^\n\nUnrelated content [[video:youtube|UNRELATED|full|center|Other]].');
- put('site/portals/test/patterns/notice.txt','::: pattern horizontal Notice\n@mode = reusable\ntext = Page pattern works\n:::');
+ put('site/portals/test/patterns/notice.txt','::: pattern horizontal Notice\n@mode = reusable\ntext = Page pattern works\n@tab Hardcover\npages = 320\n@tab Paperback\npages = 352\n:::');
  put('site/portals/test/public/images/used.svg','<svg xmlns="http://www.w3.org/2000/svg"/>');
  put('site/portals/test/public/images/unused.svg','Unused media sentinel');
  put('dist/index.html','CLOUD APP SENTINEL');put('dist/admin/sentinel.txt','ADMIN SENTINEL');
@@ -31,7 +31,7 @@ try{
  fs.rmSync(output,{recursive:true,force:true});const fresh=run(['page','notes.md']);
  assert.deepEqual(files(output),['notes.html']);checks++;
  const html=fs.readFileSync(path.join(output,'notes.html'),'utf8');
- for(const marker of ['Page pattern works','href="/unrelated.html"','sheriff-portal-stats','data-sheriff-icon="book"','sheriff-nav-active'])assert(html.includes(marker),'Missing '+marker);checks+=5;
+ for(const marker of ['Page pattern works','href="/unrelated.html"','sheriff-portal-stats','data-sheriff-icon="book"','sheriff-nav-active','data-sheriff-content-tabs','Hardcover','Paperback'])assert(html.includes(marker),'Missing '+marker);checks+=5;
  assert(!html.includes('{{{BADGE::STATS}}}'));assert(!html.includes('{{{SCOUT::'));checks+=2;
  assert.deepEqual(snapshot(source),afterFull);assert.equal(fs.readFileSync(path.join(tmp,'dist/index.html'),'utf8'),'CLOUD APP SENTINEL');assert.equal(fs.readFileSync(path.join(tmp,'dist/admin/sentinel.txt'),'utf8'),'ADMIN SENTINEL');checks+=3;
  // A new page does not silently fall back to a portal build.

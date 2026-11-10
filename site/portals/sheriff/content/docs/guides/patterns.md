@@ -154,6 +154,40 @@ Trailboss still processes the wikilinks and images inside the pattern values.
 
 ---
 
+## Tabbed Patterns
+
+Add `@tab Label` inside a pattern to give it switchable sets of fields. Fields above the first tab stay visible. Each tab contains the fields after its marker, up to the next tab or the pattern's closing `:::`.
+
+For example, a book can share its title and author while each edition has its own cover, ISBN, page count, and publication date:
+
+```text
+::: pattern vertical Book
+@mode = template
+title = My Book
+author = [[Some Author]]
+
+@tab Hardcover
+_image = [[image:hardcover.jpg|full|center|]]
+isbn = 978-1-23456-789-0
+pages = 320
+published = 2020
+
+@tab Paperback
+_image = [[image:paperback.jpg|full|center|]]
+isbn = 978-1-23456-790-6
+pages = 352
+published = 2022
+:::
+```
+
+Replace the example values and image filenames with your own. Keep using normal `label = value` fields inside each tab; you do not need a separate `::: tabs` fence.
+
+Tabs work in vertical and horizontal patterns, in templates, and in reusable patterns inserted with tokens. Repeating a reusable pattern on a page gives each copy independent controls. Patterns can also sit inside ordinary content tabs.
+
+The first tab opens by default. Use the left/right arrow keys, Home, or End to switch tabs from the keyboard. Printing the page shows all editions. Without JavaScript, each edition remains visible under its label.
+
+---
+
 ## Pattern Files
 
 Store reusable pattern scaffolds in:

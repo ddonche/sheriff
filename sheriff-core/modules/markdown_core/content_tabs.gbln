@@ -87,26 +87,43 @@ act read_group(lines, start)
     return {"valid": false}
 xx
 
-act render_group(group, group_number)
-    group_id | "sheriff-content-tabs-{group_number}"
-    next_group | group_number + 1
+/// Shared markup for article tabs and structured pattern fields.
+/// Pattern IDs are assigned per instance in the browser, so reusable tokens
+/// can appear more than once without sharing controls.
+act render_panels(panels, group_id, description)
     tabs | []
-    panels | []
+    sections | []
     index | 0
-    for panel in group{"panels"}
+    for panel in panels
         index += 1
-        panel_id | "{group_id}-panel-{index}"
-        tab_id | "{group_id}-tab-{index}"
         label | escape_label(panel{"label"})
-        :put_last!(tabs, "<a class=\"sheriff-page-tab sheriff-content-tab\" id=\"{tab_id}\" href=\"#{panel_id}\">{label}</a>")
-        nested | prepare(panel{"body"}, next_group)
-        next_group |= nested{"next_group"}
-        body | nested{"body"}
-        :put_last!(panels, "<section class=\"sheriff-content-tab-panel\" id=\"{panel_id}\">\n<div class=\"sheriff-content-tab-heading\">{label}</div>\n\n{body}\n\n</section>")
+        link_attributes | "href=\"#\""
+        panel_attributes | ""
+        if !group_id.nix?
+            panel_id | "{group_id}-panel-{index}"
+            tab_id | "{group_id}-tab-{index}"
+            link_attributes |= "id=\"{tab_id}\" href=\"#{panel_id}\""
+            panel_attributes |= " id=\"{panel_id}\""
+        xx
+        :put_last!(tabs, "<a class=\"sheriff-page-tab sheriff-content-tab\" {link_attributes}>{label}</a>")
+        body | panel{"body"}
+        :put_last!(sections, "<section class=\"sheriff-content-tab-panel\"{panel_attributes}>\n<div class=\"sheriff-content-tab-heading\">{label}</div>\n\n{body}\n\n</section>")
     xx
     tab_html | :join(tabs, "\n")
-    panel_html | :join(panels, "\n\n")
-    html | "<section class=\"sheriff-content-tabs\" data-sheriff-content-tabs>\n<nav class=\"sheriff-page-tabs sheriff-content-tab-list\" aria-label=\"Content tabs {group_number}\">\n{tab_html}\n</nav>\n\n{panel_html}\n\n</section>"
+    panel_html | :join(sections, "\n\n")
+    safe_description | escape_label(description)
+    return "<section class=\"sheriff-content-tabs\" data-sheriff-content-tabs>\n<nav class=\"sheriff-page-tabs sheriff-content-tab-list\" aria-label=\"{safe_description}\">\n{tab_html}\n</nav>\n\n{panel_html}\n\n</section>"
+xx
+
+act render_group(group, group_number)
+    next_group | group_number + 1
+    panels | []
+    for panel in group{"panels"}
+        nested | prepare(panel{"body"}, next_group)
+        next_group |= nested{"next_group"}
+        :put_last!(panels, {"label": panel{"label"}, "body": nested{"body"}})
+    xx
+    html | render_panels(panels, "sheriff-content-tabs-{group_number}", "Content tabs {group_number}")
     return {"body": html, "next_group": next_group}
 xx
 

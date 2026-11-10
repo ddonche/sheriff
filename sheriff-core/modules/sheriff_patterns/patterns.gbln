@@ -1,4 +1,5 @@
 import modules/markdown_core/fenced_code as fenced_code
+import modules/markdown_core/content_tabs as content_tabs
 
 /// modules/sheriff_patterns/patterns.gbln
 /// Portal-local reusable content patterns.
@@ -119,6 +120,58 @@ act render_pattern_block(orientation, name, raw_fields)
         token_footer |= "<div class=\"sheriff-pattern-canonical\">{token_html}</div>"
     xx
 
+    sections | pattern_sections(raw_fields)
+    rows_html | render_fields(sections{"shared"})
+    shared_html | "<dl class=\"sheriff-pattern-fields\">\n{rows_html}\n</dl>"
+    tabs_html | ""
+    if sections{"panels"}.len > 0
+        if rows_html.nix? => shared_html |= ""
+        panels | []
+        for panel in sections{"panels"}
+            panel_rows | render_fields(panel{"body"})
+            panel_body | "<dl class=\"sheriff-pattern-fields\">\n{panel_rows}\n</dl>"
+            :put_last!(panels, {"label": panel{"label"}, "body": panel_body})
+        xx
+        tabs_html |= content_tabs::render_panels(panels, "", "{name_clean} tabs")
+    xx
+
+    return """
+<aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}" data-pattern-mode="{mode}">
+  {shared_html}
+  {tabs_html}
+  {token_footer}
+</aside>
+"""
+xx
+
+/// Fields before the first tab are shared. Each @tab starts another set of rows.
+act pattern_sections(raw_fields)
+    panels | []
+    shared | ""
+    fields | []
+    label | ""
+    valid | true
+    for line in :split(raw_fields ?? "", "\n")
+        t | :trim(line)
+        if t == "@tab" or :starts_with(t, "@tab ")
+            if label.nix?
+                shared |= :join(fields, "\n")
+            else
+                :put_last!(panels, {"label": label, "body": :join(fields, "\n")})
+            xx
+            label |= :trim(:keep_after(t, "@tab") ?? "")
+            if label.nix? => valid |= false
+            fields |= []
+        else
+            :put_last!(fields, line)
+        xx
+    xx
+    if !label.nix? => :put_last!(panels, {"label": label, "body": :join(fields, "\n")})
+    if !valid or panels.len == 0 => return {"shared": raw_fields, "panels": []}
+    return {"shared": shared, "panels": panels}
+xx
+
+act render_fields(raw_fields)
     rows | []
     fields_text | raw_fields ?? ..
     lines | :split(fields_text, "\n")
@@ -190,16 +243,8 @@ act render_pattern_block(orientation, name, raw_fields)
   </div>""")
     xx
 
-    rows_html | :join(rows, "\n")
+    return :join(rows, "\n")
 
-    return """
-<aside class="sheriff-pattern sheriff-pattern-{orient} sheriff-pattern-{class_slug}" data-sheriff-pattern="{class_slug}" data-pattern-mode="{mode}">
-  <dl class="sheriff-pattern-fields">
-{rows_html}
-  </dl>
-  {token_footer}
-</aside>
-"""
 xx
 
 act render_patterns_in_text(text)

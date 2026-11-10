@@ -29,6 +29,7 @@
   }
 
   function init() {
+    let patternNumber = 0;
     document.querySelectorAll('[data-sheriff-content-tabs]').forEach(group => {
       if (groups.has(group)) return;
       const nav = group.querySelector(':scope > .sheriff-content-tab-list');
@@ -36,6 +37,16 @@
       const tabs = Array.from(nav.children).filter(el => el.classList.contains('sheriff-content-tab'));
       const panels = Array.from(group.children).filter(el => el.classList.contains('sheriff-content-tab-panel'));
       if (!tabs.length || tabs.length !== panels.length) return;
+      if (panels.some(panel => !panel.id)) {
+        let id;
+        do { id = 'sheriff-pattern-tabs-' + (++patternNumber); } while (document.getElementById(id));
+        group.id = id;
+        panels.forEach((panel,index) => {
+          panel.id = id + '-panel-' + (index + 1);
+          tabs[index].id = id + '-tab-' + (index + 1);
+          tabs[index].setAttribute('href','#' + panel.id);
+        });
+      }
       const state = { tabs, panels };
       groups.set(group, state);
       nav.setAttribute('role', 'tablist');

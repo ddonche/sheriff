@@ -2788,3 +2788,11 @@ a.sheriff-missing-link:hover {
 .sheriff-logo-text-wrap > .sheriff-portal-stats > .sheriff-portal-stat{flex:0 0 auto;min-width:2.5rem;gap:.15rem}
 .sheriff-logo-text-wrap > .sheriff-portal-stats .sheriff-stat-label{font-size:.6rem;letter-spacing:.03em}
 .sheriff-logo-text-wrap > .sheriff-portal-stats .sheriff-stat-count{font-size:1.15rem;line-height:1.2}
+
+/* Pattern editions use the same tabs, fitted to the infobox width. */
+.sheriff-pattern > .sheriff-content-tabs{margin:0;position:relative;z-index:1;}
+.sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-list{margin:0;padding:0 .35rem;flex-wrap:wrap;}
+.sheriff-pattern > .sheriff-content-tabs:not(.sheriff-content-tabs-ready) > .sheriff-content-tab-list{display:none;}
+.sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel{padding:0;}
+.sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel > .sheriff-content-tab-heading{margin:0;padding:.45rem .65rem;}
+.sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-list > .sheriff-content-tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-decoration:none;}

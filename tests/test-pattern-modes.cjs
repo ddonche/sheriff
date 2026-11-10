@@ -91,6 +91,7 @@ const moduleDest = path.join(core,'modules/sheriff_patterns/patterns.gbln');
 fs.mkdirSync(path.dirname(moduleDest),{recursive:true});
 fs.copyFileSync(path.join(root,'sheriff-core/modules/sheriff_patterns/patterns.gbln'),moduleDest);
 const fencesDest=path.join(core,'modules/markdown_core/fenced_code.gbln');fs.mkdirSync(path.dirname(fencesDest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/fenced_code.gbln'),fencesDest);
+fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/content_tabs.gbln'),path.join(path.dirname(fencesDest),'content_tabs.gbln'));
 const cases = [
   {name:'Legacy',fields:'government = Monarchy',mode:'reusable',value:'Monarchy'},
   {name:'Filled',fields:'@mode = reusable\ngovernment = Republic',mode:'reusable',value:'Republic'},
