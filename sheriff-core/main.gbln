@@ -33,7 +33,11 @@ act backup_dist()
     :say(backup_path)
 
     :zip_dir!(dist_dir, backup_path)
-    :delete_path!(dist_dir)
+    /// Keep directories: Windows can hold an open folder while allowing its files to change.
+    for output_path in :walk(dist_dir, "**/*")
+        if :is_dir(output_path) => skip
+        :delete_path!(output_path)
+    xx
 
     return backup_path
 xx
