@@ -509,6 +509,8 @@
   const edDirty = document.getElementById('ed-dirty');
   const edStatus = document.getElementById('ed-status');
   const edSave = document.getElementById('ed-save');
+  const edBuildPage = document.getElementById('ed-build-page');
+  const edBuildPortal = document.getElementById('ed-build-portal');
   const edText = document.getElementById('ed-text');
   const edOpenPortal = document.getElementById('ed-open-portal');
   const newBtn = document.getElementById('ed-new');
@@ -531,12 +533,11 @@
   let expandedFolders = new Set();
   let edCwd = 'content';
   let renamingPath = null;
-  let fileOperationBusy = false;
+  let fileOperationBusy = false, editorBusy = false;
 
   function setDirty(v) {
     dirty = v;
     edDirty.hidden = !v;
-    edSave.disabled = !v || !openFile;
     updateFileActions();
   }
 
@@ -697,7 +698,7 @@
   }
 
   async function openVersionedPage(page, version, savedContent) {
-    if (!confirmDiscard()) return;
+    if (savedContent === undefined && (editorBusy || !confirmDiscard())) return;
     const info = versionedPages[page];
     if (!info) { say('No versions for this page'); return; }
     const avail = availableVersions(page);
@@ -844,6 +845,7 @@
   // first use (page.md -> page/<default>/R1.md), then the new version's R1 is
   // seeded from the current content. Foldered pages just get a new version.
   async function addVersion(ctx, newVer) {
+    if (editorBusy) return;
     if (dirty) { say('Save your changes before adding a version'); return; }
     const portal = edPortal.value;
     const content = edText.value;
@@ -885,54 +887,24 @@
     return saveMode;
   }
 
-  // Save the editor content as the next immutable revision. A flat page folds
-  // first: page.md -> page/<default>/R1.md (old) + R2.md (edited).
-  async function saveNewRevision() {
+  // Pick the next revision path; the chosen action saves/builds it once.
+  async function nextRevisionTarget(portal) {
     const ctx = openVersionCtx;
-    const portal = edPortal.value;
-    const content = edText.value;
-    const q = (path) => 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent(path);
-    edSave.disabled = true;
-    edSave.textContent = 'Saving…';
-    setStatus('building…');
-    const started = Date.now();
-    try {
-      let openVer, openRev;
-      if (ctx.flat) {
-        const base = docConfig.default || docConfig.versions[0];
-        const flatPath = ctx.page + '.md';
-        // R1 = the original content on disk; move preserves it
-        const mv = await fetch('/api/file?move&' + encodeURIComponent(portal)
-          + '&' + encodeURIComponent(flatPath) + '&' + encodeURIComponent(ctx.page + '/' + base + '/R1.md'));
-        const mvData = await mv.json();
-        if (mvData.ok === false) { setStatus('save failed', 'err'); say(mvData.stderr || 'Could not convert page'); setDirty(true); return; }
-        // R2 = the edited content
-        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + base + '/R2.md'),
-          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
-        const wrData = await wr.json();
-        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
-        openVer = base; openRev = 2;
-      } else {
-        const revisions = versionedPages[ctx.page] && versionedPages[ctx.page].versions[ctx.version] || [];
-        const next = Math.max(ctx.revNum || 0, ...revisions.map(r => r.num)) + 1;
-        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + ctx.version + '/R' + next + '.md'),
-          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
-        const wrData = await wr.json();
-        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
-        openVer = ctx.version; openRev = next;
-      }
-      const secs = ((Date.now() - started) / 1000).toFixed(1);
-      setStatus('✓ saved R' + openRev + ' · page built in ' + secs + 's', 'ok');
-      setDirty(edText.value !== content);
-      await loadFiles();
-      await openVersionedPage(ctx.page, openVer, content);
-    } catch (err) {
-      setStatus('API unreachable', 'err');
-      setDirty(true);
-    } finally {
-      edSave.textContent = 'Save & build';
-      edSave.disabled = !dirty;
+    if (ctx.flat) {
+      const version = docConfig.default || docConfig.versions[0];
+      const response = await fetch('/api/file?move&' + encodeURIComponent(portal)
+        + '&' + encodeURIComponent(ctx.page + '.md')
+        + '&' + encodeURIComponent(ctx.page + '/' + version + '/R1.md'));
+      const data = await apiJson(response);
+      if (!response.ok || data.ok === false) throw Error(data.stderr || 'Could not create revision');
+      openFile = ctx.page + '/' + version + '/R1.md';
+      openVersionCtx = {page:ctx.page,version,revNum:1,flat:false};
+      editorGeneration++; renderVersionBar();
+      return {path:ctx.page + '/' + version + '/R2.md',page:ctx.page,version};
     }
+    const revisions = versionedPages[ctx.page]?.versions[ctx.version] || [];
+    const next = Math.max(ctx.revNum || 0,...revisions.map(r => r.num)) + 1;
+    return {path:ctx.page + '/' + ctx.version + '/R' + next + '.md',page:ctx.page,version:ctx.version};
   }
 
   const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'ico']);
@@ -1219,6 +1191,10 @@
   }
 
   function updateFileActions() {
+    const busy = editorBusy || fileOperationBusy;
+    edSave.disabled = busy || !dirty || !openFile;
+    edBuildPage.disabled = busy || !openFile || !/^content\/.+\.md$/i.test(openFile);
+    edBuildPortal.disabled = busy || !openFile;
     window.dispatchEvent(new Event('sheriff:editor-change'));
   }
 
@@ -1366,6 +1342,7 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fileMenu.hidden) hideFileMenu(); });
 
   async function openPath(path) {
+    if (editorBusy) return;
     if (!confirmDiscard()) return;
     window.SheriffBuildLog.showEditor();
     const portal = edPortal.value, portalRevision = portalContext.revision;
@@ -1407,44 +1384,56 @@
     }
   }
 
-  async function saveFile() {
-    if (window.SheriffContentImages && window.SheriffContentImages.isBusy()) { say('Wait for the image operation to finish.'); return; }
-    if (!openFile || edSave.disabled || fileOperationBusy) return;
-    if (versionsActive() && effectiveSaveMode() === 'revision') { return saveNewRevision(); }
-    const content = edText.value;
-    edSave.disabled = true;
-    edSave.textContent = 'Saving…';
-    setStatus('building…');
-    const started = Date.now();
+  async function saveFile(build = 'none') {
+    if (window.SheriffContentImages?.isBusy()) { say('Wait for the image operation to finish.'); return; }
+    if (!openFile || editorBusy || fileOperationBusy || (build === 'none' && !dirty)) return;
+    if (build === 'page' && !/^content\/.+\.md$/i.test(openFile)) return;
+    const portal = edPortal.value, content = edText.value, started = Date.now();
+    const button = build === 'page' ? edBuildPage : build === 'portal' ? edBuildPortal : edSave;
+    const originalLabel = button.textContent;
+    const release = portalContext.lock();
+    let target = {path:openFile}, saved = false;
+    editorBusy = true; updateFileActions();
+    button.textContent = build === 'none' ? 'Saving…' : 'Building…';
+    setStatus(build === 'none' ? 'saving…' : 'saving and building ' + (build === 'page' ? 'page…' : 'portal…'));
     try {
-      const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(openFile);
-      const res = await fetch('/api/file?write&' + q, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: content
+      if (dirty && versionsActive() && effectiveSaveMode() === 'revision') target = await nextRevisionTarget(portal);
+      const q = new URLSearchParams({portal,path:target.path,build});
+      const response = await fetch('/api/file?write&' + q, {
+        method:'POST',headers:{'Content-Type':'text/plain'},body:content
       });
-      const data = await res.json();
-      if (buildFailed(data)) {
-        setStatus('build failed', 'err');
-        if (data.stderr) say(String(data.stderr).trim().slice(0, 120));
-        setDirty(true);
+      const data = await apiJson(response);
+      saved = data.saved === true || (response.ok && !buildFailed(data));
+      if (saved) {
+        setDirty(edText.value !== content);
+        if (target.page) {
+          openFile = target.path;
+          await loadFiles();
+          await openVersionedPage(target.page,target.version,content);
+        }
+      }
+      if (!response.ok || buildFailed(data)) {
+        setStatus((saved ? 'Saved · ' : '') + (build === 'none' ? 'save failed' : 'build failed'),'err');
+        if (!saved) setDirty(true);
+        if (data.stderr) say(String(data.stderr).trim().slice(0,160));
         return;
       }
-      const secs = ((Date.now() - started) / 1000).toFixed(1);
-      const isPage = openFile.startsWith('content/') && openFile.endsWith('.md');
-      setStatus('✓ saved · ' + (isPage ? 'page built' : 'portal rebuilt') + ' in ' + secs + 's', 'ok');
-      setDirty(edText.value !== content);
-    } catch (err) {
-      setStatus('API unreachable', 'err');
-      setDirty(true);
+      const seconds = ((Date.now()-started)/1000).toFixed(1);
+      setStatus(build === 'none' ? '✓ Saved' : '✓ Saved · ' + (build === 'page' ? 'page' : 'portal')
+        + (data.published ? ' built and published' : ' built') + ' in ' + seconds + 's','ok');
+    } catch (error) {
+      setStatus(error.message || 'API unreachable','err');
+      if (!saved) setDirty(true);
     } finally {
-      edSave.textContent = 'Save & build';
-      edSave.disabled = !dirty;
+      editorBusy = false; button.textContent = originalLabel;
+      release(); updateFileActions();
     }
   }
 
   edText.addEventListener('input', () => setDirty(true));
-  edSave.addEventListener('click', saveFile);
+  edSave.addEventListener('click', () => saveFile('none'));
+  edBuildPage.addEventListener('click', () => saveFile('page'));
+  edBuildPortal.addEventListener('click', () => saveFile('portal'));
 
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -2201,7 +2190,7 @@
       const started = Date.now();
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/file?write&' + q, {
+        const res = await fetch('/api/file?write&' + q + '&build=portal', {
           method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text.value
         });
         const data = await apiJson(res);
@@ -2395,7 +2384,7 @@
       }
 
       say('Switching theme — rebuilding…');
-      res = await fetch('/api/file?write&' + q, {
+      res = await fetch('/api/file?write&' + q + '&build=portal', {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
       });
       data = await apiJson(res);
@@ -3223,7 +3212,7 @@
   }
 
   function confirmPortalChange(next) {
-    if (fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
+    if (editorBusy || fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
         || edSave.textContent.includes('Saving') || patSave.textContent.includes('Saving')
         || (window.SheriffInteractive && window.SheriffInteractive.isSaving())) {
       say('Wait for the current save or file operation to finish.'); return false;

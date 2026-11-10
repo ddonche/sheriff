@@ -261,7 +261,11 @@
             <span class="ed-status" id="ed-status"></span>
             <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
-            <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
+            <div class="ed-save-actions" role="group" aria-label="Save and build actions">
+              <button class="btn small primary" type="button" id="ed-save" disabled>Save</button>
+              <button class="btn small" type="button" id="ed-build-page" disabled>Build page</button>
+              <button class="btn small" type="button" id="ed-build-portal" disabled>Build portal</button>
+            </div>
           </div>
           <div id="ed-editor-panel" class="ed-editor-panel" role="tabpanel" aria-labelledby="ed-tab-editor">
             <div class="content-tools"><button class="btn small" type="button" id="ci-toggle" aria-expanded="false" aria-controls="ci-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Insert image</button>
@@ -281,7 +285,7 @@
                   <div class="ci-field ci-caption-field"><label for="ci-caption">Caption (optional)</label><input id="ci-caption" type="text" placeholder="A description of the image"></div>
                 </div>
                 <div id="ci-newfolder-row" class="ci-newfolder-row" hidden><label for="ci-folder-name">New folder name</label><div><input id="ci-folder-name" type="text" placeholder="characters" autocomplete="off"><button class="btn small" type="button" id="ci-create-folder">Create folder</button><button class="btn small" type="button" id="ci-cancel-folder">Cancel</button></div></div>
-                <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; use Save &amp; build when ready.</p></div></div>
+                <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; save your edits, then use Build page or Build portal when ready.</p></div></div>
                 <p id="ci-status" class="ci-status" role="status" aria-live="polite"></p>
                 <div class="ci-actions"><button class="btn primary small" id="ci-insert" type="submit" disabled>Insert image</button><button class="btn small" type="button" id="ci-cancel">Cancel</button></div>
               </form>

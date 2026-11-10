@@ -4,7 +4,7 @@
 ///
 ///   /api/file?list&{portal}
 ///   /api/file?read&portal={portal}&path={path}
-///   /api/file?write&portal={portal}&path={path}    body = file contents
+///   /api/file?write&portal={portal}&path={path}&build=none|page|portal
 ///   /api/file?delete&{portal}&{path}
 ///   /api/file?move&{portal}&{from}&{to}
 ///   /api/file?upload&{portal}&{path}               body = the file
@@ -288,8 +288,10 @@ act page_rel_path(path)
 xx
 
 act do_write(raw)
+    build_mode | :trim(parse_query_value(raw, "build"))
+    if build_mode == "" => build_mode |= "none"
     portal  | :trim(parse_query_value(raw, "portal"))
-    path    | normalize_rel_path(parse_query_value(raw, "path"))
+    path    | normalize_rel_path(:url_decode(parse_query_value(raw, "path")))
     content | :env("GOBLIN_BODY")
 
     if content == ""
@@ -376,15 +378,10 @@ act do_write(raw)
 
         :say(:json_stringify(out))
 
-    elif content.nix?
-        out | {
-          "ok": false,
-          "code": nil,
-          "stdout": "",
-          "stderr": "missing request body"
-        }
-
-        :say(:json_stringify(out))
+    elif build_mode != "none" and build_mode != "page" and build_mode != "portal"
+        :say(:json_stringify({"ok": false, "saved": false, "stderr": "invalid build mode"}))
+    elif build_mode == "page" and is_page_build(path) == false
+        :say(:json_stringify({"ok": false, "saved": false, "stderr": "page build requires a Markdown content page"}))
 
     else
         root      | "{root_base}/site/portals/{portal}"
@@ -413,27 +410,17 @@ act do_write(raw)
 
             :write_text!(full, content)
 
-            if is_no_build(path)
-                out | {
-                  "ok": true,
-                  "code": 0,
-                  "stdout": "",
-                  "stderr": ""
-                }
-                :say(:json_stringify(out))
-            elif is_page_build(path)
+            if build_mode == "none"
+                :say(:json_stringify({"ok": true, "saved": true, "published": false, "code": 0, "stdout": "", "stderr": ""}))
+            elif build_mode == "page"
                 rel | page_rel_path(path)
-
-                if has_unsafe_chars(rel)
-                    result | :run_cmd("goblin run main.gbln {portal}", core_root)
-                    :say(result)
-                else
-                    result | :run_cmd("goblin run main.gbln {portal} page {rel}", core_root)
-                    :say(result)
-                xx
+                result | :json_parse(:run_cmd("goblin run main.gbln {portal} page", core_root, {"SHERIFF_PAGE_TARGET": rel}))
+                :update!(result{"saved"}, true)
+                :say(:json_stringify(result))
             else
-                result | :run_cmd("goblin run main.gbln {portal}", core_root)
-                :say(result)
+                result | :json_parse(:run_cmd("goblin run main.gbln {portal}", core_root))
+                :update!(result{"saved"}, true)
+                :say(:json_stringify(result))
             xx
         xx
     xx

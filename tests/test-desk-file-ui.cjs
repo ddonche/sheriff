@@ -36,7 +36,7 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
    else if(endpoint==='file'){
     const segments=url.search.slice(1).split('&'),verb=segments.shift(),args=segments.map(decodeURIComponent);
     const named=new URLSearchParams(segments.join('&'));
-    const name=named.get('path');requests.push({verb,args,name});
+    const name=named.get('path');requests.push({verb,args,name,build:named.get("build")});
     if(verb==='list')data={ok:true,files:[...files.keys()],dirs:dirs()};
     else if(verb==='read')data=files.has(name)?{ok:true,content:files.get(name)}:{ok:false,stderr:'file not found'};
     else if(verb==='write'){files.set(name,route.request().postData()||'');data={ok:true,code:0,stdout:'',stderr:''};}
@@ -91,7 +91,7 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  // The flat-page revision context must also follow the new filename.
  await page.locator('#ed-save').click();
  await until(()=>document.querySelector('#ed-version-bar .ed-vb-rev')?.textContent==='editing R2');
- assert.equal(await page.locator('#ed-tab-log').getAttribute('aria-selected'),'true');
+ assert.equal(await page.locator('#ed-tab-editor').getAttribute('aria-selected'),'true');
  await page.locator('#ed-tab-editor').click();
  assert(files.has('content/renamed/current/R2.md'));assert(![...files.keys()].some(p=>p.startsWith('content/notes/')));
  await openFolder('drafts');await openFolder('nested');await openFile('leaf.md');
@@ -122,7 +122,7 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert.equal(await page.getByText('Overwrite this revision',{exact:true}).count(),1);
  await page.locator('#ed-text').fill('New revision copied from old text');await page.locator('#ed-save').click();
  await until(()=>document.querySelector('#ed-version-bar .ed-vb-rev')?.textContent==='editing R4');
- assert.equal(await page.locator('#ed-tab-log').getAttribute('aria-selected'),'true');
+ assert.equal(await page.locator('#ed-tab-editor').getAttribute('aria-selected'),'true');
  await page.locator('#ed-tab-editor').click();
  assert.equal(files.get('content/handbook/current/R3.md'),'Book revision three');
  assert.equal(files.get('content/handbook/current/R4.md'),'New revision copied from old text');

@@ -68,8 +68,9 @@
     const method = options && options.method || (typeof input !== 'string' && input.method) || 'GET';
     if (method.toUpperCase() !== 'POST') return null;
     const portal = url.searchParams.get('portal'), path = (url.searchParams.get('path') || '').replace(/\\/g, '/');
-    if (!portal || !path || (path.startsWith('patterns/') && path.endsWith('.txt'))) return null;
-    return {portal,label:path.startsWith('content/') && path.endsWith('.md') ? 'Page build · ' + path : 'Portal rebuild · ' + path};
+    const build = url.searchParams.get('build') || 'none';
+    if (!portal || !path || build === 'none') return null;
+    return {portal,label:(build === 'page' ? 'Page build · ' : 'Portal build · ') + path};
   }
   function record(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
   function envelope(value) { return record(value) && Object.hasOwn(value, 'body') && record(value.headers) && typeof value.status === 'number'; }

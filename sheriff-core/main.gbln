@@ -397,11 +397,13 @@ else
         xx
 
     elif args.len >= 2 and args[1] == "page"
-        if args.len < 3
+        /// Local Desk passes the target as data, avoiding shell quoting of filenames.
+        target | :env("SHERIFF_PAGE_TARGET")
+        if args.len >= 3 => target |= args[2]
+        if target.nix?
             :say("ERROR: missing page target")
             :say("Usage: goblin run main.gbln <portal> page <slug|relpath.md>")
         else
-            target | args[2]
             build_one_page(target)
         xx
 

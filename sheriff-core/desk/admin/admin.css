@@ -1520,3 +1520,6 @@ h2.bracket::after { content:"]"; color:var(--red); font-weight:800; }
 .desk-build-panel[data-state=running] [data-build-status]{background:#fef3c7;color:#854d0e}
 .desk-build-output{font-size:12px;line-height:1.6}
 #build-log{background:#0f172a;color:#e2e8f0}
+
+/* Explicit content save/build choices stay together when the toolbar wraps. */
+.ed-save-actions{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;}
