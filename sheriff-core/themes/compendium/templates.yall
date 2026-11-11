@@ -1,3 +1,14 @@
+# Default admonition title icons; portal templates may override individual entries.
+admonition_icons:
+  note: notebook-pen
+  tip: lightbulb
+  warning: triangle-alert
+  important: bookmark-check
+  example: file-code
+  strategy: map
+  lore: library-big
+  spoiler: eye-off
+
 layouts:
   docs_embed:
     slots:

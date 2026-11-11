@@ -1,3 +1,14 @@
+# Default admonition title icons; portal templates may override individual entries.
+admonition_icons:
+  note: scroll-text
+  tip: flame
+  warning: shield-alert
+  important: shield-check
+  example: book-open
+  strategy: swords
+  lore: book-open-text
+  spoiler: eye-off
+
 layouts:
   docs_embed:
     slots:
