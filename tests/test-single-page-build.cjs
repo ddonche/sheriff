@@ -29,7 +29,7 @@ try{
  const afterOutputs=snapshot(output);for(const [rel,hash] of Object.entries(beforeOutputs)){if(rel!=='notes.html')assert.equal(afterOutputs[rel],hash,'Unrelated output changed: '+rel);}checks++;
  // Fresh Cloud output contains just the requested HTML, no copied library or indexes.
  fs.rmSync(output,{recursive:true,force:true});const fresh=run(['page','notes.md']);
- assert.deepEqual(files(output),['notes.html']);checks++;
+ assert.deepEqual(files(output),['notes.html','public/icons/LUCIDE-LICENSE.txt','public/icons/book.svg']);checks++;
  const html=fs.readFileSync(path.join(output,'notes.html'),'utf8');
  for(const marker of ['Page pattern works','href="/unrelated.html"','sheriff-portal-stats','data-sheriff-icon="book"','sheriff-nav-active','data-sheriff-content-tabs','Hardcover','Paperback'])assert(html.includes(marker),'Missing '+marker);checks+=5;
  assert(!html.includes('{{{BADGE::STATS}}}'));assert(!html.includes('{{{SCOUT::'));checks+=2;

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=38">
+<link rel="stylesheet" href="/admin/admin.css?v=39">
 </head>
 <body>
 
@@ -293,9 +293,9 @@
             <section id="cx-panel" class="content-image-panel content-insert-panel" aria-labelledby="cx-title" hidden>
               <div class="cx-heading"><h3 id="cx-title">Insert icon</h3><a id="cx-manage" href="#icons">Manage icons ↗</a></div>
               <div class="cx-layout">
-                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div></div>
+                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div><button id="cx-more" class="btn small" type="button" hidden>Show more icons</button></div>
                 <div class="cx-detail">
-                  <div id="cx-icon-detail"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
+                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
                   <h4 id="cx-name">Select an icon</h4><p id="cx-description" class="cx-muted"></p>
                   <div id="cx-pattern-detail" hidden><label for="cx-pattern-use">Insert as</label><select id="cx-pattern-use"><option value="token">Reusable token</option><option value="source">Editable copy</option></select></div>
                   <label for="cx-syntax">Will insert</label><textarea id="cx-syntax" readonly spellcheck="false" rows="4"></textarea>
@@ -598,6 +598,9 @@
           <aside class="icons-customizer" aria-label="Icon options and selection">
             <div class="panel icons-options">
               <h3>Appearance</h3>
+              <label for="ic-size">Size <span>(optional, pixels)</span></label>
+              <input id="ic-size" type="number" min="8" max="256" step="1" placeholder="Match text" aria-describedby="ic-size-help">
+              <p id="ic-size-help" class="icons-size-help">8–256 px. Leave empty to use the theme’s inline size.</p>
               <label for="ic-color">Color <span>(optional)</span></label>
               <div class="icons-color-control"><input id="ic-color-picker" type="color" value="#22282c" aria-label="Choose icon color"><input id="ic-color" type="text" placeholder="Inherit styling" maxlength="120" spellcheck="false"></div>
               <div class="icons-color-footer"><span>Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
@@ -619,6 +622,7 @@
             </div>
             <p id="ic-status" class="icons-status" role="status" aria-live="polite"></p>
             <div class="icons-grid" id="ic-grid" role="group" aria-label="Available icons"></div>
+            <button id="ic-more" class="btn" type="button" hidden>Show more icons</button>
             <div class="icons-empty" id="ic-empty" hidden><p>No matching icons.</p><button id="ic-clear-search" class="btn small" type="button">Clear search</button></div>
           </div>
         </div>
@@ -886,8 +890,8 @@ leadership = [[House Andergard]]</pre>
 <script src="/admin/build-log.js?v=2"></script>
 <script src="/admin/admin.js?v=42"></script>
 <script src="/admin/content-images.js?v=2"></script>
-<script src="/admin/content-inserts.js?v=1"></script>
-<script src="/admin/icons.js?v=2"></script>
+<script src="/admin/content-inserts.js?v=2"></script>
+<script src="/admin/icons.js?v=3"></script>
 <script src="/admin/interactive-editor.js?v=5"></script>
 <script src="/admin/snapshots.js?v=2"></script>
 </body>

@@ -62,15 +62,8 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: Theme CSS NOT FOUND for theme '{theme_name}' at {theme_css_src}")
     xx
-    /// Core icon defaults are copied before portal public assets, so portals can override them.
-    core_icons | "../sheriff-core/assets/icons"
-    if :file_exists(core_icons)
-        :create_dir!("../dist/{portal}/public/icons")
-        for icon_path in :walk(core_icons, "*.svg")
-            icon_file | :basename(icon_path)
-            :copy_file!(icon_path, "../dist/{portal}/public/icons/{icon_file}")
-        xx
-    xx
+    /// The icon renderer publishes referenced Core icons as it renders pages.
+    /// Portal public files still take precedence over matching library names.
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
     public_src  | "../site/portals/{portal}/public"
     public_dest | "../dist/{portal}/public"

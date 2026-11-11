@@ -1,3 +1,5 @@
+import modules/markdown_core/fenced_code as category_code
+
 /// modules/trailboss_wiki/routes_json.gbln
 /// Build + load JSON routes for a portal (config.yall).
 /// Also writes a small portal report JSON for badges/counts.
@@ -521,6 +523,109 @@ act canonical_to_slug(value)
     return normalize_to_slug(raw)
 xx
 
+/// Categories have their own wikilink namespace; their filesystem URLs stay unchanged.
+act category_name(value)
+    if value.nix? => return ""
+    raw | :trim(value)
+    if :starts_with(raw, "[[")
+        raw |= :keep_between(raw, "[[", "]]") ?? raw
+    xx
+    raw |= :trim(:keep_before(raw, "|")) ?? raw
+
+    if :starts_with(:lower(raw), "category:")
+        raw |= :trim(:keep_after(raw, ":")) ?? ""
+    xx
+    return raw
+xx
+
+act category_canonical(name)
+    return "Category:" + category_name(name)
+xx
+
+act merge_categories(first, second)
+    out | []
+    keys | []
+    for group in [first, second]
+        if :valtype(group) != "array" => skip
+        for value in group
+            name | category_name(value)
+            key | normalize_to_slug(name)
+            if key.nix? or :has(keys, key) => skip
+            :put_last!(keys, key)
+            :put_last!(out, name)
+        xx
+    xx
+    return out
+xx
+
+/// Inspect content, not code examples or generated category-directory listings.
+act content_categories(text)
+    raw | :normalize_newlines(text ?? "")
+    if :starts_with(raw, "^^^^")
+        raw |= :ignore_blocks_first(raw, "^^^^", "^^^^")
+    xx
+    fenced | category_code::stash(raw, "CATEGORY_CODE")
+    raw |= fenced{"text"}
+    lines | []
+    for line in :split(raw, "\n")
+        /// Pattern HTML uses indentation too; it is not a Markdown code example.
+        if (:starts_with(line, "    ") or :starts_with(line, "\t")) and :starts_with(:trim(line), "<") == false => skip
+        :put_last!(lines, line)
+    xx
+    raw |= :join(lines, "\n")
+    sweep raw
+        "`" ... "`":
+            :update_where!(raw, self, "")
+    xx
+    /// Reusable patterns have already been registered by the pre schedule.
+    if :has(raw, "SHERIFF::PATTERN_")
+        raw |= resolve_token(raw)
+    xx
+    sweep raw
+        "<pre" ... "</pre>":
+            :update_where!(raw, self, "")
+        "<code" ... "</code>":
+            :update_where!(raw, self, "")
+        "<!--" ... "-->":
+            :update_where!(raw, self, "")
+    xx
+    names | []
+    sweep raw
+        "[[" ... "]]":
+            inner | :trim(:keep_between(self, "[[", "]]")) ?? ""
+            target | :trim(:keep_before(inner, "|")) ?? inner
+            if :starts_with(:lower(target), "category:")
+                name | category_name(target)
+                if !name.nix? => :put_last!(names, name)
+            xx
+    xx
+    return merge_categories([], names)
+xx
+
+act collect_page_categories(ctx)
+    fm | ctx{"frontmatter"} ?? {}
+    categories | fm{"categories"} ?? []
+    if fm{"generated_by"} != "categories"
+        categories |= merge_categories(categories, content_categories(ctx{"body"}))
+    else
+        categories |= merge_categories(categories, [])
+    xx
+    :update!(fm{"categories"}, categories)
+    :update!(ctx{"frontmatter"}, fm)
+    return ctx
+xx
+
+act category_frontmatter_canonical(text, name)
+    block | :keep_between(text, "^^^^", "^^^^") ?? ""
+    lines | []
+    for line in :split(block, "\n")
+        if :starts_with(:trim(line), "canonical:") => skip
+        :put_last!(lines, line)
+    xx
+    out | :trim(:join(lines, "\n"))
+    return "^^^^\ncanonical: " + category_canonical(name) + "\n" + out + "\n^^^^\n"
+xx
+
 /// A known canonical name or alias can contain a literal #.
 act wikilink_target_exists(routes, target)
     if target.nix? => return false
@@ -960,8 +1065,12 @@ act build_routes_json_for_portal(portal)
         md_text | :read_text(src_norm)
         fm      | extract_frontmatter_map(md_text)
 
-        if fm.nix? == false and :valtype(fm) == "map" and :has(fm, "canonical")
+        if :starts_with(rel_no_ext, "categories/") or (fm.nix? == false and :valtype(fm) == "map" and :has(fm, "canonical"))
             canonical_slug | canonical_to_slug(fm{"canonical"})
+            if :starts_with(rel_no_ext, "categories/")
+                category_title | fm{"title"} ?? stem_name
+                canonical_slug |= canonical_to_slug(category_canonical(category_title))
+            xx
             if canonical_slug.nix? => skip
 
             if :has(claimed_canonical_keys, canonical_slug)
@@ -1043,6 +1152,25 @@ act build_routes_json_for_portal(portal)
 
         xx
 
+        is_category | :starts_with(rel_no_ext, "categories/")
+        if is_category
+            canonical_slug |= canonical_to_slug(category_canonical(page_title))
+            category_aliases | []
+            for alias in aliases
+                :put_last!(category_aliases, category_canonical(alias))
+            xx
+            /// Preserve an older category canonical as a namespaced alias only.
+            old_canonical | fm{"canonical"} ?? ""
+            if !old_canonical.nix? and canonical_to_slug(category_canonical(old_canonical)) != canonical_slug
+                :put_last!(category_aliases, category_canonical(old_canonical))
+            xx
+            aliases |= category_aliases
+        xx
+        categories |= merge_categories(categories, [])
+        if generated_by != "categories"
+            categories |= merge_categories(categories, content_categories(md_text))
+        xx
+
         if canonical_slug.nix?
             canonical_slug |= slug
 
@@ -1084,6 +1212,9 @@ act build_routes_json_for_portal(portal)
         xx
 
         canonical  | "[[" + canonical_slug + "]]"
+        if is_category
+            canonical |= "[[" + category_canonical(page_title) + "]]"
+        xx
 
         meta | {
             "slug":      slug,
@@ -1292,7 +1423,7 @@ categories: []
         for row in sorted_category_rows
             category_slug | :keep_before(row, "|||") ?? => skip
             category_name | :keep_after(row, "|||") ?? => skip
-            category_link | "[[{category_name}]]"
+            category_link | "[[:Category:{category_name}|{category_name}]]"
             category_count | 0
 
             for route in routes
@@ -1371,6 +1502,7 @@ categories: []
             xx
         xx
 
+        category_frontmatter |= category_frontmatter_canonical(category_frontmatter, category_name)
         category_lines | [category_frontmatter]
 
         if page_rows.len == 0
@@ -1451,7 +1583,11 @@ act build_redirect_pages_once(pre_ctx)
 
             :put_last!(seen_aliases, alias_slug)
 
-            redirect_path | "{dist_root}/{alias_slug}.html"
+            alias_rel | alias_slug
+            if :starts_with(alias_slug, "category:")
+                alias_rel |= "categories/" + :keep_after(alias_slug, ":")
+            xx
+            redirect_path | "{dist_root}/{alias_rel}.html"
             redirect_dir  | :dirname(redirect_path)
 
             if redirect_dir.nix? == false

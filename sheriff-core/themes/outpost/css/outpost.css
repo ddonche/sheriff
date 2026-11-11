@@ -2696,8 +2696,8 @@ a.sheriff-missing-link:hover {
 /* Inline article icons inherit the local text/admonition/pattern color. */
 .sheriff-icon {
   display: inline-block;
-  width: 1.35em;
-  height: 1.35em;
+  width: var(--sheriff-icon-size, 1.35em);
+  height: var(--sheriff-icon-size, 1.35em);
   vertical-align: -0.25em;
   background-color: currentColor;
   -webkit-mask: var(--sheriff-icon-url) no-repeat center / contain;

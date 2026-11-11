@@ -5,19 +5,24 @@
   const context = window.SheriffPortalContext, $ = id => document.getElementById(id);
   const grid = $('ic-grid'), search = $('ic-search'), color = $('ic-color'), picker = $('ic-color-picker'), refresh = $('ic-refresh');
   const copyButton = $('ic-copy'), selectedPreview = $('ic-selected-preview');
+  const batchSize=96;let shown=batchSize;
   let icons = [], selectedName = '', loaded = null, pending = null, request = 0, copyTimer;
   function status(text, error) { $('ic-status').textContent = text; $('ic-status').classList.toggle('err', !!error); }
   function chosenColor() { const value = color.value.trim(); return value && value.length <= 120 && /^[a-zA-Z0-9#(),.% /+\-]+$/.test(value) && CSS.supports('color', value) ? value : ''; }
-  function syntax(name) { return '[[icon|' + name + (chosenColor() ? '|' + chosenColor() : '') + ']]'; }
+  function chosenSize() { const value=$('ic-size').value.trim(),number=Number(value);return /^\d+$/.test(value)&&Number.isInteger(number)&&number>=8&&number<=256?String(number):''; }
+  function syntax(name) { const size=chosenSize(),color=chosenColor();return '[[icon|' + name + (color||size ? '|' + color : '') + (size ? '|'+size : '') + ']]'; }
   function paint(preview, icon) {
     preview.style.setProperty('--icon-preview', 'url("data:image/svg+xml,' + encodeURIComponent(icon.svg).replace(/'/g,'%27') + '")');
     preview.style.color = chosenColor();
+    if(preview===selectedPreview){preview.style.width=preview.style.height=chosenSize()?chosenSize()+'px':'';}
   }
   function updateStatus() {
     const count = icons.filter(icon => icon.name.includes(search.value.trim().toLowerCase())).length;
     const invalid = !!color.value.trim() && !chosenColor(); color.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    const invalidSize=!!$('ic-size').value.trim()&&!chosenSize();$('ic-size').setAttribute('aria-invalid',String(invalidSize));
     if (pending) status('Loading icons…');
-    else status(invalid ? 'That color is not valid. Using the surrounding styling.' : count + ' of ' + icons.length + ' icons' + (context.current ? ' available for ' + context.current : ' in Core') + '.');
+    else if(invalidSize) status('Use a whole-number size from 8 to 256 pixels. Using the theme size.');
+    else status(invalid ? 'That color is not valid. Using the surrounding styling.' : Math.min(shown,count) + ' of ' + icons.length + ' icons shown' + (search.value.trim() ? ' · '+count+' matches' : '') + (context.current ? ' available for ' + context.current : ' in Core') + '.');
   }
   function updateSelection() {
     const selected = icons.find(icon => icon.name === selectedName);
@@ -31,12 +36,13 @@
   }
   function render() {
     const query = search.value.trim().toLowerCase(), matches = icons.filter(icon => icon.name.includes(query)); grid.replaceChildren();
-    for (const icon of matches) {
+    for (const icon of matches.slice(0,shown)) {
       const tile = document.createElement('button'); tile.type = 'button'; tile.className = 'icon-tile'; tile.dataset.icon = icon.name;
       tile.setAttribute('aria-label', 'Select ' + icon.name); tile.title = icon.name; tile.setAttribute('aria-pressed', icon.name === selectedName ? 'true' : 'false');
       const preview = document.createElement('span'); preview.className = 'icons-preview'; preview.setAttribute('aria-hidden', 'true'); paint(preview, icon); tile.append(preview);
       tile.addEventListener('click', () => { selectedName = icon.name; updateSelection(); if (matchMedia('(max-width:760px)').matches) $('ic-selection').scrollIntoView({behavior:'smooth',block:'nearest'}); }); grid.append(tile);
     }
+    $('ic-more').hidden=matches.length<=shown;$('ic-more').textContent='Show more icons ('+Math.max(0,matches.length-shown)+' remaining)';
     $('ic-empty').hidden = !!matches.length || !!pending;
     search.placeholder = icons.length ? 'Search ' + icons.length + ' icons…' : 'Search icons…';
     updateSelection(); updateStatus();
@@ -67,6 +73,7 @@
   async function enter(force) {
     const portal = context.current, revision = context.revision, key = revision + ':' + portal;
     if (!force && (loaded === key || pending === key)) return;
+    shown=batchSize;
     const previousName = selectedName, token = ++request; pending = key; loaded = null; icons = []; selectedName = ''; grid.replaceChildren(); updateSelection(); $('ic-empty').hidden = true; status('Loading icons…'); refresh.disabled = true;
     try {
       const response = await fetch('/api/list_icons?' + encodeURIComponent(portal), {cache:'no-store'}), data = await response.json();
@@ -78,10 +85,12 @@
     } catch (error) { if (token === request) { pending = null; status(error.message || 'Could not load icons.', true); } }
     finally { if (token === request) { pending = null; refresh.disabled = false; } }
   }
-  search.addEventListener('input', render); color.addEventListener('input', updateColor);
+  $('ic-size').addEventListener('input',()=>{updateSelection();updateStatus();});
+  $('ic-more').addEventListener('click',()=>{shown+=batchSize;render();});
+  search.addEventListener('input',()=>{shown=batchSize;render();}); color.addEventListener('input', updateColor);
   picker.addEventListener('input', () => { color.value = picker.value; updateColor(); });
   $('ic-reset-color').addEventListener('click', () => { color.value = ''; updateColor(); });
-  $('ic-clear-search').addEventListener('click', () => { search.value = ''; render(); search.focus(); });
+  $('ic-clear-search').addEventListener('click', () => { search.value = ''; shown=batchSize; render(); search.focus(); });
   refresh.addEventListener('click', () => enter(true)); window.SheriffIcons = { enter };
   if (location.hash === '#icons') enter();
 }());

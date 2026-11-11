@@ -1,0 +1,10 @@
+{
+  "package": "lucide-static",
+  "version": "1.71.0",
+  "integrity": "sha512-yUXCvkMCNlqZI72Oco8+FjFwTcPI0Xz5qPZuqYXKP/8BU928hKT0Q4/m+R0e1I44kqEfCz1pd2J7iQ8jTZQEuA==",
+  "source": "https://registry.npmjs.org/lucide-static/-/lucide-static-1.71.0.tgz",
+  "icons": 2350,
+  "aliases": {
+    "warning": "triangle-alert"
+  }
+}

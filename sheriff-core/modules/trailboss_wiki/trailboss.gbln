@@ -857,14 +857,35 @@ act icon_color_valid(color)
     return true
 xx
 
+/// Optional icon size is a whole number of CSS pixels, between 8 and 256.
+act icon_size(value)
+    raw | :trim(value ?? "")
+    if raw.nix? or raw.len > 3 => return ""
+    size | 0
+    for char in :split(raw, "")
+        digit | -1
+        for n in :range(0, 10)
+            if char == :str(n)
+                digit |= n
+                stop
+            xx
+        xx
+        if digit == -1 => return ""
+        size |= size * 10 + digit
+    xx
+    if size < 8 or size > 256 => return ""
+    return :str(size)
+xx
+
 act render_icon(inner, portal)
     parts | :split(inner, "|")
-    name, color | ""
+    name, color, size | ""
+    if parts.len > 3 => size |= icon_size(parts[3])
     if parts.len > 1 => name |= :trim(parts[1])
     if parts.len > 2 => color |= :trim(parts[2])
     valid | icon_name_valid(name)
     exists | false
-    if valid and parts.len <= 3
+    if valid and parts.len <= 4
         if !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
             exists |= true
         elif :file_exists("assets/icons/{name}.svg")
@@ -875,9 +896,27 @@ act render_icon(inner, portal)
         safe | escape_attr(escape_text(name))
         return "<span class=\"sheriff-icon-missing\" role=\"img\" aria-label=\"Unknown icon: {safe}\" title=\"Unknown icon: {safe}\">?</span>"
     xx
+    /// Publish the referenced asset during the normal render schedule. This also
+    /// supports fresh single-page Cloud output without running pre/post schedules.
+    icon_source | "assets/icons/{name}.svg"
+    if :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
+        icon_source |= "../site/portals/{portal}/public/icons/{name}.svg"
+    xx
+    icon_output | "../dist/{portal}/public/icons"
+    :create_dir!(icon_output)
+    if :file_exists("{icon_output}/{name}.svg") == false
+        :copy_file!(icon_source, "{icon_output}/{name}.svg")
+    xx
+    if :file_exists("assets/lucide/LICENSE.txt") and :file_exists("{icon_output}/LUCIDE-LICENSE.txt") == false
+        :copy_file!("assets/lucide/LICENSE.txt", "{icon_output}/LUCIDE-LICENSE.txt")
+    xx
+
     color_style | ""
     if icon_color_valid(color)
         color_style |= "color:{color};"
+    xx
+    if !size.nix?
+        color_style |= color_style + "--sheriff-icon-size:{size}px;"
     xx
     return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" role=\"img\" aria-label=\"{name}\" style=\"--sheriff-icon-url:url('/public/icons/{name}.svg');{color_style}\"></span>"
 xx
@@ -1125,7 +1164,15 @@ act resolve_wikilink(inner, ctx, portal)
     link_part  |= :trim(link_part)
     label_part |= :trim(label_part)
 
+    /// A leading colon links to a category without enrolling this page.
+    if :starts_with(:lower(link_part), ":category:")
+        link_part |= :keep_after(link_part, ":")
+    xx
+
     display_label | label_part ?? link_part
+    if label_part.nix? and :starts_with(:lower(link_part), "category:")
+        display_label |= :keep_after(link_part, ":") ?? link_part
+    xx
 
     lower_link  | :lower(link_part)
     is_external | :starts_with(lower_link, ["http://", "https:"])
@@ -1767,8 +1814,8 @@ act publish_categories(ctx)
 
     if :has(ctx, "frontmatter") and :valtype(ctx{"frontmatter"}) == "map"
         fm | ctx{"frontmatter"}
-        if categories.nix? and :has(fm, "categories") and :valtype(fm{"categories"}) == "array"
-            categories |= fm{"categories"}
+        if :has(fm, "categories") and :valtype(fm{"categories"}) == "array"
+            categories |= rjson::merge_categories(categories, fm{"categories"})
         xx
     xx
 

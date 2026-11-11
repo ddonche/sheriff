@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),tempRoot=path.resolve(os.tmpdir()),fixture=fs.mkdtempSync(path.join(tempRoot,'sheriff-slots-')),core=path.join(fixture,'sheriff-core');
 try {
-for(const rel of ['modules/stagehand/stagehand.gbln','modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/routes_json.gbln',...['outpost','siegemate','compendium'].map(t=>'themes/'+t+'/templates.yall')]){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
+for(const rel of ['modules/markdown_core/fenced_code.gbln','modules/stagehand/stagehand.gbln','modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/routes_json.gbln',...['outpost','siegemate','compendium'].map(t=>'themes/'+t+'/templates.yall')]){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
 const cases=[];
 function portal(name,theme,override){const dir=path.join(fixture,'site/portals',name);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'config.yall'),'theme:\n  name: "'+theme+'"\nrouting:\n  url_root: ""\n');if(override!==undefined){const file=path.join(dir,'themes',theme,'templates.yall');fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,override);}return name;}
 for(const theme of ['outpost','siegemate','compendium']){

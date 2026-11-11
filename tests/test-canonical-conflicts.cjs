@@ -10,6 +10,8 @@ const fixture = fs.mkdtempSync(path.join(tempRoot, 'sheriff-canonical-conflicts-
 const modulePath = path.join(fixture, 'modules/trailboss_wiki/routes_json.gbln');
 fs.mkdirSync(path.dirname(modulePath), {recursive:true});
 fs.copyFileSync(path.join(root, 'sheriff-core/modules/trailboss_wiki/routes_json.gbln'), modulePath);
+fs.mkdirSync(path.join(fixture,'modules/markdown_core'),{recursive:true});
+fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/fenced_code.gbln'),path.join(fixture,'modules/markdown_core/fenced_code.gbln'));
 function run(name, source) {
   fs.writeFileSync(path.join(fixture, name), 'import modules/trailboss_wiki/routes_json as routes\n' + source);
   const result = spawnSync('goblin', ['run', name], {cwd:fixture, encoding:'utf8', timeout:30000});
