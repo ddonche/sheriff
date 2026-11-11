@@ -4,7 +4,7 @@
   const delimiters=/[\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~…“”‘’—–]+/u;
   const words=value=>String(value||'').toLowerCase().split(delimiters).filter(Boolean);
   const normalize=value=>words(value).join(' ');
-  const safeHref=href=>typeof href==='string'&&href.startsWith('/')&&!href.startsWith('//')&&!/[\\\u0000-\u0020]/u.test(href);
+  const safeHref=href=>typeof href==='string'&&href.startsWith('/')&&!href.startsWith('//')&&!/[\\\u0000-\u001f\u007f]/u.test(href);
   function legacy(text){
     const documents=[];for(const line of text.split(/\r?\n/)){if(!line.trim())continue;try{const item=JSON.parse(line);if(safeHref(item.href)&&typeof item.title==='string')documents.push({...item,text:item.summary||'',aliases:[],headings:[],categories:item.categories||[]});}catch{}}
     if(!documents.length&&text.trim())throw Error('Unsupported search index.');const unique=[...new Map(documents.map(doc=>[doc.href,doc])).values()],postings=Object.create(null);

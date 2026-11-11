@@ -203,18 +203,13 @@ act prepare_record(message)
     return entry
 xx
 
-act prepare_worker(state, message)
-    entry | prepare_record(message)
-    :update!(state{entry{"key"}}, entry)
-    return state
-xx
-
-/// Round-robin dispatch avoids filename-based skew across the bounded workers.
-act route_job(state, message)
-    workers | state{"workers"}
-    next | state{"next"}
-    :post(workers[next], message)
-    :update!(state{"next"}, (next + 1) % workers.len)
+act prepare_worker(state, jobs)
+    message | :receive(jobs)
+    while message != nil
+        entry | prepare_record(message)
+        :update!(state{entry{"key"}}, entry)
+        message |= :receive(jobs)
+    xx
     return state
 xx
 
@@ -243,12 +238,15 @@ act init(pre_ctx)
             if requested == 4 or requested == "4" => workers_count |= 4
         xx
     xx
+    jobs | :channel(32)
     workers | []
     for n in :range(0, workers_count)
-        :put_last!(workers, :actor({}, prepare_worker))
+        worker | :actor({}, prepare_worker)
+        :post(worker, jobs)
+        :put_last!(workers, worker)
     xx
     :update!(pre_ctx{"prospector_workers"}, workers)
-    :update!(pre_ctx{"prospector_router"}, :actor({"workers":workers, "next":0}, route_job))
+    :update!(pre_ctx{"prospector_jobs"}, jobs)
     :say("PROSPECTOR: Preparing search with {workers_count} bounded workers for '{portal}'")
     return pre_ctx
 xx
@@ -258,8 +256,8 @@ act index_page(ctx)
     if ctx{"build_mode"} == "page"
         :update!(ctx{"prospector_entry"}, prepare_record(message))
     else
-        router | ctx{"prospector_router"}
-        if !router.nix? => :post(router, message)
+        jobs | ctx{"prospector_jobs"}
+        if !jobs.nix? => :post(jobs, message)
     xx
     return ctx
 xx
@@ -301,11 +299,8 @@ act write_index(portal, records)
 xx
 
 act finalize(post_ctx)
-    router | post_ctx{"prospector_router"}
-    if !router.nix?
-        :halt(router)
-        :await(router)
-    xx
+    jobs | post_ctx{"prospector_jobs"}
+    if !jobs.nix? => :halt(jobs)
     workers | post_ctx{"prospector_workers"} ?? []
     records | []
     for worker in workers

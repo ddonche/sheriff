@@ -35,7 +35,7 @@ A full build removes deleted pages from the index. Rebuilding a page with `searc
 
 ## Build concurrency
 
-Page schedules remain ordered. Prospector alone distributes record preparation across a bounded actor pool, then a single coordinator creates the deterministic index. Choose one, two (the default), or four preparation workers:
+Page schedules remain ordered. Prospector alone distributes record preparation through a 32-job backpressured channel to a bounded actor pool, then a single coordinator creates the deterministic index. Choose one, two (the default), or four preparation workers:
 
 ```yall
 search:
