@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=39">
+<link rel="stylesheet" href="/admin/admin.css?v=40">
 </head>
 <body>
 
@@ -295,7 +295,7 @@
               <div class="cx-layout">
                 <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div><button id="cx-more" class="btn small" type="button" hidden>Show more icons</button></div>
                 <div class="cx-detail">
-                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
+                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color" id="cx-color-help">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
                   <h4 id="cx-name">Select an icon</h4><p id="cx-description" class="cx-muted"></p>
                   <div id="cx-pattern-detail" hidden><label for="cx-pattern-use">Insert as</label><select id="cx-pattern-use"><option value="token">Reusable token</option><option value="source">Editable copy</option></select></div>
                   <label for="cx-syntax">Will insert</label><textarea id="cx-syntax" readonly spellcheck="false" rows="4"></textarea>
@@ -594,8 +594,15 @@
     <!-- ============ ICONS VIEW ============ -->
     <section class="view" id="view-icons" hidden>
       <div class="icons-wrap">
-        <div class="view-head"><h2 class="bracket">Icons</h2></div>
-        <p class="icons-intro">Find an icon, choose a color, and copy it into your content.</p>
+        <div class="view-head"><h2 class="bracket">Icons</h2><button class="btn primary small" id="ic-upload-toggle" type="button">Upload PNG</button></div>
+        <p class="icons-intro">Find a Lucide icon or upload a PNG for your portal, choose its size, and copy its syntax.</p>
+        <form id="ic-upload-form" class="panel icons-upload" hidden>
+          <h3>Upload a PNG icon</h3>
+          <p>For the selected portal. PNGs keep their original colors and transparency. Up to 1 MB.</p>
+          <div class="icons-upload-fields"><div><label for="ic-upload-file">PNG file</label><input id="ic-upload-file" type="file" accept="image/png,.png" required></div><div><label for="ic-upload-name">Icon name</label><input id="ic-upload-name" type="text" placeholder="everwind-emblem" pattern="[a-z0-9]+(-[a-z0-9]+)*" required spellcheck="false"></div><img id="ic-upload-preview" alt="New icon preview" hidden></div>
+          <p id="ic-upload-status" role="status" aria-live="polite"></p>
+          <div class="ci-actions"><button class="btn primary small" id="ic-upload-submit" type="submit">Upload icon</button><button class="btn small" id="ic-upload-cancel" type="button">Cancel</button></div>
+        </form>
         <div class="icons-layout">
           <aside class="icons-customizer" aria-label="Icon options and selection">
             <div class="panel icons-options">
@@ -605,7 +612,7 @@
               <p id="ic-size-help" class="icons-size-help">8–256 px. Leave empty to use the theme’s inline size.</p>
               <label for="ic-color">Color <span>(optional)</span></label>
               <div class="icons-color-control"><input id="ic-color-picker" type="color" value="#22282c" aria-label="Choose icon color"><input id="ic-color" type="text" placeholder="Inherit styling" maxlength="120" spellcheck="false"></div>
-              <div class="icons-color-footer"><span>Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
+              <div class="icons-color-footer"><span id="ic-color-help">Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
             </div>
             <div class="panel icons-selection" id="ic-selection">
               <div class="icons-selection-preview"><span id="ic-selected-preview" class="icons-preview" role="img" aria-label="Selected icon" hidden></span></div>
@@ -892,8 +899,8 @@ leadership = [[House Andergard]]</pre>
 <script src="/admin/build-log.js?v=2"></script>
 <script src="/admin/admin.js?v=43"></script>
 <script src="/admin/content-images.js?v=2"></script>
-<script src="/admin/content-inserts.js?v=3"></script>
-<script src="/admin/icons.js?v=3"></script>
+<script src="/admin/content-inserts.js?v=4"></script>
+<script src="/admin/icons.js?v=4"></script>
 <script src="/admin/interactive-editor.js?v=5"></script>
 <script src="/admin/snapshots.js?v=2"></script>
 </body>

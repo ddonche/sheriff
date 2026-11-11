@@ -16,10 +16,12 @@
   function sync(){const busy=!!window.SheriffContentImages?.isBusy();for(const [next,button] of Object.entries(toggles))button.disabled=!eligible(desk.contentEditor(),next)||busy;navToggle.disabled=!eligible(desk.navigationEditor(),'icons')||busy;if(target&&!same())close();}
   function color(){const value=$('cx-color').value.trim();return value&&value.length<=120&&/^[a-zA-Z0-9#(),.% /+\-]+$/.test(value)&&CSS.supports('color',value)?value:'';}
   function size(){const value=$('cx-size').value.trim(),number=Number(value);return /^\d+$/.test(value)&&Number.isInteger(number)&&number>=8&&number<=256?String(number):'';}
-  function paint(element,icon){element.style.setProperty('--icon-preview','url("data:image/svg+xml,'+encodeURIComponent(icon.svg).replace(/'/g,'%27')+'")');element.style.color=color();if(element===$('cx-selected-icon'))element.style.width=element.style.height=size()?size()+'px':'';}
-  function syntax(){if(!selected)return '';if(kind==='icons')return '[[icon|'+selected.name+(color()||size()?'|'+color():'')+(size()?'|'+size():'')+']]';return $('cx-pattern-use').value==='token'?desk.patternToken(selected.header.name):desk.patternSource(selected.body);}
+  function paint(element,icon){element.dataset.format=icon.format==='png'?'png':'svg';element.style.setProperty('--icon-preview',icon.format==='png'?'url("'+icon.png+'")':'url("data:image/svg+xml,'+encodeURIComponent(icon.svg).replace(/'/g,'%27')+'")');element.style.color=color();if(element===$('cx-selected-icon'))element.style.width=element.style.height=size()?size()+'px':'';}
+  function syntax(){if(!selected)return '';if(kind==='icons'){const tint=selected.format==='png'?'':color();return '[[icon|'+selected.name+(tint||size()?'|'+tint:'')+(size()?'|'+size():'')+']]';}return $('cx-pattern-use').value==='token'?desk.patternToken(selected.header.name):desk.patternSource(selected.body);}
   function updateSelection(){
     $('cx-grid').querySelectorAll('[data-item]').forEach(button=>button.setAttribute('aria-pressed',String(selected&&button.dataset.item===selected.key)));
+    for(const id of ['cx-color','cx-color-picker','cx-reset-color'])$(id).disabled=selected?.format==='png';
+    $('cx-color-help').textContent=selected?.format==='png'?'PNG icons keep their original colors.':'Color (optional)';
     const icon=kind==='icons',header=selected?.header,template=header?.mode==='template';
     $('cx-selected-icon').hidden=!icon||!selected;if(icon&&selected)paint($('cx-selected-icon'),selected);
     $('cx-name').textContent=selected?selected.name:'Select '+(icon?'an icon':'a pattern');
@@ -54,7 +56,7 @@
       const response=await fetch('/api/list_'+kind+'?'+encodeURIComponent(capture.portal),{cache:'no-store'}),data=await response.json();
       if(token!==request||target!==capture||!same())return;
       if(!response.ok||data.ok===false)throw Error(data.stderr||'Could not load '+kind+'.');
-      items=kind==='icons'?(data.icons||[]).filter(item=>typeof item.name==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.name)&&typeof item.svg==='string').map(item=>({...item,key:item.name})):(data.patterns||[]).filter(item=>typeof item.filename==='string'&&typeof item.body==='string').map(item=>({...item,header:desk.patternHeader(item.body)})).filter(item=>item.header).map(item=>({...item,name:item.header.name,key:item.filename}));
+      items=kind==='icons'?(data.icons||[]).filter(item=>typeof item.name==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.name)&&(typeof item.svg==='string'||(item.format==='png'&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(item.png)))).map(item=>({...item,key:item.name})):(data.patterns||[]).filter(item=>typeof item.filename==='string'&&typeof item.body==='string').map(item=>({...item,header:desk.patternHeader(item.body)})).filter(item=>item.header).map(item=>({...item,name:item.header.name,key:item.filename}));
       loading=false;render();
     }catch(error){if(token===request&&target===capture){loading=false;status(error.message||'Could not load '+kind+'.',true);updateSelection();}}
   }

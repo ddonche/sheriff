@@ -938,9 +938,13 @@ act render_icon(inner, portal)
     if parts.len > 2 => color |= :trim(parts[2])
     valid | icon_name_valid(name)
     exists | false
+    extension | "svg"
     if valid and parts.len <= 4
         if !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
             exists |= true
+        elif !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.png")
+            exists |= true
+            extension |= "png"
         elif :file_exists("assets/icons/{name}.svg")
             exists |= true
         xx
@@ -952,24 +956,27 @@ act render_icon(inner, portal)
     /// Publish the referenced asset during the normal render schedule. This also
     /// supports fresh single-page Cloud output without running pre/post schedules.
     icon_source | "assets/icons/{name}.svg"
-    if :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
-        icon_source |= "../site/portals/{portal}/public/icons/{name}.svg"
+    if :file_exists("../site/portals/{portal}/public/icons/{name}.{extension}")
+        icon_source |= "../site/portals/{portal}/public/icons/{name}.{extension}"
     xx
     icon_output | "../dist/{portal}/public/icons"
     :create_dir!(icon_output)
-    if :file_exists("{icon_output}/{name}.svg") == false
-        :copy_file!(icon_source, "{icon_output}/{name}.svg")
+    if :file_exists("{icon_output}/{name}.{extension}") == false
+        :copy_file!(icon_source, "{icon_output}/{name}.{extension}")
     xx
     if :file_exists("assets/lucide/LICENSE.txt") and :file_exists("{icon_output}/LUCIDE-LICENSE.txt") == false
         :copy_file!("assets/lucide/LICENSE.txt", "{icon_output}/LUCIDE-LICENSE.txt")
     xx
 
     color_style | ""
-    if icon_color_valid(color)
+    if extension == "svg" and icon_color_valid(color)
         color_style |= "color:{color};"
     xx
     if !size.nix?
         color_style |= color_style + "--sheriff-icon-size:{size}px;"
+    xx
+    if extension == "png"
+        return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" data-sheriff-icon-format=\"png\" role=\"img\" aria-label=\"{name}\" style=\"background-color:transparent;-webkit-mask:none;mask:none;background-image:url('/public/icons/{name}.png');background-position:center;background-size:contain;background-repeat:no-repeat;{color_style}\"></span>"
     xx
     return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" role=\"img\" aria-label=\"{name}\" style=\"--sheriff-icon-url:url('/public/icons/{name}.svg');{color_style}\"></span>"
 xx

@@ -5,6 +5,7 @@ try{
 for(const rel of ['modules/markdown_core/fenced_code.gbln','modules/scout_nav/scout.gbln','modules/trailboss_wiki/routes_json.gbln','modules/trailboss_wiki/trailboss.gbln','modules/stagehand/stagehand.gbln','modules/brindle_themes/brindle.gbln','themes/outpost/layouts/docs.html','themes/outpost/templates.yall']){const dst=path.join(core,rel);fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dst);}
 fs.cpSync(path.join(root,'sheriff-core/assets'),path.join(core,'assets'),{recursive:true});
 const portal=path.join(fixture,'site/portals/test');fs.mkdirSync(path.join(portal,'public/icons'),{recursive:true});fs.writeFileSync(path.join(portal,'config.yall'),'theme:\n  name: outpost\n');fs.writeFileSync(path.join(portal,'public/icons/custom-mark.svg'),fs.readFileSync(path.join(core,'assets/icons/star.svg')));
+fs.writeFileSync(path.join(portal,'public/icons/game-crest.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64'));
 fs.writeFileSync(path.join(portal,'routes.json'),JSON.stringify({routes:[{rel:'docs/index',href:'/docs/index.html',canonical_slug:'docs',title:'Docs',aliases:['Handbook']},{rel:'docs/other',href:'/docs/other.html',canonical_slug:'other',title:'Other'}]}));
 fs.writeFileSync(path.join(portal,'nav.yall'),`menus:
   header:
@@ -23,6 +24,7 @@ fs.writeFileSync(path.join(portal,'nav.yall'),`menus:
       "[[icon|warning|orange]] Experimental": /docs/other.html
       "[[icon|not-present]] Missing icon": /docs/other.html
       "[[icon|custom-mark]] Portal icon": /docs/index.html
+      "[[icon|game-crest||18]] Game icon": /docs/index.html
   footer_left:
     "[[icon|heart|#d04455]] About": /docs/other.html
     "[[icon|info]] Footer text": ""
@@ -45,7 +47,7 @@ xx
 :say("LABEL_CHECK " + :json_stringify([scout::scout_nav_label("test", "Ordinary label"),scout::scout_nav_label("test", "[[icon|book]] [[icon|book]] Label"),scout::scout_nav_label("test", "[[icon|warning|red;position:fixed]] Safe")]))
 `);
 const run=spawnSync('goblin',['run','verify.gbln'],{cwd:core,encoding:'utf8',timeout:30000});assert.equal(run.status,0,run.stdout+'\n'+run.stderr);const rows=run.stdout.split(/\r?\n/).filter(line=>line.startsWith('NAV_ICON_CHECK ')).map(line=>JSON.parse(line.slice(15)));assert.equal(rows.length,3);let checks=0;
-for(const row of rows){const menu=row.html.match(/<aside class="sheriff-left-nav">([\s\S]*?)<\/aside>/)[1];assert(!menu.includes('[[icon|'));assert(menu.includes('sheriff-nav-icon'));assert(menu.includes('sheriff-icon-missing'));assert(menu.includes('data-sheriff-icon="custom-mark"'));assert(menu.includes('color:orange;'));assert(/aria-current="page"[^>]*><span class="sheriff-icon sheriff-nav-icon"/.test(menu),row.rel+" "+menu);assert(row.html.includes('color:rgb(200, 20, 30);'));assert(row.html.includes('color:#d04455;'));assert(row.html.includes('> Footer text</span>'));assert(row.html.includes('<code>[[icon|book]]</code>'));assert(!row.registry.includes('aria-current'));assert.deepEqual(row.wanted,[]);assert.deepEqual(row.backlinks,[]);checks++;}
+for(const row of rows){const menu=row.html.match(/<aside class="sheriff-left-nav">([\s\S]*?)<\/aside>/)[1];assert(!menu.includes('[[icon|'));assert(menu.includes('sheriff-nav-icon'));assert(/class="sheriff-icon sheriff-nav-icon"[^>]*data-sheriff-icon="game-crest"[^>]*data-sheriff-icon-format="png"/.test(menu));assert(menu.includes('sheriff-icon-missing'));assert(menu.includes('data-sheriff-icon="custom-mark"'));assert(menu.includes('color:orange;'));assert(/aria-current="page"[^>]*><span class="sheriff-icon sheriff-nav-icon"/.test(menu),row.rel+" "+menu);assert(row.html.includes('color:rgb(200, 20, 30);'));assert(row.html.includes('color:#d04455;'));assert(row.html.includes('> Footer text</span>'));assert(row.html.includes('<code>[[icon|book]]</code>'));assert(!row.registry.includes('aria-current'));assert.deepEqual(row.wanted,[]);assert.deepEqual(row.backlinks,[]);checks++;}
 assert.equal(rows[0].html,rows[2].html);assert.notEqual(rows[0].html,rows[1].html);checks++;
 const labels=JSON.parse(run.stdout.split(/\r?\n/).find(line=>line.startsWith('LABEL_CHECK ')).slice(12));assert.equal(labels[0],'Ordinary label');assert.equal((labels[1].match(/data-sheriff-icon=/g)||[]).length,2);assert(!labels[2].includes('position:fixed'));checks++;
 if(process.env.SHERIFF_NAV_ICON_FIXTURES){fs.mkdirSync(process.env.SHERIFF_NAV_ICON_FIXTURES,{recursive:true});fs.writeFileSync(path.join(process.env.SHERIFF_NAV_ICON_FIXTURES,'nav-icons.json'),JSON.stringify(rows));}

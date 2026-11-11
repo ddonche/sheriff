@@ -19,7 +19,28 @@ else
     for folder in folders
         dir | folder{"path"}
         if :file_exists(dir) == false => skip
-        for file in :walk(dir, "*.svg")
+        has_png | false
+        for file in :walk(dir, "**/*")
+            if :ends_with(file, ".png") => has_png |= true
+        xx
+        if folder{"source"} == "Portal" and has_png
+            command | "python3 sheriff-core/desk/api/icon-support/png-icons.py"
+            if :env("OS") == "Windows_NT"
+                command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File sheriff-core/desk/api/icon-support/png-icons.ps1"
+            xx
+            result | :json_parse(:run_cmd(command, root, {"SHERIFF_ICON_DIRECTORY": "site/portals/{portal}/public/icons"}))
+            if result{"ok"} == false
+                :say(:json_stringify({"ok": false, "stderr": "Could not load PNG icons. Windows uses PowerShell; macOS/Linux require Python 3.", "icons": []}))
+                return nil
+            xx
+            for icon in :json_parse(result{"stdout"})
+                name | icon{"name"}
+                if :has(by_name, name) == false => :put_last!(names, name)
+                :update!(by_name{name}, icon)
+            xx
+        xx
+        for file in :walk(dir, "**/*")
+            if :ends_with(file, ".svg") == false => skip
             name | :stem(file)
             if :slug(name) != name => skip
             if :has(by_name, name) == false => :put_last!(names, name)
