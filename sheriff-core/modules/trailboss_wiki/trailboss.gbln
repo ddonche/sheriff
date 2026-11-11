@@ -489,7 +489,7 @@ act render_footnotes(ctx)
                 /// If it already has the id, just ensure sheriff class exists
                 if :has(self, "id=\"footnotes\"")
                     if :has(self, "sheriff-footnotes") == false
-                        cls | keep_between(self, "class=\"", "\"")
+                        cls | :keep_between(self, "class=\"", "\"")
                         new_cls | cls + " sheriff-footnotes"
 
                         new_tag | self
@@ -498,7 +498,7 @@ act render_footnotes(ctx)
                     xx
                 else
                     /// Add id + sheriff class, preserving other attributes
-                    cls | keep_between(self, "class=\"", "\"")
+                    cls | :keep_between(self, "class=\"", "\"")
                     new_cls | cls
                     if :has(new_cls, "sheriff-footnotes") == false
                         new_cls |= new_cls + " sheriff-footnotes"

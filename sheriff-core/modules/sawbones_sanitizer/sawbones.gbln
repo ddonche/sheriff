@@ -16,7 +16,7 @@ act sb_strip_control_chars(text)
   for ch in text
     code | :ord(ch)
     keep | code == 9 or code == 10 or code == 13 or code >= 32
-    if keep => put_last!(chars, ch)
+    if keep => :put_last!(chars, ch)
   xx
   :join(chars, "")
 xx
@@ -73,13 +73,13 @@ act sb_collapse_blank_lines(text)
       end
 
       if blank_run <= 1
-        put_last!(chars, line_str)
-        put_last!(chars, "\n")
+        :put_last!(chars, line_str)
+        :put_last!(chars, "\n")
       end
 
       current_line |= []
     else
-      put_last!(current_line, ch)
+      :put_last!(current_line, ch)
     end
   end
 
@@ -87,10 +87,10 @@ act sb_collapse_blank_lines(text)
     line_str | :join(current_line, "")
     trimmed | :minimize(line_str)
     if trimmed != ""
-      put_last!(chars, line_str)
+      :put_last!(chars, line_str)
     else
       if blank_run == 0
-        put_last!(chars, line_str)
+        :put_last!(chars, line_str)
       end
     end
   end
@@ -106,11 +106,11 @@ act sb_normalize_spaces(text)
   for ch in text
     if ch == " " or ch == "\t"
       if not in_space
-        put_last!(chars, " ")
+        :put_last!(chars, " ")
         in_space |= true
       end
     else
-      put_last!(chars, ch)
+      :put_last!(chars, ch)
       in_space |= false
     end
   end
@@ -130,14 +130,14 @@ act sb_fix_tabs(text, tabsize)
 
   for ch in text
     if ch == "\n" or ch == "\r"
-      put_last!(chars, ch)
+      :put_last!(chars, ch)
       col |= 0
       skip
     end
 
     if ch == "\t"
       if tabsize <= 0
-        put_last!(chars, " ")
+        :put_last!(chars, " ")
         col |= col + 1
       else
         next_stop | ((col / tabsize) + 1) * tabsize
@@ -145,12 +145,12 @@ act sb_fix_tabs(text, tabsize)
         /// Add 'needed' spaces
         spaces | :repeat(" ", needed)
         for space_ch in spaces
-          put_last!(chars, space_ch)
+          :put_last!(chars, space_ch)
         end
         col |= next_stop
       end
     else
-      put_last!(chars, ch)
+      :put_last!(chars, ch)
       col |= col + 1
     end
   end
@@ -213,7 +213,7 @@ act sb_sanitize_preview(text, max_chars)
     if :len(chars) >= max_chars
       stop
     end
-    put_last!(chars, ch)
+    :put_last!(chars, ch)
   end
 
   :join(chars, "")

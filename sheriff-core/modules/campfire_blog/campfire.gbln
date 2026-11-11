@@ -244,8 +244,8 @@ act build_index_once(pre_ctx)
     blog_list_html  | build_blog_list(portal)
     blog_index_html | build_blog_index(portal)
 
-    register_token("CAMPFIRE", "BLOG_LIST", blog_list_html)
-    register_token("CAMPFIRE", "INDEX",     blog_index_html)
+    :register_token("CAMPFIRE", "BLOG_LIST", blog_list_html)
+    :register_token("CAMPFIRE", "INDEX",     blog_index_html)
 
     return pre_ctx
 xx
@@ -259,7 +259,7 @@ act apply_tokens(ctx)
 
     body | ctx{"body"} ?? => return ctx
 
-    rendered | resolve_token(body)
+    rendered | :resolve_token(body)
     :update!(ctx{"body"}, rendered)
 
     return ctx

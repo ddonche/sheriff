@@ -118,18 +118,18 @@ act apply_layout(ctx)
     xx
 
     /// register page tokens
-    clear_token("PAGE", "CONTENT")
-    clear_token("PAGE", "TITLE")
-    clear_token("PAGE", "AUTHOR")
-    clear_token("PAGE", "AUTHOR_AVATAR")
-    clear_token("PAGE", "META")
-    clear_token("PAGE", "SEO")
-    register_token("PAGE", "CONTENT",       body)
-    register_token("PAGE", "TITLE",         page_title)
-    register_token("PAGE", "AUTHOR",        page_author)
-    register_token("PAGE", "AUTHOR_AVATAR", page_author_avatar)
-    register_token("PAGE", "META",          page_meta_html)
-    register_token("PAGE", "SEO",           seo_html)
+    :clear_token("PAGE", "CONTENT")
+    :clear_token("PAGE", "TITLE")
+    :clear_token("PAGE", "AUTHOR")
+    :clear_token("PAGE", "AUTHOR_AVATAR")
+    :clear_token("PAGE", "META")
+    :clear_token("PAGE", "SEO")
+    :register_token("PAGE", "CONTENT",       body)
+    :register_token("PAGE", "TITLE",         page_title)
+    :register_token("PAGE", "AUTHOR",        page_author)
+    :register_token("PAGE", "AUTHOR_AVATAR", page_author_avatar)
+    :register_token("PAGE", "META",          page_meta_html)
+    :register_token("PAGE", "SEO",           seo_html)
 
     scripts_html | """
     <script src="/public/js/sheriff-content-tabs.js" defer></script>
@@ -140,9 +140,9 @@ act apply_layout(ctx)
     <script src="/public/js/sheriff-interactive.js" defer></script>
     """
 
-    register_token("BRINDLE", "SCRIPTS", scripts_html)
+    :register_token("BRINDLE", "SCRIPTS", scripts_html)
 
-    final_html | resolve_token(layout_html)
+    final_html | :resolve_token(layout_html)
     :update!(ctx{"body"}, final_html)
     return ctx
 xx
@@ -421,20 +421,20 @@ act apply_tokens(ctx)
     /// --------------------------------------------------
     /// Register BRINDLE tokens
     /// --------------------------------------------------
-    register_token("BRINDLE", "STYLE",           style_html)
-    register_token("BRINDLE", "LOGO",            logo_html)
-    register_token("BRINDLE", "BRANDNAME",       brand_html)
-    register_token("BRINDLE", "THEMESWITCHER",   theme_switcher_html)
-    register_token("BRINDLE", "VERSIONSWITCHER", version_switcher_html)
+    :register_token("BRINDLE", "STYLE",           style_html)
+    :register_token("BRINDLE", "LOGO",            logo_html)
+    :register_token("BRINDLE", "BRANDNAME",       brand_html)
+    :register_token("BRINDLE", "THEMESWITCHER",   theme_switcher_html)
+    :register_token("BRINDLE", "VERSIONSWITCHER", version_switcher_html)
 
-    register_token("ASSETS", "HEAD", assets_head_html)
-    register_token("ASSETS", "TOP",  assets_top_html)
-    register_token("ASSETS", "END",  assets_end_html)
+    :register_token("ASSETS", "HEAD", assets_head_html)
+    :register_token("ASSETS", "TOP",  assets_top_html)
+    :register_token("ASSETS", "END",  assets_end_html)
 
     /// --------------------------------------------------
     /// Resolve BRINDLE / ASSETS tokens
     /// --------------------------------------------------
-    updated | resolve_token(body)
+    updated | :resolve_token(body)
     :update!(ctx{"body"}, updated)
     return ctx
 xx

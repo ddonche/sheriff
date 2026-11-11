@@ -184,7 +184,7 @@ act generate_social_share_widget(portal, page_url, page_title)
         {svg}
       </a>
     """
-        update!(icons_html, icons_html + icon)
+        :update!(icons_html, icons_html + icon)
     xx
     
     if icons_html.nix? => return ""
@@ -243,7 +243,7 @@ xx
 /// Compute "~N min read" label from body.
 /// Fast estimate: use body length, no split, no char loop.
 act compute_readtime_label(body)
-    clear_token("BADGE", "READTIME")
+    :clear_token("BADGE", "READTIME")
     if body.nix? => return ""
 
     char_count | body.len
@@ -265,19 +265,19 @@ xx
 act publish_readtime(ctx)
     body | ctx{"body"} ?? => return ctx
 
-    clear_token("BADGE", "READTIME")
+    :clear_token("BADGE", "READTIME")
 
     read_label | compute_readtime_label(body)
 
     if read_label == ""
-        register_token("BADGE", "READTIME", "")
+        :register_token("BADGE", "READTIME", "")
     else
         html_rt | """
         <span class="sheriff-byline-readtime">
           {read_label}
         </span>
         """
-        register_token("BADGE", "READTIME", html_rt)
+        :register_token("BADGE", "READTIME", html_rt)
     xx
 
     return ctx
@@ -324,18 +324,18 @@ act apply_tokens(ctx)
 
     /// BADGE::VERSION
     if ver == ""
-        register_token("BADGE", "VERSION", "")
+        :register_token("BADGE", "VERSION", "")
     else
         html_v | "<span class=\"sheriff-version-badge\">" + ver + "</span>"
-        register_token("BADGE", "VERSION", html_v)
+        :register_token("BADGE", "VERSION", html_v)
     xx
 
     /// BADGE::REPO
     if repo.nix?
-        register_token("BADGE", "REPO", "")
+        :register_token("BADGE", "REPO", "")
     else
         html_repo | build_repo_badge(repo, ver)
-        register_token("BADGE", "REPO", html_repo)
+        :register_token("BADGE", "REPO", html_repo)
     xx
 
     /// Reuse this build's report; isolated callers can still read report.json.
@@ -343,14 +343,14 @@ act apply_tokens(ctx)
     page_count | report_count(report, "pages")
     image_count | report_count(report, "images")
     video_count | report_count(report, "videos")
-    register_token("BADGE", "PAGE_COUNT", build_count_badge("page", page_count))
-    register_token("BADGE", "IMAGE_COUNT", build_count_badge("image", image_count))
-    register_token("BADGE", "VIDEO_COUNT", build_count_badge("video", video_count))
-    register_token("BADGE", "STATS", build_stats(report))
+    :register_token("BADGE", "PAGE_COUNT", build_count_badge("page", page_count))
+    :register_token("BADGE", "IMAGE_COUNT", build_count_badge("image", image_count))
+    :register_token("BADGE", "VIDEO_COUNT", build_count_badge("video", video_count))
+    :register_token("BADGE", "STATS", build_stats(report))
 
     util_icons_html | ""
     :update!(util_icons_html, build_util_icons_html())
-    register_token("BADGE", "UTILICONS", util_icons_html)
+    :register_token("BADGE", "UTILICONS", util_icons_html)
 
     //// BADGE::SOCIAL_SHARE
     page_title | "Test Page Title"
@@ -378,13 +378,13 @@ act apply_tokens(ctx)
     xx
     /// Prevent these values from expanding early on the next page or portal.
     for name in ["PAGE_COUNT", "IMAGE_COUNT", "VIDEO_COUNT", "STATS"]
-        clear_token("BADGE", name)
+        :clear_token("BADGE", name)
     xx
 
     :update!(ctx{"body"}, rendered)
 
     /// THEN clear for next page
-    clear_token("BADGE", "READTIME")
+    :clear_token("BADGE", "READTIME")
     return ctx
 xx
 
@@ -470,7 +470,7 @@ act apply_version_badges(ctx)
     for version in versions
         token | "\{\{\{SHERIFF::{version}\}\}\}"
         :put_last!(previous, {"version": version, "token": token, "value": :resolve_token(token)})
-        register_token("SHERIFF", version, build_inline_version_badge(version))
+        :register_token("SHERIFF", version, build_inline_version_badge(version))
     xx
 
     protected | stash_version_badge_examples(body)
@@ -479,9 +479,9 @@ act apply_version_badges(ctx)
     /// Leave the registry as it was, including any same-named pattern token.
     for entry in previous
         if entry{"value"} == entry{"token"}
-            clear_token("SHERIFF", entry{"version"})
+            :clear_token("SHERIFF", entry{"version"})
         else
-            register_token("SHERIFF", entry{"version"}, entry{"value"})
+            :register_token("SHERIFF", entry{"version"}, entry{"value"})
         xx
     xx
 

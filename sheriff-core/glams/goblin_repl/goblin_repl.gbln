@@ -75,9 +75,9 @@ act apply_tokens(ctx)
     <script src="/public/js/goblin-repl.js"></script>
     """
 
-    register_token("GOBLIN_REPL", "EMBED", embed_html)
+    :register_token("GOBLIN_REPL", "EMBED", embed_html)
 
-    updated | resolve_token(body)
+    updated | :resolve_token(body)
     :update!(ctx{"body"}, updated)
     return ctx
 xx

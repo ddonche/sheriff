@@ -94,7 +94,7 @@ act collect(pre_ctx)
     portal | pre_ctx{"portal"} ?? => return pre_ctx
     /// Stats tokens resolve only during Badge's page pass, never in code examples.
     for name in ["PAGE_COUNT", "IMAGE_COUNT", "VIDEO_COUNT", "STATS"]
-        clear_token("BADGE", name)
+        :clear_token("BADGE", name)
     xx
     path | "../site/portals/{portal}/report.json"
     report | {}

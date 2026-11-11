@@ -206,10 +206,10 @@ act apply_tokens(ctx)
     <script src="/public/{#prospector::client_file}"></script>
     """
 
-    register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
-    register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
+    :register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
+    :register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
 
-    updated | resolve_token(body)
+    updated | :resolve_token(body)
 
     :update!(ctx{"body"}, updated)
     return ctx
