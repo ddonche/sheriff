@@ -1,223 +1,38 @@
-// glams/prospector/prospector.js
-// Tiny client-side search for Prospector.
-// - Loads /public/search-index.json
-// - Expects NDJSON: one JSON object per line
-// - Expected entry shape: { href, title, summary }
-// - Wires Prospector search tokens
-// - Shows dropdown results under the input
-
-(function () {
-  const INDEX_URL    = "/public/search-index.json";
-  const WRAPPER_ID   = "prospector-search";
-  const INPUT_ID     = "prospector-search-input";
-  const RESULTS_ID   = "prospector-search-results";
-
-  let index = [];
-  let loaded = false;
-  let loading = false;
-
-  let wrapperEl = null;
-  let inputEl   = null;
-  let resultsEl = null;
-
-  function log(msg) {
-    console.log("[Prospector]", msg);
-  }
-
-  function initDomHandles() {
-    wrapperEl = document.getElementById(WRAPPER_ID);
-    inputEl   = document.getElementById(INPUT_ID);
-
-    if (!wrapperEl || !inputEl) {
-      log("Search DOM not found; aborting.");
-      return false;
-    }
-
-    resultsEl = document.getElementById(RESULTS_ID);
-
-    if (!resultsEl) {
-      resultsEl = document.createElement("div");
-      resultsEl.id = RESULTS_ID;
-      resultsEl.className = "prospector-search-results";
-      wrapperEl.appendChild(resultsEl);
-    }
-
-    return true;
-  }
-
-  function loadIndex() {
-    if (loaded || loading) return;
-
-    loading = true;
-
-    fetch(INDEX_URL, { cache: "no-store" })
-      .then(function (res) {
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.text();
-      })
-      .then(function (text) {
-        const lines = text.split(/\r?\n/);
-        const out = [];
-
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i].trim();
-          if (!line) continue;
-
-          try {
-            var obj = JSON.parse(line);
-
-            if (obj && obj.href && obj.title) {
-              out.push({
-                href: obj.href,
-                title: obj.title,
-                summary: obj.summary || ""
-              });
-            }
-          } catch (e) {
-            console.warn("[Prospector] bad JSON line", i + 1, e);
-          }
-        }
-
-        index = out;
-        loaded = true;
-
-        log("Loaded " + index.length + " search entries.");
-      })
-      .catch(function (err) {
-        console.error("[Prospector] failed to load index:", err);
-      })
-      .finally(function () {
-        loading = false;
-      });
-  }
-
-  function clearResults() {
-    if (!resultsEl) return;
-
-    resultsEl.innerHTML = "";
-    resultsEl.style.display = "none";
-  }
-
-  function renderResults(results) {
-    if (!resultsEl) return;
-
-    if (!results || results.length === 0) {
-      clearResults();
-      return;
-    }
-
-    resultsEl.innerHTML = "";
-
-    results.slice(0, 10).forEach(function (item) {
-      var a = document.createElement("a");
-      a.className = "prospector-search-result";
-      a.href = item.href;
-
-      var titleEl = document.createElement("div");
-      titleEl.className = "prospector-search-result-title";
-      titleEl.textContent = item.title;
-
-      var summaryEl = document.createElement("div");
-      summaryEl.className = "prospector-search-result-summary";
-      summaryEl.textContent = item.summary || "";
-
-      a.appendChild(titleEl);
-      a.appendChild(summaryEl);
-      resultsEl.appendChild(a);
-    });
-
-    resultsEl.style.display = "block";
-  }
-
-  function handleQueryChange() {
-    if (!loaded || index.length === 0) {
-      clearResults();
-      return;
-    }
-
-    var q = (inputEl.value || "").trim().toLowerCase();
-
-    if (!q) {
-      clearResults();
-      return;
-    }
-
-    var results = index.filter(function (item) {
-      var t = (item.title || "").toLowerCase();
-      var s = (item.summary || "").toLowerCase();
-
-      return t.indexOf(q) !== -1 || s.indexOf(q) !== -1;
-    });
-
-    renderResults(results);
-  }
-
-  function isTextInput(el) {
-    if (!el) return false;
-
-    var tag = el.tagName;
-    if (!tag) return false;
-
-    tag = tag.toLowerCase();
-
-    if (tag === "textarea") return true;
-
-    if (tag === "input") {
-      var type = (el.type || "").toLowerCase();
-
-      return (
-        type === "text" ||
-        type === "search" ||
-        type === "email" ||
-        type === "url" ||
-        type === "password" ||
-        type === "number"
-      );
-    }
-
-    return false;
-  }
-
-  function wireEvents() {
-    if (!inputEl) return;
-
-    inputEl.addEventListener("input", handleQueryChange);
-
-    window.addEventListener("keydown", function (e) {
-      if (e.key === "/" && !isTextInput(document.activeElement)) {
-        e.preventDefault();
-        inputEl.focus();
-        inputEl.select();
-      } else if (e.key === "Escape") {
-        if (document.activeElement === inputEl) {
-          inputEl.blur();
-        }
-
-        clearResults();
+/* Theme-neutral Prospector controls. Themes own the sheriff-search-* class styling. */
+(function(){
+  'use strict';
+  if(window.__sheriffProspector)return;window.__sheriffProspector=true;
+  function init(){
+    const wrapper=document.getElementById('sheriff-search'),input=document.getElementById('sheriff-search-input');if(!wrapper||!input)return;
+    const panel=document.createElement('div');panel.className='sheriff-search-results';panel.hidden=true;
+    const filterRow=document.createElement('label');filterRow.className='sheriff-search-filter';filterRow.append(document.createTextNode('Category '));const filter=document.createElement('select');filter.setAttribute('aria-label','Filter search by category');filter.append(new Option('All categories',''));filterRow.append(filter);filterRow.hidden=true;
+    const list=document.createElement('div');list.id='sheriff-search-results';list.setAttribute('role','listbox');list.setAttribute('aria-label','Search results');
+    const status=document.createElement('div');status.className='sheriff-search-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');panel.append(filterRow,list,status);wrapper.append(panel);
+    input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-expanded','false');input.setAttribute('aria-controls',list.id);
+    let worker=null,workerAvailable=true,fallback=null,fallbackLoad=null,sequence=0,timer,active=-1,links=[],open=false;
+    function close(){sequence++;open=false;panel.hidden=true;panel.style.display='none';input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;}
+    function show(){open=true;panel.hidden=false;panel.style.display='block';input.setAttribute('aria-expanded','true');}
+    function select(index){active=index;links.forEach((link,i)=>{link.setAttribute('aria-selected',String(i===index));link.classList.toggle('is-active',i===index);});if(index>=0){input.setAttribute('aria-activedescendant',links[index].id);links[index].scrollIntoView({block:'nearest'});}else input.removeAttribute('aria-activedescendant');}
+    function receive(data){if(data.id!==sequence)return;panel.setAttribute('aria-busy','false');list.replaceChildren();links=[];select(-1);show();if(data.error){status.textContent=data.error;return;}if(filter.options.length===1&&data.categories?.length){for(const category of data.categories)filter.append(new Option(category,category));filterRow.hidden=false;}
+      status.textContent=data.total?data.total+' result'+(data.total===1?'':'s'):'No results found.';
+      for(const [i,item]of (data.results||[]).entries()){
+        const url=new URL(item.href,location.href);if(url.origin!==location.origin||!['http:','https:'].includes(url.protocol))continue;
+        const link=document.createElement('a');link.setAttribute('href',item.href);link.id='prospector-result-'+data.id+'-'+i;link.className='sheriff-search-result';link.setAttribute('role','option');link.setAttribute('aria-selected','false');
+        const title=document.createElement('div');title.className='sheriff-search-result-title';title.textContent=item.title;
+        const excerpt=document.createElement('div');excerpt.className='sheriff-search-result-summary';excerpt.textContent=item.excerpt||'';link.append(title,excerpt);
+        if(item.version){const version=document.createElement('span');version.className='sheriff-search-result-version';version.textContent=item.version;link.append(version);}
+        link.addEventListener('pointermove',()=>select(links.indexOf(link)));list.append(link);links.push(link);
       }
-    });
-
-    document.addEventListener("click", function (e) {
-      if (!wrapperEl) return;
-
-      if (!wrapperEl.contains(e.target)) {
-        clearResults();
-      }
-    });
+    }
+    function runFallback(message){if(!fallbackLoad)fallbackLoad=fetch('/public/search-index.json',{cache:'no-cache'}).then(response=>{if(!response.ok)throw Error();return response.text();}).then(text=>fallback=window.ProspectorEngine.create(window.ProspectorEngine.parse(text))).catch(error=>{fallbackLoad=null;throw error;});fallbackLoad.then(()=>setTimeout(()=>receive({id:message.id,...fallback.query(message.query,{category:message.category,limit:10})}),0)).catch(()=>receive({id:message.id,error:'Search is unavailable right now. Try again shortly.'}));}
+    function search(){clearTimeout(timer);const query=input.value.trim();if(!query){list.replaceChildren();close();return;}const message={id:++sequence,query,category:filter.value};show();panel.setAttribute('aria-busy','true');status.textContent='Searching…';
+      if(!worker&&workerAvailable&&typeof Worker==='function'){try{worker=new Worker('/public/prospector-worker.js');const current=worker;worker.onmessage=event=>receive(event.data);worker.onerror=()=>{if(worker!==current)return;current.terminate();worker=null;workerAvailable=false;if(open&&input.value.trim())runFallback({id:sequence,query:input.value.trim(),category:filter.value});};}catch{worker=null;workerAvailable=false;}}
+      if(worker)worker.postMessage(message);else runFallback(message);
+    }
+    input.addEventListener('input',event=>{if(event.isComposing)return;sequence++;clearTimeout(timer);list.replaceChildren();links=[];select(-1);if(!input.value.trim()){list.replaceChildren();close();return;}timer=setTimeout(search,100);});input.addEventListener('compositionend',search);input.addEventListener('focus',()=>{if(input.value.trim())search();});filter.addEventListener('change',search);
+    input.addEventListener('keydown',event=>{if(event.isComposing)return;if(event.key==='Escape'){event.preventDefault();clearTimeout(timer);close();return;}if(event.key==='ArrowDown'&&links.length){event.preventDefault();show();select((active+1)%links.length);}else if(event.key==='ArrowUp'&&links.length){event.preventDefault();show();select(active<=0?links.length-1:active-1);}else if(event.key==='Enter'&&open&&active>=0){event.preventDefault();location.assign(links[active].href);}});
+    document.addEventListener('keydown',event=>{const target=document.activeElement;if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!target?.matches('input,textarea,select')&&!target?.isContentEditable){event.preventDefault();input.focus();input.select();}});
+    document.addEventListener('pointerdown',event=>{if(!wrapper.contains(event.target)){clearTimeout(timer);close();}});wrapper.addEventListener('focusout',event=>{if(!wrapper.contains(event.relatedTarget)){clearTimeout(timer);close();}});
   }
-
-  function init() {
-    if (!initDomHandles()) return;
-
-    loadIndex();
-    wireEvents();
-
-    log("Search initialized.");
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+}());

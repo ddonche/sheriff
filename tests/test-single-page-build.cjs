@@ -30,13 +30,13 @@ try{
  const afterOutputs=snapshot(output);for(const [rel,hash] of Object.entries(beforeOutputs)){if(rel!=='notes.html')assert.equal(afterOutputs[rel],hash,'Unrelated output changed: '+rel);}checks++;
  // Fresh Cloud output contains just the requested HTML, no copied library or indexes.
  fs.rmSync(output,{recursive:true,force:true});const fresh=run(['page','notes.md']);
- assert.deepEqual(files(output),['notes.html','public/icons/LUCIDE-LICENSE.txt','public/icons/book.svg','public/icons/game-crest.png']);checks++;
+ assert.deepEqual(files(output),['.prospector-search-ready','notes.html','public/icons/LUCIDE-LICENSE.txt','public/icons/book.svg','public/icons/game-crest.png','public/prospector-engine.js','public/prospector-worker.js','public/prospector.js','public/search-index.json']);checks++;
  const html=fs.readFileSync(path.join(output,'notes.html'),'utf8');
  for(const marker of ['Page pattern works','href="/unrelated.html"','sheriff-portal-stats','data-sheriff-icon="book"','data-sheriff-icon-format="png"','--sheriff-icon-size:18px','sheriff-nav-active','data-sheriff-content-tabs','Hardcover','Paperback'])assert(html.includes(marker),'Missing '+marker);checks+=5;
  assert(!html.includes('{{{BADGE::STATS}}}'));assert(!html.includes('{{{SCOUT::'));checks+=2;
  assert.deepEqual(snapshot(source),afterFull);assert.equal(fs.readFileSync(path.join(tmp,'dist/index.html'),'utf8'),'CLOUD APP SENTINEL');assert.equal(fs.readFileSync(path.join(tmp,'dist/admin/sentinel.txt'),'utf8'),'ADMIN SENTINEL');checks+=3;
  // A new page does not silently fall back to a portal build.
  put('site/portals/test/content/new.md','^^^^\ntitle: New\nlayout: wiki\n^^^^\n\nNew page.');
- fs.rmSync(output,{recursive:true,force:true});run(['page','new.md']);assert.deepEqual(files(output),['new.html']);checks++;
+ fs.rmSync(output,{recursive:true,force:true});run(['page','new.md']);assert.deepEqual(files(output),['.prospector-search-ready','new.html','public/prospector-engine.js','public/prospector-worker.js','public/prospector.js','public/search-index.json']);assert(JSON.parse(fs.readFileSync(path.join(output,'public/search-index.json'),'utf8')).documents.some(doc=>doc.href==='/new.html'));checks++;
  console.log('Passed '+checks+' schedule-only page build checks. Full fixture '+full.ms+'ms; page '+page.ms+'ms; fresh-output page '+fresh.ms+'ms. Only temporary portals used.');
 }finally{assert.equal(path.dirname(tmp),path.resolve(os.tmpdir()));assert(path.basename(tmp).startsWith('sheriff-page-build-'));fs.rmSync(tmp,{recursive:true,force:true});}

@@ -83,6 +83,8 @@ act run_post_schedule(cfg, pre_ctx)
         "schedule": pre_ctx{"schedule"}
     }
 
+    post_ctx |= merge_pre_ctx_into_ctx(post_ctx, pre_ctx)
+
     post_schedule | cfg{"post"} ?? => return post_ctx
 
     for act_name in post_schedule

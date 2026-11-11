@@ -1,6 +1,6 @@
 [glam]
 name = "prospector"
-version = "0.1.0"
+version = "0.2.0"
 author = "Dan Donche"
 description = "Builds a static search index and search UI tokens."
 license = "MIT"
@@ -15,11 +15,12 @@ base_url   = "#site::base_url"
 actions = [
     "prospector::init",
     "prospector::index_page",
-    "prospector::apply_tokens"
+    "prospector::apply_tokens",
+    "prospector::commit_page",
+    "prospector::finalize"
 ]
 
 values = [
-    "#prospector::search_index",
     "#prospector::index_file",
     "#prospector::client_file",
 ]
@@ -31,5 +32,7 @@ tokens = [
 
 files = [
     "search-index.json",
-    "prospector.js"
+    "prospector.js",
+    "prospector-engine.js",
+    "prospector-worker.js"
 ]

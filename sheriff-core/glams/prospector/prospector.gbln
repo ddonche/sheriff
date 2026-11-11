@@ -1,216 +1,381 @@
-/// glams/prospector/prospector.gbln
-/// Prospector: Search index + search UI
-/// - init(pre_ctx): clear index + copy JS
-/// - index_page(ctx): append one NDJSON line per docs page (from ctx body)
-/// - apply_tokens(ctx): register PROSPECTOR::SEARCH_* tokens
-
-/// ----------------------------------------------------------------------
-/// INIT: Clear search index at start of portal build + copy JS
-/// ----------------------------------------------------------------------
-
-#prospector::index_file  | "search-index.json"
+/// Prospector: bounded page preparation, one index writer, static browser search.
+#prospector::index_file | "search-index.json"
 #prospector::client_file | "prospector.js"
 
+act scalar(value)
+    if value.nix? => return ""
+    if :valtype(value) != "str" => return ""
+    text | :trim(value)
+    if :starts_with(text, "\"") and :ends_with(text, "\"")
+        return :keep_between(text, "\"", "\"") ?? ""
+    xx
+    return text
+xx
+
+act strings(value)
+    out | []
+    if :valtype(value) == "str"
+        text | scalar(value)
+        if !text.nix? => :put_last!(out, text)
+    elif :valtype(value) == "array"
+        for item in value
+            text | scalar(item)
+            if !text.nix? and :has(out, text) == false => :put_last!(out, text)
+        xx
+    xx
+    return out
+xx
+
+/// Match Sheriff's comma-separated inline frontmatter lists, including phrases.
+act header_list(header, parsed, field)
+    for line in :split(header, "\n")
+        line |= :trim(line)
+        if :starts_with(line, field + ":")
+            raw | :trim(:keep_after(line, ":") ?? "")
+            if :starts_with(raw, "[") and :ends_with(raw, "]")
+                values | []
+                for item in :split(:keep_between(raw, "[", "]") ?? "", ",")
+                    value | scalar(item)
+                    if !value.nix? and :has(values, value) == false => :put_last!(values, value)
+                xx
+                return values
+            xx
+        xx
+    xx
+    return strings(parsed{field})
+xx
+
+act plain_text(raw)
+    text | raw ?? ""
+    lines | []
+    in_code | false
+    for line in :split(text, "\n")
+        trimmed | :trim(line)
+        if :starts_with(trimmed, "```") or :starts_with(trimmed, "~~~") => in_code |= !in_code
+        if !in_code and :starts_with(trimmed, ":::")
+            header | :trim(:keep_after(trimmed, ":::") ?? "")
+            kind | :keep_before(header, " ") ?? header
+            if :has(["note", "tip", "warning", "important", "example", "strategy", "lore", "spoiler"], kind)
+                line |= :keep_after(header, " ") ?? ""
+            else
+                line |= ""
+            xx
+        xx
+        if !in_code and :starts_with(trimmed, "@tab ") => line |= :keep_after(trimmed, "@tab ") ?? ""
+        :put_last!(lines, line)
+    xx
+    text |= :join(lines, "\n")
+    sweep text
+        "{{{" ... "}}}": :update_where!(text, self, " ")
+    xx
+    sweep text
+        "[[" ... "]]":
+            segment | self
+            inside | :keep_between(segment, "[[", "]]") ?? ""
+            parts | :split(inside, "|")
+            label | parts[0] ?? ""
+            if :lower(label) == "icon"
+                label |= ""
+            elif :starts_with(:lower(label), "image:") or :starts_with(:lower(label), "video:")
+                label |= parts[3] ?? ""
+            elif parts.len > 1
+                label |= parts[1]
+            xx
+            :update_where!(text, segment, label)
+    xx
+    text |= :md_to_html(text)
+    sweep text
+        "<script" ... "</script>": :update_where!(text, self, " ")
+        "<style" ... "</style>": :update_where!(text, self, " ")
+        "<div class=\"sheriff-pattern-canonical\"" ... "</div>": :update_where!(text, self, " ")
+    xx
+    sweep text
+        "<" ... ">": :update_where!(text, self, " ")
+    xx
+    for pair in [["&nbsp;", " "], ["&lt;", "<"], ["&gt;", ">"], ["&quot;", "\""], ["&#39;", "'"], ["&#x27;", "'"], ["&amp;", "&"]]
+        :update_where!(text, pair[0], pair[1])
+    xx
+    for space in ["\r", "\n", "\t"]
+        :update_where!(text, space, " ")
+    xx
+    while :has(text, "  ")
+        :update_where!(text, "  ", " ")
+    xx
+    return :trim(text)
+xx
+
+/// Same delimiter set as prospector-engine.js, retaining Unicode words.
+act words(raw)
+    text | :lower(raw ?? "")
+    delimiters | " !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~…“”‘’—–\n\r\t"
+    for char in :split(delimiters, "")
+        :update_where!(text, char, " ")
+    xx
+    out | []
+    for word in :split(text, " ")
+        if !word.nix? => :put_last!(out, word)
+    xx
+    return out
+xx
+
+act add_terms(terms, text, weight)
+    for word in words(text)
+        score | terms{word} ?? 0
+        :update!(terms{word}, score + weight)
+    xx
+    return terms
+xx
+
+/// Actors only prepare records. They never write files or mutate page tokens.
+act prepare_record(message)
+    fm | message{"frontmatter"} ?? {}
+    /// Frontier's legacy map conversion drops bracket lists. Parse this page's
+    /// source metadata with the Yall parser, retaining inline category additions.
+    source | message{"path"} ?? ""
+    if !source.nix? and :file_exists(source)
+        header | :keep_between(:read_text(source), "^^^^", "^^^^") ?? ""
+        if !header.nix?
+            parsed | :yall_parse(header, "prospector frontmatter")
+            if :valtype(parsed) == "map"
+                categories | header_list(header, parsed, "categories")
+                for category in strings(fm{"categories"})
+                    if :has(categories, category) == false => :put_last!(categories, category)
+                xx
+                for field in :keys(parsed)
+                    :update!(fm{field}, parsed{field})
+                xx
+                :update!(fm{"categories"}, categories)
+                :update!(fm{"aliases"}, header_list(header, parsed, "aliases"))
+            xx
+        xx
+    xx
+    href | scalar(message{"href"})
+    key | scalar(message{"output_rel_no_ext"})
+    if key.nix? => key |= scalar(message{"route_rel_no_ext"})
+    if key.nix? => key |= href
+    entry | {"key": key, "href": href, "excluded": false}
+    layout | scalar(fm{"layout"})
+    search | fm{"search"}
+    draft | fm{"draft"}
+    if href.nix? or :starts_with(href, "/") == false or :starts_with(href, "//") or layout == "admin" or layout == "redirect" or search == false or search == "false" or draft == true or draft == "true" or !scalar(fm{"generated_by"}).nix? or key == "all_pages" or key == "wanted-pages" or key == "categories"
+        :update!(entry{"excluded"}, true)
+        return entry
+    xx
+    body | message{"body"} ?? ""
+    headings | []
+    in_code | false
+    for line in :split(body, "\n")
+        trimmed | :trim(line)
+        if :starts_with(trimmed, "```") or :starts_with(trimmed, "~~~") => in_code |= !in_code
+        if !in_code and :starts_with(trimmed, "#")
+            heading | :keep_after(trimmed, " ") ?? ""
+            heading |= plain_text(heading)
+            if !heading.nix? => :put_last!(headings, heading)
+        xx
+    xx
+    title | plain_text(scalar(fm{"title"}))
+    if title.nix? => title |= headings[0] ?? key
+    text | plain_text(body)
+    summary | plain_text(scalar(fm{"summary"}))
+    if summary.nix? => summary |= text[0:200]
+    aliases | strings(fm{"aliases"})
+    canonical | scalar(fm{"canonical"})
+    if !canonical.nix? and :has(aliases, canonical) == false => :put_last!(aliases, canonical)
+    categories | strings(fm{"categories"})
+    terms | {}
+    terms |= add_terms(terms, text, 1)
+    terms |= add_terms(terms, summary, 2)
+    terms |= add_terms(terms, :join(categories, " "), 3)
+    terms |= add_terms(terms, :join(headings, " "), 4)
+    terms |= add_terms(terms, :join(aliases, " "), 6)
+    terms |= add_terms(terms, title, 8)
+    :update!(entry{"title"}, title)
+    :update!(entry{"text"}, text)
+    :update!(entry{"summary"}, summary)
+    :update!(entry{"aliases"}, aliases)
+    :update!(entry{"headings"}, headings)
+    :update!(entry{"categories"}, categories)
+    version | scalar(message{"documentation_version"})
+    if version == "default" => version |= ""
+    :update!(entry{"version"}, version)
+    :update!(entry{"default_version"}, message{"documentation_version"} == message{"default_documentation_version"})
+    :update!(entry{"terms"}, terms)
+    return entry
+xx
+
+act prepare_worker(state, message)
+    entry | prepare_record(message)
+    :update!(state{entry{"key"}}, entry)
+    return state
+xx
+
+/// Round-robin dispatch avoids filename-based skew across the bounded workers.
+act route_job(state, message)
+    workers | state{"workers"}
+    next | state{"next"}
+    :post(workers[next], message)
+    :update!(state{"next"}, (next + 1) % workers.len)
+    return state
+xx
+
+act cache_file(portal)
+    return "../site/.desk/prospector/{portal}/records.json"
+xx
+
+act copy_client(portal)
+    public_dir | "../dist/{portal}/public"
+    :create_dir!(public_dir)
+    for filename in ["prospector.js", "prospector-engine.js", "prospector-worker.js"]
+        :copy_file!("glams/prospector/{filename}", "{public_dir}/{filename}")
+    xx
+xx
+
 act init(pre_ctx)
-
-    if :file_exists(#need::output_dir) == false
-        :create_dir!(#need::output_dir)
+    portal | pre_ctx{"portal"}
+    copy_client(portal)
+    workers_count | 2
+    path | "../site/portals/{portal}/config.yall"
+    if :file_exists(path)
+        cfg | :yall_parse_file(path)
+        if :valtype(cfg{"search"}) == "map"
+            requested | cfg{"search"}{"workers"}
+            if requested == 1 or requested == "1" => workers_count |= 1
+            if requested == 4 or requested == "4" => workers_count |= 4
+        xx
     xx
-
-    index_path | "{#need::output_dir}/{#prospector::index_file}"
-    :write_text!(index_path, "")
-
-    js_src | "glams/prospector/{#prospector::client_file}"
-    if :file_exists(js_src)
-        js_dst  | "{#need::output_dir}/{#prospector::client_file}"
-        js_code | :read_text(js_src)
-        :write_text!(js_dst, js_code)
-    else
-        :say("PROSPECTOR: WARNING – {js_src} not found; search JS not copied")
+    workers | []
+    for n in :range(0, workers_count)
+        :put_last!(workers, :actor({}, prepare_worker))
     xx
-
-    :say("PROSPECTOR: Initialized search for portal '{#local::portal}'")
+    :update!(pre_ctx{"prospector_workers"}, workers)
+    :update!(pre_ctx{"prospector_router"}, :actor({"workers":workers, "next":0}, route_job))
+    :say("PROSPECTOR: Preparing search with {workers_count} bounded workers for '{portal}'")
     return pre_ctx
 xx
 
-/// ----------------------------------------------------------------------
-/// PER-PAGE: Build index from ctx (MARKDOWN, not HTML shell)
-/// Call this right after frontier::strip_frontmatter
-/// ----------------------------------------------------------------------
 act index_page(ctx)
-    /// Page builds leave the complete portal search index untouched.
-    if ctx{"build_mode"} == "page" => return ctx
-    body | ctx{"body"} ?? => return ctx
-    fm   | ctx{"frontmatter"}
-    path | ctx{"path"}
-
-    /// only index docs layout
-    layout | "docs"
-
-    if !fm.nix?
-        attempt
-            lay_val | fm{"layout"}
-            if !lay_val.nix? => layout | :trim(lay_val)
-        rescue err
-            /// frontmatter is missing or not a map or has no "layout" – ignore
-        xx
+    message | {"path":ctx{"path"}, "frontmatter":ctx{"frontmatter"}, "body":ctx{"body"}, "href":ctx{"href"}, "route_rel_no_ext":ctx{"route_rel_no_ext"}, "output_rel_no_ext":ctx{"output_rel_no_ext"}, "documentation_version":ctx{"documentation_version"}, "default_documentation_version":ctx{"default_documentation_version"}}
+    if ctx{"build_mode"} == "page"
+        :update!(ctx{"prospector_entry"}, prepare_record(message))
+    else
+        router | ctx{"prospector_router"}
+        if !router.nix? => :post(router, message)
     xx
-
-    if layout != "docs" => return ctx
-
-    /// -------- href from route path --------
-    href | ..
-
-    route_rel | ..
-    if :has(ctx, "route_rel_no_ext")
-        route_rel |= ctx{"route_rel_no_ext"} ?? ..
-    xx
-
-    if !route_rel.nix?
-        href |= "/{route_rel}.html"
-    xx
-
-    if href.nix? and :has(ctx, "href")
-        href |= ctx{"href"} ?? ..
-    xx
-
-    if href.nix?
-        rel_path | :path_relative_to(path, #need::source_dir)
-
-        rel_no_ext | rel_path
-        if :ends_with(rel_no_ext, ".md")
-            rel_no_ext |= :ignore_where(rel_no_ext, ".md")
-        xx
-
-        href |= "/{#local::portal}/{rel_no_ext}.html"
-    xx
-
-    /// -------- title --------
-    title | "Untitled"
-
-    if !fm.nix?
-        attempt
-            v | fm{"title"}
-            if !v.nix?
-                t | :trim(v)
-                if t != ""
-                    :update!(title, t)
-                xx
-            xx
-        rescue err
-            /// missing key or not a map – ignore
-        xx
-    xx
-
-    if title == "Untitled"
-        text | :normalize_newlines(body)
-        h1   | :keep_between(text, "# ", "\n")
-        if !h1.nix?
-            t2 | :trim(h1)
-            if t2 != ..
-                :update!(title, t2)
-            xx
-        xx
-    xx
-
-    /// -------- summary --------
-    summary | ..
-
-    if !fm.nix?
-        attempt
-            v | fm{"summary"}
-            if !v.nix?
-                s | :trim(v)
-                if s != ""
-                    :update!(summary, s)
-                xx
-            xx
-        rescue err
-            /// missing key – ignore
-        xx
-    xx
-
-    if summary == ..
-        text2 | :normalize_newlines(body)
-        if :len(text2) > 200
-            :update!(summary, text2[0:200])
-        else
-            :update!(summary, text2)
-        xx
-    xx
-
-    /// -------- build JSON entry --------
-    categories | []
-    if !fm.nix?
-        attempt
-            fm_categories | fm{"categories"}
-            if :valtype(fm_categories) == "array"
-                for category in fm_categories
-                    if category.nix? => skip
-
-                    category_name | :trim(category)
-                    if category_name.nix? => skip
-
-                    if :has(categories, category_name) == false
-                        :put_last!(categories, category_name)
-                    xx
-                xx
-            xx
-        rescue err
-            /// missing key or not an array - ignore
-        xx
-    xx
-
-    entry | {
-        "href":    href,
-        "title":   title,
-        "summary": summary,
-        "categories": categories
-    }
-
-    /// write JSON safely to temp
-    tmp_path   | "{#need::output_dir}/.prospector.tmp.json"
-    :write_json!(tmp_path, entry)
-
-    json_text  | :read_text(tmp_path)
-    index_path | "{#need::output_dir}/{#prospector::index_file}"
-    :append_file!(index_path, json_text + "\n")
-
     return ctx
 xx
 
-/// ------------------------------------------------------
-/// APPLY_TOKENS: register + resolve PROSPECTOR tokens
-/// ------------------------------------------------------
+/// One coordinator compiles deterministic postings and writes the complete index.
+act write_index(portal, records)
+    by_href | {}
+    for record in records
+        if record{"excluded"} == false => :update!(by_href{record{"href"}}, record)
+    xx
+    documents | []
+    postings | {}
+    cache_records | []
+    for href in :sort(:keys(by_href))
+        record | by_href{href}
+        id | documents.len
+        document | {}
+        for key in ["href", "title", "text", "summary", "aliases", "categories", "headings", "version", "default_version"]
+            :update!(document{key}, record{key})
+        xx
+        :put_last!(documents, document)
+        :put_last!(cache_records, record)
+        for word in :keys(record{"terms"})
+            hits | postings{word} ?? []
+            :put_last!(hits, [id, record{"terms"}{word}])
+            :update!(postings{word}, hits)
+        xx
+    xx
+    public_dir | "../dist/{portal}/public"
+    :create_dir!(public_dir)
+    marker | "../dist/{portal}/.prospector-search-ready"
+    if :file_exists(marker) => :delete_path!(marker)
+    :write_json!("{public_dir}/search-index.json", {"version":1, "documents":documents, "postings":postings})
+    private_dir | "../site/.desk/prospector/{portal}"
+    :create_dir!(private_dir)
+    :write_json!(cache_file(portal), {"version":1, "complete":true, "records":cache_records})
+    :write_text!(marker, "prospector-v1-complete")
+    :say("PROSPECTOR: Search index ready — {documents.len} unique pages")
+xx
+
+act finalize(post_ctx)
+    router | post_ctx{"prospector_router"}
+    if !router.nix?
+        :halt(router)
+        :await(router)
+    xx
+    workers | post_ctx{"prospector_workers"} ?? []
+    records | []
+    for worker in workers
+        :halt(worker)
+    xx
+    for worker in workers
+        prepared | :await(worker)
+        for key in :sort(:keys(prepared))
+            :put_last!(records, prepared{key})
+        xx
+    xx
+    if workers.len > 0 => write_index(post_ctx{"portal"}, records)
+    return post_ctx
+xx
+
+/// This stays in the page schedule; it never runs portal pre/post actions.
+act commit_page(ctx)
+    if ctx{"build_mode"} != "page" => return ctx
+    portal | ctx{"portal"}
+    entry | ctx{"prospector_entry"}
+    if entry.nix? => return ctx
+    copy_client(portal)
+    path | cache_file(portal)
+    if :file_exists(path) == false
+        :say("PROSPECTOR: Build this portal once to enable full search and incremental index updates")
+        return ctx
+    xx
+    cache | nil
+    attempt
+        cache |= :read_json(path)
+    rescue
+        :say("PROSPECTOR: Search cache could not be read; keeping the published index. Build portal to refresh it")
+        return ctx
+    end
+    if cache{"version"} != 1 or cache{"complete"} != true or :valtype(cache{"records"}) != "array"
+        :say("PROSPECTOR: Search cache needs a full portal build; published index preserved")
+        return ctx
+    xx
+    records | []
+    for record in cache{"records"}
+        if record{"key"} != entry{"key"} and record{"href"} != entry{"href"} => :put_last!(records, record)
+    xx
+    if entry{"excluded"} == false => :put_last!(records, entry)
+    write_index(portal, records)
+    return ctx
+xx
+
 act apply_tokens(ctx)
     body | ctx{"body"} ?? => return ctx
-
-    /// SEARCH INPUT (box + results container)
     search_input_html | """
-    <div class="sheriff-search-wrapper" id="sheriff-search">
-      <div class="sheriff-search-icon"></div>
-      <input
-        class="sheriff-search-input"
-        type="search"
-        id="sheriff-search-input"
-        placeholder="Search..."
-        aria-label="Search"
-        autocomplete="off"
-      />
-      <span class="sheriff-search-shortcut">/</span>
-    </div>
-    """
-
-    /// SEARCH SCRIPT (wires up client-side search)
-    search_script_html | """
-    <script src="/public/{#prospector::client_file}"></script>
-    """
-
-    register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
-    register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
-
-    updated | resolve_token(body)
-
-    :update!(ctx{"body"}, updated)
+<div class="sheriff-search-wrapper" id="sheriff-search">
+  <div class="sheriff-search-icon" aria-hidden="true"></div>
+  <input class="sheriff-search-input" type="search" id="sheriff-search-input" placeholder="Search..." aria-label="Search this site" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sheriff-search-results" />
+  <span class="sheriff-search-shortcut" aria-hidden="true">/</span>
+</div>
+"""
+    scripts | """
+<script src="/public/prospector-engine.js" defer></script>
+<script src="/public/prospector.js" data-prospector-client defer></script>
+"""
+    register_token("PROSPECTOR", "SEARCH_INPUT", search_input_html)
+    register_token("PROSPECTOR", "SEARCH_SCRIPT", scripts)
+    body |= resolve_token(body)
+    if :has(body, "id=\"sheriff-search-input\"") and :has(body, "data-prospector-client") == false
+        if :has(body, "</body>")
+            :update_where!(body, "</body>", scripts + "\n</body>")
+        else
+            body |= body + scripts
+        xx
+    xx
+    :update!(ctx{"body"}, body)
     return ctx
 xx

@@ -23,3 +23,5 @@ site/portals/*
 # Re-include sheriff portal
 !site/portals/sheriff/
 !site/portals/sheriff/**
+# Derived, private Prospector index state (local and Cloud incremental builds)
+site/.desk/prospector/
