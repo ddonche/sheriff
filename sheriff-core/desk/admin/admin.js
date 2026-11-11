@@ -2136,7 +2136,7 @@
     const statusEl = document.getElementById(ids.status);
     const saveBtn = document.getElementById(ids.save);
 
-    const ed = { path: null, portal: null, dirty: false, missing: false, saving: false };
+    const ed = { path: null, portal: null, dirty: false, missing: false, saving: false, generation: 0 };
     let loadRequest = 0;
 
     function setDirty(v) {
@@ -2144,6 +2144,7 @@
       dirtyEl.hidden = !v;
       saveBtn.disabled = !v || !ed.path;
       if (opts && opts.onContentChange) opts.onContentChange(text.value, v);
+      window.dispatchEvent(new Event('sheriff:editor-change'));
     }
     function setStatus(msg, cls) {
       statusEl.textContent = msg || '';
@@ -2153,6 +2154,7 @@
     ed.load = async function () {
       if (!sel.value) return;
       const portal = sel.value, request = ++loadRequest;
+      ed.generation++;
       if (opts && opts.onContentChange) opts.onContentChange('', false);
       ed.path = getPath(portal);
       ed.portal = portal;
@@ -2184,6 +2186,7 @@
     ed.save = async function () {
       if (!ed.path || saveBtn.disabled || ed.portal !== sel.value) return;
       ed.saving = true;
+      window.dispatchEvent(new Event('sheriff:editor-change'));
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
       setStatus('rebuilding…');
@@ -2207,13 +2210,14 @@
         setDirty(true);
       } finally {
         ed.saving = false;
+        window.dispatchEvent(new Event('sheriff:editor-change'));
         saveBtn.textContent = 'Save & rebuild';
         saveBtn.disabled = !ed.dirty;
       }
     };
 
     ed.reset = function () {
-      loadRequest++; ed.path = null; ed.portal = null; ed.missing = false;
+      loadRequest++; ed.generation++; ed.path = null; ed.portal = null; ed.missing = false;
       text.value = ''; text.disabled = true; setDirty(false); setStatus('');
     };
 
@@ -3237,6 +3241,14 @@
     unsavedPanels,
     notify: say,
     contentEditor: () => ({portal:portalContext.current,path:openFile,element:edText,generation:editorGeneration}),
+    navigationEditor: () => ({portal:nvEditor.portal,path:nvEditor.path,element:document.getElementById('nv-text'),generation:nvEditor.generation,busy:nvEditor.saving}),
+    insertNavigation(text, target) {
+      const editor = this.navigationEditor();
+      if (currentViewKey() !== 'navigation' || target.element !== editor.element || target.portal !== portalContext.current || target.portal !== editor.portal || target.path !== editor.path || target.generation !== editor.generation || editor.element.disabled || editor.busy) return false;
+      editor.element.setRangeText(text, target.start, target.end, 'end');
+      editor.element.dispatchEvent(new Event('input', {bubbles:true}));
+      return true;
+    },
     patternHeader: parsePatternHeader,
     patternToken,
     patternSource: body => setPatternMode(body, 'template'),
