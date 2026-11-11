@@ -141,3 +141,15 @@ act escape_text(s)
     :update_where!(out, ">", "&gt;")
     return out
 xx
+
+/// Render a field through the same Markdown/code/wikilink protection as articles,
+/// without wrapping a single inline value in a paragraph inside its field cell.
+act render_inline(text)
+    if text.nix? => return ""
+    rendered | render({"body": text})
+    out | :trim(rendered{"body"} ?? "")
+    if :starts_with(out, "<p>") and :ends_with(out, "</p>") and :split(out, "</p>").len == 2
+        return :keep_between(out, "<p>", "</p>") ?? ""
+    xx
+    return out
+xx

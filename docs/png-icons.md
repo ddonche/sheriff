@@ -1,18 +1,42 @@
-# Uploaded PNG Icons
+# PNG Icons Documentation Addition
 
-Open **Desk → Icons → Upload PNG**, choose a PNG, and give it an icon name. The name defaults to the filename with lowercase letters and hyphens. Uploads are saved to the selected portal's `public/icons` folder, with a 1 MB limit and no silent replacement of existing icons.
+## Upload Your Own PNG Icons
 
-Use the same syntax in articles, navigation labels, patterns, and admonition titles:
+Open **Desk → Icons → Upload PNG**, select a PNG, and choose an icon name. Desk suggests a lowercase name based on the filename. PNG uploads can be up to **1 MB**.
 
-```text
+Uploaded icons appear immediately in the Icons panel and the **Insert icon** pickers in Content and Navigation. Use their names with the same syntax:
+
+```md
 [[icon|everwind-emblem]]
 [[icon|everwind-emblem||18]]
 ```
 
-PNG icons retain their original colors and transparency. Their color field is ignored; the pickers disable color controls when a PNG is selected. Sizes remain optional, from 8 to 256 pixels.
+PNGs keep their original colors and transparency. The color field is ignored for PNGs, and the pickers disable color controls. The optional size still works normally.
 
-Uploaded icons appear immediately in the Icons panel and the content/navigation **Insert icon** picker. Uploading saves the source asset; building a page publishes the referenced icon through the regular render schedule. **Build portal** updates all pages.
+PNG icons also work inside patterns:
 
-To use a PNG as a default admonition icon, put its name in the portal theme's `admonition_icons` map, exactly like an SVG icon.
+```md
+::: pattern vertical Faction
+@mode = template
+name = Outriders
+emblem = [[icon|everwind-emblem||32]]
+:::
+```
 
-Manually managed portal icons resolve in this order: portal SVG, portal PNG, then Core SVG. The upload form asks for a unique name so that uploading does not silently change an existing icon.
+You can also use them in admonition titles or configure them as default admonition icons in your portal's theme.
+
+Uploads are saved under the selected portal's `public/icons` folder. Uploading does not build the site. **Build** publishes the selected page and its referenced icons; **Build portal** updates the entire portal.
+
+## Icon Names and Collisions
+
+Desk's upload form requires a name that is not already in the selected portal's combined icon library, including Core/Lucide icons. It asks you to choose another name rather than silently replacing an existing icon. Different portals can reuse the same name.
+
+If you manually add icon files, Sheriff resolves a name in this order:
+
+1. The portal's SVG: `public/icons/name.svg`.
+2. The portal's PNG: `public/icons/name.png`.
+3. The Core/Lucide SVG.
+
+A manually installed portal icon can therefore override a Core icon. If both SVG and PNG files have the same name in the portal, the SVG wins.
+
+Names such as `everwind-emblem` or `everwind-outrider` help avoid collisions. Write the name without the file extension in icon syntax.

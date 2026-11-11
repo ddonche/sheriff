@@ -1,5 +1,6 @@
 import modules/markdown_core/fenced_code as fenced_code
 import modules/markdown_core/content_tabs as content_tabs
+import modules/markdown_core/markdown as markdown
 
 /// modules/sheriff_patterns/patterns.gbln
 /// Portal-local reusable content patterns.
@@ -204,6 +205,8 @@ act render_fields(raw_fields)
             :update_where!(label, "_", "")
             wide_row |= true
         xx
+
+        value |= markdown::render_inline(value)
 
         label_class | pattern_class(label)
         label_html | escape_text(label)
