@@ -1,3 +1,4 @@
+import build_output as build_output
 /// modules/brindle_themes/brindle.gbln
 /// NEW BRINDLE: Only two responsibilities:
 /// (1) Apply layout (inject PAGE::TITLE + PAGE::CONTENT)
@@ -447,10 +448,10 @@ act export_header_partial(ctx)
 
     theme_name | resolve_theme_name(portal)
 
-    source_path | "../dist/{portal}/docs/index.html"
+    source_path | (build_output::directory(portal) + "/docs/index.html")
 
     if :file_exists(source_path) == false
-        source_path |= "../dist/{portal}/index.html"
+        source_path |= (build_output::directory(portal) + "/index.html")
     xx
 
     if :file_exists(source_path) == false
@@ -459,7 +460,7 @@ act export_header_partial(ctx)
 
     body | :read_text(source_path)
 
-    partial_dir      | "../dist/{portal}/_partials"
+    partial_dir      | (build_output::directory(portal) + "/_partials")
     header_html_path | "{partial_dir}/sheriff-header.html"
     header_css_path  | "{partial_dir}/sheriff-header.css"
 

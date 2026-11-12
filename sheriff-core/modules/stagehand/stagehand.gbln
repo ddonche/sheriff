@@ -1,3 +1,4 @@
+import build_output as build_output
 /// modules/stagehand/stagehand.gbln
 /// Stagehand: backstage crew for Sheriff.
 /// - Copies theme/public assets (once per portal)
@@ -51,7 +52,7 @@ act copy_assets(pre_ctx)
     /// ----- 2) Copy theme CSS (single file) from sheriff-core into dist/{portal}/public/css -----
     theme_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}.css"
     theme_header_css_src   | "../sheriff-core/themes/{theme_name}/css/{theme_name}-header.css"
-    public_css_dest | "../dist/{portal}/public/css"
+    public_css_dest | (build_output::directory(portal) + "/public/css")
     if :file_exists(theme_css_src)
         :create_dir!(public_css_dest)
         dest  | "{public_css_dest}/{theme_name}.css"
@@ -66,7 +67,7 @@ act copy_assets(pre_ctx)
     /// Portal public files still take precedence over matching library names.
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
     public_src  | "../site/portals/{portal}/public"
-    public_dest | "../dist/{portal}/public"
+    public_dest | (build_output::directory(portal) + "/public")
     assets_copied | 0
     if :file_exists(public_src)
         :create_dir!(public_dest)
@@ -93,8 +94,8 @@ act copy_assets(pre_ctx)
     /// Else ensure a starter override.css exists so layouts can always link it
     /// ------------------------------------------------------------
     override_src  | "../site/portals/{portal}/themes/{theme_name}/override.css"
-    override_dest | "../dist/{portal}/public/css/override.css"
-    :create_dir!("../dist/{portal}/public/css")
+    override_dest | (build_output::directory(portal) + "/public/css/override.css")
+    :create_dir!((build_output::directory(portal) + "/public/css"))
     if :file_exists(override_src)
         :copy_file!(override_src, override_dest)
         :say("STAGEHAND: Copied override.css from portal theme folder")
@@ -115,12 +116,12 @@ act copy_assets(pre_ctx)
     /// Core-owned browser behavior is available to every portal, including old ones.
     tabs_js_src | "../sheriff-core/modules/markdown_core/sheriff-content-tabs.js"
     if :file_exists(tabs_js_src)
-        :create_dir!("../dist/{portal}/public/js")
-        :copy_file!(tabs_js_src, "../dist/{portal}/public/js/sheriff-content-tabs.js")
+        :create_dir!((build_output::directory(portal) + "/public/js"))
+        :copy_file!(tabs_js_src, (build_output::directory(portal) + "/public/js/sheriff-content-tabs.js"))
     xx
     /// ----- 4) Copy index.html from content/ to dist/{portal} if it exists -----
     index_src  | "../site/portals/{portal}/content/index.html"
-    index_dest | "../dist/{portal}/index.html"
+    index_dest | (build_output::directory(portal) + "/index.html")
     if :file_exists(index_src)
         :copy_file!(index_src, index_dest)
         :say("STAGEHAND: Copied custom index.html to dist/{portal}/index.html")

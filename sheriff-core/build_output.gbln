@@ -1,0 +1,29 @@
+/// Generic output paths and build lifecycle; no knowledge of scheduled modules.
+act directory(portal)
+    selected | #local::build_output ?? :env("SHERIFF_BUILD_OUTPUT")
+    if selected.nix? => return "../dist/{portal}"
+    return selected
+xx
+
+act lifecycle(portal, phase, id)
+    command | "python3 build-support/lifecycle.py"
+    if :env("OS") == "Windows_NT"
+        command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File build-support/lifecycle.ps1"
+    xx
+    result | :json_parse(:run_cmd(command, ".", {"SHERIFF_BUILD_PORTAL":portal, "SHERIFF_BUILD_PHASE":phase, "SHERIFF_BUILD_ID":id}))
+    if result{"ok"} == false => :say(result{"stderr"})
+    response | :json_parse(result{"stdout"})
+    if !response{"message"}.nix? => :say(response{"message"})
+    return response
+xx
+
+act begin(portal)
+    return lifecycle(portal, "begin", "")
+xx
+
+act finish(portal, job, complete)
+    phase | "abort"
+    if complete => phase |= "activate"
+    if complete and :env("SHERIFF_BUILD_DEFER_ACTIVATION") == "1" => phase |= "ready"
+    return lifecycle(portal, phase, job{"id"})
+xx

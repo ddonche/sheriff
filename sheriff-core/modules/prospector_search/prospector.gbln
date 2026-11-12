@@ -1,3 +1,4 @@
+import build_output as build_output
 /// modules/prospector_search/prospector.gbln
 /// Prospector: Search index + search UI
 /// - init(pre_ctx): clear index + copy JS
@@ -10,7 +11,7 @@
 act init(pre_ctx)
     portal | pre_ctx{"portal"} ?? => return pre_ctx
 
-    public_dir | "../dist/{portal}/public"
+    public_dir | (build_output::directory(portal) + "/public")
     if :file_exists(public_dir) == false
         :create_dir!(public_dir)
     xx
@@ -175,14 +176,14 @@ act index_page(ctx)
     }
 
     /// write JSON safely to temp
-    tmp_path | "../dist/{portal}/.prospector.tmp.json"
+    tmp_path | (build_output::directory(portal) + "/.prospector.tmp.json")
     :write_json!(tmp_path, entry)
 
     /// read JSON string
     json_text | :read_text(tmp_path)
 
     /// append to NDJSON file
-    index_path | "../dist/{portal}/public/search-index.json"
+    index_path | (build_output::directory(portal) + "/public/search-index.json")
     :append_file!(index_path, json_text + "\n")
     return ctx
 xx

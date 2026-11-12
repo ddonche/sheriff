@@ -56,7 +56,7 @@ Run **Build portal** once after adding thumbnail support to populate existing re
 
 ## Build concurrency
 
-Page schedules remain ordered. Prospector alone distributes record preparation through a 32-job backpressured channel to a bounded actor pool, then a single coordinator creates the deterministic index. Choose one, two (the default), or four preparation workers:
+Each page schedule remains ordered while Sheriff can render different pages concurrently with `build.workers`. Prospector separately distributes record preparation through a 32-job backpressured channel to a bounded actor pool, then a single coordinator creates the deterministic index. Choose one, two (the default), or four preparation workers:
 
 ```yall
 search:

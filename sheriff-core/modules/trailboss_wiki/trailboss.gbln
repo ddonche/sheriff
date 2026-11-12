@@ -1,3 +1,4 @@
+import build_output as build_output
 /// modules/trailboss_wiki/trailboss.gbln
 /// Wikilinks + routing for Sheriff (JSON-based).
 ///
@@ -104,7 +105,7 @@ act init_backlinks(pre_ctx)
 
     portal | pre_ctx{"portal"} ?? => send pre_ctx
 
-    public_dir | "../dist/{portal}/public"
+    public_dir | (build_output::directory(portal) + "/public")
     if :file_exists(public_dir) == false
         :create_dir!(public_dir)
     xx
@@ -959,7 +960,7 @@ act render_icon(inner, portal)
     if :file_exists("../site/portals/{portal}/public/icons/{name}.{extension}")
         icon_source |= "../site/portals/{portal}/public/icons/{name}.{extension}"
     xx
-    icon_output | "../dist/{portal}/public/icons"
+    icon_output | (build_output::directory(portal) + "/public/icons")
     :create_dir!(icon_output)
     if :file_exists("{icon_output}/{name}.{extension}") == false
         :copy_file!(icon_source, "{icon_output}/{name}.{extension}")
@@ -1970,7 +1971,7 @@ act write_backlinks_once(pre_ctx)
         backlinks |= pre_ctx{"backlinks"}
     xx
 
-    out_dir | "../dist/{portal}/public/backlinks"
+    out_dir | (build_output::directory(portal) + "/public/backlinks")
     if :file_exists(out_dir) == false
         :create_dir!(out_dir)
     xx
@@ -2033,7 +2034,7 @@ act build_wanted_pages_once(pre_ctx)
     xx
 
     md_path  | "../site/portals/{portal}/content/wanted-pages.md"
-    out_file | "../dist/{portal}/wanted-pages.html"
+    out_file | (build_output::directory(portal) + "/wanted-pages.html")
 
     frontmatter | """^^^^
 title: Wanted Pages
@@ -2218,7 +2219,7 @@ summary: Missing wiki pages linked from this site.
 
     ctx |= :summon(ctx, schedule)
 
-    :create_dir!("../dist/{portal}")
+    :create_dir!(build_output::directory(portal))
     :write_text!(out_file, ctx{"body"})
 
     return pre_ctx

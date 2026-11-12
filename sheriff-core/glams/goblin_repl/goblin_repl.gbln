@@ -1,9 +1,14 @@
+act output_directory(portal, selected)
+    if selected.nix? => return "../dist/{portal}"
+    return selected
+xx
+
 /// Goblin WASM REPL embeds. The page schedule owns rendering; full and page
 /// builds both publish the assets needed by an actual embed.
-act copy_assets(portal, overwrite)
+act copy_assets(portal, overwrite, output | "")
     glam_dir | "{#need::glams_dir}/goblin_repl"
     output_dir | "{#need::output_dir}"
-    if !portal.nix? => output_dir |= "../dist/{portal}/public"
+    if !portal.nix? => output_dir |= (output_directory(portal, output) + "/public")
     manifest_source | "{glam_dir}/wasm/runtime.json"
     manifest_target | "{output_dir}/wasm/runtime.json"
     refresh | overwrite
@@ -32,7 +37,7 @@ act copy_assets(portal, overwrite)
 xx
 
 act init(pre_ctx)
-    copy_assets(pre_ctx{"portal"}, true)
+    copy_assets(pre_ctx{"portal"}, true, pre_ctx{"output_dir"})
     :say("GOBLIN-REPL: Initialized")
     return pre_ctx
 xx
@@ -78,7 +83,7 @@ act apply_tokens(ctx)
         embed_html | "<div class=\"goblin-repl-placeholder\"></div>\n<script src=\"/public/js/goblin-repl.js?v=0.51.26\" defer></script>"
         :update_where!(body, "<p>{token}</p>", embed_html)
         :update_where!(body, token, embed_html)
-        copy_assets(ctx{"portal"}, false)
+        copy_assets(ctx{"portal"}, false, ctx{"output_dir"})
     xx
     for item in stash
         :update_where!(body, item{"key"}, item{"body"})

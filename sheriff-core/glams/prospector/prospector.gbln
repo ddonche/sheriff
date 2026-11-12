@@ -1,3 +1,8 @@
+act output_directory(portal, selected)
+    if selected.nix? => return "../dist/{portal}"
+    return selected
+xx
+
 /// Prospector: bounded page preparation, one index writer, static browser search.
 #prospector::index_file | "search-index.json"
 #prospector::client_file | "prospector.js"
@@ -73,11 +78,13 @@ act plain_text(raw)
             segment | self
             inside | :keep_between(segment, "[[", "]]") ?? ""
             parts | :split(inside, "|")
-            label | parts[0] ?? ""
+            label | ""
+            if parts.len > 0 => label |= parts[0]
             if :lower(label) == "icon"
                 label |= ""
             elif :starts_with(:lower(label), "image:") or :starts_with(:lower(label), "video:")
-                label |= parts[3] ?? ""
+                label |= ""
+                if parts.len > 3 => label |= parts[3]
             elif parts.len > 1
                 label |= parts[1]
             xx
@@ -225,7 +232,9 @@ act thumbnail(fm, body, href)
         "[[image:" ... "]]":
             segment | self
             inside | :keep_between(segment, "[[image:", "]]") ?? ""
-            filename | :trim(:split(inside, "|")[0] ?? "")
+            parts | :split(inside, "|")
+            filename | ""
+            if parts.len > 0 => filename |= :trim(parts[0])
             url | image_url("/public/images/{filename}", href)
             if !filename.nix? and !url.nix?
                 :update_where!(url, "&", "&amp;")
@@ -293,7 +302,10 @@ act prepare_record(message)
         xx
     xx
     title | plain_text(scalar(fm{"title"}))
-    if title.nix? => title |= headings[0] ?? key
+    if title.nix?
+        title |= key
+        if headings.len > 0 => title |= headings[0]
+    xx
     text | plain_text(body)
     summary | plain_text(scalar(fm{"summary"}))
     if summary.nix? => summary |= text[0:200]
@@ -337,8 +349,8 @@ act cache_file(portal)
     return "../site/.desk/prospector/{portal}/records.json"
 xx
 
-act copy_client(portal)
-    public_dir | "../dist/{portal}/public"
+act copy_client(portal, output | "")
+    public_dir | (output_directory(portal, output) + "/public")
     :create_dir!(public_dir)
     for filename in ["prospector.js", "prospector-engine.js", "prospector-worker.js"]
         :copy_file!("glams/prospector/{filename}", "{public_dir}/{filename}")
@@ -347,7 +359,7 @@ xx
 
 act init(pre_ctx)
     portal | pre_ctx{"portal"}
-    copy_client(portal)
+    copy_client(portal, pre_ctx{"output_dir"})
     workers_count | 2
     path | "../site/portals/{portal}/config.yall"
     if :file_exists(path)
@@ -383,7 +395,7 @@ act index_page(ctx)
 xx
 
 /// One coordinator compiles deterministic postings and writes the complete index.
-act write_index(portal, records)
+act write_index(portal, records, output | "")
     by_href | {}
     for record in records
         if record{"excluded"} == false => :update!(by_href{record{"href"}}, record)
@@ -406,9 +418,9 @@ act write_index(portal, records)
             :update!(postings{word}, hits)
         xx
     xx
-    public_dir | "../dist/{portal}/public"
+    public_dir | (output_directory(portal, output) + "/public")
     :create_dir!(public_dir)
-    marker | "../dist/{portal}/.prospector-search-ready"
+    marker | (output_directory(portal, output) + "/.prospector-search-ready")
     if :file_exists(marker) => :delete_path!(marker)
     :write_json!("{public_dir}/search-index.json", {"version":1, "documents":documents, "postings":postings})
     private_dir | "../site/.desk/prospector/{portal}"
@@ -432,7 +444,7 @@ act finalize(post_ctx)
             :put_last!(records, prepared{key})
         xx
     xx
-    if workers.len > 0 => write_index(post_ctx{"portal"}, records)
+    if workers.len > 0 => write_index(post_ctx{"portal"}, records, post_ctx{"output_dir"})
     return post_ctx
 xx
 
@@ -442,7 +454,7 @@ act commit_page(ctx)
     portal | ctx{"portal"}
     entry | ctx{"prospector_entry"}
     if entry.nix? => return ctx
-    copy_client(portal)
+    copy_client(portal, ctx{"output_dir"})
     path | cache_file(portal)
     if :file_exists(path) == false
         :say("PROSPECTOR: Build this portal once to enable full search and incremental index updates")
@@ -464,7 +476,7 @@ act commit_page(ctx)
         if record{"key"} != entry{"key"} and record{"href"} != entry{"href"} => :put_last!(records, record)
     xx
     if entry{"excluded"} == false => :put_last!(records, entry)
-    write_index(portal, records)
+    write_index(portal, records, ctx{"output_dir"})
     return ctx
 xx
 

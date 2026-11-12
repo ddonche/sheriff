@@ -1,3 +1,4 @@
+import build_output as build_output
 import modules/markdown_core/fenced_code as category_code
 
 /// modules/trailboss_wiki/routes_json.gbln
@@ -991,8 +992,8 @@ act build_routes_json_for_portal(portal)
     content_root  | "../site/portals/{portal}/content"
     routes_path   | "../site/portals/{portal}/routes.json"
     report_path   | "../site/portals/{portal}/report.json"
-    sitemap_path  | "../dist/{portal}/sitemap.xml"
-    robots_path  | "../dist/{portal}/robots.txt"
+    sitemap_path  | (build_output::directory(portal) + "/sitemap.xml")
+    robots_path  | (build_output::directory(portal) + "/robots.txt")
 
     if :file_exists(routes_path)
         :delete_path!(routes_path)
@@ -1271,7 +1272,7 @@ act build_routes_json_for_portal(portal)
 
     /// also publish routes.json into the served public dir so the
     /// interactive-image viewer can resolve wikilink markers client-side
-    dist_public | "../dist/{portal}/public"
+    dist_public | (build_output::directory(portal) + "/public")
     if :file_exists(dist_public) == false
         :create_dir!(dist_public)
     xx
@@ -1530,7 +1531,7 @@ act build_redirect_pages_once(pre_ctx)
     xx
 
     routes_path | "../site/portals/{portal}/routes.json"
-    dist_root   | "../dist/{portal}"
+    dist_root   | build_output::directory(portal)
 
     if :file_exists(routes_path) == false => return pre_ctx
 

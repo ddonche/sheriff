@@ -71,18 +71,36 @@ try {
     if ($taskAction -eq 'worker') {
         $request=Get-Content -LiteralPath "$taskJob/request.json" -Raw -Encoding UTF8|ConvertFrom-Json
         $timer=[Diagnostics.Stopwatch]::StartNew()
+        $outputJob=$null
+        $lifecycle="$taskRoot/sheriff-core/build-support/lifecycle.ps1"
         try {
+            if ($request.mode -eq 'portal' -and [IO.File]::Exists($lifecycle)) {
+                $env:SHERIFF_BUILD_LIBRARY='1';$env:SHERIFF_BUILD_OWNER_PID=$PID.ToString()
+                . $lifecycle
+                $outputJob=Invoke-BuildLifecycle $taskRoot $taskPortal 'begin' ''
+                $env:SHERIFF_BUILD_OUTPUT=$outputJob.output
+            }
             $env:SHERIFF_PAGE_TARGET=$request.target
             $env:GOBLIN_NONINTERACTIVE='0'
             $exe=if($env:SHERIFF_GOBLIN){$env:SHERIFF_GOBLIN}else{'goblin'}
             $arguments=@('run','main.gbln',$taskPortal)
             if ($request.mode -eq 'page') {$arguments+='page'}
             $code=[SheriffLogProcess]::Run($exe,($arguments -join ' '),"$taskRoot/sheriff-core","$taskJob/stdout.txt","$taskJob/stderr.txt")
+            if ($outputJob) {
+                $phase=if($code -eq 0){'activate'}else{'abort'}
+                $activated=Invoke-BuildLifecycle $taskRoot $taskPortal $phase $outputJob.id
+                [IO.File]::AppendAllText("$taskJob/stdout.txt",$activated.message+"`n")
+                $outputJob=$null
+            }
             $stdout=[IO.File]::ReadAllText("$taskJob/stdout.txt");$stderr=[IO.File]::ReadAllText("$taskJob/stderr.txt")
             $ms=$timer.Elapsed.TotalMilliseconds
             if ($stderr -match 'goblin run .+ . exit \d+ in (\d+)ms') {$ms=[double]$Matches[1]}
             Write-Json "$taskJob/result.json" @{ok=($code -eq 0);code=$code;stdout=$stdout;stderr=$stderr;build_ms=$ms}
-        } catch {Write-Json "$taskJob/result.json" @{ok=$false;code=1;stdout='';stderr=$_.Exception.Message;build_ms=$timer.Elapsed.TotalMilliseconds}}
+        } catch {
+            $problem=$_.Exception.Message
+            if ($outputJob) {try {Invoke-BuildLifecycle $taskRoot $taskPortal 'abort' $outputJob.id | Out-Null} catch {}}
+            Write-Json "$taskJob/result.json" @{ok=$false;code=1;stdout='';stderr=$problem;build_ms=$timer.Elapsed.TotalMilliseconds}
+        }
         exit
     }
     if ($taskAction -eq 'status') {

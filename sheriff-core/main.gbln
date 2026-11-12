@@ -1,6 +1,9 @@
 /// sheriff-core/main.gbln
 /// import "../site/portals/sheriff/manifest.imports"
 import "../sheriff-core/manifest.imports"
+import "build_output.gbln" as build_output
+
+#local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
 
 act load_events()
     return :yall_parse_file("../sheriff-core/events.yall")
@@ -17,35 +20,11 @@ act create_all_dirs(path)
     xx
 xx
 
-act backup_dist()
-    dist_dir    | "../dist/{#local::portal}"
-    backup_path | "../data/backups/{#local::portal}/latest.zip"
-
-    if :file_exists(dist_dir) == false
-        return ""
-    xx
-
-    create_all_dirs(backup_path)
-
-    :say("Backing up current dist:")
-    :say(dist_dir)
-    :say("Backup zip:")
-    :say(backup_path)
-
-    :zip_dir!(dist_dir, backup_path)
-    /// Keep directories: Windows can hold an open folder while allowing its files to change.
-    for output_path in :walk(dist_dir, "**/*")
-        if :is_dir(output_path) => skip
-        :delete_path!(output_path)
-    xx
-
-    return backup_path
-xx
-
 /// --- helper: run pre schedule once, return the final pre_ctx
 act run_pre_schedule(cfg)
     pre_ctx | { 
-        "portal": #local::portal, 
+        "portal": #local::portal,
+        "output_dir": build_output::directory(#local::portal),
         "wanted_pages": [],
         "backlinks": [],
         "schedule": []
@@ -78,6 +57,7 @@ xx
 act run_post_schedule(cfg, pre_ctx)
     post_ctx | { 
         "portal": #local::portal,
+        "output_dir": build_output::directory(#local::portal),
         "wanted_pages": pre_ctx{"wanted_pages"},
         "backlinks": pre_ctx{"backlinks"},
         "schedule": pre_ctx{"schedule"}
@@ -230,86 +210,163 @@ act discover_portals()
     return portals
 xx
 
-/// MAIN BUILD FUNCTION
-act build()
+act cancel_build_resources(value)
+    kind | :valtype(value)
+    if kind == "actor" => :cancel(value)
+    if kind == "channel" => :halt(value)
+    if kind == "array"
+        for item in value
+            cancel_build_resources(item)
+        xx
+    elif kind == "map"
+        for key in :keys(value)
+            cancel_build_resources(value{key})
+        xx
+    xx
+xx
+
+act page_build_progress(count, path)
+    :say("Built page: {path}")
+    return count + 1
+xx
+
+act render_record(record, build_ctx)
+    pre_ctx | build_ctx{"pre_ctx"}
+    schedule | build_ctx{"schedule"}
+    url_root | build_ctx{"url_root"}
+    md_path | record{"path"}
+    rel_no_ext | record{"rel_no_ext"}
+    output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
+    href_abs | rjson::build_href(url_root, output_rel_no_ext)
+    raw | :read_text(md_path)
+
+    ctx | {
+        "body": raw,
+        "frontmatter": {},
+        "tokens": {},
+        "path": md_path,
+        "route_rel_no_ext": rel_no_ext,
+        "output_rel_no_ext": output_rel_no_ext,
+        "documentation_version": record{"doc_version"},
+        "default_documentation_version": record{"default_doc_version"},
+        "available_documentation_versions": record{"available_doc_versions"},
+        "version_rel_rows": record{"version_rel_rows"},
+        "revision_history_rows": record{"revision_history_rows"},
+        "revision": record{"revision"},
+        "storage_kind": record{"storage_kind"},
+        "portal": #local::portal,
+        "output_dir": build_output::directory(#local::portal),
+        "href": href_abs,
+        "wanted_pages": pre_ctx{"wanted_pages"},
+        "backlinks": pre_ctx{"backlinks"},
+        "schedule": schedule
+    }
+
+    /// merge any pre_ctx fields into ctx
+    ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
+
+    :clear_tokens("SLOT")
+
+    ctx |= :summon(ctx, schedule)
+
+    dir      | :dirname(output_rel_no_ext)
+    base     | :stem(output_rel_no_ext)
+    out_file | (build_output::directory(#local::portal) + "/{dir}/{base}.html")
+
+    create_all_dirs(out_file)
+    :write_text!(out_file, ctx{"body"})
+    progress | pre_ctx{"page_build_progress"}
+    if !progress.nix? => :post(progress, md_path)
+    return {"wanted_pages":ctx{"wanted_pages"}, "backlinks":ctx{"backlinks"}}
+xx
+
+/// Each task runs the complete ordered page schedule in its own session.
+act render_portal()
     :clear_all_tokens()
     :say("Building portal:")
     :say(#local::portal)
-
-    backup_path | backup_dist()
-
-    cfg      | load_events()
+    cfg | load_events()
     schedule | cfg{"schedule"}
-
-    /// Run pre-build schedule once
+    started | :epoch_ms()
     pre_ctx | run_pre_schedule(cfg)
     :update!(pre_ctx{"schedule"}, schedule)
-
-    cfg_portal | rjson::load_cfg(#local::portal)
-    url_root | rjson::get_url_root(cfg_portal)
-    source_records | rjson::build_render_records(#local::portal)
-
-    /// BUILD EACH MARKDOWN FILE
-    for record in source_records
-        md_path | record{"path"}
-        rel_no_ext | record{"rel_no_ext"}
-        output_rel_no_ext | record{"output_rel_no_ext"} ?? rel_no_ext
-        href_abs | rjson::build_href(url_root, output_rel_no_ext)
-        raw | :read_text(md_path)
-
-        ctx | {
-            "body": raw,
-            "frontmatter": {},
-            "tokens": {},
-            "path": md_path,
-            "route_rel_no_ext": rel_no_ext,
-            "output_rel_no_ext": output_rel_no_ext,
-            "documentation_version": record{"doc_version"},
-            "default_documentation_version": record{"default_doc_version"},
-            "available_documentation_versions": record{"available_doc_versions"},
-            "version_rel_rows": record{"version_rel_rows"},
-            "revision_history_rows": record{"revision_history_rows"},
-            "revision": record{"revision"},
-            "storage_kind": record{"storage_kind"},
-            "portal": #local::portal,
-            "href": href_abs,
-            "wanted_pages": pre_ctx{"wanted_pages"},
-            "backlinks": pre_ctx{"backlinks"},
-            "schedule": schedule
-        }
-
-        /// merge any pre_ctx fields into ctx
-        ctx |= merge_pre_ctx_into_ctx(ctx, pre_ctx)
-
-        :clear_tokens("SLOT")
-
-        ctx |= :summon(ctx, schedule)
-        :update!(pre_ctx{"wanted_pages"}, ctx{"wanted_pages"})
-        :update!(pre_ctx{"backlinks"}, ctx{"backlinks"})
-
-        dir      | :dirname(output_rel_no_ext)
-        base     | :stem(output_rel_no_ext)
-        out_file | "../dist/{#local::portal}/{dir}/{base}.html"
-
-        create_all_dirs(out_file)
-        :write_text!(out_file, ctx{"body"})
+    elapsed | :epoch_ms() - started
+    :say("BUILD TIMING: pre-schedule {elapsed}ms")
+    complete | false
+    attempt
+        started |= :epoch_ms()
+        cfg_portal | rjson::load_cfg(#local::portal)
+        url_root | rjson::get_url_root(cfg_portal)
+        source_records | rjson::build_render_records(#local::portal)
+        elapsed |= :epoch_ms() - started
+        :say("BUILD TIMING: page discovery {elapsed}ms")
+        workers | 2
+        requested | nil
+        if :valtype(cfg_portal{"build"}) == "map" => requested |= cfg_portal{"build"}{"workers"}
+        requested |= :env("SHERIFF_BUILD_WORKERS") ?? requested
+        if requested == 1 or requested == "1" => workers |= 1
+        if requested == 4 or requested == "4" => workers |= 4
+        if requested == 8 or requested == "8" => workers |= 8
+        if :env("SHERIFF_RUNTIME_MODE") == "cloud" => workers |= 1
+        :say("Rendering {source_records.len} pages with {workers} page workers")
+        build_ctx | {"pre_ctx":pre_ctx, "schedule":schedule, "url_root":url_root}
+        started |= :epoch_ms()
+        if workers == 1
+            for record in source_records
+                :update!(build_ctx{"pre_ctx"}, pre_ctx)
+                result | render_record(record, build_ctx)
+                :update!(pre_ctx{"wanted_pages"}, result{"wanted_pages"})
+                :update!(pre_ctx{"backlinks"}, result{"backlinks"})
+                built_path | record{"path"}
+                :say("Built page: {built_path}")
+            xx
+        else
+            progress | :actor(0, page_build_progress)
+            :update!(pre_ctx{"page_build_progress"}, progress)
+            :update!(build_ctx{"pre_ctx"}, pre_ctx)
+            results | :swarm(source_records, render_record, workers, build_ctx)
+            :halt(progress)
+            :await(progress)
+            for result in results
+                for field in ["wanted_pages", "backlinks"]
+                    for item in result{field}
+                        :put_last!(pre_ctx{field}, item)
+                    xx
+                xx
+            xx
+        xx
+        elapsed |= :epoch_ms() - started
+        :say("BUILD TIMING: page schedules {elapsed}ms")
+        started |= :epoch_ms()
+        run_post_schedule(cfg, pre_ctx)
+        elapsed |= :epoch_ms() - started
+        :say("BUILD TIMING: post-schedule {elapsed}ms")
+        complete |= true
+    ensure
+        if !complete => cancel_build_resources(pre_ctx)
     xx
-
-    /// Run post-build schedule once
-    run_post_schedule(cfg, pre_ctx)
-
     :say("Portal build finished:")
     :say(#local::portal)
+xx
 
-    if backup_path != ""
-        :say("Backup created:")
-        :say(backup_path)
+act build()
+    if !:env("SHERIFF_BUILD_OUTPUT").nix? => return render_portal()
+    job | build_output::begin(#local::portal)
+    #local::build_output |= job{"output"}
+    complete | false
+    attempt
+        render_portal()
+        :update!(complete, true)
+    ensure
+        build_output::finish(#local::portal, job, complete)
     xx
+    #local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
 xx
 
 /// SINGLE PAGE BUILD
 /// target can be: "judge" or "docs/judge.md"
 act build_one_page(target)
+    if #local::build_output.nix? => #local::build_output |= "../dist/{#local::portal}"
     :clear_all_tokens()
     :say("Building ONE page:")
     :say(#local::portal ++ " :: " ++ target)
@@ -351,6 +408,7 @@ act build_one_page(target)
         "revision": record{"revision"},
         "storage_kind": record{"storage_kind"},
         "portal": #local::portal,
+        "output_dir": build_output::directory(#local::portal),
         "href": href_abs,
         "wanted_pages": [],
         "backlinks": [],
@@ -364,7 +422,7 @@ act build_one_page(target)
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)
-    out_file | "../dist/{#local::portal}/{dir}/{base}.html"
+    out_file | (build_output::directory(#local::portal) + "/{dir}/{base}.html")
 
     create_all_dirs(out_file)
     :write_text!(out_file, ctx{"body"})

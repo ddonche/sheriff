@@ -1,0 +1,22 @@
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto'),{spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(os.tmpdir(),'sheriff-desk-retained-')),core=path.join(temp,'sheriff-core');
+function put(rel,text){const p=path.join(temp,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,text);}
+function hashes(dir,prefix=''){return Object.fromEntries(fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?Object.entries(hashes(path.join(dir,e.name),prefix+e.name+'/')):[[prefix+e.name,crypto.createHash('sha256').update(fs.readFileSync(path.join(dir,e.name))).digest('hex')]]));}
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+(async()=>{try {
+ fs.cpSync(path.join(root,'sheriff-core'),core,{recursive:true});
+ put('site/portals/test/config.yall','name: Worker test\ntheme:\n  name: compendium\n');
+ put('site/portals/test/content/notes.md','^^^^\ntitle: Notes\nlayout: wiki\n^^^^\n\nA complete new page.');
+ put('dist/test/old.html','OLD WORKING SITE');
+ put('wait-for-release.cjs',"const fs=require('fs'),path=require('path'),start=Date.now();const timer=setInterval(()=>{if(fs.existsSync(path.join(__dirname,'release-build'))){clearInterval(timer);process.exit(0)}if(Date.now()-start>8000)process.exit(1)},25);");
+ const wait='node ../wait-for-release.cjs';
+ put('sheriff-core/modules/regression/regression.gbln','act wait_for_test(ctx)\n:say("BEFORE RENDER")\n:run_cmd('+JSON.stringify(wait)+')\nreturn ctx\nxx\nact fail_for_test(ctx)\n:read_text("deliberate-failure")\nreturn ctx\nxx\n');
+ fs.appendFileSync(path.join(core,'manifest.imports'),'\nimport modules/regression/regression as regression\n');
+ const events=path.join(core,'events.yall'),original=fs.readFileSync(events,'utf8');fs.writeFileSync(events,original.replace('pre:\n','pre:\n  - "regression::wait_for_test"\n'));
+ const env={...process.env,SHERIFF_GOBLIN:process.env.SHERIFF_GOBLIN||'goblin',SHERIFF_RUNTIME_MODE:'cloud',SHERIFF_LOG_PORTAL:'test',SHERIFF_LOG_MODE:'portal'};
+ function request(action,id='') {const windows=process.platform==='win32',command=windows?'powershell.exe':'python3',args=windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(core,'desk/api/build-support/progress.ps1')]:[path.join(core,'desk/api/build-support/progress.py')];const r=spawnSync(command,args,{cwd:temp,env:{...env,SHERIFF_LOG_ACTION:action,SHERIFF_LOG_ID:id},encoding:'utf8',timeout:10000,windowsHide:true});assert.equal(r.status,0,r.stderr);return JSON.parse(r.stdout);}
+ async function finish(id,observe=false){let sawOld=false;for(let i=0;i<40;i++){const s=request('status',id);assert(s.ok,JSON.stringify(s));if(observe&&!sawOld&&s.stdout.includes('BEFORE RENDER')&&!s.done){assert.equal(fs.readFileSync(path.join(temp,'dist/test/old.html'),'utf8'),'OLD WORKING SITE');assert(!fs.existsSync(path.join(temp,'dist/test/notes.html')));sawOld=true;put('release-build','continue');}if(s.done){if(observe)assert(sawOld,'The old site must remain visible during rendering');return s.result;}await sleep(100);}throw Error('Worker timed out');}
+ let job=request('start');assert(job.ok,JSON.stringify(job));let result=await finish(job.id,true);assert(result.ok,JSON.stringify(result));assert(!result.stdout.includes('Backing up current dist'));assert(fs.readFileSync(path.join(temp,'dist/test/notes.html'),'utf8').includes('A complete new page.'));assert(fs.existsSync(path.join(temp,'data/.desk/builds/test/previous/old.html')));
+ const before=hashes(path.join(temp,'dist/test'));fs.writeFileSync(events,original.replace('pre:\n','pre:\n  - "regression::fail_for_test"\n'));job=request('start');result=await finish(job.id);assert.equal(result.ok,false);assert.notEqual(result.code,0);assert.deepEqual(hashes(path.join(temp,'dist/test')),before);assert(!fs.existsSync(path.join(temp,'data/.desk/builds/test/lease')));
+ console.log('Passed real Desk retained-build flow: old preview visible during render, activation after success, live output, private retention, and unchanged working site after a Goblin failure.');
+}finally{assert.equal(path.dirname(temp),path.resolve(os.tmpdir()));assert(path.basename(temp).startsWith('sheriff-desk-retained-'));fs.rmSync(temp,{recursive:true,force:true});}})().catch(error=>{console.error(error);process.exitCode=1;});
