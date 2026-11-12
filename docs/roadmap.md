@@ -5,7 +5,7 @@ product backlog is not automatically a requirement for Sheriff 1.0.
 
 ## Immediate release work
 
-- [ ] Finish the build-performance release.
+- [x] Finish the build-performance release.
   - [x] Implement ZIP-free full builds with one private previous output.
   - [x] Verify working output survives build failures and Windows open folders.
   - [x] Keep build history out of publication output and source snapshots.
@@ -14,14 +14,15 @@ product backlog is not automatically a requirement for Sheriff 1.0.
   - [x] Compare every output byte on a copied Programming portal: all 315 files match.
   - [x] Keep Cloud page rendering serial; no CPU allocation or hosting-cost change.
   - [x] Sync the changes into the local Cloud checkout and pass Windows hosted checks.
-  - [ ] Run Linux checks on the final combined package, including the new swarm
-    test and the local/Cloud worker policy. Earlier ZIP-only Linux validation passed.
-  - [ ] Deploy the ZIP-free lifecycle and updated logs to Cloud with page rendering
+  - [x] Run Linux checks on the final combined package, including the new swarm
+    test and the local/Cloud worker policy.
+  - [x] Deploy the ZIP-free lifecycle and updated logs to Cloud with page rendering
     still serial. Do not upload local sites or change production portal source.
-- [ ] Bring GitHub up to date with the new build work, regression tests, and the
+- [x] Bring GitHub up to date with the new build work, regression tests, and the
   already-deployed Prospector bounds fix. Resolve the release from a clean Core
-  commit and refresh Cloud's Core lock. Current changes are still in working trees.
-- [ ] Finish release documentation for build workers, output retention, snapshots,
+  commit and refresh Cloud's Core lock. Application code and tests are pushed;
+  local portal edits remain excluded.
+- [x] Finish release documentation for build workers, output retention, snapshots,
   and local-versus-Cloud behavior; verify docs match the shipped release.
 - [ ] Measure full-build scaling with larger synthetic portals (1,000 then 10,000
   pages), worker counts, memory, and per-phase timing. Identify remaining expensive
@@ -157,6 +158,10 @@ rebuild those completed pieces.
   default/custom admonition icons, pattern tabs, media/stat badges, category
   namespaces, and earlier theme/pattern presentation fixes.
 
-Production currently has the Prospector-only hotfix. The retained-build/swarm
-release described above has not been deployed. This list authorizes no deployment,
-CPU purchase, or production content changes by itself.
+Production release 605 deployed on 2026-11-12: ZIP-free retained builds, build
+phase timings, and serial Cloud page rendering. Local swarm remains enabled.
+Sheriff Core is pinned to clean commit f2ae60b; Cloud application commit 4cbe000.
+Linux and live-machine regression checks passed; all 381 production source files
+were unchanged. No CPU allocation or hosting-cost change was made. This list
+authorizes no further deployment, CPU purchase, or production content changes
+by itself.
