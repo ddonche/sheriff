@@ -216,11 +216,11 @@ act apply_tokens(ctx)
     """
 
     /// Register PROSPECTOR tokens
-    register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
-    register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
+    :register_token("PROSPECTOR", "SEARCH_INPUT",  search_input_html)
+    :register_token("PROSPECTOR", "SEARCH_SCRIPT", search_script_html)
 
     /// Resolve ONLY tokens that have registered values
-    updated | resolve_token(body)
+    updated | :resolve_token(body)
 
     :update!(ctx{"body"}, updated)
     return ctx

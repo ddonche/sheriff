@@ -35,8 +35,8 @@ let checks=0;const portalPanel=page.locator('[data-build-log=portals]'),contentP
 async function view(name){await page.getByRole('link',{name,exact:true}).click();}
 async function result(panel,state){await page.waitForFunction(({scope,state})=>document.querySelector('[data-build-log='+scope+']').dataset.state===state,{scope:panel===portalPanel?'portals':'content',state});}
 async function portalBuild(name){await page.locator('#portal-manage-list .portal').filter({has:page.locator('.portal-name',{hasText:new RegExp('^'+name+'$')})}).getByRole('button',{name:'Build portal',exact:true}).click();}
-await page.goto('http://desk.test/#portals');await page.locator('#portal-manage-list .portal').first().waitFor();const a=await page.locator('.portals-wrap').boundingBox(),b=await portalPanel.boundingBox();assert(b.x>a.x+a.width,'Portal log should sit to the right');checks++;
-const delayed=gate();state.buildGate=delayed;await portalBuild('other');await delayed.ready;await result(portalPanel,'running');assert((await portalPanel.textContent()).includes('other'));delayed.release();await result(portalPanel,'success');assert((await portalPanel.textContent()).includes('Build line 139'));assert((await portalPanel.textContent()).includes('END OF OUTPUT'));assert((await portalPanel.textContent()).includes('Nonfatal warning for other'));assert((await portalPanel.textContent()).includes('Exit code: 0'));assert.equal(await portalPanel.locator('[data-build-output]').evaluate(el=>el.scrollTop),0);checks++;
+await page.addInitScript(()=>{window.SheriffDeskHost={liveBuilds:false};});await page.goto('http://desk.test/#portals');await page.locator('#portal-manage-list .portal').first().waitFor();const a=await page.locator('.portals-wrap').boundingBox(),b=await portalPanel.boundingBox();assert(b.x>a.x+a.width,'Portal log should sit to the right');checks++;
+const delayed=gate();state.buildGate=delayed;await portalBuild('other');await delayed.ready;await result(portalPanel,'running');assert((await portalPanel.textContent()).includes('other'));delayed.release();await result(portalPanel,'success');assert((await portalPanel.textContent()).includes('Build line 139'));assert((await portalPanel.textContent()).includes('END OF OUTPUT'));assert((await portalPanel.textContent()).includes('Nonfatal warning for other'));assert((await portalPanel.textContent()).includes('Exit code: 0'));assert((await portalPanel.locator('[data-build-output]').evaluate(el=>el.scrollTop))>0);checks++;
 // Copy log contains every line, not only the visible scroll viewport.
 await page.evaluate(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.copiedBuildLog=value;}}});});await portalPanel.locator('[data-build-copy]').click();assert((await page.evaluate(()=>window.copiedBuildLog)).includes('Build line 139'));checks++;
 state.mode='failure';await portalBuild('example');await result(portalPanel,'failed');assert((await portalPanel.textContent()).includes('Output before the failure'));assert((await portalPanel.textContent()).includes('Compiler error'));assert((await portalPanel.textContent()).includes('Exit code: 1'));checks++;
@@ -68,6 +68,13 @@ await page.evaluate(()=>{
   window.phaseRequest=window.SheriffBuildLog.fetch('/api/build?example');
 });
 await page.waitForFunction(()=>!!window.phaseController);
+await page.evaluate(()=>window.phaseController.enqueue(new TextEncoder().encode(JSON.stringify({phase:'building',stream:'stdout',chunk:'First live message\n'})+'\n')));
+await portalPanel.locator('[data-build-output]').filter({hasText:'First live message'}).waitFor();
+assert.equal(await portalPanel.getAttribute('data-state'),'running');
+assert(!(await portalPanel.locator('[data-build-output]').textContent()).includes('BUILD FAILED'));checks++;
+await page.evaluate(()=>window.phaseController.enqueue(new TextEncoder().encode(JSON.stringify({phase:'building',stream:'stdout',chunk:'Second live message λ\n'})+'\n')));
+await portalPanel.locator('[data-build-output]').filter({hasText:'Second live message λ'}).waitFor();checks++;
+
 await page.evaluate(()=>{
   const bytes=new TextEncoder().encode(JSON.stringify({phase:'uploading',...window.phaseBuild})+'\n');
   for(let offset=0;offset<bytes.length;offset+=3)window.phaseController.enqueue(bytes.slice(offset,offset+3));

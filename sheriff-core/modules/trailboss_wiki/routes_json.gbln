@@ -579,7 +579,7 @@ act content_categories(text)
     xx
     /// Reusable patterns have already been registered by the pre schedule.
     if :has(raw, "SHERIFF::PATTERN_")
-        raw |= resolve_token(raw)
+        raw |= :resolve_token(raw)
     xx
     sweep raw
         "<pre" ... "</pre>":

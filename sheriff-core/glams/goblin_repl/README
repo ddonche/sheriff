@@ -1,100 +1,47 @@
-goblin-repl
-===========
+Goblin REPL embed
+=================
 
-Embeds an interactive Goblin REPL into any web page using WebAssembly.
-Readers can run live Goblin code right in the browser — no server required.
+Place this token on its own line in Markdown content or a layout:
 
+    {{{GOBLIN_REPL::EMBED}}}
 
-INSTALLATION
-------------
+Sheriff's manifest imports the goblin_repl glam. Its pre-build init action
+copies the client and WASM assets; apply_tokens runs late in the page schedule
+to emit the embed HTML. A single-page build containing an actual embed also
+refreshes missing or outdated assets, without invoking the portal pre/post schedules.
 
-Copy the entire goblin_repl folder into your project's glams/ directory:
-
-    your-project/
-      glams/
-        goblin_repl/
-          glam.toml
-          README
-          goblin-repl.gbln
-          js/
-            goblin-repl.js
-          wasm/
-            goblin_wasm.js
-            goblin_wasm_bg.wasm
-
-
-CONFIGURATION
--------------
-
-Open glam.toml and fill in the [needs] section with Box variables from
-your box.toml or goblin box dump:
-
-    [needs]
-    output_dir = "#site::public_dir"
-
-  output_dir   The directory where the WASM and JS files will be copied.
-               Must be publicly accessible from the browser.
-
-
-USAGE
------
-
-Import the glam:
-
-    use goblin_repl
-
-Copy assets to your output directory:
-
-    goblin-repl::init()
-
-Replace GOBLIN_REPL::EMBED tokens in a string:
-
-    result | goblin-repl::apply_tokens(body)
-
-Place the token anywhere in your content:
-
-    GOBLIN_REPL::EMBED
-
-
-ACTIONS
+Actions
 -------
 
-  goblin-repl::init()
-    Copies goblin-repl.js, goblin_wasm.js, and goblin_wasm_bg.wasm
-    into output_dir. Call this once before serving any pages.
+    goblin_repl::init(pre_ctx)
+    goblin_repl::apply_tokens(ctx)
 
-  goblin-repl::apply_tokens(body)
-    Takes a string. Replaces every occurrence of GOBLIN_REPL::EMBED
-    with the REPL embed HTML. Returns the updated string.
+Both actions return the supplied context. The glam never registers its HTML
+as a global token, so an earlier Markdown step cannot accidentally expand it
+on a later page. Tokens in inline code, fenced code, scripts, and styles stay
+literal. Multiple embeds on a page share one WASM initialization and each
+has its own session.
 
+Files published with an embed
+----------------------------
 
-TOKENS
-------
+    /public/js/goblin-repl.js
+    /public/wasm/goblin_wasm.js
+    /public/wasm/goblin_wasm_bg.wasm
 
-  GOBLIN_REPL::EMBED
-    Place this anywhere you want a REPL to appear.
-    Resolved by goblin-repl::apply_tokens.
+The bundled WASM runtime is shipped as an existing release artifact. Sheriff
+does not compile it during builds. After updating the glam, rebuild affected
+pages (or the portal) and reload the browser to pick up the corrected embed.
 
+Runtime release
+---------------
+The browser runtime is Goblin 0.51.26, built from the pinned source commit in
+wasm/runtime.json. This is separate from the native executable used by Sheriff.
+The REPL displays the version exported by WASM and checks it against its client.
+Release URLs include the version so cached older binaries cannot be reused.
+A page-only build refreshes existing assets when its runtime manifest changes.
 
-WHAT THE READER SEES
---------------------
-
-A dark terminal panel with:
-  - Scrollable output area
-  - Single-line input with a > prompt
-  - Arrow keys for input history
-  - Multi-line block support (type a block, close with xx)
-  - A reset button to clear the session
-
-Each REPL on a page has its own independent session.
-
-
-INCLUDED FILES
---------------
-
-  js/goblin-repl.js        The REPL UI. Mounts into the page, loads the
-                           WASM, handles all input and output.
-
-  wasm/goblin_wasm.js      WebAssembly glue. Loaded by the browser at runtime.
-
-  wasm/goblin_wasm_bg.wasm The compiled Goblin VM. Runs entirely in the browser.
+The recorded build.patch enables browser randomness, fixes a WASM-only string
+conversion, uses a browser-compatible clock, and exports the CLI version from its Cargo manifest. It does not
+change Goblin's language or colon rules. The wrapper crate's 0.1.2 package
+version is not the Goblin language version.

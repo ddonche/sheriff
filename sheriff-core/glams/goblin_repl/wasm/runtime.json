@@ -1,0 +1,12 @@
+{
+  "version": "0.51.26",
+  "source": "https://github.com/ddonche/goblin-lang",
+  "commit": "f6e85b5e3bfbbb3ac79bbdab39fb87fa7f330b2e",
+  "buildPatch": "build.patch",
+  "buildPatchSha256": "00f48d6c01920e2e3728643441a4ba248116c171c3e2f4d16bb38a5955101c6c",
+  "files": {
+    "js/goblin-repl.js": "3c765cc897444ed1f95a4feb0a318eeabc1feda84770852470f138d9bad8761e",
+    "wasm/goblin_wasm.js": "23efda997d577a8fb5a5f12dcaedf613fbd83558b2ace2660aa69fb8ce09d041",
+    "wasm/goblin_wasm_bg.wasm": "120496bec1aad9214972177e47e2adac5f1bd4540bf71d4ed6b98959bea43424"
+  }
+}

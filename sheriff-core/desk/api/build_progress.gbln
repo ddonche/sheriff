@@ -1,0 +1,22 @@
+/// Local builds run in a background process; status reads its live output.
+act query_value(raw, key)
+    for part in :split(raw, "&")
+        if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
+    xx
+    return ""
+xx
+act handle()
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query, "&") ?? query
+    if verb != "start" and verb != "status" => return {"ok":false,"stderr":"Unknown build-log action."}
+    if verb == "start" and :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST to start a build."}
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    env | {"SHERIFF_LOG_ACTION":verb,"SHERIFF_LOG_PORTAL":query_value(query,"portal"),"SHERIFF_LOG_ID":query_value(query,"id"),"SHERIFF_LOG_MODE":query_value(query,"mode"),"SHERIFF_LOG_TARGET":query_value(query,"target"),"SHERIFF_LOG_STDOUT":query_value(query,"stdout"),"SHERIFF_LOG_STDERR":query_value(query,"stderr"),"PYTHONIOENCODING":"utf-8"}
+    command | "python3 sheriff-core/desk/api/build-support/progress.py"
+    if :env("OS") == "Windows_NT" => command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File sheriff-core/desk/api/build-support/progress.ps1"
+    result | :json_parse(:run_cmd(command, root, env))
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+    return :json_parse(result{"stdout"})
+xx
+:say(:json_stringify(handle()))

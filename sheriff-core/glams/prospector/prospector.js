@@ -19,8 +19,30 @@
         const url=new URL(item.href,location.href);if(url.origin!==location.origin||!['http:','https:'].includes(url.protocol))continue;
         const link=document.createElement('a');link.setAttribute('href',item.href);link.id='prospector-result-'+data.id+'-'+i;link.className='sheriff-search-result';link.setAttribute('role','option');link.setAttribute('aria-selected','false');
         const title=document.createElement('div');title.className='sheriff-search-result-title';title.textContent=item.title;
-        const excerpt=document.createElement('div');excerpt.className='sheriff-search-result-summary';excerpt.textContent=item.excerpt||'';link.append(title,excerpt);
-        if(item.version){const version=document.createElement('span');version.className='sheriff-search-result-version';version.textContent=item.version;link.append(version);}
+        const content=document.createElement('div');content.className='sheriff-search-result-body';
+        const excerpt=document.createElement('div');excerpt.className='sheriff-search-result-summary';excerpt.textContent=item.excerpt||'';content.append(title,excerpt);
+        if(typeof item.thumbnail==='string'&&item.thumbnail.trim()){
+          try{
+            const src=new URL(item.thumbnail,url);
+            if(['http:','https:'].includes(src.protocol)&&!src.username&&!src.password){
+              const image=document.createElement('img');image.className='sheriff-search-result-thumbnail';image.alt='';image.width=64;image.height=64;image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
+              image.addEventListener('error',()=>{image.remove();link.classList.remove('has-thumbnail');},{once:true});
+              image.src=src.href;link.classList.add('has-thumbnail');link.append(image);
+            }
+          }catch{}
+        }
+        link.append(content);
+        const categories=Array.isArray(item.categories)?[...new Set(item.categories.filter(category=>typeof category==='string'&&category.trim()))].slice(0,4):[];
+        if(item.version||categories.length){
+          const meta=document.createElement('div');meta.className='sheriff-search-result-meta';
+          if(item.version){const version=document.createElement('span');version.className='sheriff-search-result-version';version.textContent=item.version;meta.append(version);}
+          if(categories.length){
+            const group=document.createElement('span');group.className='sheriff-search-result-categories';group.setAttribute('aria-label','Categories');
+            for(const category of categories){const label=document.createElement('span');label.className='sheriff-search-result-category';label.textContent=category;group.append(label);}
+            meta.append(group);
+          }
+          content.append(meta);
+        }
         link.addEventListener('pointermove',()=>select(links.indexOf(link)));list.append(link);links.push(link);
       }
     }

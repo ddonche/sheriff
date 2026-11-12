@@ -235,16 +235,16 @@ act wire_slots(ctx)
     for pair in slots_cfg
         slot_name | pair[0]
         token | "\{\{\{SLOT::{slot_name}\}\}\}"
-        :put_last!(previous, {"name": slot_name, "token": token, "value": resolve_token(token)})
-        register_token("SLOT", slot_name, build_slot_value(pair[1]))
+        :put_last!(previous, {"name": slot_name, "token": token, "value": :resolve_token(token)})
+        :register_token("SLOT", slot_name, build_slot_value(pair[1]))
     xx
 
-    rendered | resolve_token(body)
+    rendered | :resolve_token(body)
     for entry in previous
         if entry{"value"} == entry{"token"}
-            clear_token("SLOT", entry{"name"})
+            :clear_token("SLOT", entry{"name"})
         else
-            register_token("SLOT", entry{"name"}, entry{"value"})
+            :register_token("SLOT", entry{"name"}, entry{"value"})
         xx
     xx
     :update!(ctx{"body"}, rendered)

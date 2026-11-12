@@ -13,6 +13,7 @@
 
 (function () {
   "use strict";
+  const fetch = (...args) => window.SheriffDeskBackend.fetch(...args);
 
   var wired = false;
   var portals = [], PORT = "5173";
@@ -28,7 +29,7 @@
   function clamp(v,lo,hi){ return v<lo?lo:(v>hi?hi:v); }
   function parentOf(p){ return p.split("/").slice(0,-1).join("/"); }
   function status(m){ if (els.status) els.status.textContent = m || ""; }
-  function portalUrl(sub){ return "http://" + S.portal + ".localhost:" + PORT + "/" + sub; }
+  function portalUrl(sub){ return window.SheriffDeskBackend.assetUrl(S.portal, sub); }
 
   // ---------- API ----------
   function mutation(url, options){

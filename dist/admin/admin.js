@@ -38,7 +38,7 @@
       let path = scalar(logo && logo[1]) || 'logo.png';
       path = path.replace(/^\/?public\//, '').replace(/^\/+/, '');
       if (path.includes('..') || /[\\:]/.test(path)) path = 'logo.png';
-      const url = new URL('http://' + portal + '.localhost:' + PORT + '/public/' + path);
+      const url = new URL(window.SheriffDeskBackend.assetUrl(portal, 'public/' + path), location.href);
       portalContext.setMetadata(portal, {name:scalar(name && name[1]) || portal, logo:url.href});
     } catch (_) { /* The shared picker keeps a readable name/initials fallback. */ }
   }
@@ -188,10 +188,11 @@
       const node = tmpl.content.cloneNode(true);
       node.querySelector('.portal-name').textContent = name;
 
-      const host = name + '.localhost:' + PORT;
+      const siteUrl = window.SheriffDeskBackend.portalUrl(name);
+      const host = new URL(siteUrl).host;
       const a = node.querySelector('.portal-host');
       a.textContent = host;
-      a.href = 'http://' + host;
+      a.href = siteUrl;
       a.target = '_blank';
       a.rel = 'noopener';
 
@@ -216,18 +217,18 @@
       if (portalNames.length === 0) {
         emptyState('No portals found in site/portals. Create one to get started.');
         statPortals.textContent = '0';
-        if (currentViewKey() !== 'snapshots') maybeAutoWizard();
+        if (currentViewKey() !== 'snapshots' && window.SheriffDeskBackend.capabilities.siteLifecycle) maybeAutoWizard();
       } else {
         renderPortals(portalNames);
         statPortals.textContent = String(portalNames.length) + ' detected';
         statPortals.classList.remove('placeholder');
       }
-      if (window.SheriffSnapshots) window.SheriffSnapshots.setSourcePortals(portalNames, preferred);
-      else portalContext.setPortals(portalNames, {preferred});
+      if (window.SheriffSnapshots) window.SheriffSnapshots.setSourcePortals(portalNames, preferred || window.SheriffDeskBackend.preferredPortal);
+      else portalContext.setPortals(portalNames, {preferred:preferred || window.SheriffDeskBackend.preferredPortal});
       loadPortalIdentity(portalContext.current);
       fillPortalSelect();
     } catch (err) {
-      emptyState('API unreachable — start Sheriff with goblin start from dist.');
+      emptyState(window.SheriffDeskBackend.mode === 'cloud' ? (err.message || 'Cloud could not load your sites.') : 'API unreachable — start Sheriff with goblin start from dist.');
       statPortals.textContent = 'Unknown';
     }
   }
@@ -282,10 +283,11 @@
       const node = manageTmpl.content.cloneNode(true);
       node.querySelector('.portal-name').textContent = name;
 
-      const host = name + '.localhost:' + PORT;
+      const siteUrl = window.SheriffDeskBackend.portalUrl(name);
+      const host = new URL(siteUrl).host;
       const a = node.querySelector('.portal-host');
       a.textContent = host;
-      a.href = 'http://' + host;
+      a.href = siteUrl;
       a.target = '_blank';
       a.rel = 'noopener';
 
@@ -295,6 +297,8 @@
       node.querySelector('.portal-build').addEventListener('click', e => {
         buildPortal(name, e.currentTarget);
       });
+      node.querySelector('.portal-rename').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
+      node.querySelector('.portal-delete').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
       node.querySelector('.portal-rename').addEventListener('click', () => {
         openRenamePortal(name);
       });
@@ -505,6 +509,8 @@
   const edDirty = document.getElementById('ed-dirty');
   const edStatus = document.getElementById('ed-status');
   const edSave = document.getElementById('ed-save');
+  const edBuildPage = document.getElementById('ed-build-page');
+  const edBuildPortal = document.getElementById('ed-build-portal');
   const edText = document.getElementById('ed-text');
   const edOpenPortal = document.getElementById('ed-open-portal');
   const newBtn = document.getElementById('ed-new');
@@ -527,12 +533,11 @@
   let expandedFolders = new Set();
   let edCwd = 'content';
   let renamingPath = null;
-  let fileOperationBusy = false;
+  let fileOperationBusy = false, editorBusy = false;
 
   function setDirty(v) {
     dirty = v;
     edDirty.hidden = !v;
-    edSave.disabled = !v || !openFile;
     updateFileActions();
   }
 
@@ -551,7 +556,7 @@
 
   function updatePortalLink() {
     if (edPortal.value) {
-      edOpenPortal.href = 'http://' + edPortal.value + '.localhost:' + PORT;
+      edOpenPortal.href = window.SheriffDeskBackend.portalUrl(edPortal.value);
       edOpenPortal.hidden = false;
     } else {
       edOpenPortal.hidden = true;
@@ -693,7 +698,7 @@
   }
 
   async function openVersionedPage(page, version, savedContent) {
-    if (!confirmDiscard()) return;
+    if (savedContent === undefined && (editorBusy || !confirmDiscard())) return;
     const info = versionedPages[page];
     if (!info) { say('No versions for this page'); return; }
     const avail = availableVersions(page);
@@ -840,6 +845,7 @@
   // first use (page.md -> page/<default>/R1.md), then the new version's R1 is
   // seeded from the current content. Foldered pages just get a new version.
   async function addVersion(ctx, newVer) {
+    if (editorBusy) return;
     if (dirty) { say('Save your changes before adding a version'); return; }
     const portal = edPortal.value;
     const content = edText.value;
@@ -881,54 +887,24 @@
     return saveMode;
   }
 
-  // Save the editor content as the next immutable revision. A flat page folds
-  // first: page.md -> page/<default>/R1.md (old) + R2.md (edited).
-  async function saveNewRevision() {
+  // Pick the next revision path; the chosen action saves/builds it once.
+  async function nextRevisionTarget(portal) {
     const ctx = openVersionCtx;
-    const portal = edPortal.value;
-    const content = edText.value;
-    const q = (path) => 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent(path);
-    edSave.disabled = true;
-    edSave.textContent = 'Saving…';
-    setStatus('building…');
-    const started = Date.now();
-    try {
-      let openVer, openRev;
-      if (ctx.flat) {
-        const base = docConfig.default || docConfig.versions[0];
-        const flatPath = ctx.page + '.md';
-        // R1 = the original content on disk; move preserves it
-        const mv = await fetch('/api/file?move&' + encodeURIComponent(portal)
-          + '&' + encodeURIComponent(flatPath) + '&' + encodeURIComponent(ctx.page + '/' + base + '/R1.md'));
-        const mvData = await mv.json();
-        if (mvData.ok === false) { setStatus('save failed', 'err'); say(mvData.stderr || 'Could not convert page'); setDirty(true); return; }
-        // R2 = the edited content
-        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + base + '/R2.md'),
-          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
-        const wrData = await wr.json();
-        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
-        openVer = base; openRev = 2;
-      } else {
-        const revisions = versionedPages[ctx.page] && versionedPages[ctx.page].versions[ctx.version] || [];
-        const next = Math.max(ctx.revNum || 0, ...revisions.map(r => r.num)) + 1;
-        const wr = await fetch('/api/file?write&' + q(ctx.page + '/' + ctx.version + '/R' + next + '.md'),
-          { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content });
-        const wrData = await wr.json();
-        if (buildFailed(wrData)) { setStatus('build failed', 'err'); if (wrData.stderr) say(String(wrData.stderr).trim().slice(0,120)); setDirty(true); return; }
-        openVer = ctx.version; openRev = next;
-      }
-      const secs = ((Date.now() - started) / 1000).toFixed(1);
-      setStatus('✓ saved R' + openRev + ' · page built in ' + secs + 's', 'ok');
-      setDirty(edText.value !== content);
-      await loadFiles();
-      await openVersionedPage(ctx.page, openVer, content);
-    } catch (err) {
-      setStatus('API unreachable', 'err');
-      setDirty(true);
-    } finally {
-      edSave.textContent = 'Save & build';
-      edSave.disabled = !dirty;
+    if (ctx.flat) {
+      const version = docConfig.default || docConfig.versions[0];
+      const response = await fetch('/api/file?move&' + encodeURIComponent(portal)
+        + '&' + encodeURIComponent(ctx.page + '.md')
+        + '&' + encodeURIComponent(ctx.page + '/' + version + '/R1.md'));
+      const data = await apiJson(response);
+      if (!response.ok || data.ok === false) throw Error(data.stderr || 'Could not create revision');
+      openFile = ctx.page + '/' + version + '/R1.md';
+      openVersionCtx = {page:ctx.page,version,revNum:1,flat:false};
+      editorGeneration++; renderVersionBar();
+      return {path:ctx.page + '/' + version + '/R2.md',page:ctx.page,version};
     }
+    const revisions = versionedPages[ctx.page]?.versions[ctx.version] || [];
+    const next = Math.max(ctx.revNum || 0,...revisions.map(r => r.num)) + 1;
+    return {path:ctx.page + '/' + ctx.version + '/R' + next + '.md',page:ctx.page,version:ctx.version};
   }
 
   const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'ico']);
@@ -1215,6 +1191,10 @@
   }
 
   function updateFileActions() {
+    const busy = editorBusy || fileOperationBusy;
+    edSave.disabled = busy || !dirty || !openFile;
+    edBuildPage.disabled = busy || !openFile || !/^content\/.+\.md$/i.test(openFile);
+    edBuildPortal.disabled = busy || !openFile;
     window.dispatchEvent(new Event('sheriff:editor-change'));
   }
 
@@ -1362,6 +1342,7 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fileMenu.hidden) hideFileMenu(); });
 
   async function openPath(path) {
+    if (editorBusy) return;
     if (!confirmDiscard()) return;
     window.SheriffBuildLog.showEditor();
     const portal = edPortal.value, portalRevision = portalContext.revision;
@@ -1403,44 +1384,56 @@
     }
   }
 
-  async function saveFile() {
-    if (window.SheriffContentImages && window.SheriffContentImages.isBusy()) { say('Wait for the image operation to finish.'); return; }
-    if (!openFile || edSave.disabled || fileOperationBusy) return;
-    if (versionsActive() && effectiveSaveMode() === 'revision') { return saveNewRevision(); }
-    const content = edText.value;
-    edSave.disabled = true;
-    edSave.textContent = 'Saving…';
-    setStatus('building…');
-    const started = Date.now();
+  async function saveFile(build = 'none') {
+    if (window.SheriffContentImages?.isBusy()) { say('Wait for the image operation to finish.'); return; }
+    if (!openFile || editorBusy || fileOperationBusy || (build === 'none' && !dirty)) return;
+    if (build === 'page' && !/^content\/.+\.md$/i.test(openFile)) return;
+    const portal = edPortal.value, content = edText.value, started = Date.now();
+    const button = build === 'page' ? edBuildPage : build === 'portal' ? edBuildPortal : edSave;
+    const originalLabel = button.textContent;
+    const release = portalContext.lock();
+    let target = {path:openFile}, saved = false;
+    editorBusy = true; updateFileActions();
+    button.textContent = build === 'none' ? 'Saving…' : 'Building…';
+    setStatus(build === 'none' ? 'saving…' : 'saving and building ' + (build === 'page' ? 'page…' : 'portal…'));
     try {
-      const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(openFile);
-      const res = await fetch('/api/file?write&' + q, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: content
+      if (dirty && versionsActive() && effectiveSaveMode() === 'revision') target = await nextRevisionTarget(portal);
+      const q = new URLSearchParams({portal,path:target.path,build});
+      const response = await fetch('/api/file?write&' + q, {
+        method:'POST',headers:{'Content-Type':'text/plain'},body:content
       });
-      const data = await res.json();
-      if (buildFailed(data)) {
-        setStatus('build failed', 'err');
-        if (data.stderr) say(String(data.stderr).trim().slice(0, 120));
-        setDirty(true);
+      const data = await apiJson(response);
+      saved = data.saved === true || (response.ok && !buildFailed(data));
+      if (saved) {
+        setDirty(edText.value !== content);
+        if (target.page) {
+          openFile = target.path;
+          await loadFiles();
+          await openVersionedPage(target.page,target.version,content);
+        }
+      }
+      if (!response.ok || buildFailed(data)) {
+        setStatus((saved ? 'Saved · ' : '') + (build === 'none' ? 'save failed' : Number.isFinite(data.upload_ms) ? 'upload failed' : 'build failed'),'err');
+        if (!saved) setDirty(true);
+        if (data.stderr) say(String(data.stderr).trim().slice(0,160));
         return;
       }
-      const secs = ((Date.now() - started) / 1000).toFixed(1);
-      const isPage = openFile.startsWith('content/') && openFile.endsWith('.md');
-      setStatus('✓ saved · ' + (isPage ? 'page built' : 'portal rebuilt') + ' in ' + secs + 's', 'ok');
-      setDirty(edText.value !== content);
-    } catch (err) {
-      setStatus('API unreachable', 'err');
-      setDirty(true);
+      const timing = window.SheriffBuildLog.duration(data,Date.now()-started);
+      setStatus(build === 'none' ? '✓ Saved' : '✓ Saved · ' + (build === 'page' ? 'page' : 'portal')
+        + (data.published ? ' built and published' : ' built') + ' · ' + timing,'ok');
+    } catch (error) {
+      setStatus(error.message || 'API unreachable','err');
+      if (!saved) setDirty(true);
     } finally {
-      edSave.textContent = 'Save & build';
-      edSave.disabled = !dirty;
+      editorBusy = false; button.textContent = originalLabel;
+      release(); updateFileActions();
     }
   }
 
   edText.addEventListener('input', () => setDirty(true));
-  edSave.addEventListener('click', saveFile);
+  edSave.addEventListener('click', () => saveFile('none'));
+  edBuildPage.addEventListener('click', () => saveFile('page'));
+  edBuildPortal.addEventListener('click', () => saveFile('portal'));
 
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -1551,13 +1544,15 @@
     return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
-  // Every folder a page may live in, drawn from the tree's own dir list.
+  // Offer content folders, excluding a versioned document's internal storage.
   // Defaults to content, never to whatever folder was last clicked.
   function npmLoadFolders() {
     npmFolderSel.innerHTML = '';
     const folders = ['content'];
     for (const d of edDirs) {
-      if (d === 'content' || d.startsWith('content/')) folders.push(d);
+      if (d !== 'content' && !d.startsWith('content/')) continue;
+      if (Array.from(versionedPageSet).some(page => d === page || d.startsWith(page + '/'))) continue;
+      folders.push(d);
     }
     for (const name of [...new Set(folders)].sort()) {
       const opt = document.createElement('option');
@@ -1736,7 +1731,7 @@
   let lbCurrent = null;
 
   function mediaPortalUrl(subpath) {
-    return 'http://' + mdPortal.value + '.localhost:' + PORT + '/' + subpath;
+    return window.SheriffDeskBackend.assetUrl(mdPortal.value, subpath);
   }
 
   function sitePath(subpath) {
@@ -2143,7 +2138,7 @@
     const statusEl = document.getElementById(ids.status);
     const saveBtn = document.getElementById(ids.save);
 
-    const ed = { path: null, portal: null, dirty: false, missing: false, saving: false };
+    const ed = { path: null, portal: null, dirty: false, missing: false, saving: false, generation: 0 };
     let loadRequest = 0;
 
     function setDirty(v) {
@@ -2151,6 +2146,7 @@
       dirtyEl.hidden = !v;
       saveBtn.disabled = !v || !ed.path;
       if (opts && opts.onContentChange) opts.onContentChange(text.value, v);
+      window.dispatchEvent(new Event('sheriff:editor-change'));
     }
     function setStatus(msg, cls) {
       statusEl.textContent = msg || '';
@@ -2160,6 +2156,7 @@
     ed.load = async function () {
       if (!sel.value) return;
       const portal = sel.value, request = ++loadRequest;
+      ed.generation++;
       if (opts && opts.onContentChange) opts.onContentChange('', false);
       ed.path = getPath(portal);
       ed.portal = portal;
@@ -2191,23 +2188,23 @@
     ed.save = async function () {
       if (!ed.path || saveBtn.disabled || ed.portal !== sel.value) return;
       ed.saving = true;
+      window.dispatchEvent(new Event('sheriff:editor-change'));
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
       setStatus('rebuilding…');
       const started = Date.now();
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/file?write&' + q, {
+        const res = await fetch('/api/file?write&' + q + '&build=portal', {
           method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text.value
         });
         const data = await apiJson(res);
         if (buildFailed(data)) {
-          setStatus('build failed — ' + String(data.stderr || '').trim().slice(0, 120), 'err');
+          setStatus((Number.isFinite(data.upload_ms) ? 'upload failed — ' : 'build failed — ') + String(data.stderr || '').trim().slice(0, 120), 'err');
           setDirty(true);
           return;
         }
-        const secs = ((Date.now() - started) / 1000).toFixed(1);
-        setStatus('✓ saved · portal rebuilt in ' + secs + 's', 'ok');
+        setStatus('✓ saved · portal rebuilt · ' + window.SheriffBuildLog.duration(data,Date.now()-started), 'ok');
         setDirty(false);
         if (opts && opts.onSave) opts.onSave(ed.portal);
       } catch (err) {
@@ -2215,13 +2212,14 @@
         setDirty(true);
       } finally {
         ed.saving = false;
+        window.dispatchEvent(new Event('sheriff:editor-change'));
         saveBtn.textContent = 'Save & rebuild';
         saveBtn.disabled = !ed.dirty;
       }
     };
 
     ed.reset = function () {
-      loadRequest++; ed.path = null; ed.portal = null; ed.missing = false;
+      loadRequest++; ed.generation++; ed.path = null; ed.portal = null; ed.missing = false;
       text.value = ''; text.disabled = true; setDirty(false); setStatus('');
     };
 
@@ -2318,7 +2316,7 @@
       const img = document.createElement('img');
       img.loading = 'lazy';
       img.alt = t + ' preview';
-      img.src = '/admin/theme-previews/' + t + '.png';
+      img.src = (window.SheriffDeskBackend.mode === 'cloud' ? '/desk/admin/' : '/admin/') + 'theme-previews/' + t + '.png';
       img.addEventListener('error', () => {
         preview.classList.add('noimg');
         preview.innerHTML = '<svg class="star teal"><use href="#badge-star"/></svg>';
@@ -2391,7 +2389,7 @@
       }
 
       say('Switching theme — rebuilding…');
-      res = await fetch('/api/file?write&' + q, {
+      res = await fetch('/api/file?write&' + q + '&build=portal', {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
       });
       data = await apiJson(res);
@@ -2831,7 +2829,7 @@
       markTask('build', 'done');
 
       wzRunTitle.textContent = 'Your site is ready';
-      wzViewSite.href = 'http://' + wiz.slug + '.localhost:' + PORT;
+      wzViewSite.href = window.SheriffDeskBackend.portalUrl(wiz.slug);
       wzDone.hidden = false;
       wiz.running = false;
 
@@ -3219,7 +3217,7 @@
   }
 
   function confirmPortalChange(next) {
-    if (fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
+    if (editorBusy || fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
         || edSave.textContent.includes('Saving') || patSave.textContent.includes('Saving')
         || (window.SheriffInteractive && window.SheriffInteractive.isSaving())) {
       say('Wait for the current save or file operation to finish.'); return false;
@@ -3245,6 +3243,14 @@
     unsavedPanels,
     notify: say,
     contentEditor: () => ({portal:portalContext.current,path:openFile,element:edText,generation:editorGeneration}),
+    navigationEditor: () => ({portal:nvEditor.portal,path:nvEditor.path,element:document.getElementById('nv-text'),generation:nvEditor.generation,busy:nvEditor.saving}),
+    insertNavigation(text, target) {
+      const editor = this.navigationEditor();
+      if (currentViewKey() !== 'navigation' || target.element !== editor.element || target.portal !== portalContext.current || target.portal !== editor.portal || target.path !== editor.path || target.generation !== editor.generation || editor.element.disabled || editor.busy) return false;
+      editor.element.setRangeText(text, target.start, target.end, 'end');
+      editor.element.dispatchEvent(new Event('input', {bubbles:true}));
+      return true;
+    },
     patternHeader: parsePatternHeader,
     patternToken,
     patternSource: body => setPatternMode(body, 'template'),

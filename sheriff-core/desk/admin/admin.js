@@ -1544,13 +1544,15 @@
     return s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
-  // Every folder a page may live in, drawn from the tree's own dir list.
+  // Offer content folders, excluding a versioned document's internal storage.
   // Defaults to content, never to whatever folder was last clicked.
   function npmLoadFolders() {
     npmFolderSel.innerHTML = '';
     const folders = ['content'];
     for (const d of edDirs) {
-      if (d === 'content' || d.startsWith('content/')) folders.push(d);
+      if (d !== 'content' && !d.startsWith('content/')) continue;
+      if (Array.from(versionedPageSet).some(page => d === page || d.startsWith(page + '/'))) continue;
+      folders.push(d);
     }
     for (const name of [...new Set(folders)].sort()) {
       const opt = document.createElement('option');

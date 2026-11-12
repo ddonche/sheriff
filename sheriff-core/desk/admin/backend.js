@@ -54,9 +54,33 @@
     }
     return next;
   }
+  async function localBuild(operation,args,options) {
+    const saved=operation==='files.write';
+    if(saved){const response=await nativeFetch(localUrl(operation,{...args,build:'none'}),options);const result=await response.clone().json();if(!response.ok||result.ok===false)return response;}
+    const parameters=new URLSearchParams({portal:args.portal,mode:saved&&args.build==='page'?'page':'portal',target:saved?args.path.replace(/^content\//,''):''});
+    const started=await nativeFetch('/api/build_progress?start&'+parameters,{method:'POST'});
+    const job=await started.json();if(!started.ok||job.ok===false)return json(job,400);
+    let cancelled=false;
+    const encoder=new TextEncoder(),stream=new ReadableStream({
+      async start(controller){
+        const emit=data=>{if(!cancelled)controller.enqueue(encoder.encode(JSON.stringify(data)+'\n'));};
+        emit({phase:'building'});let stdout=0,stderr=0;const deadline=Date.now()+190000;
+        try{for(;;){
+          const response=await nativeFetch('/api/build_progress?status&'+new URLSearchParams({portal:args.portal,id:job.id,stdout:String(stdout),stderr:String(stderr)}),{cache:'no-store'});
+          const progress=await response.json();if(!response.ok||progress.ok===false)throw Error(progress.stderr||'Build progress is unavailable.');
+          for(const name of ['stdout','stderr'])if(progress[name])emit({phase:'building',stream:name,chunk:progress[name]});
+          stdout=progress.next_stdout;stderr=progress.next_stderr;
+          if(progress.done){emit({phase:'result',...progress.result,build_code:progress.result.code,build_stdout:progress.result.stdout||'',build_stderr:progress.result.stderr||'',...(saved?{saved:true}:{})});break;}
+          if(cancelled)return;if(Date.now()>deadline)throw Error('Build progress timed out. Check the server process before retrying.');await new Promise(resolve=>setTimeout(resolve,150));
+        }}catch(error){emit({phase:'result',ok:false,code:1,stderr:error.message,...(saved?{saved:true}:{})});}
+        if(!cancelled)controller.close();
+      },cancel(){cancelled=true;}
+    });
+    return new Response(stream,{headers:{'Content-Type':'application/x-ndjson'}});
+  }
   async function request(operation,args,options) {
     args=args || {};options=options || {};
-    if(!cloud) return nativeFetch(localUrl(operation,args),options);
+    if(!cloud){const building=operation==='portal.build'||(operation==='files.write'&&['page','portal'].includes(args.build));if(building&&host.liveBuilds!==false&&new Headers(options.headers).get('Accept')?.includes('application/x-ndjson'))return localBuild(operation,args,options);return nativeFetch(localUrl(operation,args),options);}
     const current=await cloudSession();
     if(operation==='portals.list') return json({ok:true,portals:current.sites.map(s=>s.subdomain)});
     if(operation==='snapshots.list'&&!args.portal) return json({ok:true,portals:current.sites.map(s=>s.subdomain)});

@@ -126,6 +126,125 @@ act add_terms(terms, text, weight)
     return terms
 xx
 
+/// Read image attributes without confusing src with data-src or quoted content.
+act image_attribute(tag, wanted)
+    chars | :split(tag, "")
+    i | 1
+    spaces | [" ", "\n", "\r", "\t"]
+    while i < chars.len and :has(spaces, chars[i]) == false and chars[i] != ">"
+        i |= i + 1
+    xx
+    while i < chars.len
+        while i < chars.len and :has(spaces, chars[i])
+            i |= i + 1
+        xx
+        name | ""
+        while i < chars.len and :has(spaces, chars[i]) == false and :has(["=", ">", "/"], chars[i]) == false
+            name |= name + chars[i]
+            i |= i + 1
+        xx
+        if name.nix? => return ""
+        while i < chars.len and :has(spaces, chars[i])
+            i |= i + 1
+        xx
+        if i < chars.len and chars[i] == "="
+            i |= i + 1
+            while i < chars.len and :has(spaces, chars[i])
+                i |= i + 1
+            xx
+            value | ""
+            quote | ""
+            if i < chars.len and :has(["\"", "'"], chars[i])
+                quote |= chars[i]
+                i |= i + 1
+            xx
+            while i < chars.len
+                char | chars[i]
+                if !quote.nix? and char == quote => stop
+                if quote.nix? and (:has(spaces, char) or char == ">") => stop
+                value |= value + char
+                i |= i + 1
+            xx
+            if :lower(name) == wanted => return value
+            if !quote.nix? => i |= i + 1
+        xx
+    xx
+    return ""
+xx
+
+act image_url(raw, href)
+    value | scalar(raw)
+    for pair in [["&amp;", "&"], ["&quot;", "\""], ["&#39;", "'"], ["&#x27;", "'"]]
+        :update_where!(value, pair[0], pair[1])
+    xx
+    if value.nix? => return ""
+    if :starts_with(value, "//") or :starts_with(value, "#") or :starts_with(value, "?") => return ""
+    for char in ["\\", "\n", "\r", "\t"]
+        if :has(value, char) => return ""
+    xx
+    lower | :lower(value)
+    if :starts_with(lower, "https://") or :starts_with(lower, "http://") => return value
+    if :has(value, ":") => return ""
+    if :starts_with(value, "/") => return value
+    directory | :dirname(href) ?? ""
+    :update_where!(directory, "\\", "/")
+    if :ends_with(directory, "/") => return "{directory}{value}"
+    return "{directory}/{value}"
+xx
+
+act first_image(html, href)
+    found | ""
+    sweep html
+        "<img" ... ">":
+            if found.nix?
+                tag | self
+                classes | :lower(image_attribute(tag, "class"))
+                src | image_attribute(tag, "src")
+                if :has(classes, "sheriff-icon") == false and :has(:lower(src), "/icons/") == false
+                    found |= image_url(src, href)
+                xx
+            xx
+    xx
+    return found
+xx
+
+/// Inspect article content only, before theme furniture is added. Ignore code
+/// examples and decorative icons; prefer the first vertical infobox image.
+act thumbnail(fm, body, href)
+    chosen | image_url(fm{"thumb"}, href)
+    if !chosen.nix? => return chosen
+    html | :md_to_html(body)
+    sweep html
+        "<pre" ... "</pre>": :update_where!(html, self, " ")
+        "<code" ... "</code>": :update_where!(html, self, " ")
+        "<script" ... "</script>": :update_where!(html, self, " ")
+        "<style" ... "</style>": :update_where!(html, self, " ")
+        "<!--" ... "-->": :update_where!(html, self, " ")
+    xx
+    sweep html
+        "[[image:" ... "]]":
+            segment | self
+            inside | :keep_between(segment, "[[image:", "]]") ?? ""
+            filename | :trim(:split(inside, "|")[0] ?? "")
+            url | image_url("/public/images/{filename}", href)
+            if !filename.nix? and !url.nix?
+                :update_where!(url, "&", "&amp;")
+                :update_where!(url, "\"", "&quot;")
+                :update_where!(html, segment, "<img src=\"{url}\">")
+            else
+                :update_where!(html, segment, " ")
+            xx
+    xx
+    sweep html
+        "<aside" ... "</aside>":
+            if chosen.nix? and :has(self, "sheriff-pattern-vertical")
+                chosen |= first_image(self, href)
+            xx
+    xx
+    if chosen.nix? => chosen |= first_image(html, href)
+    return chosen
+xx
+
 /// Actors only prepare records. They never write files or mutate page tokens.
 act prepare_record(message)
     fm | message{"frontmatter"} ?? {}
@@ -195,6 +314,7 @@ act prepare_record(message)
     :update!(entry{"aliases"}, aliases)
     :update!(entry{"headings"}, headings)
     :update!(entry{"categories"}, categories)
+    :update!(entry{"thumbnail"}, thumbnail(fm, body, href))
     version | scalar(message{"documentation_version"})
     if version == "default" => version |= ""
     :update!(entry{"version"}, version)
@@ -275,7 +395,7 @@ act write_index(portal, records)
         record | by_href{href}
         id | documents.len
         document | {}
-        for key in ["href", "title", "text", "summary", "aliases", "categories", "headings", "version", "default_version"]
+        for key in ["href", "title", "text", "summary", "aliases", "categories", "headings", "version", "default_version", "thumbnail"]
             :update!(document{key}, record{key})
         xx
         :put_last!(documents, document)
@@ -361,9 +481,9 @@ act apply_tokens(ctx)
 <script src="/public/prospector-engine.js" defer></script>
 <script src="/public/prospector.js" data-prospector-client defer></script>
 """
-    register_token("PROSPECTOR", "SEARCH_INPUT", search_input_html)
-    register_token("PROSPECTOR", "SEARCH_SCRIPT", scripts)
-    body |= resolve_token(body)
+    :register_token("PROSPECTOR", "SEARCH_INPUT", search_input_html)
+    :register_token("PROSPECTOR", "SEARCH_SCRIPT", scripts)
+    body |= :resolve_token(body)
     if :has(body, "id=\"sheriff-search-input\"") and :has(body, "data-prospector-client") == false
         if :has(body, "</body>")
             :update_where!(body, "</body>", scripts + "\n</body>")

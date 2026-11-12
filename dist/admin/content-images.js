@@ -1,6 +1,7 @@
 // Insert images into the current Markdown buffer using Desk's shared Media files.
 (function () {
   'use strict';
+  const fetch = (...args) => window.SheriffDeskBackend.fetch(...args);
   const $ = id => document.getElementById(id), context = window.SheriffPortalContext, desk = window.SheriffDesk;
   const extensions = new Set(['png','jpg','jpeg','gif','webp','svg','avif','ico']);
   let target = null, files = [], folders = [], busy = false, loading = false, request = 0, blob = '', fileForPreview = null;
@@ -35,7 +36,7 @@
   function preview() {
     const upload = $('ci-source').value === 'upload', file = $('ci-file').files[0], path = selectedPath();
     if (file !== fileForPreview) { disposePreview(); if (file) { fileForPreview = file; blob = URL.createObjectURL(file); } }
-    const src = upload ? blob : path && target ? 'http://' + target.portal + '.localhost:' + port + '/' + path.split('/').map(encodeURIComponent).join('/') : '';
+    const src = upload ? blob : path && target ? window.SheriffDeskBackend.assetUrl(target.portal, path) : '';
     $('ci-preview-image').hidden = !src; $('ci-preview-placeholder').hidden = !!src;
     $('ci-preview-placeholder').textContent = 'Choose an image to preview it.';
     if (src && $('ci-preview-image').getAttribute('src') !== src) $('ci-preview-image').src = src;
@@ -61,7 +62,7 @@
     const library=$('ci-library'); library.replaceChildren();
     for(const option of Array.from(select.options).filter(option=>option.value)) {
       const button=document.createElement('button'); button.type='button'; button.className='ci-image-tile'; button.dataset.path=option.value; button.setAttribute('aria-label','Select '+option.textContent); button.setAttribute('aria-pressed',String(option.value===select.value));
-      const image=document.createElement('img'); image.alt=''; image.loading='lazy'; image.src='http://'+target.portal+'.localhost:'+port+'/'+option.value.split('/').map(encodeURIComponent).join('/');
+      const image=document.createElement('img'); image.alt=''; image.loading='lazy'; image.src=window.SheriffDeskBackend.assetUrl(target.portal, option.value);
       const label=document.createElement('span'); label.textContent=option.textContent; button.append(image,label); button.addEventListener('click',()=>{select.value=option.value;status('');update();}); library.append(button);
     }
     $('ci-library-empty').hidden=select.options.length>1;

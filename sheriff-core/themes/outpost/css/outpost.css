@@ -1503,6 +1503,12 @@ a.sheriff-missing-link:hover {
   margin: 0;
 }
 
+/* Keep the image's requested alignment after removing article spacing. */
+.sheriff-pattern-value .sheriff-image-block:has(.sheriff-align-center) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .sheriff-pattern-row-wide .sheriff-pattern-value .sheriff-image-block {
   display: block;
   box-sizing: border-box;

@@ -3,7 +3,10 @@
 // Expects goblin_wasm.js and goblin_wasm_bg.wasm at /public/wasm/
 
 (function () {
-  const WASM_PATH = "/public/wasm/goblin_wasm.js"; // copied from glams/goblin_repl/wasm/ by init()
+  if (window.__sheriffGoblinRepl) return;
+  window.__sheriffGoblinRepl = true;
+  const RUNTIME_VERSION = "0.51.26";
+  const WASM_PATH = "/public/wasm/goblin_wasm.js?v=" + RUNTIME_VERSION; // copied from glams/goblin_repl/wasm/ by init()
 
   const STYLE = `
     .goblin-repl-wrap {
@@ -110,7 +113,8 @@
     return output.includes("EOF") || (output.includes("Expected") && output.includes("EOF"));
   }
 
-  function initRepl(container, replInstance) {
+  function initRepl(container, replInstance, version) {
+    container.querySelector(".goblin-repl-title").textContent = "Goblin REPL · v" + version;
     const outputEl = container.querySelector(".goblin-repl-output");
     const inputEl  = container.querySelector(".goblin-repl-input");
     const statusEl = container.querySelector(".goblin-repl-status");
@@ -240,7 +244,12 @@
   function loadWasm() {
     if (wasmReady) return wasmReady;
     wasmReady = import(WASM_PATH).then(function(mod) {
-      return mod.default().then(function() { wasmMod = mod; return mod; });
+      return mod.default({module_or_path: "/public/wasm/goblin_wasm_bg.wasm?v=" + RUNTIME_VERSION}).then(function() {
+        const actual = typeof mod.version === "function" ? mod.version() : "unknown";
+        if (actual !== RUNTIME_VERSION) throw new Error("Expected Goblin " + RUNTIME_VERSION + "; loaded " + actual + ". Rebuild this page to update its REPL assets.");
+        wasmMod = mod;
+        return mod;
+      });
     });
     return wasmReady;
   }
@@ -256,7 +265,7 @@
         ph.outerHTML = buildHTML(id);
         const container = document.getElementById(id);
         const repl = new mod.GoblinRepl();
-        initRepl(container, repl);
+        initRepl(container, repl, mod.version());
       });
     }).catch(function(e) {
       placeholders.forEach(function(ph) {

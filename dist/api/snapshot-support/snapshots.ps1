@@ -1,3 +1,4 @@
+$script:snapshotDir = if ($env:SHERIFF_RUNTIME_MODE -eq 'cloud') { 'site/.desk/snapshots' } else { 'data/snapshots' }
 # Native Windows ZIP support for Desk. All inputs arrive through environment
 # variables; user names and paths are never interpolated into shell commands.
 $ErrorActionPreference = 'Stop'
@@ -34,8 +35,8 @@ function Assert-Portal([string]$value) {
 }
 function Read-Snapshot([string]$folder, [string]$snapshotId) {
     if ($snapshotId -notmatch '^[a-f0-9]{32}$') { throw 'Invalid snapshot ID.' }
-    $json = Join-Workspace "data/snapshots/$script:portal/$snapshotId.json"
-    $zip = Join-Workspace "data/snapshots/$script:portal/$snapshotId.zip"
+    $json = Join-Workspace "$script:snapshotDir/$script:portal/$snapshotId.json"
+    $zip = Join-Workspace "$script:snapshotDir/$script:portal/$snapshotId.zip"
     if (-not [IO.File]::Exists($json) -or -not [IO.File]::Exists($zip)) { throw 'Snapshot not found.' }
     $meta = [IO.File]::ReadAllText($json) | ConvertFrom-Json
     if ($meta.id -ne $snapshotId -or $meta.portal -cne $script:portal) { throw 'Snapshot metadata does not match this portal.' }
@@ -46,7 +47,7 @@ function List-Snapshots([string]$folder) {
     if ([IO.Directory]::Exists($folder)) {
         foreach ($file in Get-ChildItem -LiteralPath $folder -Filter '*.json' -File -Force) {
             $meta = Read-Snapshot $folder $file.BaseName
-            $meta.bytes = (Get-Item -LiteralPath (Join-Workspace "data/snapshots/$script:portal/$($meta.id).zip")).Length
+            $meta.bytes = (Get-Item -LiteralPath (Join-Workspace "$script:snapshotDir/$script:portal/$($meta.id).zip")).Length
             $items += $meta
         }
     }
@@ -82,13 +83,13 @@ function Extract-Snapshot([string]$zip, [string]$destination) {
     } finally { $archive.Dispose() }
 }
 try {
-    $base = Join-Workspace 'data/snapshots'
+    $base = Join-Workspace $script:snapshotDir
     if (-not $script:portal -and $script:action -eq 'list') {
         $catalog = @()
         if ([IO.Directory]::Exists($base)) {
             foreach ($folder in Get-ChildItem -LiteralPath $base -Directory -Force) {
                 Assert-Portal $folder.Name
-                $checked = Join-Workspace "data/snapshots/$($folder.Name)"
+                $checked = Join-Workspace "$script:snapshotDir/$($folder.Name)"
                 if (@(Get-ChildItem -LiteralPath $checked -Filter '*.json' -File -Force).Count) { $catalog += $folder.Name }
             }
         }
@@ -96,12 +97,12 @@ try {
     } else {
         Assert-Portal $script:portal
         $source = Join-Workspace "site/portals/$script:portal"
-        $folder = Join-Workspace "data/snapshots/$script:portal"
+        $folder = Join-Workspace "$script:snapshotDir/$script:portal"
         if ($script:action -eq 'list') { $out = @{ok=$true; snapshots=@(List-Snapshots $folder)} }
         else {
             if ($script:action -eq 'create') { Check-Source $source; [IO.Directory]::CreateDirectory($folder) | Out-Null }
             if (-not [IO.Directory]::Exists($folder)) { throw 'Snapshot not found.' }
-            $lockPath = Join-Workspace "data/snapshots/$script:portal/.operation.lock"
+            $lockPath = Join-Workspace "$script:snapshotDir/$script:portal/.operation.lock"
             try { $script:lock = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
             catch { throw 'Another snapshot operation is running for this portal.' }
             switch ($script:action) {
@@ -112,9 +113,9 @@ try {
                     if ($body) { $request = $body | ConvertFrom-Json; if ($null -ne $request.name) { if ($request.name -isnot [string]) { throw 'Snapshot name must be text.' }; $name = $request.name.Trim() } }
                     if ($name.Length -gt 160) { throw 'Snapshot name must be 160 characters or fewer.' }
                     $newId = [Guid]::NewGuid().ToString('N')
-                    $zip = Join-Workspace "data/snapshots/$script:portal/$newId.zip"
-                    $tempZip = Join-Workspace "data/snapshots/$script:portal/$newId.partial"
-                    $json = Join-Workspace "data/snapshots/$script:portal/$newId.json"
+                    $zip = Join-Workspace "$script:snapshotDir/$script:portal/$newId.zip"
+                    $tempZip = Join-Workspace "$script:snapshotDir/$script:portal/$newId.partial"
+                    $json = Join-Workspace "$script:snapshotDir/$script:portal/$newId.json"
                     try {
                         [IO.Compression.ZipFile]::CreateFromDirectory($source, $tempZip, [IO.Compression.CompressionLevel]::Optimal, $false)
                         [IO.File]::Move($tempZip, $zip)
@@ -129,21 +130,21 @@ try {
                 }
                 'download' {
                     $meta = Read-Snapshot $folder $script:id
-                    $zip = Join-Workspace "data/snapshots/$script:portal/$script:id.zip"
+                    $zip = Join-Workspace "$script:snapshotDir/$script:portal/$script:id.zip"
                     $out = @{ok=$true; filename="$script:portal-$script:id.zip"; zip_base64=[Convert]::ToBase64String([IO.File]::ReadAllBytes($zip))}
                 }
                 'delete' {
                     $meta = Read-Snapshot $folder $script:id
-                    [IO.File]::Delete((Join-Workspace "data/snapshots/$script:portal/$script:id.zip"))
-                    [IO.File]::Delete((Join-Workspace "data/snapshots/$script:portal/$script:id.json"))
+                    [IO.File]::Delete((Join-Workspace "$script:snapshotDir/$script:portal/$script:id.zip"))
+                    [IO.File]::Delete((Join-Workspace "$script:snapshotDir/$script:portal/$script:id.json"))
                     $out = @{ok=$true}
                 }
                 'restore' {
                     $meta = Read-Snapshot $folder $script:id
-                    $zip = Join-Workspace "data/snapshots/$script:portal/$script:id.zip"
+                    $zip = Join-Workspace "$script:snapshotDir/$script:portal/$script:id.zip"
                     if ((File-Hash $zip) -cne $meta.sha256) { throw 'Snapshot ZIP failed its integrity check. Current portal files were kept.' }
                     if ([IO.Directory]::Exists($source)) { Check-Source $source }
-                    $stage = Join-Workspace "data/snapshots/$script:portal/.restore-$([Guid]::NewGuid().ToString('N'))"
+                    $stage = Join-Workspace "$script:snapshotDir/$script:portal/.restore-$([Guid]::NewGuid().ToString('N'))"
                     $fresh = [IO.Path]::Combine($stage, 'source')
                     $previous = [IO.Path]::Combine($stage, 'previous')
                     try {

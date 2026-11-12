@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=38">
+<link rel="stylesheet" href="/admin/admin.css?v=40">
 </head>
 <body>
 
@@ -33,6 +33,7 @@
   <header>
     <select id="desk-portal" data-portal-select data-portal-primary aria-label="Active portal"></select>
     <span class="env-tag">LOCAL ADMIN</span>
+    <button class="btn primary" id="desk-publish" type="button" hidden>Publish</button><span id="desk-publish-status" role="status"></span>
 
     <div class="header-actions">
       <a class="btn ghost" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">
@@ -260,7 +261,11 @@
             <span class="ed-status" id="ed-status"></span>
             <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
-            <button class="btn small primary" type="button" id="ed-save" disabled>Save &amp; build</button>
+            <div class="ed-save-actions" role="group" aria-label="Save and build actions">
+              <button class="btn small primary" type="button" id="ed-save" disabled>Save</button>
+              <button class="btn small" type="button" id="ed-build-page" disabled>Build page</button>
+              <button class="btn small" type="button" id="ed-build-portal" disabled>Build portal</button>
+            </div>
           </div>
           <div id="ed-editor-panel" class="ed-editor-panel" role="tabpanel" aria-labelledby="ed-tab-editor">
             <div class="content-tools"><button class="btn small" type="button" id="ci-toggle" aria-expanded="false" aria-controls="ci-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Insert image</button>
@@ -280,7 +285,7 @@
                   <div class="ci-field ci-caption-field"><label for="ci-caption">Caption (optional)</label><input id="ci-caption" type="text" placeholder="A description of the image"></div>
                 </div>
                 <div id="ci-newfolder-row" class="ci-newfolder-row" hidden><label for="ci-folder-name">New folder name</label><div><input id="ci-folder-name" type="text" placeholder="characters" autocomplete="off"><button class="btn small" type="button" id="ci-create-folder">Create folder</button><button class="btn small" type="button" id="ci-cancel-folder">Cancel</button></div></div>
-                <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; use Save &amp; build when ready.</p></div></div>
+                <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; save your edits, then use Build page or Build portal when ready.</p></div></div>
                 <p id="ci-status" class="ci-status" role="status" aria-live="polite"></p>
                 <div class="ci-actions"><button class="btn primary small" id="ci-insert" type="submit" disabled>Insert image</button><button class="btn small" type="button" id="ci-cancel">Cancel</button></div>
               </form>
@@ -288,9 +293,9 @@
             <section id="cx-panel" class="content-image-panel content-insert-panel" aria-labelledby="cx-title" hidden>
               <div class="cx-heading"><h3 id="cx-title">Insert icon</h3><a id="cx-manage" href="#icons">Manage icons ↗</a></div>
               <div class="cx-layout">
-                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div></div>
+                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div><button id="cx-more" class="btn small" type="button" hidden>Show more icons</button></div>
                 <div class="cx-detail">
-                  <div id="cx-icon-detail"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
+                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color" id="cx-color-help">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
                   <h4 id="cx-name">Select an icon</h4><p id="cx-description" class="cx-muted"></p>
                   <div id="cx-pattern-detail" hidden><label for="cx-pattern-use">Insert as</label><select id="cx-pattern-use"><option value="token">Reusable token</option><option value="source">Editable copy</option></select></div>
                   <label for="cx-syntax">Will insert</label><textarea id="cx-syntax" readonly spellcheck="false" rows="4"></textarea>
@@ -522,6 +527,8 @@
         <div class="view-head"><h2 class="bracket">Navigation</h2><button class="help-btn" type="button" data-help="navigation" title="Help">?</button></div>
         <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Saving rebuilds the portal.</p>
         <div class="cfg-editor">
+          <div class="content-tools"><button class="btn small" type="button" id="nv-icons-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>Insert icon</button></div>
+          <div id="nv-picker-host"></div>
           <textarea id="nv-text" class="ed-text cfg-text" spellcheck="false" disabled placeholder="Pick a portal."></textarea>
           <div class="cfg-foot">
             <span class="ed-status" id="nv-status"></span>
@@ -587,15 +594,25 @@
     <!-- ============ ICONS VIEW ============ -->
     <section class="view" id="view-icons" hidden>
       <div class="icons-wrap">
-        <div class="view-head"><h2 class="bracket">Icons</h2></div>
-        <p class="icons-intro">Find an icon, choose a color, and copy it into your content.</p>
+        <div class="view-head"><h2 class="bracket">Icons</h2><button class="btn primary small" id="ic-upload-toggle" type="button">Upload PNG</button></div>
+        <p class="icons-intro">Find a Lucide icon or upload a PNG for your portal, choose its size, and copy its syntax.</p>
+        <form id="ic-upload-form" class="panel icons-upload" hidden>
+          <h3>Upload a PNG icon</h3>
+          <p>For the selected portal. PNGs keep their original colors and transparency. Up to 1 MB.</p>
+          <div class="icons-upload-fields"><div><label for="ic-upload-file">PNG file</label><input id="ic-upload-file" type="file" accept="image/png,.png" required></div><div><label for="ic-upload-name">Icon name</label><input id="ic-upload-name" type="text" placeholder="everwind-emblem" pattern="[a-z0-9]+(-[a-z0-9]+)*" required spellcheck="false"></div><img id="ic-upload-preview" alt="New icon preview" hidden></div>
+          <p id="ic-upload-status" role="status" aria-live="polite"></p>
+          <div class="ci-actions"><button class="btn primary small" id="ic-upload-submit" type="submit">Upload icon</button><button class="btn small" id="ic-upload-cancel" type="button">Cancel</button></div>
+        </form>
         <div class="icons-layout">
           <aside class="icons-customizer" aria-label="Icon options and selection">
             <div class="panel icons-options">
               <h3>Appearance</h3>
+              <label for="ic-size">Size <span>(optional, pixels)</span></label>
+              <input id="ic-size" type="number" min="8" max="256" step="1" placeholder="Match text" aria-describedby="ic-size-help">
+              <p id="ic-size-help" class="icons-size-help">8–256 px. Leave empty to use the theme’s inline size.</p>
               <label for="ic-color">Color <span>(optional)</span></label>
               <div class="icons-color-control"><input id="ic-color-picker" type="color" value="#22282c" aria-label="Choose icon color"><input id="ic-color" type="text" placeholder="Inherit styling" maxlength="120" spellcheck="false"></div>
-              <div class="icons-color-footer"><span>Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
+              <div class="icons-color-footer"><span id="ic-color-help">Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
             </div>
             <div class="panel icons-selection" id="ic-selection">
               <div class="icons-selection-preview"><span id="ic-selected-preview" class="icons-preview" role="img" aria-label="Selected icon" hidden></span></div>
@@ -614,6 +631,7 @@
             </div>
             <p id="ic-status" class="icons-status" role="status" aria-live="polite"></p>
             <div class="icons-grid" id="ic-grid" role="group" aria-label="Available icons"></div>
+            <button id="ic-more" class="btn" type="button" hidden>Show more icons</button>
             <div class="icons-empty" id="ic-empty" hidden><p>No matching icons.</p><button id="ic-clear-search" class="btn small" type="button">Clear search</button></div>
           </div>
         </div>
@@ -876,12 +894,13 @@ leadership = [[House Andergard]]</pre>
 <div id="toast" role="status">Not wired up yet</div>
 
 <script src="/admin/help.js?v=17"></script>
+<script src="/admin/backend.js?v=1"></script>
 <script src="/admin/portal-context.js?v=2"></script>
 <script src="/admin/build-log.js?v=2"></script>
-<script src="/admin/admin.js?v=42"></script>
+<script src="/admin/admin.js?v=43"></script>
 <script src="/admin/content-images.js?v=2"></script>
-<script src="/admin/content-inserts.js?v=1"></script>
-<script src="/admin/icons.js?v=2"></script>
+<script src="/admin/content-inserts.js?v=4"></script>
+<script src="/admin/icons.js?v=4"></script>
 <script src="/admin/interactive-editor.js?v=5"></script>
 <script src="/admin/snapshots.js?v=2"></script>
 </body>

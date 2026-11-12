@@ -111,7 +111,7 @@ act render_pattern_block(orientation, name, raw_fields)
     mode | explicit_pattern_mode(raw_fields)
     if mode.nix?
         mode_key | "\{\{\{SHERIFF_PATTERN_MODE::{token_slug}\}\}\}"
-        registered_mode | resolve_token(mode_key)
+        registered_mode | :resolve_token(mode_key)
         mode |= "reusable"
         if registered_mode == "template" => mode |= "template"
     xx
@@ -337,14 +337,14 @@ act publish_patterns(pre_ctx)
                 if token_slug.nix? => skip
 
                 mode | pattern_mode(inner)
-                register_token("SHERIFF_PATTERN_MODE", token_slug, mode)
+                :register_token("SHERIFF_PATTERN_MODE", token_slug, mode)
                 if mode == "template" => skip
 
                 token_name | "PATTERN_{token_slug}"
                 html | render_patterns_in_text(block)
                 if html.nix? => skip
 
-                register_token("SHERIFF", token_name, html)
+                :register_token("SHERIFF", token_name, html)
         xx
     xx
 
@@ -357,7 +357,7 @@ act apply_patterns(ctx)
     body | ctx{"body"} ?? => send ctx
 
     stashed | stash_pattern_code_segments(body)
-    rendered | resolve_token(stashed{"text"})
+    rendered | :resolve_token(stashed{"text"})
     rendered |= render_patterns_in_text(rendered)
     rendered |= restore_pattern_code_segments(rendered, stashed{"stash"})
 

@@ -41,7 +41,7 @@
     if (Object.hasOwn(job,'build_stdout')) {
       if (job.build_stdout) lines.push('',job.build_stdout);
       if (job.build_stderr) lines.push('',job.build_stderr);
-      lines.push('',(job.build_code === 0 ? 'BUILD SUCCESS' : 'BUILD FAILED') + ' · Sheriff: ' + seconds(job.build_ms));
+      if (Number.isFinite(job.build_ms) && Number.isFinite(job.build_code)) lines.push('',(job.build_code === 0 ? 'BUILD SUCCESS' : 'BUILD FAILED') + ' · Sheriff: ' + seconds(job.build_ms));
       if (job.phase === 'uploading' || Number.isFinite(job.upload_ms)) {
         lines.push('Uploading to R2…');
         if (job.upload_stdout) lines.push(job.upload_stdout);
@@ -57,7 +57,7 @@
     return lines.join('\n');
   }
   function setOutput(element, value) {
-    if (element.textContent !== value) { element.textContent = value; element.scrollTop = 0; }
+    if (element.textContent !== value) { const follow=element.scrollHeight-element.clientHeight-element.scrollTop<40,top=element.scrollTop; element.textContent = value; element.scrollTop = follow ? element.scrollHeight : top; }
   }
   function render() {
     for (const panel of panels) {
@@ -139,7 +139,7 @@
     render();
     try {
       const headers = new Headers(options?.headers);
-      if (window.SheriffDeskBackend?.mode === 'cloud') headers.set('Accept','application/x-ndjson');
+      headers.set('Accept','application/x-ndjson');
       const requestOptions = {...options,headers};
       const response = options?.deskOperation ? await window.SheriffDeskBackend.request(options.deskOperation, {portal:info.portal}, requestOptions) : await (window.SheriffDeskBackend ? window.SheriffDeskBackend.fetch(input, requestOptions) : window.fetch(input, requestOptions));
       let data;
@@ -150,7 +150,12 @@
           function event(line) {
             if (!line.trim()) return;
             const update = JSON.parse(line);
-            if (update.phase === 'result') { data = update; final = true; }
+            if (update.stream && typeof update.chunk === 'string') {
+              if(!Object.hasOwn(job,'build_stdout'))job.build_stdout='';
+              const key=(update.phase === 'uploading' ? 'upload_' : 'build_') + (update.stream === 'stderr' ? 'stderr' : 'stdout');
+              job.phase=update.phase;job[key]=(job[key]||'')+update.chunk;render();
+            }
+            else if (update.phase === 'result') { data = update; final = true; }
             else { Object.assign(job,normalize(update)); render(); }
           }
           for (;;) {

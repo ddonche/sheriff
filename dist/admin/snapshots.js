@@ -1,6 +1,7 @@
 // Portal source save points. Shared portal selection comes from portal-context.js.
 (function () {
   'use strict';
+  const fetch = (...args) => window.SheriffDeskBackend.fetch(...args);
   const context = window.SheriffPortalContext;
   const $ = id => document.getElementById(id);
   const dialog = $('ss-dialog');

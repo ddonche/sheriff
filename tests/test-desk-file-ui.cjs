@@ -33,6 +33,7 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
    const endpoint=url.pathname.slice(5);let data={ok:true};
    if(endpoint==='portals')data={portals:['example']};
    else if(endpoint==='list_themes')data={themes:['outpost','compendium']};
+   else if(endpoint==='list_layouts')data={ok:true,layouts:['docs','wiki','blog']};
    else if(endpoint==='file'){
     const segments=url.search.slice(1).split('&'),verb=segments.shift(),args=segments.map(decodeURIComponent);
     const named=new URLSearchParams(segments.join('&'));
@@ -78,6 +79,17 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert.equal(await page.locator('#ed-rename,#ed-delete').count(),0);
  assert.equal(await page.getByRole('button',{name:'Actions for book',exact:true}).count(),1);
  assert.equal(await page.getByRole('button',{name:'Actions for content',exact:true}).count(),0);
+ // New documents belong in content folders, never inside another page's history.
+ async function checkNewPageFolders(){
+  await page.locator('#ed-new').click();
+  assert.deepEqual(await page.locator('#npm-folder option').evaluateAll(options=>options.map(o=>o.value)),['content','content/drafts','content/drafts/nested','content/empty']);
+  assert.equal(await page.locator('#npm-folder').inputValue(),'content');
+  await page.locator('#npm-cancel').click();
+ }
+ await checkNewPageFolders();
+ await page.locator('#ed-raw-revisions').check();
+ await checkNewPageFolders();
+ await page.locator('#ed-raw-revisions').uncheck();
  await openFile('notes.md');await page.locator('#ed-text').fill('Unsaved notes stay open');
  acceptDialog=false;await itemMenu('notes.md','delete');
  assert(files.has('content/notes.md'));assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved notes stay open');
@@ -131,7 +143,7 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert.equal(await page.locator('#ed-text').inputValue(),'Book revision three');
  assert(!files.has('content/handbook/current/R4.md'));
  await page.locator('#ed-text').fill('Current unsaved text');await itemMenu('R1.md','delete');
- await until(()=>![...document.querySelectorAll('.tree-item .node-name')].some(e=>e.textContent==='R1.md'));
+ await until(()=>!document.getElementById('ed-save').disabled && ![...document.querySelectorAll('.tree-item .node-name')].some(e=>e.textContent==='R1.md'));
  assert.equal(await page.locator('#ed-text').inputValue(),'Current unsaved text');
  assert.equal(await page.locator('#ed-save').isDisabled(),false);
  await page.locator('#ed-text').fill('Book revision three');
