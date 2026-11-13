@@ -1,6 +1,6 @@
 # Local source discovery performance correction
 
-Measured: 2026-11-13, Windows, existing Goblin 0.51.26. Local changes only; not deployed to Cloud.
+Measured: 2026-11-13, Windows, existing Goblin 0.51.26. Deployed to Cloud in Fly release 607 on 2026-11-13, alongside the plain-frontmatter seeder correction. Goblin remains 0.51.26 and Cloud remains on one page worker.
 
 ## Finding
 
@@ -37,3 +37,7 @@ Full command time also includes runner startup and the retained-output lifecycle
 - Measurements and output-hash comparisons are retained locally under `C:/Users/kc516/Documents/Sheriff/build-performance-20261113`. No original portal pages or active output were rebuilt during profiling.
 
 The remaining measured work includes page rendering and process/output lifecycle overhead. Larger scaling measurements and the separately deferred Goblin-native helper migration remain pending.
+
+## Deployment verification
+
+Fly release 607 passed the Linux container checks and live health checks. Deployed Core hash: b5b59978982ecb8fa2640773444e765320a28a0e0aee5521018b8609a2e38f3d. All 393 production source files were unchanged. No production portal was built or published during rollout. The performance measurements above are local copied-portal measurements, not a production Cloud benchmark.

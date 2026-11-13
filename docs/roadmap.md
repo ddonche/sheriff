@@ -38,7 +38,7 @@ product backlog is not automatically a requirement for Sheriff 1.0.
 - [x] Remove repeated full-list source-discovery scans using Goblin lookup maps.
   Local copied Programming portal: 184 pages, 9.19s to 4.78s with four workers;
   all 479 output files byte-identical. Version/history, routing, stats, page-build
-  isolation and swarm regressions passed. Local only; see
+  isolation and swarm regressions passed. Deployed in Cloud release 607; see
   [discovery measurements](discovery-performance.md).
 - [ ] Measure full-build scaling with larger synthetic portals (1,000 then 10,000
   pages), worker counts, memory, and per-phase timing. Identify remaining expensive
@@ -49,7 +49,7 @@ product backlog is not automatically a requirement for Sheriff 1.0.
 
 Status: stub notices, generated-listing markers, automatic stub-category membership,
 and explicit CLI/Desk YALL seeding shipped in Cloud release 606 on 2026-11-13.
-The later seeder plain-frontmatter correction is local only. Theme icon settings
+The plain-frontmatter seeder correction shipped in Cloud release 607. Theme icon settings
 are editable in each local portal theme
 `templates.yall`; `wiki_icons.category` and `wiki_icons.stub` support per-site
 overrides. See `docs/stubs.md`.
