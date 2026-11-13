@@ -35,11 +35,14 @@ def run():
             target = safe(rel)
             target.parent.mkdir(parents=True, exist_ok=True)
             safe(rel)
-            with target.open('x', encoding='utf-8', newline='') as stream:
+            try:
+                stream = target.open('x', encoding='utf-8', newline='')
+            except FileExistsError:
+                if target.is_file(): continue
+                raise
+            with stream:
                 stream.write(item['content'])
             created.append(rel)
-        except FileExistsError:
-            pass
         except Exception as error:
             failures.append({'path': item.get('path', ''), 'reason': str(error)})
     return {'ok': not failures, 'saved': True, 'created': len(created), 'paths': created, 'failures': failures, 'stderr': 'Some pages could not be created. Review the failures.' if failures else ''}
