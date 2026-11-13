@@ -395,7 +395,7 @@ act source_row_sets(portal)
         :put_first!(reverse_rows, row)
     xx
 
-    current_version_keys | []
+    current_version_keys | {}
     current_version_rows | []
 
     for row in reverse_rows
@@ -403,12 +403,12 @@ act source_row_sets(portal)
         key | info{"page_rel"} + "||" + info{"version"}
 
         if :has(current_version_keys, key) == false
-            :put_last!(current_version_keys, key)
+            :update!(current_version_keys{key}, true)
             :put_last!(current_version_rows, row)
         xx
     xx
 
-    selected_pages | []
+    selected_pages | {}
     selected_rows | []
 
     for row in current_version_rows
@@ -417,7 +417,7 @@ act source_row_sets(portal)
         version | info{"version"}
 
         if version == default_version and :has(selected_pages, page_rel) == false
-            :put_last!(selected_pages, page_rel)
+            :update!(selected_pages{page_rel}, true)
             :put_last!(selected_rows, row)
         xx
     xx
@@ -427,7 +427,7 @@ act source_row_sets(portal)
         page_rel | info{"page_rel"}
 
         if :has(selected_pages, page_rel) == false
-            :put_last!(selected_pages, page_rel)
+            :update!(selected_pages{page_rel}, true)
             :put_last!(selected_rows, row)
         xx
     xx
@@ -446,24 +446,56 @@ act records_from_rows(rows_to_emit, row_sets, render_all_versions)
     all_rows | row_sets{"all_rows"}
     default_version | row_sets{"default_version"}
 
-    records | []
+    selected_versions | {}
+    for row in selected_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+        if :has(selected_versions, page_rel) == false
+            :update!(selected_versions{page_rel}, info{"version"})
+        xx
+    xx
 
+    /// Index each page's versions once instead of rescanning every page per record.
+    versions_by_page | {}
+    rels_by_page | {}
+    for row in current_version_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+        version | info{"version"}
+        versions | versions_by_page{page_rel} ?? []
+        if :has(versions, version) == false => :put_last!(versions, version)
+        :update!(versions_by_page{page_rel}, versions)
+
+        rel | page_rel
+        if version != (selected_versions{page_rel} ?? ..)
+            rel |= version_variant_rel(page_rel, version)
+        xx
+        rels | rels_by_page{page_rel} ?? []
+        :put_last!(rels, "{version}|||{rel}")
+        :update!(rels_by_page{page_rel}, rels)
+    xx
+
+    history_by_page | {}
+    for row in all_rows
+        info | split_source_row(row)
+        page_rel | info{"page_rel"}
+        version | info{"version"}
+        history_by_version | history_by_page{page_rel} ?? {}
+        history | history_by_version{version} ?? []
+        revision | info{"revision"}
+        path | info{"path"}
+        :put_last!(history, "{revision}|||{path}")
+        :update!(history_by_version{version}, history)
+        :update!(history_by_page{page_rel}, history_by_version)
+    xx
+
+    records | []
     for row in rows_to_emit
         info | split_source_row(row)
         page_rel | info{"page_rel"}
         version | info{"version"}
-        selected_version | selected_version_for_page(page_rel, selected_rows)
-
-        available_versions | []
-        for version_row in current_version_rows
-            version_info | split_source_row(version_row)
-            if version_info{"page_rel"} == page_rel
-                version_name | version_info{"version"}
-                if :has(available_versions, version_name) == false
-                    :put_last!(available_versions, version_name)
-                xx
-            xx
-        xx
+        selected_version | selected_versions{page_rel} ?? ..
+        history_by_version | history_by_page{page_rel} ?? {}
 
         output_rel | page_rel
         if render_all_versions and version != selected_version
@@ -477,9 +509,9 @@ act records_from_rows(rows_to_emit, row_sets, render_all_versions)
             "page_rel": page_rel,
             "doc_version": version,
             "default_doc_version": default_version,
-            "available_doc_versions": available_versions,
-            "version_rel_rows": version_rel_rows_for_page(page_rel, current_version_rows, selected_rows),
-            "revision_history_rows": revision_history_rows_for_version(page_rel, version, all_rows),
+            "available_doc_versions": versions_by_page{page_rel} ?? [],
+            "version_rel_rows": rels_by_page{page_rel} ?? [],
+            "revision_history_rows": history_by_version{version} ?? [],
             "revision": info{"revision"},
             "storage_kind": info{"storage_kind"}
         })

@@ -134,6 +134,7 @@ act metadata_error(metadata)
         if :has(["path", "canonical", "categories"], k) => skip
         if :has(["summary", "author", "author_avatar", "thumb", "date", "layout", "meta_kind", "meta_type", "gloss", "aliases"], k) == false => return "Unknown page setting: {k}."
         value | metadata{k}
+        if :valtype(value) == "str" and (:has(value, "\n") or :has(value, "\r")) => return "{k} must be single-line frontmatter text."
         if k == "aliases"
             if categories(value) == false => return "aliases must be a list of names."
         elif :valtype(value) != "str" and :valtype(value) != "int" and :valtype(value) != "float" and :valtype(value) != "bool"
@@ -314,15 +315,22 @@ act plan(root, portal, source)
     return {"ok":true, "portal":portal, "entries":rows, "creates":creates, "skips":skips, "conflicts":conflicts, "created":0}
 xx
 
+/// Match Sheriff's line-based frontmatter rather than JSON string literals.
+act frontmatter_value(value)
+    if :valtype(value) == "array" => send "[" + :join(value, ", ") + "]"
+    if :valtype(value) == "str" => send value
+    return :str(value)
+xx
+
 act page_source(entry)
-    lines | ["^^^^", "title: " + :json_stringify(entry{"title"}), "canonical: " + :json_stringify(entry{"canonical"}), "layout: wiki"]
+    lines | ["^^^^", "title: " + frontmatter_value(entry{"title"}), "canonical: " + frontmatter_value(entry{"canonical"}), "layout: wiki"]
     metadata | entry{"metadata"}
     for k in :keys(metadata)
         if :has(["path", "canonical", "categories", "layout"], k) => skip
-        :put_last!(lines, k + ": " + :json_stringify(metadata{k}))
+        :put_last!(lines, k + ": " + frontmatter_value(metadata{k}))
     xx
-    if :has(metadata, "layout") => :update_where!(lines, "layout: wiki", "layout: " + :json_stringify(metadata{"layout"}))
-    :put_last!(lines, "categories: " + :json_stringify(entry{"categories"}))
+    if :has(metadata, "layout") => :update_where!(lines, "layout: wiki", "layout: " + frontmatter_value(metadata{"layout"}))
+    :put_last!(lines, "categories: " + frontmatter_value(entry{"categories"}))
     :put_last!(lines, "^^^^")
     :put_last!(lines, "")
     :put_last!(lines, "\{\{\{SHERIFF::STUB\}\}\}")

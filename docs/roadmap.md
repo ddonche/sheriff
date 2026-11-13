@@ -1,7 +1,18 @@
 # Sheriff work list
 
-Updated: 2026-11-12. This records agreed work and its current status. The larger
+Updated: 2026-11-13. This records agreed work and its current status. The larger
 product backlog is not automatically a requirement for Sheriff 1.0.
+
+## Goblin-only feature implementation — deferred migration
+
+- [ ] Replace the existing Python/PowerShell helpers with Goblin implementations
+  after the missing native capabilities are available. The owner authorized keeping
+  the current helpers temporarily on 2026-11-13. Include seeding, build lifecycle,
+  live local logs, snapshots, PNG loading, and the Lucide maintenance importer;
+  remove generated helper copies too. Preserve behavior and verify Windows/Linux.
+  See [Goblin capability requirements](goblin-native-runtime-gaps.md) for the
+  inventory, runtime gaps and acceptance checks. Do not introduce more helper
+  languages or shell-command substitutes.
 
 ## Immediate release work
 
@@ -24,6 +35,11 @@ product backlog is not automatically a requirement for Sheriff 1.0.
   local portal edits remain excluded.
 - [x] Finish release documentation for build workers, output retention, snapshots,
   and local-versus-Cloud behavior; verify docs match the shipped release.
+- [x] Remove repeated full-list source-discovery scans using Goblin lookup maps.
+  Local copied Programming portal: 184 pages, 9.19s to 4.78s with four workers;
+  all 479 output files byte-identical. Version/history, routing, stats, page-build
+  isolation and swarm regressions passed. Local only; see
+  [discovery measurements](discovery-performance.md).
 - [ ] Measure full-build scaling with larger synthetic portals (1,000 then 10,000
   pages), worker counts, memory, and per-phase timing. Identify remaining expensive
   pre-schedule/assets/routing work from measurements. No large-scale performance
@@ -32,8 +48,9 @@ product backlog is not automatically a requirement for Sheriff 1.0.
 ## Site seeding and stub articles — agreed next feature
 
 Status: stub notices, generated-listing markers, automatic stub-category membership,
-and explicit CLI/Desk YALL seeding are implemented and tested locally. These changes
-have not been deployed. Theme icon settings are editable in each local portal theme
+and explicit CLI/Desk YALL seeding shipped in Cloud release 606 on 2026-11-13.
+The later seeder plain-frontmatter correction is local only. Theme icon settings
+are editable in each local portal theme
 `templates.yall`; `wiki_icons.category` and `wiki_icons.stub` support per-site
 overrides. See `docs/stubs.md`.
 
@@ -61,7 +78,7 @@ overrides. See `docs/stubs.md`.
 - [x] Render a theme-styled built-in stub notice with a configurable icon.
 - [x] Make the notice wording configurable through stub_notice.title/text in theme
   templates. Portal overrides inherit per field; the semantic token remains independent
-  of wording and presentation. Tested locally; not yet deployed.
+  of wording and presentation. Deployed in Cloud release 606.
 - [x] Derive stub status centrally in wiki indexing and pass that status to consumers.
   Exclude code examples and comments from marker detection.
 - [x] Automatically derive membership in a dedicated Stub pages category without

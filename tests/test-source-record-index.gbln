@@ -1,0 +1,32 @@
+import "../sheriff-core/modules/trailboss_wiki/routes_json.gbln" as routes
+
+act expect_equal(actual, expected, label)
+    if :json_stringify(actual) != :json_stringify(expected)
+        :say(label)
+        :say(:json_stringify(actual))
+        :say(:json_stringify(expected))
+        :read_text("__source_record_index_regression_failure__")
+    xx
+    return true
+xx
+
+current | "book|||current|||000002|||book/current/R2.md|||book|||revision|||R2"
+current_old | "book|||current|||000001|||book/current/R1.md|||book|||revision|||R1"
+old | "book|||old|||000003|||book/old/R3.md|||book|||revision|||R3"
+old_old | "book|||old|||000001|||book/old/R1.md|||book|||revision|||R1"
+fallback | "fallback|||old|||000001|||fallback/old/R1.md|||fallback|||revision|||R1"
+legacy | "legacy|||current|||000000|||legacy.md|||legacy|||legacy|||R1"
+sets | {"current_version_rows":[current, old, fallback, legacy], "selected_rows":[current, legacy, fallback], "all_rows":[current, current_old, old, old_old, fallback, legacy], "default_version":"current"}
+rendered | routes::records_from_rows(sets{"current_version_rows"}, sets, true)
+expect_equal(rendered[0], {"path":"book/current/R2.md", "rel_no_ext":"book", "output_rel_no_ext":"book", "page_rel":"book", "doc_version":"current", "default_doc_version":"current", "available_doc_versions":["current", "old"], "version_rel_rows":["current|||book", "old|||book__old"], "revision_history_rows":["R2|||book/current/R2.md", "R1|||book/current/R1.md"], "revision":"R2", "storage_kind":"revision"}, "Default version and ordered revision metadata")
+expect_equal(rendered[1]{"output_rel_no_ext"}, "book__old", "Alternate version output")
+expect_equal(rendered[1]{"revision_history_rows"}, ["R3|||book/old/R3.md", "R1|||book/old/R1.md"], "Alternate history is isolated")
+expect_equal(rendered[2]{"output_rel_no_ext"}, "fallback", "Page without the default version retains its selected URL")
+expect_equal(rendered[3]{"storage_kind"}, "legacy", "Legacy storage is preserved")
+expect_equal(rendered[3]{"available_doc_versions"}, ["current"], "Legacy page has its own version list")
+expect_equal(rendered[3]{"revision_history_rows"}, ["R1|||legacy.md"], "Legacy revision metadata")
+selected | routes::records_from_rows(sets{"selected_rows"}, sets, false)
+expect_equal(selected, [rendered[0], rendered[3], rendered[2]], "Selected page order matches the input rows")
+expect_equal(routes::records_from_rows(sets{"current_version_rows"}, sets, true), rendered, "Repeat discovery does not mutate row sets")
+expect_equal(routes::records_from_rows([], {"current_version_rows":[], "selected_rows":[], "all_rows":[], "default_version":"current"}, true), [], "Empty portal")
+:say("Passed 10 Goblin source-record index checks: selected/alternate/fallback versions, ordered isolated histories, legacy pages, repeat calls and empty portals.")
