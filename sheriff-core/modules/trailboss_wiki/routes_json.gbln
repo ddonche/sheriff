@@ -1,3 +1,4 @@
+import modules/trailboss_wiki/stub_source as stub_source
 import build_output as build_output
 import modules/markdown_core/fenced_code as category_code
 
@@ -21,6 +22,48 @@ act load_cfg(portal)
         return nil
     xx
     return :yall_parse_file(path)
+xx
+
+/// Theme icon maps inherit Core defaults and apply portal overrides per entry.
+act load_theme_icon_map(path, section)
+    if :file_exists(path) == false => return {}
+    templates | :yall_parse_file(path)
+    if :valtype(templates) != "map" => return {}
+    icons | templates{section} ?? {}
+    if :valtype(icons) != "map" => return {}
+    return icons
+xx
+
+act resolve_theme_icons(portal, section)
+    if portal.nix? => return {}
+    theme | "outpost"
+    cfg | load_cfg(portal)
+    if :valtype(cfg) == "map" and :valtype(cfg{"theme"}) == "map"
+        name | cfg{"theme"}{"name"} ?? ""
+        if !name.nix? => theme |= strip_config_quotes(name)
+    xx
+    icons | load_theme_icon_map("../sheriff-core/themes/{theme}/templates.yall", section)
+    overrides | load_theme_icon_map("../site/portals/{portal}/themes/{theme}/templates.yall", section)
+    for pair in overrides
+        :update!(icons{pair[0]}, pair[1])
+    xx
+    return icons
+xx
+
+act resolve_wiki_icons(portal)
+    icons | {"category":"folder", "stub":"file-pen-line"}
+    for pair in resolve_theme_icons(portal, "wiki_icons")
+        :update!(icons{pair[0]}, pair[1])
+    xx
+    return icons
+xx
+
+act theme_icon_name(value)
+    if :valtype(value) != "str" => return ""
+    name | strip_config_quotes(:trim(value))
+    if name.nix? => return ""
+    if :slug(name) != name => return ""
+    return name
 xx
 
 act get_site_url(cfg)
@@ -603,6 +646,18 @@ act content_categories(text)
     return merge_categories([], names)
 xx
 
+/// Reserved category membership follows the marker, including removal. Source
+/// frontmatter is never edited; this list is used only in ctx/routes/indexes.
+act derive_stub_categories(categories, is_stub)
+    out | []
+    for name in merge_categories(categories, [])
+        if normalize_to_slug(name) == "stub-pages" => skip
+        :put_last!(out, name)
+    xx
+    if is_stub => :put_last!(out, "Stub pages")
+    return out
+xx
+
 act collect_page_categories(ctx)
     fm | ctx{"frontmatter"} ?? {}
     categories | fm{"categories"} ?? []
@@ -611,6 +666,9 @@ act collect_page_categories(ctx)
     else
         categories |= merge_categories(categories, [])
     xx
+    is_stub | stub_source::has_stub(ctx{"body"})
+    categories |= derive_stub_categories(categories, is_stub)
+    :update!(ctx{"is_stub"}, is_stub)
     :update!(fm{"categories"}, categories)
     :update!(ctx{"frontmatter"}, fm)
     return ctx
@@ -888,7 +946,7 @@ xx
 
 /// Shared generated directories: real headings feed Scout's existing TOC.
 /// Sort by letter and case-insensitive display title; preserve canonical targets.
-act render_alphabetical_index(items)
+act render_alphabetical_index(items, anchor_prefix | "", heading_level | 2, column_threshold | 12)
     if items.nix? => return ""
     if items.len == 0 => return ""
 
@@ -914,7 +972,7 @@ act render_alphabetical_index(items)
     xx
 
     directory_class | "sheriff-directory"
-    if items.len >= 12
+    if items.len >= column_threshold
         directory_class |= "{directory_class} sheriff-directory-columns"
     xx
     lines | ["<div class=\"{directory_class}\">", ""]
@@ -932,8 +990,12 @@ act render_alphabetical_index(items)
             xx
             :put_last!(lines, "<section class=\"sheriff-directory-group\">")
             :put_last!(lines, "")
-            if bucket == "#"
-                /// Markdown treats a bare # as a closing marker, so supply its heading.
+            if !anchor_prefix.nix? or heading_level != 2
+                anchor | :lower(bucket)
+                if bucket == "#" => anchor |= "other"
+                if !anchor_prefix.nix? => anchor |= anchor_prefix + "-" + :lower(anchor)
+                :put_last!(lines, "<h{heading_level}><a href=\"#{anchor}\" aria-hidden=\"true\" class=\"anchor\" id=\"{anchor}\"></a>{bucket}</h{heading_level}>")
+            elif bucket == "#"
                 :put_last!(lines, "<h2><a href=\"#other\" aria-hidden=\"true\" class=\"anchor\" id=\"other\"></a>#</h2>")
             else
                 :put_last!(lines, "## {bucket}")
@@ -1172,6 +1234,9 @@ act build_routes_json_for_portal(portal)
             categories |= merge_categories(categories, content_categories(md_text))
         xx
 
+        is_stub | stub_source::has_stub(md_text)
+        categories |= derive_stub_categories(categories, is_stub)
+
         if canonical_slug.nix?
             canonical_slug |= slug
 
@@ -1223,6 +1288,7 @@ act build_routes_json_for_portal(portal)
             "href":      href_abs,
             "rel":       rel_no_ext,
             "source_path": src_norm,
+            "is_stub": is_stub,
             "storage_kind": storage_kind,
             "doc_version": record{"doc_version"},
             "default_doc_version": record{"default_doc_version"},
@@ -1325,6 +1391,38 @@ act clean_category_pages_once(pre_ctx)
     return pre_ctx
 xx
 
+/// Category identity comes from its route, independently of its parent memberships.
+act route_is_category(route)
+    canonical | :lower(route{"canonical_slug"} ?? "")
+    rel | :lower(route{"rel"} ?? "")
+    return :starts_with(canonical, "category:") or :starts_with(rel, "categories/")
+xx
+
+act category_directory_link(title, canonical, icon | "folder")
+    if :starts_with(:lower(canonical), "category:") == false => canonical |= category_canonical(title)
+    icon_name | theme_icon_name(icon)
+    if icon_name.nix? => return "[[:{canonical}|{title}]]"
+    return "<span class=\"sheriff-directory-category-icon\" role=\"img\" aria-label=\"Category\" title=\"Category\">[[icon|{icon_name}]]</span> [[:{canonical}|{title}]]"
+xx
+
+/// The page link remains unchanged; this accessible decoration reflects route status.
+act directory_stub_marker(route, wiki_icons)
+    if route_is_category(route) or route{"is_stub"} != true => return ""
+    icon | theme_icon_name(wiki_icons{"stub"})
+    if icon.nix? => return ""
+    return "<span class=\"sheriff-directory-stub-icon\" role=\"img\" aria-label=\"Stub article\" title=\"Stub article — needs expansion\"><span aria-hidden=\"true\">[[icon|{icon}]]</span></span> "
+xx
+
+act category_directory_section(title, anchor, items, letter_prefix)
+    if items.nix? => return ""
+    heading | "<h2><a href=\"#{anchor}\" aria-hidden=\"true\" class=\"anchor\" id=\"{anchor}\"></a>{title}</h2>"
+    listing | render_alphabetical_index(items, letter_prefix, 3, 3)
+    if anchor == "subcategories"
+        return "<section class=\"sheriff-category-section\" data-directory-kind=\"{anchor}\" aria-label=\"{title}\">\n\n<details class=\"sheriff-subcategories\" open>\n<summary>{heading}</summary>\n\n{listing}\n\n</details>\n\n</section>"
+    xx
+    return "<section class=\"sheriff-category-section\" data-directory-kind=\"{anchor}\" aria-label=\"{title}\">\n\n{heading}\n\n{listing}\n\n</section>"
+xx
+
 act build_category_pages_once(pre_ctx)
     if pre_ctx.nix?
         send pre_ctx
@@ -1335,6 +1433,8 @@ act build_category_pages_once(pre_ctx)
     if portal.nix?
         send pre_ctx
     xx
+
+    wiki_icons | resolve_wiki_icons(portal)
 
     routes_path  | "../site/portals/{portal}/routes.json"
     content_root | "../site/portals/{portal}/content"
@@ -1424,8 +1524,9 @@ categories: []
         for row in sorted_category_rows
             category_slug | :keep_before(row, "|||") ?? => skip
             category_name | :keep_after(row, "|||") ?? => skip
-            category_link | "[[:Category:{category_name}|{category_name}]]"
+            category_link | category_directory_link(category_name, category_canonical(category_name), wiki_icons{"category"})
             category_count | 0
+            subcategory_count | 0
 
             for route in routes
                 if route.nix? => skip
@@ -1436,7 +1537,12 @@ categories: []
                 for route_category in route_categories
                     route_category_slug | normalize_to_slug(route_category)
                     if route_category_slug == category_slug
-                        category_count += 1
+                        if route_is_category(route)
+                            subcategory_count += 1
+                        else
+                            category_count += 1
+                        xx
+                        stop
                     xx
                 xx
             xx
@@ -1446,7 +1552,17 @@ categories: []
                 page_word |= "page"
             xx
 
-            :put_last!(index_items, {"title": category_name, "line": "* {category_link} - {category_count} {page_word}"})
+            description | "{category_count} {page_word}"
+            if subcategory_count > 0
+                subcategory_word | "subcategories"
+                if subcategory_count == 1 => subcategory_word |= "subcategory"
+                if category_count == 0
+                    description |= "{subcategory_count} {subcategory_word}"
+                else
+                    description |= "{description}, {subcategory_count} {subcategory_word}"
+                xx
+            xx
+            :put_last!(index_items, {"title": category_name, "line": "* {category_link} - {description}"})
         xx
     xx
 
@@ -1459,6 +1575,7 @@ categories: []
         category_path | "{category_root}/{category_slug}.md"
 
         page_rows | []
+        subcategory_rows | []
 
         for route in routes
             if route.nix? => skip
@@ -1478,7 +1595,12 @@ categories: []
             if route_has_category
                 route_title | route{"title"} ?? route{"slug"} ?? "Untitled"
                 canonical | route{"canonical_slug"} ?? route{"slug"} ?? route_title
-                :put_last!(page_rows, {"title": route_title, "line": "* [[{canonical}|{route_title}]]"})
+                if route_is_category(route)
+                    category_link | category_directory_link(route_title, canonical, wiki_icons{"category"})
+                    :put_last!(subcategory_rows, {"title": route_title, "line": "* {category_link}"})
+                else
+                    :put_last!(page_rows, {"title": route_title, "line": "* " + directory_stub_marker(route, wiki_icons) + "[[{canonical}|{route_title}]]"})
+                xx
             xx
         xx
 
@@ -1506,11 +1628,12 @@ categories: []
         category_frontmatter |= category_frontmatter_canonical(category_frontmatter, category_name)
         category_lines | [category_frontmatter]
 
-        if page_rows.len == 0
+        if page_rows.nix? and subcategory_rows.nix?
             :put_last!(category_lines, "")
             :put_last!(category_lines, "No pages in this category.")
         else
-            :put_last!(category_lines, render_alphabetical_index(page_rows))
+            :put_last!(category_lines, category_directory_section("Subcategories", "subcategories", subcategory_rows, "subcategories"))
+            :put_last!(category_lines, category_directory_section("Pages", "pages", page_rows, ""))
         xx
 
         :write_text!(category_path, :join(category_lines, "\n"))
@@ -1628,6 +1751,8 @@ act build_all_pages_once(pre_ctx)
         send pre_ctx
     xx
 
+    wiki_icons | resolve_wiki_icons(portal)
+
     routes_path  | "../site/portals/{portal}/routes.json"
     content_root | "../site/portals/{portal}/content"
     out_path     | "{content_root}/all_pages.md"
@@ -1679,7 +1804,12 @@ summary: Alphabetical index of all pages.
         route_title | route{"title"}
         canonical_slug | route{"canonical_slug"} ?? slug
 
-        :put_last!(page_rows, {"title": route_title, "line": "* [[{canonical_slug}|{route_title}]]"})
+        if route_is_category(route)
+            category_link | category_directory_link(route_title, canonical_slug, wiki_icons{"category"})
+            :put_last!(page_rows, {"title": route_title, "line": "* {category_link}"})
+        else
+            :put_last!(page_rows, {"title": route_title, "line": "* " + directory_stub_marker(route, wiki_icons) + "[[{canonical_slug}|{route_title}]]"})
+        xx
     xx
 
     :put_last!(lines, render_alphabetical_index(page_rows))

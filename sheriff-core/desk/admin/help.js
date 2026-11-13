@@ -7,6 +7,18 @@
 
   window.DESK_HELP = {
 
+  seeding: {
+    title: 'Seeding Pages',
+    docs: D + '/guides/seeding.html',
+    sections: [
+      {title:'What seeding creates',html:'<p>List the articles you intend to write in <code>seeder.yall</code>. Sheriff creates ordinary Markdown files marked as stubs, with their titles and category membership. Existing articles are skipped, including completed articles whose stub notice was removed.</p>'},
+      {title:'Categories and destination folders',html:'<pre>seed:\n  Books:\n    directory: content/books\n    "Dune": {}\n    "Dune Messiah":\n      summary: "The second Dune novel."\n      categories: ["Science Fiction"]</pre><p><strong>Books</strong> assigns a category; <strong>directory</strong> chooses the folder for its article files. Each group can use a different directory. Missing folders are created. Without a directory, files go directly under <code>content/</code>. A page-level <code>path</code> overrides its group directory.</p><p><code>{}</code> means no extra settings. Settings such as <code>summary</code>, <code>author</code>, and <code>categories</code> become article frontmatter. Lines starting with <code>#</code> are comments; remove those markers from the sample seed entries to activate them.</p>'},
+      {title:'Save, preview, create, build',html:'<p><strong>Save seeder.yall</strong> keeps only the plan. <strong>Preview pages</strong> checks proposed paths, existing articles, and conflicts without creating pages. <strong>Create pages</strong> saves the plan and creates missing source files. Review them in Content, then use <strong>Build portal</strong> to update the site and generated lists.</p><p>Repeated titles merge category assignments. Conflicting paths or metadata block creation. Download the result report to keep a record.</p>'},
+      {title:'Use the terminal',html:'<p>Save your plan beside the portal\'s <code>config.yall</code>. From the Sheriff repository root:</p><pre>cd sheriff-core\ngoblin run seed.gbln programming preview\ngoblin run seed.gbln programming create\ngoblin run main.gbln programming</pre><p>Replace <code>programming</code> with your portal name. Preview and create return JSON reports. Only the final command builds the portal. To use another input file, append its path to both seeding commands:</p><pre>goblin run seed.gbln programming preview "../plans/my plan.yall"\ngoblin run seed.gbln programming create "../plans/my plan.yall"</pre>'},
+      {title:'Keep using your plan',html:'<p>The saved plan stays beside <code>config.yall</code>. Add entries and rerun to create more articles. Removing an entry does not delete an article; changing an entry does not overwrite an existing article. Refreshing Desk reloads your saved plan, including its original comments. <strong>Use example</strong> replaces the editor contents with the current template; save only when you intend to keep that replacement.</p>'}
+    ]
+  },
+
   snapshots: {
     title: 'Snapshots',
     sections: [

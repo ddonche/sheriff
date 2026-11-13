@@ -1,0 +1,18 @@
+# Plan starter articles here. Uncomment and edit the examples, then preview.
+# Runs only when explicitly requested. Existing articles are never overwritten.
+# Removing an entry does not delete its article. Keep this file for reference.
+# Each group names a category; directory chooses where its article files go.
+# Folders are created if needed. Without directory, files go directly in content/.
+# Page settings such as summary and categories become article frontmatter.
+
+# seed:
+#   Vaults:
+#     directory: content/vaults
+#     "Vault 101": {}
+#     "Vault 111":
+#       summary: "A Vault-Tec shelter featured in Fallout 4."
+#       categories: ["Fallout 4"]
+#
+#   Characters:
+#     directory: content/characters
+#     "The Overseer": {}

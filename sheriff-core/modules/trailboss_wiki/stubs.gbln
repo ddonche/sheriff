@@ -1,0 +1,106 @@
+import modules/trailboss_wiki/stub_source as source
+import modules/trailboss_wiki/routes_json as routes
+
+/// Notice presentation settings inherit per field: built-in -> theme -> portal.
+/// Only nonempty text overrides a default; stub status always comes from the token.
+act notice_settings(portal)
+    settings | {"title":"Stub article", "text":"This article is a stub. You can help expand it."}
+    if portal.nix? => return settings
+    theme | "outpost"
+    cfg | routes::load_cfg(portal)
+    if :valtype(cfg) == "map" and :valtype(cfg{"theme"}) == "map"
+        name | cfg{"theme"}{"name"} ?? ""
+        if :valtype(name) == "str" and !name.nix? => theme |= routes::strip_config_quotes(name)
+    xx
+    paths | ["../sheriff-core/themes/{theme}/templates.yall", "../site/portals/{portal}/themes/{theme}/templates.yall"]
+    for path in paths
+        notice_map | routes::load_theme_icon_map(path, "stub_notice")
+        for field in ["title", "text"]
+            value | notice_map{field}
+            if :valtype(value) == "str" and :trim(value).nix? == false => :update!(settings{field}, value)
+        xx
+    xx
+    return settings
+xx
+
+/// Wording is plain text, including literal HTML and Sheriff syntax.
+act notice_text(value)
+    text | value
+    :update_where!(text, "&", "&amp;")
+    :update_where!(text, "<", "&lt;")
+    :update_where!(text, ">", "&gt;")
+    :update_where!(text, "[", "&#91;")
+    :update_where!(text, "]", "&#93;")
+    :update_where!(text, "\{", "&#123;")
+    :update_where!(text, "\}", "&#125;")
+    return text
+xx
+
+/// Protect token examples before Markdown, including multi-backtick spans.
+act prepare(ctx)
+    :update!(ctx{"stub_notice_rendered"}, false)
+    masked | source::protect_examples(ctx{"body"})
+    :update!(ctx{"body"}, masked{"body"})
+    :update!(ctx{"stub_literal_marker"}, masked{"marker"})
+    return ctx
+xx
+
+/// Stub notice presentation only. Indexing and membership are separate passes.
+/// Run after Markdown, before layout and wikilink/icon rendering.
+act render(ctx)
+    if ctx{"stub_notice_rendered"} == true => return ctx
+    body | ctx{"body"} ?? => return ctx
+    token | "\{\{\{SHERIFF::STUB\}\}\}"
+    if :has(body, token) == false and (ctx{"stub_literal_marker"} ?? "").nix? => return ctx
+
+    work | body
+    protected | []
+    prefix | "@@SHERIFF_STUB_PROTECTED_"
+    while :has(body, prefix)
+        prefix |= prefix + "X"
+    xx
+    key | ""
+    sweep work
+        "<!--" ... "-->":
+            key |= "{prefix}{protected.len}@@"
+            :put_last!(protected, {"key":key, "html":self})
+            :update_where!(work, self, key)
+        "<pre" ... "</pre>":
+            key |= "{prefix}{protected.len}@@"
+            :put_last!(protected, {"key":key, "html":self})
+            :update_where!(work, self, key)
+        "<code" ... "</code>":
+            key |= "{prefix}{protected.len}@@"
+            :put_last!(protected, {"key":key, "html":self})
+            :update_where!(work, self, key)
+    xx
+    /// An unfinished comment also remains non-content through end of input.
+    if :has(work, "<!--")
+        tail | "<!--" + (:keep_after(work, "<!--") ?? "")
+        key |= "{prefix}{protected.len}@@"
+        :put_last!(protected, {"key":key, "html":tail})
+        :update_where!(work, tail, key)
+    xx
+
+    if :has(work, token)
+        icons | routes::resolve_wiki_icons(ctx{"portal"})
+        icon | routes::theme_icon_name(icons{"stub"})
+        icon_html | ""
+        if !icon.nix?
+            icon_html |= "<span class=\"sheriff-stub-icon\" aria-hidden=\"true\">[[icon|{icon}]]</span>"
+        xx
+        settings | notice_settings(ctx{"portal"})
+        title | notice_text(settings{"title"})
+        text | notice_text(settings{"text"})
+        notice | "<span class=\"sheriff-stub\" role=\"note\">{icon_html}<span class=\"sheriff-stub-content\"><strong class=\"sheriff-stub-title\">{title}</strong><span class=\"sheriff-stub-text\">{text}</span></span></span>"
+        :update_where!(work, token, notice)
+    xx
+    for item in protected
+        :update_where!(work, item{"key"}, item{"html"})
+    xx
+    literal_marker | ctx{"stub_literal_marker"} ?? ""
+    if !literal_marker.nix? => :update_where!(work, literal_marker, token)
+    :update!(ctx{"body"}, work)
+    :update!(ctx{"stub_notice_rendered"}, true)
+    return ctx
+xx

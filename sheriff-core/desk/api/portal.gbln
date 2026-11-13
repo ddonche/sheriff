@@ -150,6 +150,8 @@ act do_create(query)
         theme_name | theme_pick
 
         :create_dir!(root)
+        seed_example | "{root_base}/sheriff-core/modules/trailboss_wiki/seeder.example.yall"
+        if :file_exists(seed_example) => :copy_file!(seed_example, "{root}/seeder.yall")
         :create_dir!("{root}/content")
         :create_dir!("{root}/public")
         :create_dir!("{root}/themes")

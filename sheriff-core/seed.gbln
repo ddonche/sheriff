@@ -1,0 +1,20 @@
+import modules/trailboss_wiki/seeder as seeder
+
+/// goblin run seed.gbln <portal> preview|create|example [source.yall]
+act main()
+    if args.len < 2 => return {"ok":false,"stderr":"Usage: goblin run seed.gbln <portal> preview|create|example [source.yall]"}
+    portal | args[0]
+    mode | args[1]
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix? => root |= ".."
+    if mode == "example" => return seeder::execute(root, portal, "", mode)
+    path | "{root}/site/portals/{portal}/seeder.yall"
+    if args.len > 2 => path |= args[2]
+    if :file_exists(path) == false => return {"ok":false,"stderr":"Seeder file not found. Use Desk's Seed pages action or copy modules/trailboss_wiki/seeder.example.yall."}
+    return seeder::execute(root, portal, :read_text(path), mode)
+xx
+attempt
+    :say(:json_stringify(main()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

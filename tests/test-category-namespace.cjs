@@ -22,8 +22,8 @@ try{
  assert.deepEqual(routes.find(r=>r.rel==='member').categories,['Outriders','Raiders']);assert.deepEqual(routes.find(r=>r.rel==='pattern').categories,['Outriders']);assert.deepEqual(routes.find(r=>r.rel==='reused').categories,['Reused category']);checks++;
  assert(!routes.some(r=>/example|link-only/.test(r.rel)),'code, comments, and link-only references must not create categories');checks++;
  const read=rel=>fs.readFileSync(path.join(portal,'content',rel),'utf8');
- const md=read('categories/outriders.md');assert(md.includes('canonical: Category:Outriders'));assert(md.includes('custom_setting: retained'));assert(md.includes('author: Portal Author'));assert(md.includes('* [[member|Member]]'));assert(md.includes('* [[pattern|Pattern]]'));assert(!md.includes('* [[category:outriders|Outriders]]'),'category must not enroll itself from its generated listing');checks++;
- assert(read('categories/factions.md').includes('[[category:outriders|Outriders]]'));assert(read('categories.md').includes('[[:Category:Outriders|Outriders]]'));assert(fs.existsSync(path.join(tmp,'dist/test/categories/riders.html')));assert(!fs.existsSync(path.join(tmp,'dist/test/riders.html')));checks++;
+ const md=read('categories/outriders.md');assert(md.includes('canonical: Category:Outriders'));assert(md.includes('custom_setting: retained'));assert(md.includes('author: Portal Author'));assert(md.includes('[[member|Member]]'));assert(md.includes('[[pattern|Pattern]]'));assert(!md.includes('[[:category:outriders|Outriders]]'),'category must not enroll itself from its generated listing');checks++;
+ assert(read('categories/factions.md').includes('[[:category:outriders|Outriders]]'));assert(read('categories.md').includes('[[:Category:Outriders|Outriders]]'));assert(fs.existsSync(path.join(tmp,'dist/test/categories/riders.html')));assert(!fs.existsSync(path.join(tmp,'dist/test/riders.html')));checks++;
  const output=run('render.gbln',String.raw`import modules/trailboss_wiki/trailboss as trailboss
 import modules/trailboss_wiki/routes_json as routes
 import modules/markdown_core/markdown as markdown

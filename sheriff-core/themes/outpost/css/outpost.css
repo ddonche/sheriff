@@ -2685,8 +2685,14 @@ a.sheriff-missing-link:hover {
   break-inside: avoid-column;
   margin: 0 0 1.5rem;
 }
-.sheriff-article .sheriff-directory-group > h2 {
-  margin-top: 0;
+.sheriff-article .sheriff-directory-group > :is(h2, h3) {
+  margin: 0 0 0.5rem;
+  padding: 0 0 0.3rem;
+  border-bottom: 1px solid var(--sheriff-border);
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: normal;
   break-after: avoid-column;
 }
 .sheriff-article .sheriff-directory-group > ul {
@@ -2697,6 +2703,13 @@ a.sheriff-missing-link:hover {
 .sheriff-directory-group .anchor { scroll-margin-top: 1.5rem; }
 @media (max-width: 640px) {
   .sheriff-directory-columns { column-count: 1; }
+}
+
+/* Category directories distinguish immediate subcategories from article members. */
+.sheriff-category-section .sheriff-directory { margin: 0.75rem 0 1.75rem; }
+
+@media (max-width: 960px) {
+  .sheriff-category-section .sheriff-directory-columns { column-count: 1; }
 }
 
 /* Inline article icons inherit the local text/admonition/pattern color. */
@@ -2735,3 +2748,30 @@ a.sheriff-missing-link:hover {
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel{padding:0;}
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel > .sheriff-content-tab-heading{margin:0;padding:.45rem .65rem;}
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-list > .sheriff-content-tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-decoration:none;}
+
+/* Stub article notice; placement follows the explicit SHERIFF::STUB token. */
+.sheriff-stub { display: flex; align-items: flex-start; gap: 0.8rem; width: 100%; padding: 0.9rem 1rem; border: 1px solid var(--sheriff-border); border-left: 3px solid var(--sheriff-accent); background: var(--sheriff-panel); color: var(--sheriff-text); text-align: left; }
+.sheriff-stub-icon { flex: none; margin-top: 0.1rem; color: var(--sheriff-accent); }
+.sheriff-stub-icon > .sheriff-icon { width: 1.35rem; height: 1.35rem; vertical-align: middle; }
+.sheriff-stub-content { display: block; min-width: 0; }
+.sheriff-article .sheriff-stub-title { display: block; margin-bottom: 0.2rem; font-size: 1rem; line-height: 1.4; color: var(--sheriff-text); }
+.sheriff-stub-text { display: block; font-size: 0.95rem; line-height: 1.5; }
+
+/* Directory rows share one marker column for bullets, categories, and stubs. */
+.sheriff-article .sheriff-directory-group > ul { padding-inline-start: 0; list-style: none; }
+.sheriff-article .sheriff-directory-group li { position: relative; display: block; padding-inline-start: 1.45em; list-style: none; line-height: 1.5; }
+.sheriff-directory-group li:not(:has(> :is(.sheriff-directory-category-icon, .sheriff-directory-stub-icon)))::before { content: "•"; position: absolute; inset-inline-start: 0; top: 0; width: 1em; text-align: center; color: var(--sheriff-muted); }
+.sheriff-directory-category-icon,
+.sheriff-directory-stub-icon { position: absolute; inset-inline-start: 0; top: 0.25em; display: flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin: 0; color: var(--sheriff-muted); font-size: inherit; line-height: 1; }
+.sheriff-directory-category-icon > span:not(.sheriff-icon),
+.sheriff-directory-stub-icon > span:not(.sheriff-icon) { display: contents; }
+.sheriff-directory-category-icon .sheriff-icon,
+.sheriff-directory-stub-icon .sheriff-icon { display: block; width: 1em; height: 1em; margin: 0; vertical-align: middle; }
+
+/* Native disclosure keeps subcategories visible initially and keyboard operable. */
+.sheriff-subcategories > summary { position: relative; cursor: pointer; list-style: none; }
+.sheriff-subcategories > summary::-webkit-details-marker { display: none; }
+.sheriff-subcategories > summary::before { content: "▸"; position: absolute; inset-inline-start: 0; top: 50%; width: 1em; color: var(--sheriff-muted); transform: translateY(-50%); }
+.sheriff-subcategories[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
+.sheriff-article .sheriff-subcategories > summary > h2 { padding-inline-start: 1.1em; }
+.sheriff-subcategories > summary:focus-visible { outline: 2px solid var(--sheriff-accent); outline-offset: 4px; }

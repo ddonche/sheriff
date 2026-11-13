@@ -9,11 +9,19 @@ function documentFor(theme,mode,row){const css=fs.readFileSync(path.join(root,'s
 for(const theme of ['compendium','outpost','siegemate'])for(const mode of ['light','dark'])for(const width of [1920,1200,600]){
  await page.setViewportSize({width,height:1100});await page.goto('about:blank');const doc=documentFor(theme,mode,rows.find(r=>r.name==='languages'));await page.setContent(doc);const directory=page.locator('.sheriff-directory');
  const geometry=await directory.evaluate(element=>{const groups=[...element.querySelectorAll('.sheriff-directory-group')];return {columns:new Set(groups.map(group=>Math.round(group.getBoundingClientRect().x))).size,fragments:groups.map(group=>group.getClientRects().length),overflow:document.documentElement.scrollWidth>innerWidth};});
- assert.equal(geometry.columns,width===600?1:2,theme+' '+mode+' width '+width+' columns');assert(geometry.fragments.every(n=>n===1),'letter groups stay together');assert.equal(geometry.overflow,false,theme+' overflow');
- const ids=await page.locator('.sheriff-directory h2 .anchor').evaluateAll(els=>els.map(el=>el.id));assert.deepEqual(await page.locator('.toc-list a').evaluateAll(els=>els.map(el=>el.getAttribute('href').slice(1))),ids);
+ if(width===1920)assert.equal(geometry.columns,2,theme+' desktop columns');else if(width===600)assert.equal(geometry.columns,1,theme+' narrow columns');else assert([1,2].includes(geometry.columns),theme+' intermediate columns');assert(geometry.fragments.every(n=>n===1),'letter groups stay together');assert.equal(geometry.overflow,false,theme+' overflow');
+ const ids=await page.locator('.sheriff-article :is(h2,h3) .anchor').evaluateAll(els=>els.map(el=>el.id));assert.deepEqual(await page.locator('.toc-list a').evaluateAll(els=>els.map(el=>el.getAttribute('href').slice(1))),ids);
  await page.locator('.toc-list a[href="#z"]').click();assert.equal(await page.evaluate(()=>location.hash),'#z');assert(await page.locator('#z').evaluate(el=>{const r=el.parentElement.getBoundingClientRect();return r.top>=-1&&r.top<innerHeight;}));checks++;
  if(process.env.SHERIFF_DIRECTORY_PREVIEW_DIR){const out=path.resolve(process.env.SHERIFF_DIRECTORY_PREVIEW_DIR);fs.mkdirSync(out,{recursive:true});await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,theme+'-'+mode+'-'+width+'.png'),fullPage:true});if(width===1920)fs.writeFileSync(path.join(out,theme+'-'+mode+'.html'),doc);}
 }
-for(const name of ['all-pages','categories','tiny']){await page.setViewportSize({width:1920,height:1100});await page.setContent(documentFor('compendium','light',rows.find(r=>r.name===name)));const columns=await page.locator('.sheriff-directory-group').evaluateAll(groups=>new Set(groups.map(group=>Math.round(group.getBoundingClientRect().x))).size);assert.equal(columns,name==='tiny'?1:2);checks++;}
-console.log('Passed '+checks+' directory browser checks: two/one columns, intact letter groups, working alphabet jumps, all generated indexes, and all three themes in light/dark mode. No user sites built.');
+for(const theme of ['compendium','outpost','siegemate'])for(const mode of ['light','dark'])for(const width of [1920,1200,600]){
+ let expected;
+ for(const name of ['languages','all-pages','categories','tiny']){
+  await page.setViewportSize({width,height:1100});await page.setContent(documentFor(theme,mode,rows.find(r=>r.name===name)));
+  const typography=await page.evaluate(()=>{const h=getComputedStyle(document.querySelector('.sheriff-directory-group>:is(h2,h3)')),li=getComputedStyle(document.querySelector('.sheriff-directory-group li'));return {letterSize:h.fontSize,letterFont:h.fontFamily,letterWeight:h.fontWeight,letterColor:h.color,letterLine:h.lineHeight,letterMargin:h.margin,letterPadding:h.padding,letterBorder:h.borderBottom,listSize:li.fontSize,listFont:li.fontFamily,listLine:li.lineHeight,listPadding:li.paddingInlineStart};});
+  if(!expected)expected=typography;else assert.deepEqual(typography,expected,theme+' '+mode+' '+width+' '+name+' must share directory typography');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,theme+' '+name+' overflow');checks++;
+ }
+}
+console.log('Passed '+checks+' directory browser checks: two/one columns, intact letter groups, working alphabet jumps, matching typography across Categories/All Pages/member lists, and all three themes in light/dark mode. No user sites built.');
 }finally{if(browser)await browser.close();assert.equal(path.dirname(fixture),tempRoot);assert(path.basename(fixture).startsWith('sheriff-directories-ui-'));fs.rmSync(fixture,{recursive:true,force:true});}})().catch(error=>{console.error(error);process.exitCode=1;});

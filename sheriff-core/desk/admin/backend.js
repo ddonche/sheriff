@@ -24,6 +24,8 @@
       return ['files.'+verb,args];
     }
     if(name==='portal') return ['portals.'+verb,{portal:get(1),target:get(2),theme:get(2),brand:get(3)}];
+    if(name==='seed') return ['seed.'+verb,{portal:named.get('portal') || ''}];
+    if(name==='seed') return ['seed.'+verb,{portal:named.get('portal') || ''}];
     if(name==='snapshots') return ['snapshots.'+verb,{portal:named.get('portal') || '',id:named.get('id') || ''}];
     if(name==='ensure_theme') return ['themes.ensure',{portal:get(0),theme:get(1)}];
     if(name==='list_themes') return ['themes.list',{}];
@@ -38,6 +40,8 @@
     if(op==='portal.build') return '/api/build?'+enc(a.portal);
     if(op.startsWith('files.')) {const verb=op.slice(6);return '/api/file?'+verb+'&'+(['read','write'].includes(verb)?named:verb==='move'?positional(a.portal,a.from,a.to):verb==='list'?enc(a.portal):positional(a.portal,a.path))+(a.no_overwrite?'&no_overwrite=1':'')+(a.build?'&build='+enc(a.build):'');}
     if(op.startsWith('portals.')) return '/api/portal?'+op.slice(8)+'&'+(op==='portals.rename'?positional(a.portal,a.target):op==='portals.create'?positional(a.portal,a.theme,a.brand):enc(a.portal));
+    if(op.startsWith('seed.')) return '/api/seed?'+op.slice(5)+'&portal='+enc(a.portal);
+    if(op.startsWith('seed.')) return '/api/seed?'+op.slice(5)+'&portal='+enc(a.portal);
     if(op.startsWith('snapshots.')) {const q=new URLSearchParams();if(a.portal)q.set('portal',a.portal);if(a.id)q.set('id',a.id);return '/api/snapshots?'+op.slice(10)+(q.size?'&'+q:'');}
     const endpoint={'themes.list':'list_themes','themes.ensure':'ensure_theme','layouts.list':'list_layouts','icons.list':'list_icons','patterns.list':'list_patterns'}[op];
     if(!endpoint) throw Error('Unknown Desk operation: '+op);

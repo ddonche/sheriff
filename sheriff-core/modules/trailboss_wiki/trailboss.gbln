@@ -146,30 +146,11 @@ xx
 
 /// Missing portal mappings inherit the active Core theme, per admonition type.
 act load_admonition_icon_map(path)
-    if :file_exists(path) == false => return {}
-    templates | :yall_parse_file(path)
-    if :valtype(templates) != "map" => return {}
-    icons | templates{"admonition_icons"} ?? {}
-    if :valtype(icons) != "map" => return {}
-    return icons
+    return rjson::load_theme_icon_map(path, "admonition_icons")
 xx
 
 act resolve_admonition_icons(portal)
-    if portal.nix? => return {}
-    theme | "outpost"
-    cfg | rjson::load_cfg(portal)
-    if :valtype(cfg) == "map" and :valtype(cfg{"theme"}) == "map"
-        name | cfg{"theme"}{"name"} ?? ""
-        if !name.nix?
-            theme |= rjson::strip_config_quotes(name)
-        xx
-    xx
-    icons | load_admonition_icon_map("../sheriff-core/themes/{theme}/templates.yall")
-    overrides | load_admonition_icon_map("../site/portals/{portal}/themes/{theme}/templates.yall")
-    for pair in overrides
-        :update!(icons{pair[0]}, pair[1])
-    xx
-    return icons
+    return rjson::resolve_theme_icons(portal, "admonition_icons")
 xx
 
 act admonition_icon_name(value)
@@ -1879,6 +1860,8 @@ act publish_categories(ctx)
             categories |= rjson::merge_categories(categories, fm{"categories"})
         xx
     xx
+
+    categories |= rjson::derive_stub_categories(categories, ctx{"is_stub"} == true)
 
     html | ""
 

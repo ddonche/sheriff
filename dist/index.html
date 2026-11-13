@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=40">
+<link rel="stylesheet" href="/admin/admin.css?v=42">
 </head>
 <body>
 
@@ -352,6 +352,7 @@
           <div class="actions">
             <a class="btn small portal-edit" href="#content">Edit content</a>
             <button class="btn small primary portal-build" type="button">Build portal</button>
+            <button class="btn small portal-seed" type="button"><svg width="14" height="14" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21V10M12 14C5 14 3 9 3 4c7 0 9 4 9 8M12 11c0-5 4-8 9-8 0 6-3 10-9 10"/></svg> Seed pages</button>
             <button class="btn small portal-rename" type="button">Rename</button>
             <button class="btn small portal-delete" type="button">Delete</button>
           </div>
@@ -891,17 +892,38 @@ leadership = [[House Andergard]]</pre>
 
 <dialog class="snapshot-dialog" id="ss-dialog" aria-labelledby="ss-dialog-title"><form id="ss-form"><h2 id="ss-dialog-title"></h2><div id="ss-dialog-body"></div><div class="actions"><button class="btn" id="ss-cancel" type="button">Cancel</button><button class="btn primary" id="ss-confirm" type="submit"></button></div></form></dialog>
 
+<dialog class="seed-dialog" id="seed-dialog" aria-labelledby="seed-title">
+  <header class="seed-heading"><div><h2 id="seed-title">Seed pages</h2><p id="seed-portal"></p></div><div class="seed-heading-actions"><button class="help-btn" type="button" data-help="seeding" title="Seeding Pages help" aria-label="Seeding Pages help">?</button><button class="wiz-x" id="seed-close" type="button" aria-label="Close seed pages">&times;</button></div></header>
+  <p class="seed-intro">Create several starter articles at once by listing the pages you want under their categories. Each new article is a <strong>stub</strong>: a real, editable page marked as unfinished.</p>
+  <ol class="seed-steps" aria-label="Seeding workflow">
+    <li><strong>Write your plan</strong><span>Upload a YALL file or edit the example below. Set a directory for each group, then list the pages to create.</span></li>
+    <li><strong>Preview pages</strong><span>Check the proposed articles and categories. Existing articles are skipped; conflicts must be resolved.</span></li>
+    <li><strong>Create, then build</strong><span>Create pages writes the article files. Find them in Content, then use Build portal to put them on your site.</span></li>
+  </ol>
+
+  <div class="seed-tools"><label class="btn small" for="seed-upload">Upload YALL</label><input type="file" id="seed-upload" accept=".yall,text/plain" hidden><button class="btn small" id="seed-example" type="button">Use example</button><button class="btn small" id="seed-save" type="button">Save seeder.yall</button><span id="seed-saved" role="status"></span></div>
+  <label class="ed-label" for="seed-source">seeder.yall · saved beside config.yall</label>
+  <textarea id="seed-source" spellcheck="false" aria-describedby="seed-help"></textarea>
+  <p id="seed-comment-note" class="seed-note" hidden><strong>This example is switched off.</strong> Lines starting with <code>#</code> are comments. Remove <code>#</code> from the <code>seed:</code> line and its category, directory, page, and settings lines to activate them. Keep the explanatory lines commented.</p>
+  <p id="seed-help"><strong>Save seeder.yall</strong> saves only this plan for later. <strong>Create pages</strong> saves the plan and creates missing articles. Keep the file and add more entries whenever you want; rerunning it leaves existing articles unchanged.</p>
+  <div class="seed-preview-heading"><h3>Preview and results</h3><button class="btn" id="seed-preview" type="button">Preview pages</button></div>
+  <p id="seed-status" role="status" aria-live="polite"></p>
+  <div class="seed-results" id="seed-results" hidden><table><thead><tr><th>Article</th><th>Categories</th><th>Result</th></tr></thead><tbody id="seed-rows"></tbody></table></div>
+  <footer><button class="btn" id="seed-report" type="button" hidden>Download report</button><button class="btn primary" id="seed-create" type="button" disabled>Create pages</button></footer>
+</dialog>
+
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=17"></script>
-<script src="/admin/backend.js?v=1"></script>
+<script src="/admin/help.js?v=18"></script>
+<script src="/admin/backend.js?v=2"></script>
 <script src="/admin/portal-context.js?v=2"></script>
 <script src="/admin/build-log.js?v=2"></script>
-<script src="/admin/admin.js?v=43"></script>
+<script src="/admin/admin.js?v=46"></script>
 <script src="/admin/content-images.js?v=2"></script>
 <script src="/admin/content-inserts.js?v=4"></script>
 <script src="/admin/icons.js?v=4"></script>
 <script src="/admin/interactive-editor.js?v=5"></script>
 <script src="/admin/snapshots.js?v=2"></script>
+<script src="/admin/seeding.js?v=2"></script>
 </body>
 </html>

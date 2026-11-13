@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),tempRoot=path.resolve(os.tmpdir()),fixture=fs.mkdtempSync(path.join(tempRoot,'sheriff-active-nav-')),core=path.join(fixture,'sheriff-core');
 try{
-for(const rel of ['modules/markdown_core/fenced_code.gbln','modules/scout_nav/scout.gbln','modules/trailboss_wiki/routes_json.gbln','modules/trailboss_wiki/trailboss.gbln']){const to=path.join(core,rel);fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),to);}
+for(const rel of ['modules/markdown_core/fenced_code.gbln','modules/scout_nav/scout.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/trailboss_wiki/trailboss.gbln']){const to=path.join(core,rel);fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),to);}
 function setup(name,prefix=''){
 const dir=path.join(fixture,'site/portals',name);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'config.yall'),'routing:\n  url_root: "'+prefix+'"\n  site_url: "https://wiki.example"\n');
 const base=prefix?'/'+prefix:'';

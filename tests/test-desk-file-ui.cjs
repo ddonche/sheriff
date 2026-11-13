@@ -90,6 +90,22 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  await page.locator('#ed-raw-revisions').check();
  await checkNewPageFolders();
  await page.locator('#ed-raw-revisions').uncheck();
+ // Move to... is discoverable and keeps revision history and unsaved editor text.
+ async function moveItem(name,folder){await itemMenu(name,'move');await page.locator('#file-move-folder').selectOption(folder);await page.locator('#file-move-confirm').click();await until(()=>!document.getElementById('file-move-dialog').open);}
+ await itemMenu('book','move');
+ assert.equal(await page.locator('#file-move-confirm').isDisabled(),true);
+ assert(!(await page.locator('#file-move-folder option').evaluateAll(options=>options.map(o=>o.value))).some(p=>p.startsWith('content/book')));
+ assert.equal(await page.evaluate(()=>window.SheriffPortalContext.locked),true);
+ await page.locator('#file-move-cancel').click();assert.equal(await page.evaluate(()=>window.SheriffPortalContext.locked),false);
+ await moveItem('book','content/empty');assert(files.has('content/empty/book/current/R1.md'));assert(files.has('content/empty/book/current/R3.md'));assert(files.has('content/empty/book/old/R1.md'));
+ await moveItem('book','content');assert(files.has('content/book/current/R3.md'));assert(!files.has('content/empty/book/current/R3.md'));
+ await openFile('notes.md');await page.locator('#ed-text').fill('Move preserves unsaved editor text');
+ files.set('content/empty/notes.md','Existing destination must survive');
+ await itemMenu('notes.md','move');await page.locator('#file-move-folder').selectOption('content/empty');await page.locator('#file-move-confirm').click();
+ await page.locator('#file-move-error').waitFor({state:'visible'});assert.equal(await page.locator('#file-move-dialog').evaluate(el=>el.open),true);assert.equal(files.get('content/empty/notes.md'),'Existing destination must survive');assert(files.has('content/notes.md'));
+ files.delete('content/empty/notes.md');await page.locator('#file-move-confirm').click();await until(()=>!document.getElementById('file-move-dialog').open);
+ assert.equal(await page.locator('#ed-path').textContent(),'content/empty/notes.md');assert.equal(await page.locator('#ed-text').inputValue(),'Move preserves unsaved editor text');assert.equal(await page.locator('#ed-save').isDisabled(),false);assert(files.get('content/empty/notes.md').includes('canonical: notes'));
+ await moveItem('notes.md','content');assert.equal(await page.locator('#ed-path').textContent(),'content/notes.md');assert.equal(await page.locator('#ed-text').inputValue(),'Move preserves unsaved editor text');
  await openFile('notes.md');await page.locator('#ed-text').fill('Unsaved notes stay open');
  acceptDialog=false;await itemMenu('notes.md','delete');
  assert(files.has('content/notes.md'));assert.equal(await page.locator('#ed-text').inputValue(),'Unsaved notes stay open');
@@ -158,6 +174,6 @@ function dirs(){const result=new Set(emptyDirs);for(const name of files.keys()){
  assert(dialogs.some(d=>d.includes('ALL its versions and revisions')));
  assert.deepEqual(errors,[]);
  assert(!requests.some(r=>r.verb==='build'));
- console.log('Passed isolated browser checks: visible actions, file/folder/page rename and delete, unsaved editor state, revision cleanup, and safe revision numbering. No site builds run.');
+ console.log('Passed isolated browser checks: visible actions, file/folder/page rename, move and delete, destination collision protection, unsaved editor state, revision cleanup, and safe revision numbering. No site builds run.');
  }finally{await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1;});

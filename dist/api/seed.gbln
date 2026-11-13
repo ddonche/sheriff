@@ -1,0 +1,40 @@
+/// Local CGI runs from dist; invoke the shared module from sheriff-core.
+/// Cloud uses this same endpoint and carries its authenticated portal scope.
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for seeding."}
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix? => root |= ".."
+    body | :env("GOBLIN_BODY")
+    incoming | :env("GOBLIN_REQUEST_FILE")
+    if !incoming.nix? => body |= :read_text(incoming)
+    if body.len > 524288 => return {"ok":false,"stderr":"Seeder files must be at most 512 KB."}
+    request_dir | "{root}/data/desk-seeding-requests"
+    :create_dir!(request_dir)
+    id | :uuid_v4()
+    request_file | "{request_dir}/{id}.txt"
+    :write_text!(request_file, body)
+    result | ..
+    attempt
+        env | {"SHERIFF_ROOT":root, "GOBLIN_METHOD":"POST", "GOBLIN_QUERY_STRING": :env("GOBLIN_QUERY_STRING"), "GOBLIN_BODY":"", "GOBLIN_REQUEST_FILE":"../data/desk-seeding-requests/{id}.txt"}
+        result |= :json_parse(:run_cmd("goblin run seed_request.gbln", "{root}/sheriff-core", env))
+    rescue err
+        :delete_path!(request_file)
+        return {"ok":false,"stderr": :str(err)}
+    xx
+    :delete_path!(request_file)
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"} ?? "Seeder runtime failed."}
+    data | :json_parse(result{"stdout"})
+    while :valtype(data) == "map" and :has(data, "body") and :has(data, "status")
+        if :valtype(data{"body"}) == "str"
+            data |= :json_parse(data{"body"})
+        else
+            data |= data{"body"}
+        xx
+    xx
+    return data
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

@@ -90,3 +90,22 @@ Different themes may choose different icons. The icons inherit their admonition 
 Older portal template files without an `admonition_icons` section inherit the Core defaults automatically. You do not need to copy the complete Core template file to receive them.
 
 Use **Build portal** after changing these settings to update all existing pages. **Build** updates only the selected page. Referenced library icons are published through Sheriff's normal icon renderer.
+
+### Wiki status icons in the same file
+
+The same `templates.yall` also supports a separate top-level `wiki_icons` map:
+
+```yall
+admonition_icons:
+  note: notebook-pen
+  warning: shield-alert
+
+wiki_icons:
+  category: folder
+  stub: file-pen-line
+```
+
+Both maps inherit defaults from the active Core theme and support per-site
+replacement or disabling with `false`. Category directory icons use `category`.
+The `stub` setting controls the [stub notice](stubs.md). Keep `layouts`
+as its existing top-level section. See [Category and stub icons](categories.md#category-and-stub-icons).

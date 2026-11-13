@@ -1,0 +1,24 @@
+import modules/trailboss_wiki/seeder as seeder
+
+act query_value(query, key)
+    for part in :split(query, "&")
+        if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
+    xx
+    return ""
+xx
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for seeding."}
+    query | :env("GOBLIN_QUERY_STRING")
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix? => root |= ".."
+    body | :env("GOBLIN_BODY")
+    request | :env("GOBLIN_REQUEST_FILE")
+    if !request.nix? => body |= :read_text(request)
+    if body.len > 524288 => return {"ok":false,"stderr":"Seeder files must be at most 512 KB."}
+    return seeder::execute(root, query_value(query, "portal"), body, :keep_before(query, "&") ?? query)
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

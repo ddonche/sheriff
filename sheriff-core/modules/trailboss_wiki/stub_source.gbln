@@ -1,0 +1,81 @@
+import modules/markdown_core/fenced_code as fences
+
+act protect_examples(body)
+    body |= body ?? ""
+    token | "\{\{\{SHERIFF::STUB\}\}\}"
+    if :has(body, token) == false => return {"body":body,"marker":""}
+    marker | "@@SHERIFF_STUB_LITERAL@@"
+    while :has(body, marker)
+        marker |= "X" + marker
+    xx
+    fenced | fences::stash(body, "STUB_FENCE")
+    work | fenced{"text"}
+    out | ""
+    while :has(work, "`")
+        before | :keep_before(work, "`") ?? ""
+        out |= out + before
+        work |= :keep_after(work, "`") ?? ""
+        opening | "`"
+        while :starts_with(work, "`")
+            opening |= opening + "`"
+            work |= work[1:]
+        xx
+        close | -1
+        for candidate in :find_all(work, opening)
+            left_ok | candidate == 0 or work[candidate-1:candidate] != "`"
+            end | candidate + opening.len
+            right_ok | end == work.len or work[end:end+1] != "`"
+            if left_ok and right_ok
+                close |= candidate
+                stop
+            xx
+        xx
+        if close == -1
+            out |= out + opening + work
+            work |= ""
+            stop
+        xx
+        code | work[0:close]
+        :update_where!(code, token, marker)
+        out |= out + opening + code + opening
+        work |= work[close+opening.len:]
+    xx
+    out |= out + work
+    for item in fenced{"stash"}
+        example | item{"v"}
+        :update_where!(example, token, marker)
+        :update_where!(out, item{"k"}, example)
+    xx
+    return {"body":out,"marker":marker}
+xx
+
+/// Source status is derived, never stored in frontmatter. Shared by route indexing
+/// and notice preparation so literal examples cannot become listing markers.
+act has_stub(text)
+    raw | :normalize_newlines(:sanitize_bom(text ?? ""))
+    if :starts_with(raw, "^^^^") => raw |= :ignore_blocks_first(raw, "^^^^", "^^^^")
+    if :has(raw, "SHERIFF::STUB") == false and :has(raw, "SHERIFF::PATTERN_") == false => return false
+    masked | protect_examples(raw)
+    raw |= masked{"body"}
+    /// Reusable patterns are registered before discovery. Protect their examples too.
+    if :has(raw, "SHERIFF::PATTERN_")
+        raw |= :resolve_token(raw)
+        masked |= protect_examples(raw)
+        raw |= masked{"body"}
+    xx
+    sweep raw
+        "<!--" ... "-->":
+            :update_where!(raw, self, "")
+        "<pre" ... "</pre>":
+            :update_where!(raw, self, "")
+        "<code" ... "</code>":
+            :update_where!(raw, self, "")
+    xx
+    if :has(raw, "<!--") => raw |= :keep_before(raw, "<!--") ?? ""
+    for line in :split(raw, "\n")
+        /// Pattern HTML can be indented without being a Markdown code block.
+        if (:starts_with(line, "    ") or :starts_with(line, "\t")) and :starts_with(:trim(line), "<") == false => skip
+        if :has(line, "\{\{\{SHERIFF::STUB\}\}\}") => return true
+    xx
+    return false
+xx

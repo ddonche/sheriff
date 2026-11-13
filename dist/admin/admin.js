@@ -297,6 +297,7 @@
       node.querySelector('.portal-build').addEventListener('click', e => {
         buildPortal(name, e.currentTarget);
       });
+      node.querySelector('.portal-seed').addEventListener('click', () => window.SheriffSeeding.open(name));
       node.querySelector('.portal-rename').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
       node.querySelector('.portal-delete').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
       node.querySelector('.portal-rename').addEventListener('click', () => {
@@ -1011,7 +1012,7 @@
     if (!canManageItem(path) || path === renamingPath) return;
     const more = document.createElement('button');
     more.type = 'button'; more.className = 'tree-actions'; more.textContent = '\u22ef';
-    more.title = 'Rename or delete';
+    more.title = 'Rename, move, or delete';
     more.setAttribute('aria-label', 'Actions for ' + path.split('/').pop());
     more.setAttribute('aria-haspopup', 'menu');
     more.addEventListener('click', e => {
@@ -1221,7 +1222,7 @@
     renderTree();
   }
 
-  async function moveFilePath(srcPath, destPath) {
+  async function moveFilePath(srcPath, destPath, onError = say) {
     if (fileOperationBusy || !canManageItem(srcPath) || !canManageItem(destPath) || srcPath === destPath) return false;
     if (pathWithin(srcPath, destPath)) { say('A folder cannot be moved inside itself'); return false; }
     const portal = edPortal.value;
@@ -1230,7 +1231,7 @@
       const q = encodeURIComponent(portal) + '&' + encodeURIComponent(srcPath) + '&' + encodeURIComponent(destPath);
       const res = await fetch('/api/file?move&' + q);
       const data = await res.json();
-      if (!res.ok || data.ok === false) { say(data.stderr || 'Move failed'); return false; }
+      if (!res.ok || data.ok === false) { onError(data.stderr || 'Move failed'); return false; }
       openFile = remapItemPath(openFile, srcPath, destPath);
       if (openVersionCtx) openVersionCtx.page = openVersionCtx.flat && openFile && /\.md$/i.test(openFile)
         ? openFile.replace(/\.md$/i, '') : remapItemPath(openVersionCtx.page, srcPath, destPath);
@@ -1246,7 +1247,7 @@
       setStatus('Renamed or moved · rebuild portal to update the site');
       say('Moved to ' + destPath);
       return true;
-    } catch (err) { say('Move failed: ' + err.message); return false; }
+    } catch (err) { onError('Move failed: ' + err.message); return false; }
     finally { fileOperationBusy = false; edPortal.disabled = false; updateFileActions(); }
   }
 
@@ -1310,6 +1311,7 @@
   fileMenu.setAttribute('role', 'menu');
   fileMenu.hidden = true;
   fileMenu.innerHTML = '<button type="button" data-act="rename">Rename</button>'
+    + '<button type="button" data-act="move">Move to…</button>'
     + '<button type="button" data-act="delete" class="danger">Delete</button>';
   document.body.appendChild(fileMenu);
   let menuPath = null;
@@ -1335,11 +1337,69 @@
     hideFileMenu();
     if (!act || !path) return;
     if (act === 'rename') startRename(path);
+    if (act === 'move') openMoveDialog(path);
     if (act === 'delete') deleteFilePath(path);
   });
 
   document.addEventListener('click', () => { if (!fileMenu.hidden) hideFileMenu(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fileMenu.hidden) hideFileMenu(); });
+
+  // Choose a destination without changing the filename or document revisions.
+  const moveDialog = document.createElement('dialog');
+  moveDialog.className = 'snapshot-dialog'; moveDialog.id = 'file-move-dialog';
+  moveDialog.setAttribute('aria-labelledby', 'file-move-title');
+  moveDialog.innerHTML = '<form id="file-move-form"><h2 id="file-move-title">Move to another folder</h2>'
+    + '<div class="selected-snapshot"><strong id="file-move-source"></strong></div>'
+    + '<label for="file-move-folder">Destination folder</label><select id="file-move-folder" class="ed-filter"></select>'
+    + '<p class="hint">The filename and contents stay the same. Build the portal afterward to update the site.</p>'
+    + '<p id="file-move-error" role="alert" hidden></p>'
+    + '<div class="actions"><button class="btn" id="file-move-cancel" type="button">Cancel</button>'
+    + '<button class="btn primary" id="file-move-confirm" type="submit" disabled>Move</button></div></form>';
+  document.body.appendChild(moveDialog);
+  const moveFolder = moveDialog.querySelector('#file-move-folder'), moveConfirm = moveDialog.querySelector('#file-move-confirm');
+  const moveCancel = moveDialog.querySelector('#file-move-cancel'), moveError = moveDialog.querySelector('#file-move-error');
+  let moveSource = null, moveRelease = null, movePending = false;
+  function updateMoveChoice() {
+    moveConfirm.disabled = movePending || !moveSource || !moveFolder.value || moveFolder.value === moveSource.slice(0, moveSource.lastIndexOf('/'));
+  }
+  function closeMoveDialog() {
+    if (movePending) return;
+    moveDialog.close(); moveSource = null;
+    if (moveRelease) moveRelease(); moveRelease = null;
+  }
+  function openMoveDialog(path) {
+    if (fileOperationBusy || !canManageItem(path)) return;
+    const pages = Array.from(versionedPageSet);
+    if (pages.some(page => page !== path && pathWithin(page, path))) {
+      say('Move the whole document to keep its versions and revisions together.'); return;
+    }
+    const root = path.split('/')[0], parent = path.slice(0, path.lastIndexOf('/'));
+    const folders = new Set([root, ...edDirs.filter(dir => dir === root || dir.startsWith(root + '/'))]);
+    moveFolder.replaceChildren();
+    for (const folder of Array.from(folders).sort()) {
+      if (pathWithin(path, folder) || pages.some(page => pathWithin(page, folder))) continue;
+      const option = document.createElement('option'); option.value = folder; option.textContent = folder + '/'; moveFolder.appendChild(option);
+    }
+    moveSource = path; moveDialog.querySelector('#file-move-source').textContent = path;
+    moveFolder.value = parent; if (!moveFolder.value) moveFolder.selectedIndex = 0;
+    moveError.hidden = true; moveError.textContent = ''; movePending = false;
+    moveRelease = portalContext.lock(); updateMoveChoice(); moveDialog.showModal(); moveFolder.focus();
+  }
+  moveFolder.addEventListener('change', () => { moveError.hidden = true; updateMoveChoice(); });
+  moveCancel.addEventListener('click', closeMoveDialog);
+  moveDialog.addEventListener('cancel', event => { event.preventDefault(); closeMoveDialog(); });
+  moveDialog.querySelector('form').addEventListener('submit', async event => {
+    event.preventDefault(); if (moveConfirm.disabled || !moveSource) return;
+    const source = moveSource, destination = moveFolder.value + '/' + source.split('/').pop();
+    movePending = true; moveFolder.disabled = true; moveCancel.disabled = true; updateMoveChoice();
+    try {
+      const moved = await moveFilePath(source, destination, message => { moveError.textContent = message; moveError.hidden = false; });
+      movePending = false;
+      if (moved) closeMoveDialog();
+    } finally {
+      movePending = false; moveFolder.disabled = false; moveCancel.disabled = false; updateMoveChoice();
+    }
+  });
 
   async function openPath(path) {
     if (editorBusy) return;
@@ -2425,6 +2485,8 @@
   function openHelp(key) {
     const help = window.DESK_HELP && window.DESK_HELP[key];
     if (!help) { say('No help written for this section yet'); return; }
+    const modal = document.querySelector('dialog[open]');
+    (modal || document.body).appendChild(helpDrawer);
     hdTitle.textContent = help.title;
     hdDocs.href = help.docs || 'https://sheriff.sheriffcloud.com';
     hdBody.innerHTML = '';
@@ -2443,7 +2505,13 @@
     helpDrawer.hidden = false;
   }
 
-  function closeHelp() { helpDrawer.hidden = true; }
+  function closeHelp() {
+    helpDrawer.hidden = true;
+    if (helpDrawer.parentElement !== document.body) document.body.appendChild(helpDrawer);
+  }
+  document.addEventListener('close', event => {
+    if (event.target.matches?.('dialog') && event.target.contains(helpDrawer)) closeHelp();
+  }, true);
 
   // draggable: grab the header, position persists
   (function () {
@@ -2498,7 +2566,7 @@
   });
   document.getElementById('hd-close').addEventListener('click', closeHelp);
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !helpDrawer.hidden) closeHelp();
+    if (e.key === 'Escape' && !helpDrawer.hidden) { e.preventDefault(); closeHelp(); }
   });
 
   // ---------- resizable file tree ----------

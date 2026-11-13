@@ -1,0 +1,412 @@
+import modules/trailboss_wiki/routes_json as routes
+
+/// Explicit source creation only. Never registered in build schedules.
+act example()
+    return :read_text("modules/trailboss_wiki/seeder.example.yall")
+xx
+
+act valid_portal(portal)
+    if portal.nix? => return false
+    if :has("abcdefghijklmnopqrstuvwxyz0123456789", :slice(portal, 0, 1)) == false => return false
+    for c in :split(portal, "")
+        if :has("abcdefghijklmnopqrstuvwxyz0123456789_-", c) == false => return false
+    xx
+    return portal != "." and portal != ".."
+xx
+
+act file_slug(title)
+    out | ""
+    for c in :split(:lower(title), "")
+        if :has("abcdefghijklmnopqrstuvwxyz0123456789", c)
+            out |= out + c
+        elif out != "" and :ends_with(out, "_") == false
+            out |= out + "_"
+        xx
+    xx
+    while :ends_with(out, "_")
+        out |= :slice(out, 0, out.len - 1)
+    xx
+    return out
+xx
+
+act valid_path(path)
+    if :starts_with(path, "content/") == false or :ends_with(path, ".md") == false => return false
+    if :starts_with(:lower(path), "content/categories/") => return false
+    for part in :split(path, "/")
+        if part.nix? or part == "." or part == ".." or :ends_with(part, ".") or :ends_with(part, " ") => return false
+        for c in :split(part, "")
+            if :has("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-./", c) == false => return false
+        xx
+        base | :lower(:keep_before(part, ".") ?? part)
+        if :has(["con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"], base) => return false
+    xx
+    return path.len < 220
+xx
+
+/// YALL retains quotes on map keys; values are already parsed.
+act key_text(value)
+    text | :trim(value)
+    if :starts_with(text, "\"") and :ends_with(text, "\"") => return :json_parse(text)
+    if :starts_with(text, "'") and :ends_with(text, "'") => return :slice(text, 1, text.len - 1)
+    return text
+xx
+
+/// Protect quoted map keys (including colons) from the YALL parser, and give
+/// duplicate source keys distinct placeholders so none can be silently lost.
+act parse_source(source)
+    lines | []
+    key_names | {}
+    for line in :split(source, "\n")
+        if :starts_with(:trim(line), "#") => skip
+        quoted | ""
+        escaped | false
+        colon | -1
+        index | 0
+        for c in :split(line, "")
+            if escaped
+                escaped |= false
+            elif c == "\\" and quoted == "\""
+                escaped |= true
+            elif !quoted.nix?
+                if c == quoted => quoted |= ""
+            elif c == "\"" or c == "'"
+                quoted |= c
+            elif c == ":"
+                colon |= index
+                stop
+            xx
+            index |= index + 1
+        xx
+        if colon >= 0
+            raw | :slice(line, 0, colon)
+            indent | 0
+            for c in :split(raw, "")
+                if c != " " => stop
+                indent |= indent + 1
+            xx
+            key | key_text(raw)
+            token | "SHERIFF_SEED_KEY_{key_names.len}"
+            :update!(key_names{token}, key)
+            :put_last!(lines, :slice(line, 0, indent) + token + :slice(line, colon, line.len))
+        else
+            :put_last!(lines, line)
+        xx
+    xx
+    parsed | :yall_parse(:join(lines, "\n"), "seeder.yall")
+    return restore_keys(parsed, key_names)
+xx
+
+act restore_keys(value, names)
+    if :valtype(value) == "map"
+        out | {}
+        for key in :keys(value)
+            name | names{key} ?? key_text(key)
+            if :has(out, name) => return {"ok":false, "stderr":"Duplicate YALL key: {name}. Put repeated articles in separate category groups."}
+            child | restore_keys(value{key}, names)
+            if child{"ok"} == false => return child
+            :update!(out{name}, child{"value"})
+        xx
+        return {"ok":true, "value":out}
+    xx
+    if :valtype(value) == "array"
+        out | []
+        for item in value
+            child | restore_keys(item, names)
+            if child{"ok"} == false => return child
+            :put_last!(out, child{"value"})
+        xx
+        return {"ok":true, "value":out}
+    xx
+    return {"ok":true, "value":value}
+xx
+
+act categories(values)
+    if :valtype(values) != "array" => return false
+    for value in values
+        if :valtype(value) != "str" => return false
+        if :trim(value).nix? or :has(value, "\n") or :has(value, "\r") => return false
+    xx
+    return true
+xx
+
+act metadata_error(metadata)
+    for k in :keys(metadata)
+        if :has(["path", "canonical", "categories"], k) => skip
+        if :has(["summary", "author", "author_avatar", "thumb", "date", "layout", "meta_kind", "meta_type", "gloss", "aliases"], k) == false => return "Unknown page setting: {k}."
+        value | metadata{k}
+        if k == "aliases"
+            if categories(value) == false => return "aliases must be a list of names."
+        elif :valtype(value) != "str" and :valtype(value) != "int" and :valtype(value) != "float" and :valtype(value) != "bool"
+            return "{k} must be a simple metadata value."
+        xx
+    xx
+    return ""
+xx
+
+act error(message)
+    return {"ok":false, "stderr":message, "entries":[], "creates":0, "skips":0, "conflicts":0}
+xx
+
+act existing_articles(portal_root)
+    owners | {}
+    content | "{portal_root}/content"
+    if :file_exists(content) == false => return owners
+    for file in :walk(content, "**/*.md")
+        text | :read_text(file)
+        fm | routes::extract_frontmatter_map(text)
+        normalized | file
+        :update_where!(normalized, "\\", "/")
+        relative | :keep_after(normalized, "/content/") ?? normalized
+        stem | :keep_before(:basename(normalized), ".md")
+        names | [fm{"canonical"} ?? "", fm{"title"} ?? "", stem]
+        aliases | fm{"aliases"}
+        if :valtype(aliases) == "array"
+            for alias in aliases
+                :put_last!(names, alias)
+            xx
+        xx
+        /// Version/revision files belong to their logical document folder.
+        bits | :split(relative, "/")
+        if bits.len >= 3 => :put_last!(names, bits[bits.len - 3])
+        for name in names
+            key | routes::canonical_to_slug(:str(name))
+            if !key.nix? => :update!(owners{key}, relative)
+        xx
+    xx
+    return owners
+xx
+
+act plan(root, portal, source)
+    if valid_portal(portal) == false => return error("Invalid portal name.")
+    portal_root | "{root}/site/portals/{portal}"
+    if :file_exists("{portal_root}/config.yall") == false => return error("Portal not found.")
+    parsed | parse_source(source)
+    if parsed{"ok"} == false => return error(parsed{"stderr"})
+    data | parsed{"value"}
+    if :valtype(data) == "nil" => data |= {}
+    if :valtype(data) != "map" => return error("Expected a YALL map with a seed section.")
+    for k in :keys(data)
+        if k != "seed" => return error("Unknown top-level setting: {k}. Use seed:.")
+    xx
+    groups | data{"seed"}
+    if :has(data, "seed") == false => groups |= {}
+    if :valtype(groups) != "map" => return error("seed must map category names to pages.")
+    entries | []
+    merged | {}
+    for group_key in :keys(groups)
+        group | group_key
+        if :trim(group).nix? or :has(group, "\n") or :has(group, "\r") => return error("Category names must be nonempty single-line text.")
+        pages | groups{group_key}
+        if :valtype(pages) != "map" => return error("Category {group} must contain a map of page names.")
+        directory | "content"
+        if :has(pages, "directory") and :valtype(pages{"directory"}) != "map"
+            if :valtype(pages{"directory"}) != "str" => return error("{group}: directory must be a folder path such as content/books.")
+            directory |= :trim(pages{"directory"})
+            while :ends_with(directory, "/")
+                directory |= :slice(directory, 0, directory.len - 1)
+            xx
+            if directory.nix? or valid_path(directory + "/seed_article.md") == false => return error("{group}: directory must be content or a safe folder below content/, outside content/categories/.")
+        xx
+        for title_key in :keys(pages)
+            if title_key == "directory" and :valtype(pages{title_key}) != "map" => skip
+            title | title_key
+            if entries.len >= 10000 => return error("A seeder can contain at most 10,000 articles.")
+            if :trim(title).nix? or :has(title, "\n") or :has(title, "\r") => return error("Page names must be nonempty single-line text.")
+            metadata | pages{title_key}
+            if :valtype(metadata) == "nil" => metadata |= {}
+            if :valtype(metadata) != "map" => return error("Settings for {title} must be a map, for example: \{\}.")
+            issue | metadata_error(metadata)
+            if !issue.nix? => return error("{title}: {issue}")
+            extra | metadata{"categories"} ?? []
+            if categories(extra) == false => return error("{title}: categories must be a list of names.")
+            canonical | metadata{"canonical"} ?? routes::canonical_to_slug(title)
+            if :valtype(canonical) != "str" => return error("{title}: canonical must be text.")
+            canonical |= routes::canonical_to_slug(canonical)
+            path | metadata{"path"} ?? directory + "/" + file_slug(title) + ".md"
+            if :valtype(path) != "str" => return error("{title}: path must be text.")
+            issue |= ""
+            if canonical.nix? or :starts_with(:lower(canonical), "category:") => issue |= "Use a nonempty article canonical, not a category canonical."
+            if valid_path(path) == false => issue |= "Use a safe .md path under content/, outside content/categories/."
+            if file_slug(title).nix? and metadata{"path"}.nix? => issue |= "Supply path for a title without Latin letters or digits."
+            for c in ["\n", "\r", "^^^^"]
+                if :has(canonical, c) => issue |= "Invalid canonical."
+            xx
+            cats | routes::merge_categories([group], extra)
+            old | merged{title}
+            if old.nix? == false
+                if old{"path"} != path or old{"canonical"} != canonical => :update!(old{"reason"}, "Repeated article has conflicting paths or canonicals.")
+                prior | old{"metadata"}
+                for k in :keys(metadata)
+                    if :has(["path", "canonical", "categories"], k) => skip
+                    if :has(prior, k) and :json_stringify(prior{k}) != :json_stringify(metadata{k})
+                        :update!(old{"reason"}, "Repeated article has conflicting {k} values.")
+                    else
+                        :update!(prior{k}, metadata{k})
+                    xx
+                xx
+                :update!(old{"metadata"}, prior)
+                :update!(old{"categories"}, routes::merge_categories(old{"categories"}, cats))
+                if !issue.nix? => :update!(old{"reason"}, issue)
+                :update!(merged{title}, old)
+            else
+                entry | {"title":title, "path":path, "canonical":canonical, "categories":cats, "metadata":metadata, "status":"create", "reason":issue}
+                :update!(merged{title}, entry)
+                :put_last!(entries, title)
+            xx
+        xx
+    xx
+    canonical_owners | {}
+    path_owners | {}
+    for title in entries
+        entry | merged{title}
+        path_key | :lower(entry{"path"})
+        keys | [entry{"canonical"}, routes::canonical_to_slug(title)]
+        aliases | entry{"metadata"}{"aliases"} ?? []
+        for alias in aliases
+            :put_last!(keys, routes::canonical_to_slug(alias))
+        xx
+        for key in keys
+            owner | canonical_owners{key}
+            if owner.nix? == false and owner != title
+                :update!(entry{"reason"}, "Different articles share a canonical or alias: {owner}.")
+                other | merged{owner}
+                :update!(other{"reason"}, "Different articles share a canonical or alias: {title}.")
+                :update!(merged{owner}, other)
+            else
+                :update!(canonical_owners{key}, title)
+            xx
+        xx
+        owner | path_owners{path_key}
+        if owner.nix? == false and owner != title
+            :update!(entry{"reason"}, "Different articles share a path: {owner}.")
+            other | merged{owner}
+            :update!(other{"reason"}, "Different articles share a path: {title}.")
+            :update!(merged{owner}, other)
+        else
+            :update!(path_owners{path_key}, title)
+        xx
+        :update!(merged{title}, entry)
+    xx
+    existing | existing_articles(portal_root)
+    rows | []
+    creates | 0
+    skips | 0
+    conflicts | 0
+    for title in entries
+        entry | merged{title}
+        if :has(existing, entry{"canonical"}) == false and :has(existing, routes::canonical_to_slug(title)) == false
+            for alias in (entry{"metadata"}{"aliases"} ?? [])
+                if :has(existing, routes::canonical_to_slug(alias)) => :update!(entry{"reason"}, "An alias already belongs to an existing article: {alias}.")
+            xx
+        xx
+        if !entry{"reason"}.nix?
+            :update!(entry{"status"}, "conflict")
+            conflicts |= conflicts + 1
+        elif :has(existing, entry{"canonical"}) or :has(existing, routes::canonical_to_slug(title)) or :file_exists("{portal_root}/" + entry{"path"})
+            :update!(entry{"status"}, "skip")
+            :update!(entry{"reason"}, "Article already exists; source will be kept unchanged.")
+            skips |= skips + 1
+        else
+            creates |= creates + 1
+        xx
+        :put_last!(rows, entry)
+    xx
+    return {"ok":true, "portal":portal, "entries":rows, "creates":creates, "skips":skips, "conflicts":conflicts, "created":0}
+xx
+
+act page_source(entry)
+    lines | ["^^^^", "title: " + :json_stringify(entry{"title"}), "canonical: " + :json_stringify(entry{"canonical"}), "layout: wiki"]
+    metadata | entry{"metadata"}
+    for k in :keys(metadata)
+        if :has(["path", "canonical", "categories", "layout"], k) => skip
+        :put_last!(lines, k + ": " + :json_stringify(metadata{k}))
+    xx
+    if :has(metadata, "layout") => :update_where!(lines, "layout: wiki", "layout: " + :json_stringify(metadata{"layout"}))
+    :put_last!(lines, "categories: " + :json_stringify(entry{"categories"}))
+    :put_last!(lines, "^^^^")
+    :put_last!(lines, "")
+    :put_last!(lines, "\{\{\{SHERIFF::STUB\}\}\}")
+    :put_last!(lines, "")
+    return :join(lines, "\n")
+xx
+
+/// Exclusive source creation and link checks are handled by a tiny OS I/O helper.
+/// Conversion, naming, validation and reporting remain here in Trailboss Wiki.
+act write_sources(root, portal, source, report, save_only | false)
+    payload | {"portal":portal, "source":source, "files":[]}
+    if save_only == false
+        for entry in report{"entries"}
+            if entry{"status"} == "create" => :put_last!(payload{"files"}, {"path":entry{"path"}, "content":page_source(entry)})
+        xx
+    xx
+    request_dir | "{root}/data/desk-seeding"
+    :create_dir!(request_dir)
+    request_relative | "data/desk-seeding/" + :uuid_v4() + ".json"
+    request_file | "{root}/{request_relative}"
+    :write_text!(request_file, :json_stringify(payload))
+    env | {"SHERIFF_SEED_REQUEST": request_relative, "PYTHONIOENCODING":"utf-8"}
+    command | "python3 sheriff-core/modules/trailboss_wiki/seed-support/write.py"
+    if :env("OS") == "Windows_NT" => command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File sheriff-core/modules/trailboss_wiki/seed-support/write.ps1"
+    result | :json_parse(:run_cmd(command, root, env))
+    :delete_path!(request_file)
+    if result{"ok"} == false => return error(result{"stderr"} ?? "Could not save seed files.")
+    return :json_parse(result{"stdout"})
+xx
+
+act execute(root, portal, source, mode)
+    if mode == "example" => return {"ok":true, "source":example()}
+    if valid_portal(portal) == false => return error("Invalid portal name.")
+    portal_root | "{root}/site/portals/{portal}"
+    if :file_exists("{portal_root}/config.yall") == false => return error("Portal not found.")
+    if mode == "load"
+        exists | :file_exists("{portal_root}/seeder.yall")
+        text | example()
+        if exists => text |= :read_text("{portal_root}/seeder.yall")
+        return {"ok":true, "source":text, "exists":exists}
+    xx
+    if mode == "save" => return write_sources(root, portal, source, {}, true)
+    report | plan(root, portal, source)
+    if report{"ok"} == false or mode == "preview" => return report
+    if mode != "create" => return error("Use load, example, save, preview, or create.")
+    if report{"conflicts"} > 0
+        :update!(report{"ok"}, false)
+        :update!(report{"stderr"}, "Resolve the conflicts before creating pages.")
+        return report
+    xx
+    written | write_sources(root, portal, source, report)
+    :update!(report{"ok"}, written{"ok"})
+    :update!(report{"stderr"}, written{"stderr"} ?? "")
+    :update!(report{"failures"}, written{"failures"} ?? [])
+    :update!(report{"created"}, written{"created"} ?? 0)
+    :update!(report{"saved"}, written{"saved"} ?? false)
+    :update!(report{"published"}, false)
+    results | []
+    for entry in report{"entries"}
+        if entry{"status"} != "create"
+            :put_last!(results, entry)
+            skip
+        xx
+        if :has(written{"paths"}, entry{"path"})
+            :update!(entry{"status"}, "created")
+        else
+            failure | ""
+            for item in (written{"failures"} ?? [])
+                if item{"path"} == entry{"path"} => failure |= item{"reason"}
+            xx
+            if !failure.nix?
+                :update!(entry{"status"}, "failed")
+                :update!(entry{"reason"}, failure)
+            elif written{"ok"} == false and (written{"saved"} ?? false) == false
+                :update!(entry{"status"}, "failed")
+                :update!(entry{"reason"}, written{"stderr"} ?? "File was not created.")
+            else
+                :update!(entry{"status"}, "skip")
+                :update!(entry{"reason"}, "File appeared after preview; kept unchanged.")
+                :update!(report{"skips"}, report{"skips"} + 1)
+            xx
+        xx
+        :put_last!(results, entry)
+    xx
+    :update!(report{"entries"}, results)
+    return report
+xx

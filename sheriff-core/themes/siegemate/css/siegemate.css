@@ -2958,28 +2958,49 @@ a.sheriff-missing-link:hover {
   opacity: 1;
 }
 
-/* Alphabetical generated indexes: letter groups share the theme's heading styles. */
+/* All generated directories share typography, spacing, and letter rules. */
 .sheriff-directory { margin: 1.5rem 0; }
-.sheriff-directory-columns {
-  column-width: 14rem;
-  column-count: 2;
-  column-gap: 2rem;
-}
-.sheriff-directory-group {
-  break-inside: avoid-column;
-  margin: 0 0 1.5rem;
-}
-.sheriff-article .sheriff-directory-group > h2 {
-  margin-top: 0;
+.sheriff-directory-columns { column-width: 14rem; column-count: 2; column-gap: 3rem; }
+.sheriff-directory-group { display: flow-root; break-inside: avoid-column; margin: 0 0 1.1rem; }
+.sheriff-article .sheriff-directory-group > :is(h2, h3) {
+  margin: 0 0 0.3rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--vk-gold) 30%, transparent);
+  color: var(--vk-gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
   break-after: avoid-column;
 }
-.sheriff-article .sheriff-directory-group > ul {
-  margin-top: 0.5rem;
-  margin-bottom: 0;
+:root[data-theme="light"] .sheriff-directory-group > :is(h2, h3) { color: var(--vk-gold-dim); }
+.sheriff-article .sheriff-directory-group > ul { margin: 0; padding: 0; list-style: none; }
+.sheriff-article .sheriff-directory-group li {
+  margin: 0.2rem 0;
+  padding-block: 0;
+  list-style: none;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  opacity: 1;
 }
-.sheriff-directory-group li { overflow-wrap: anywhere; }
+.sheriff-directory-group li > a {
+  min-width: 0;
+  padding: 0.1rem 0.2rem;
+  margin-inline: -0.2rem;
+  border-radius: 2px;
+  text-decoration: none;
+}
+.sheriff-directory-group li > a:hover { background: var(--sheriff-row-hover-bg); text-decoration: underline; text-underline-offset: 0.15em; }
+.sheriff-directory-group li > a:focus-visible { outline: 2px solid var(--vk-gold); outline-offset: 2px; }
 .sheriff-directory-group .anchor { scroll-margin-top: 1.5rem; }
-@media (max-width: 640px) {
+
+/* Section labels retain their hierarchy above the shared alphabetic lists. */
+.sheriff-article .sheriff-category-section { margin: 1.65rem 0 2rem; }
+.sheriff-article .sheriff-category-section > h2,
+.sheriff-article .sheriff-subcategories > summary > h2 { margin: 0 0 0.9rem; font-size: 1.2rem; line-height: 1.35; letter-spacing: 0.055em; }
+.sheriff-category-section .sheriff-directory { margin: 0; }
+@media (max-width: 960px) {
   .sheriff-directory-columns { column-count: 1; }
 }
 
@@ -3019,3 +3040,35 @@ a.sheriff-missing-link:hover {
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel{padding:0;}
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-panel > .sheriff-content-tab-heading{margin:0;padding:.45rem .65rem;}
 .sheriff-pattern > .sheriff-content-tabs > .sheriff-content-tab-list > .sheriff-content-tab{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-decoration:none;}
+
+/* Stub article notice; placement follows the explicit SHERIFF::STUB token. */
+.sheriff-stub { display: flex; align-items: flex-start; gap: 0.8rem; width: 100%; padding: 0.9rem 1rem; border: 1px solid var(--sheriff-border); border-left: 3px solid var(--sheriff-accent); background: var(--sheriff-panel); color: var(--sheriff-text); text-align: left; }
+.sheriff-stub-icon { flex: none; margin-top: 0.1rem; color: var(--sheriff-accent); }
+.sheriff-stub-icon > .sheriff-icon { width: 1.35rem; height: 1.35rem; vertical-align: middle; }
+.sheriff-stub-content { display: block; min-width: 0; }
+.sheriff-article .sheriff-stub-title { display: block; margin-bottom: 0.2rem; font-size: 1rem; line-height: 1.4; color: var(--sheriff-text); }
+.sheriff-stub-text { display: block; font-size: 0.95rem; line-height: 1.5; }
+.sheriff-stub { border-color: color-mix(in srgb, var(--vk-gold) 35%, transparent); border-left-color: var(--vk-gold); background: color-mix(in srgb, var(--vk-gold) 7%, var(--sheriff-bg)); }
+.sheriff-stub-icon { color: var(--vk-gold); }
+.sheriff-article .sheriff-stub-title { font-family: var(--vk-font-label); font-size: 0.9rem; letter-spacing: 0.04em; }
+.sheriff-stub-text { font-size: 1.05rem; }
+:root[data-theme="light"] .sheriff-stub-icon { color: var(--vk-gold-dim); }
+
+/* Directory rows share one marker column for bullets, categories, and stubs. */
+.sheriff-article .sheriff-directory-group > ul { padding-inline-start: 0; list-style: none; }
+.sheriff-article .sheriff-directory-group li { position: relative; display: block; padding-inline-start: 1.45em; list-style: none; line-height: 1.5; }
+.sheriff-directory-group li:not(:has(> :is(.sheriff-directory-category-icon, .sheriff-directory-stub-icon)))::before { content: "•"; position: absolute; inset-inline-start: 0; top: 0; width: 1em; text-align: center; color: var(--sheriff-muted); }
+.sheriff-directory-category-icon,
+.sheriff-directory-stub-icon { position: absolute; inset-inline-start: 0; top: 0.25em; display: flex; align-items: center; justify-content: center; width: 1em; height: 1em; margin: 0; color: var(--sheriff-muted); font-size: inherit; line-height: 1; }
+.sheriff-directory-category-icon > span:not(.sheriff-icon),
+.sheriff-directory-stub-icon > span:not(.sheriff-icon) { display: contents; }
+.sheriff-directory-category-icon .sheriff-icon,
+.sheriff-directory-stub-icon .sheriff-icon { display: block; width: 1em; height: 1em; margin: 0; vertical-align: middle; }
+
+/* Native disclosure keeps subcategories visible initially and keyboard operable. */
+.sheriff-subcategories > summary { position: relative; cursor: pointer; list-style: none; }
+.sheriff-subcategories > summary::-webkit-details-marker { display: none; }
+.sheriff-subcategories > summary::before { content: "▸"; position: absolute; inset-inline-start: 0; top: 50%; width: 1em; color: var(--sheriff-muted); transform: translateY(-50%); }
+.sheriff-subcategories[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
+.sheriff-article .sheriff-subcategories > summary > h2 { padding-inline-start: 1.1em; }
+.sheriff-subcategories > summary:focus-visible { outline: 2px solid var(--sheriff-accent); outline-offset: 4px; }

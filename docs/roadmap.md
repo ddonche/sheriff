@@ -31,10 +31,14 @@ product backlog is not automatically a requirement for Sheriff 1.0.
 
 ## Site seeding and stub articles — agreed next feature
 
-Status: design agreed; not implemented.
+Status: stub notices, generated-listing markers, automatic stub-category membership,
+and explicit CLI/Desk YALL seeding are implemented and tested locally. These changes
+have not been deployed. Theme icon settings are editable in each local portal theme
+`templates.yall`; `wiki_icons.category` and `wiki_icons.stub` support per-site
+overrides. See `docs/stubs.md`.
 
-- [ ] Add an explicitly invoked YALL seeder; do not seed on every normal build.
-- [ ] Accept category-to-page nested maps, with optional page metadata and extra
+- [x] Add an explicitly invoked YALL seeder; do not seed on every normal build.
+- [x] Accept category-to-page nested maps, with optional page metadata and extra
   categories. Example:
 
   ```yall
@@ -43,37 +47,41 @@ Status: design agreed; not implemented.
       "Vault 101": {}
       "Vault 111":
         summary: "A Vault-Tec shelter featured in Fallout 4."
-        categories: [Fallout 4]
+        categories: ["Fallout 4"]
   ```
 
-- [ ] Create ordinary Markdown sources using Sheriff's filename/canonical rules,
+- [x] Create ordinary Markdown sources using Sheriff's filename/canonical rules,
   wiki frontmatter, supplied metadata, and `{{{SHERIFF::STUB}}}`.
-- [ ] Preview planned creations, skips, and conflicts; report the actual result.
-- [ ] Never overwrite existing articles or restore a stub marker an author removed.
-- [ ] Merge repeated entries for the same article across category groups before
+- [x] Preview planned creations, skips, and conflicts; report the actual result.
+- [x] Never overwrite existing articles or restore a stub marker an author removed.
+- [x] Merge repeated entries for the same article across category groups before
   creating it. Report conflicting paths/canonicals/metadata rather than silently
   combining unrelated pages or choosing a winner.
-- [ ] Support the stub token on manually created pages independently of seeding.
-- [ ] Render a theme-styled, customizable built-in stub notice. Keep the semantic
-  marker independent of the notice's wording and presentation.
-- [ ] Derive stub status centrally in wiki indexing and pass that status to consumers.
+- [x] Support the stub token on manually created pages independently of seeding.
+- [x] Render a theme-styled built-in stub notice with a configurable icon.
+- [x] Make the notice wording configurable through stub_notice.title/text in theme
+  templates. Portal overrides inherit per field; the semantic token remains independent
+  of wording and presentation. Tested locally; not yet deployed.
+- [x] Derive stub status centrally in wiki indexing and pass that status to consumers.
   Exclude code examples and comments from marker detection.
-- [ ] Automatically derive membership in a dedicated Stub pages category without
+- [x] Automatically derive membership in a dedicated Stub pages category without
   writing that membership into source frontmatter. Removing the token removes it.
-- [ ] Add an accessible stub icon to All Pages and category listings. Stub articles
+- [x] Add an accessible stub icon to All Pages and category listings. Stub articles
   are existing pages, so links to them are resolved and they count as real pages.
-- [ ] Distinguish category pages from articles in directory listings with an
-  accessible category/folder icon. Page kind and stub status are independent;
-  a category can also be marked as a stub. Derive kind from wiki route metadata,
+- [x] Distinguish category pages from articles in directory listings with an
+  accessible category/folder icon. Article stub icons use the leading folder-icon position;
+  category entries keep their category icon without an extra stub marker. Derive kind from wiki route metadata,
   not from title wording such as "books".
-- [ ] Prefer a Subcategories section above the Pages section on category pages,
+- [x] Prefer a Subcategories section above the Pages section on category pages,
   with each section alphabetized separately and omitted when empty. Preserve
   unique heading/TOC anchors. Keep a category icon wherever categories appear
   alongside articles in mixed listings.
-- [ ] Preserve build boundaries: a page build updates that article; a portal build
+  Implemented and browser-tested locally across all three themes on 2026-11-12;
+  Programming was rebuilt for review. These category changes are not yet deployed.
+- [x] Preserve build boundaries: a page build updates that article; a portal build
   refreshes shared category/directory listings. Do not silently trigger full builds.
-- [ ] Keep this in modules and scheduled actions; no stub-specific logic in the
-  generic Core build runner. A Desk seeding interface can follow the CLI workflow.
+- [x] Keep this in modules and scheduled actions; no stub-specific logic in the
+  generic Core build runner. Desk and CLI now share the same explicitly invoked seeder.
 
 ## Theme versions and safe updates
 
@@ -113,6 +121,15 @@ Status: planned; local Cloud Sync is still a placeholder.
 - [ ] Transfer only the selected source tree or current completed output. Exclude
   private build history and unrelated local portals; protect current production data.
 
+## Sheriff Cloud authentication and multi-author Desk access
+
+Status: explicitly deferred by the owner. Not required for the current release.
+
+- [ ] Extend Cloud/Desk authentication and authorization to support multiple authors on a site, building on the existing Cloud login and access checks.
+- [ ] Define site membership, collaborator roles, and editing permissions; enforce them on the server for each portal and operation.
+- [ ] Attribute edits to the authenticated author and handle conflicting edits so one author's save cannot silently overwrite another's work.
+- [ ] Keep collaboration in the Cloud/Desk layer; preserve the generic Core build runner.
+
 ## Sheriff/Spur integration and administration
 
 Status: Studio already has Desk/Studio/Settings switching, feature controls,
@@ -133,6 +150,18 @@ rebuild those completed pieces.
   Compendium, Outpost, and Siegemate.
 
 ## Distribution and smaller follow-ups
+
+- [ ] Design mobile navigation so the left sidebar does not become a long menu
+  above the article. Review an explicit Browse/Menu control that opens the site
+  navigation on demand, with a separate On this page control for the page TOC.
+  Choose and review the interaction before implementation. Preserve nested menus,
+  current-page indication, keyboard access, focus handling, and consistent behavior
+  across Compendium, Outpost, and Siegemate.
+
+- [ ] Add author-controlled list columns in content using `::: columns 2`,
+  `::: columns 3`, or `::: columns 4` blocks. Support 2–4 requested columns,
+  reduce the count to fit available width, and use one column on phones.
+  Keep list semantics and consistent styling across all three themes.
 
 - [ ] Document a public Spur Downloads metadata/download integration for other sites
   and UIs. Keep simple digital-file distribution separate from dependency resolution
