@@ -74,8 +74,8 @@
     const done=await cloud('deploy',{expected_revision:remote.revision,build_ms:buildMs,state,source:await encode(source),output:await encode(output)});
     await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
-  async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
-  async function load(){if(busy)return;const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?'Sign in to check changes, download, or deploy.':'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
+  async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;revision++;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
+  async function load(){if(busy)return;const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
   $('connect').addEventListener('click',()=>{
     if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
     const state=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
