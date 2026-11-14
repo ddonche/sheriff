@@ -29,6 +29,7 @@
     for(const id of ['download','deploy','check'])$(id).hidden=!connected;
     for(const id of ['connect','download','deploy','check','disconnect','signout'])$(id).disabled=busy||!context.current||(['download','deploy','check'].includes(id)&&!authenticated);
     $('badge').textContent=!connected?'Not connected':!authenticated?'Sign in to sync':remote?.files===0?'Ready to deploy':remote&&local?remote.revision===local?'Up to date':connection.baseline&&remote.revision===connection.baseline?'Local changes':connection.baseline&&local===connection.baseline?'Cloud changes':'Changes on both sides':'Connected';
+    view.querySelectorAll('#cl-links button').forEach(button=>{button.disabled=busy;});
     const status=connected?(authenticated?'Connected':'Sign in to sync'):session?'Signed in · portal not linked':'Not connected';
     const stat=document.getElementById('stat-cloud');if(stat){stat.textContent=status;stat.classList.toggle('placeholder',!authenticated);}
     const label=document.getElementById('dashboard-cloud-status');if(label)label.textContent=connected&&authenticated?'Connected to '+connection.url:status;
