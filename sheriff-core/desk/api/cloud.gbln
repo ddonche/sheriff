@@ -48,7 +48,20 @@ act handle()
         env | {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":"mode={mode}&portal={portal}","GOBLIN_REQUEST_FILE": :env("GOBLIN_REQUEST_FILE")}
         result | :json_parse(:run_cmd("goblin run cloud_state.gbln","{root}/sheriff-core",env))
         if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
-        return :json_parse(result{"stdout"})
+        /// Goblin's HTTP environment is inherited by the child driver.
+        /// Decode its response envelope before returning the state to Desk.
+        data | :json_parse(result{"stdout"})
+        depth | 0
+        while :valtype(data) == "map" and :has(data,"body") and :has(data,"status")
+            if depth >= 8 => return {"ok":false,"stderr":"Invalid build metadata response."}
+            if :valtype(data{"body"}) == "str"
+                data |= :json_parse(data{"body"})
+            else
+                data |= data{"body"}
+            xx
+            :update!(depth,depth + 1)
+        xx
+        return data
     xx
     if verb == "state"
         state | ..
