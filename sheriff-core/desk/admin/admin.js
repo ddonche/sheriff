@@ -92,8 +92,7 @@
     themes:     { el: 'view-themes' },
     config:     { el: 'view-config' },
     snapshots:  { el: 'view-snapshots' },
-    cloud:      { el: 'view-placeholder', title: 'Cloud Sync',
-                  text: 'Sheriff Cloud sync isn\u2019t built yet. Push and pull will live here. Local save points are under Snapshots.' },
+    cloud:      { el: 'view-cloud' },
     settings:   { el: 'view-placeholder', title: 'Settings',
                   text: 'Desk settings \u2014 nothing to set yet. Your site\u2019s configuration lives under Config.' }
   };
@@ -129,6 +128,7 @@
       n.classList.toggle('active', n.dataset.view === key);
     });
 
+    if (key === 'cloud' && window.SheriffCloudSync) window.SheriffCloudSync.enter();
     if (key === 'content') editorEnter();
     if (key === 'portals') renderManageList();
     if (key === 'media') mediaEnter();

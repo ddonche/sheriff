@@ -1,0 +1,101 @@
+/// Local Cloud connection metadata and binary handoff. No Cloud credentials live here.
+/// Reuses the existing snapshot implementation for safe restore and rollback.
+act query_value(raw, key)
+    for part in :split(raw, "&")
+        if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
+    xx
+    return ""
+xx
+act safe_id(value)
+    if value == "" => return false
+    for character in :split(value, "")
+        if !:has("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-", character) => return false
+    xx
+    return true
+xx
+act snapshot(root, portal, snapshot_action, id)
+    command | "python3 sheriff-core/desk/api/snapshot-support/snapshots.py"
+    if :env("OS") == "Windows_NT" => command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File sheriff-core/desk/api/snapshot-support/snapshots.ps1"
+    env | {"SHERIFF_SNAPSHOT_ROOT":".","SHERIFF_SNAPSHOT_PORTAL":portal,"SHERIFF_SNAPSHOT_ACTION":snapshot_action,"SHERIFF_SNAPSHOT_ID":id,"SHERIFF_SNAPSHOT_BODY":"{\"name\":\"Before Cloud download\"}","PYTHONIOENCODING":"utf-8"}
+    result | :json_parse(:run_cmd(command, root, env))
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+    return :json_parse(result{"stdout"})
+xx
+act handle()
+    if :env("SHERIFF_RUNTIME_MODE") == "cloud" => return {"ok":false,"stderr":"Cloud connections belong to local Desk."}
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for Cloud connections."}
+    raw_headers | :env("GOBLIN_HEADERS_JSON")
+    if raw_headers == "" => raw_headers |= "{}"
+    headers | :json_parse(raw_headers)
+    origin | headers{"origin"} ?? ""
+    host | headers{"host"} ?? ""
+    if origin != "" and origin != "http://{host}" => return {"ok":false,"stderr":"Open Cloud Sync from local Desk."}
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query,"&") ?? query
+    portal | query_value(query,"portal")
+    if !safe_id(portal) => return {"ok":false,"stderr":"Invalid portal."}
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    if !:file_exists("{root}/site/portals/{portal}/config.yall") => return {"ok":false,"stderr":"Portal not found."}
+    folder | "{root}/data/desk-cloud"
+    :create_dir!(folder)
+    file | "{folder}/{portal}.json"
+    if verb == "state"
+        state | ..
+        if :file_exists(file) => state |= :read_json(file)
+        return {"ok":true,"connection":state}
+    xx
+    if verb == "forget"
+        if :file_exists(file) => :delete_path!(file)
+        return {"ok":true}
+    xx
+    if verb == "link"
+        text | :env("GOBLIN_BODY")
+        request | :env("GOBLIN_REQUEST_FILE")
+        if !request.nix? => text |= :read_text(request)
+        incoming | :json_parse(text)
+        if !safe_id(incoming{"portal"} ?? "") => return {"ok":false,"stderr":"Invalid Cloud site."}
+        state | {"portal":incoming{"portal"},"site_id":incoming{"site_id"},"url":incoming{"url"},"account":incoming{"account"},"baseline":incoming{"baseline"} ?? ""}
+        :write_json!(file,state)
+        return {"ok":true,"connection":state}
+    xx
+    if verb == "build-archive"
+        output | "{root}/dist/{portal}"
+        if !:file_exists("{output}/index.html") => return {"ok":false,"stderr":"Build this portal before deploying."}
+        id | :uuid_v4()
+        :zip_dir!(output,"{root}/dist/admin/cloud-transfer/{id}.zip")
+        return {"ok":true,"url":"/admin/cloud-transfer/{id}.zip","id":id}
+    xx
+    if verb == "cleanup"
+        id | query_value(query,"id")
+        if !safe_id(id) => return {"ok":false,"stderr":"Invalid transfer."}
+        path | "{root}/dist/admin/cloud-transfer/{id}.zip"
+        if :file_exists(path) => :delete_path!(path)
+        return {"ok":true}
+    xx
+    if verb == "import"
+        checksum | query_value(query,"sha256")
+        if checksum.len != 64 => return {"ok":false,"stderr":"Missing archive checksum."}
+        for character in :split(checksum, "")
+            if !:has("0123456789abcdef",character) => return {"ok":false,"stderr":"Invalid checksum."}
+        xx
+        incoming | :env("GOBLIN_REQUEST_FILE")
+        if incoming.nix? => return {"ok":false,"stderr":"Missing archive body."}
+        backup | snapshot(root,portal,"create","")
+        if backup{"ok"} == false => return backup
+        id | :uuid_v4()
+        :update_where!(id,"-","")
+        saved | "{root}/data/snapshots/{portal}/{id}"
+        :copy_file!(incoming,"{saved}.zip")
+        :write_json!("{saved}.json",{"id":id,"portal":portal,"name":"Downloaded from Cloud","created_at":backup{"snapshot"}{"created_at"}, "sha256":checksum})
+        restored | snapshot(root,portal,"restore",id)
+        if restored{"ok"} == false => return restored
+        return {"ok":true,"backup":backup{"snapshot"},"download":id}
+    xx
+    return {"ok":false,"stderr":"Unknown Cloud connection action."}
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

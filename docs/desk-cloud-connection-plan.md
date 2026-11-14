@@ -13,11 +13,18 @@ sites, explicitly link one local portal to one remote site, and deploy that sele
 portal with understandable progress and a live-site link. Permit disconnect and
 handle expired login, denied ownership, build errors and upload failures clearly.
 
-A source transfer followed by Cloud build keeps hosted editable files current;
-publishing built output alone leaves Cloud source unchanged. Owner choice is
-pending. Do not silently choose or copy all local portals. Existing production
-source is authoritative until the owner deliberately links/transfers selected
-local content. Keep private retained outputs, snapshots and credentials out.
+Owner decision: Download Cloud source for offline work; Deploy builds locally and
+uploads both completed output and matching source. Cloud does not rebuild. Compare
+source-content fingerprints against the last sync. If both changed, ask which
+whole copy to keep; do not automatically merge. Keep replaced source recoverable.
+Connecting never transfers a portal. Only the explicitly linked portal is eligible.
+
+Implemented locally: browser authorization handoff; create/select a docs-capable
+owned Cloud site; Goblin connection state and snapshot restore; browser binary ZIP
+transport; authenticated, serialized Cloud publication. Access tokens stay in browser
+memory. Reopening Desk remembers the site link and asks to reconnect the session.
+The initial transfer limit is 48 MB combined source plus output. No billing, domain
+management, collaborator roles or automatic merge UI is implemented.
 
 Authentication discovery: the repo has a legacy /cli-login token-in-query relay,
 and a newer public OIDC provider whose app tokens deliberately have identity-only
@@ -28,4 +35,4 @@ credentials to local Desk. New Sheriff backend feature logic stays in Goblin;
 frontend behavior may use JavaScript. Existing helper limitations remain deferred.
 
 Do not expand this into collaborator roles, multi-author edits, marketplace login,
-full two-way synchronization or unrelated site changes. Those remain separate work.
+automatic merging or unrelated site changes. Those remain separate work.
