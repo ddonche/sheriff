@@ -43,8 +43,8 @@ act validate_state(state)
             for version in versions
                 fields | :split(version,"|||")
                 if fields.len < 2 => return false
-                rel | fields[1]
-                if :has(rel,"..") or :starts_with(rel,"/") or :has(rel,":") or :has(rel,"\\") => return false
+                version_rel | fields[1]
+                if :has(version_rel,"..") or :starts_with(version_rel,"/") or :has(version_rel,":") or :has(version_rel,"\\") => return false
             xx
             rows | route{"revision_history_rows"} ?? []
             if :valtype(rows) != "array" => return false
