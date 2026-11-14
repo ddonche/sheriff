@@ -18,7 +18,9 @@ const cases=[
  {name:'code-fences-in-panel',body:'::: tabs\n@tab One\n~~~~text\n@tab Fake tab\n::: tabs\n::: \n~~~~\n@tab Two\nActual second.\n:::'}
 ];
 try{
-for(const rel of ['modules/markdown_core/markdown.gbln','modules/markdown_core/content_tabs.gbln','modules/markdown_core/fenced_code.gbln','modules/sheriff_patterns/patterns.gbln','modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/badge_labels/badge.gbln','modules/stagehand/stagehand.gbln','modules/brindle_themes/brindle.gbln','modules/markdown_core/sheriff-content-tabs.js','themes/outpost/css/outpost.css','themes/outpost/css/outpost-header.css','themes/outpost/layouts/docs.html']){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
+for(const rel of ['modules/markdown_core/markdown.gbln','modules/markdown_core/content_columns.gbln','modules/markdown_core/content_tabs.gbln','modules/markdown_core/fenced_code.gbln','modules/sheriff_patterns/patterns.gbln','modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/badge_labels/badge.gbln','modules/stagehand/stagehand.gbln','modules/brindle_themes/brindle.gbln','modules/markdown_core/sheriff-content-tabs.js','themes/outpost/css/outpost.css','themes/outpost/css/outpost-header.css','themes/outpost/layouts/docs.html']){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
+// This rendering fixture does not run main.gbln or the build lifecycle.
+fs.writeFileSync(path.join(core,'build_output.gbln'),'act directory(portal)\n    return "../dist/{portal}"\nxx\n');
 const portal=path.join(fixture,'site/portals/test');fs.mkdirSync(portal,{recursive:true});fs.writeFileSync(path.join(portal,'config.yall'),'documentation:\n  default_version: "v1.0.0"\n  versions:\n    - "v1.0.0"\n');
 fs.writeFileSync(path.join(portal,'routes.json'),JSON.stringify({routes:[{slug:'known',canonical_slug:'known',href:'/known.html',rel:'known',title:'Known',aliases:[]}]}));
 fs.writeFileSync(path.join(core,'cases.json'),JSON.stringify(cases));fs.writeFileSync(path.join(core,'verify.gbln'),String.raw`import modules/markdown_core/markdown as markdown
@@ -41,7 +43,7 @@ for item in :read_json("cases.json")
 xx
 stagehand::copy_assets({"portal": "test"})
 layout | brindle::apply_layout({"portal": "test", "body": "Fixture content", "frontmatter": {"layout": "docs"}})
-:say("ASSET_CHECK " + :json_stringify({"copied": :read_text("../dist/test/public/js/sheriff-content-tabs.js"), "scripts": resolve_token("{{{BRINDLE::SCRIPTS}}}")}))
+:say("ASSET_CHECK " + :json_stringify({"copied": :read_text("../dist/test/public/js/sheriff-content-tabs.js"), "scripts": :resolve_token("{{{BRINDLE::SCRIPTS}}}")}))
 `);
 const result=spawnSync('goblin',['run','verify.gbln'],{cwd:core,encoding:'utf8',timeout:30000});assert.equal(result.status,0,result.stdout+'\n'+result.stderr);
 const asset=JSON.parse(result.stdout.split(/\r?\n/).find(x=>x.startsWith('ASSET_CHECK ')).slice(12));assert.equal(asset.copied,fs.readFileSync(path.join(root,'sheriff-core/modules/markdown_core/sheriff-content-tabs.js'),'utf8'));assert(asset.scripts.includes('/public/js/sheriff-content-tabs.js'));

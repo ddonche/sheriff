@@ -1,5 +1,6 @@
 import modules/markdown_core/fenced_code as fenced_code
 import modules/markdown_core/content_tabs as content_tabs
+import modules/markdown_core/content_columns as content_columns
 
 /// modules/markdown_core/markdown.gbln
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
@@ -43,7 +44,7 @@ act render(ctx)
     fenced | fenced_code::stash(protected, "TB_FENCE")
     fence_stash | fenced{"stash"}
     tabbed | content_tabs::prepare(fenced{"text"}, 1)
-    protected |= tabbed{"body"}
+    protected |= content_columns::prepare(tabbed{"body"})
     for item in fence_stash
         k | item{"k"}
         :update_where!(protected, k, "\n\n" + k + "\n\n")

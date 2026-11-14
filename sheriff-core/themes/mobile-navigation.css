@@ -1,0 +1,59 @@
+/* Shared mobile navigation for Compendium, Outpost and Siegemate.
+ * Theme colors/fonts come from theme variables; portal override.css loads last.
+ * Sidebars stay in the document flow until the browser enhancement is ready. */
+.sheriff-mobile-browse-bar { display:none; }
+.sheriff-mobile-nav-panel { box-sizing:border-box; border:1px solid var(--sheriff-border); padding:0; color:var(--sheriff-text); background:var(--sheriff-bg); width:min(89vw,24rem); max-width:100vw; height:100vh; height:100dvh; max-height:100vh; max-height:100dvh; margin:0; position:fixed; inset:0 auto 0 0; overflow:hidden; box-shadow:0 0 48px #0005; }
+.sheriff-mobile-nav-panel.sheriff-mobile-page-panel { inset:0 0 0 auto; margin-left:auto; }
+.sheriff-mobile-nav-panel::backdrop { background:rgb(0 0 0 / .52); backdrop-filter:blur(2px); }
+.sheriff-mobile-panel-heading { box-sizing:border-box; display:flex; gap:1rem; align-items:center; justify-content:space-between; padding:1rem 1.15rem; min-height:4rem; border-bottom:1px solid var(--sheriff-border); background:var(--sheriff-panel); }
+.sheriff-mobile-panel-heading h2 { font:inherit; font-weight:700; margin:0; border:0; color:var(--sheriff-text); }
+.sheriff-mobile-panel-close { display:grid; place-items:center; width:2.5rem; height:2.5rem; background:transparent; color:var(--sheriff-text); border:1px solid var(--sheriff-border); border-radius:4px; cursor:pointer; flex:none; }
+.sheriff-mobile-panel-body { box-sizing:border-box; padding:1rem 1.15rem 3rem; height:calc(100% - 4.5rem); overflow:auto; overscroll-behavior:contain; }
+.sheriff-mobile-panel-body > .sheriff-left-nav,.sheriff-mobile-panel-body > .sheriff-toc,.sheriff-mobile-panel-body > .sheriff-sidebar { width:100%!important; max-width:none!important; margin:0!important; padding:0!important; border:0!important; flex:none!important; display:block!important; }
+.sheriff-mobile-panel-body .sheriff-left-nav a { padding-block:.42rem; min-height:2.4rem; display:flex; align-items:center; }
+.sheriff-mobile-panel-body .sheriff-left-nav summary { min-height:2.75rem; display:flex; align-items:center; justify-content:space-between; }
+.sheriff-mobile-panel-body .toc { margin-top:0; }
+.sheriff-mobile-panel-body .toc a { display:block; padding-block:.55rem; min-height:2.5rem; }
+.sheriff-mobile-panel-body .toc-summary { display:none; }
+.sheriff-mobile-panel-body .sheriff-focus-slot { position:static; }
+.sheriff-mobile-panel-body .sheriff-left-nav .sheriff-icon { flex-shrink:0; }
+.sheriff-mobile-panel-body .sheriff-breadcrumbs,.sheriff-mobile-panel-body .sheriff-wiki-backlinks { margin-top:1.5rem; }
+.sheriff-mobile-nav-panel button:focus-visible,.sheriff-mobile-browse-bar button:focus-visible { outline:2px solid var(--sheriff-link); outline-offset:3px; }
+@media(max-width:960px) {
+  html.sheriff-mobile-ready .sheriff-shell { width:100%; max-width:100%; margin:0; padding-inline:1rem; }
+  html.sheriff-mobile-ready .sheriff-main-layout-three,html.sheriff-mobile-ready .sheriff-main-layout-two { gap:0; }
+  html.sheriff-mobile-ready .sheriff-article { min-width:0; max-width:none; width:100%; }
+  html.sheriff-mobile-ready .sheriff-header { margin-bottom:0; }
+  html.sheriff-mobile-ready .sheriff-header-top { padding:1rem 0; min-width:0; gap:.5rem; }
+  html.sheriff-mobile-ready .sheriff-header-left { min-width:0; }
+  html.sheriff-mobile-ready .sheriff-logo-link { min-width:0; }
+  html.sheriff-mobile-ready .sheriff-logo-text-wrap { min-width:0; flex-wrap:wrap; }
+  html.sheriff-mobile-ready .sheriff-logo-mark { max-width:2.75rem; max-height:2.75rem; }
+  html.sheriff-mobile-ready .sheriff-header-bottom { display:flex; flex-wrap:wrap; gap:.8rem; padding:.65rem .75rem; width:auto; max-width:100%; margin-inline:0; }
+  html.sheriff-mobile-ready .sheriff-header-bottom .sheriff-search-wrapper { max-width:none; width:100%; }
+  .sheriff-mobile-browse-bar { display:flex; position:sticky; top:0; z-index:30; justify-content:space-between; align-items:center; gap:.5rem; border-block:1px solid var(--sheriff-border); background:var(--sheriff-bg); padding:.35rem 0; margin-bottom:1.25rem; }
+  .sheriff-mobile-browse-bar button { display:flex; align-items:center; gap:.5rem; background:transparent; color:var(--sheriff-text); border:0; font:inherit; font-size:.85rem; min-height:2.75rem; padding:.35rem .65rem; cursor:pointer; }
+  .sheriff-mobile-browse-bar button:last-child { margin-left:auto; }
+  .sheriff-mobile-browse-bar button:hover { background:var(--sheriff-panel); }
+  .sheriff-mobile-browse-bar svg,.sheriff-mobile-panel-close svg { width:1.15em; height:1.15em; flex:none; }
+  .sheriff-mobile-browse-bar .sheriff-mobile-arrow { color:var(--sheriff-muted); width:.8em; height:.8em; }
+  .sheriff-article h1 { overflow-wrap:anywhere; }
+  .sheriff-article a { overflow-wrap:anywhere; }
+  .sheriff-article [id] { scroll-margin-top:4.5rem; }
+}
+@media(prefers-reduced-motion:no-preference) { .sheriff-mobile-nav-panel[open] { animation:sheriff-mobile-panel-enter .16s ease-out; } @keyframes sheriff-mobile-panel-enter { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} } }
+@media print { .sheriff-mobile-browse-bar,.sheriff-mobile-nav-panel { display:none!important; } }
+
+/* Header menus must paint above the wrapped search row and the sticky mobile bar. */
+.sheriff-header { z-index:40; }
+.sheriff-header-nav { position:relative; z-index:2; }
+.sheriff-header-bottom > .sheriff-search-wrapper { z-index:1; }
+.sheriff-header-nav .sheriff-header-menu-toggle { display:flex; align-items:center; gap:.25rem; padding:0; border:0; border-radius:0; background:transparent; color:var(--sheriff-link); font:inherit; text-align:inherit; cursor:pointer; }
+.sheriff-header-nav .sheriff-header-menu-toggle:hover { color:var(--sheriff-link-hover); text-decoration:underline; }
+.sheriff-header-nav .sheriff-header-menu-toggle:focus-visible { outline:2px solid var(--sheriff-link); outline-offset:3px; }
+.sheriff-header-nav > ul > li.sheriff-header-menu-ready .dropdown-panel { display:none; }
+.sheriff-header-nav > ul > li.sheriff-header-menu-open .dropdown-panel { display:block; }
+@media(max-width:960px) {
+  .sheriff-header-nav > ul { flex-wrap:wrap; }
+  .sheriff-header-nav .dropdown-panel { min-width:min(14rem,calc(100vw - 3.5rem)); max-width:calc(100vw - 3.5rem); max-height:60vh; overflow:auto; overflow-wrap:anywhere; }
+}

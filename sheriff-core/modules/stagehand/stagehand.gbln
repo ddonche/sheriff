@@ -119,6 +119,15 @@ act copy_assets(pre_ctx)
         :create_dir!((build_output::directory(portal) + "/public/js"))
         :copy_file!(tabs_js_src, (build_output::directory(portal) + "/public/js/sheriff-content-tabs.js"))
     xx
+    /// Theme navigation is shared by current and existing portal layouts.
+    for asset in [["modules/brindle_themes/sheriff-image-viewer.js", "js/sheriff-image-viewer.js"], ["modules/brindle_themes/sheriff-mobile-navigation.js", "js/sheriff-mobile-navigation.js"], ["themes/mobile-navigation.css", "css/sheriff-mobile-navigation.css"]]
+        source | "../sheriff-core/" + asset[0]
+        destination | build_output::directory(portal) + "/public/" + asset[1]
+        if :file_exists(source)
+            :create_dir!(:dirname(destination))
+            :copy_file!(source, destination)
+        xx
+    xx
     /// ----- 4) Copy index.html from content/ to dist/{portal} if it exists -----
     index_src  | "../site/portals/{portal}/content/index.html"
     index_dest | (build_output::directory(portal) + "/index.html")

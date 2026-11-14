@@ -20,7 +20,7 @@ const cases=[
 ];
 if(process.env.SHERIFF_VIDEO_ODIN_SOURCE)cases.push({name:'odin',body:fs.readFileSync(process.env.SHERIFF_VIDEO_ODIN_SOURCE,'utf8'),groups:1,frames:3});
 try{
-for(const rel of ['modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/markdown_core/markdown.gbln','modules/markdown_core/fenced_code.gbln','modules/markdown_core/content_tabs.gbln','modules/sheriff_patterns/patterns.gbln','modules/frontier_fm/frontier.gbln']){const target=path.join(core,rel);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),target);}
+for(const rel of ['modules/trailboss_wiki/trailboss.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/markdown_core/markdown.gbln','modules/markdown_core/content_columns.gbln','modules/markdown_core/fenced_code.gbln','modules/markdown_core/content_tabs.gbln','modules/sheriff_patterns/patterns.gbln','modules/frontier_fm/frontier.gbln']){const target=path.join(core,rel);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),target);}
 const portal=path.join(fixture,'site/portals/test');fs.mkdirSync(portal,{recursive:true});fs.writeFileSync(path.join(portal,'config.yall'),'theme:\n  name: compendium\n');fs.writeFileSync(path.join(portal,'routes.json'),JSON.stringify({routes:[]}));fs.writeFileSync(path.join(core,'cases.json'),JSON.stringify(cases));
 fs.writeFileSync(path.join(core,'verify.gbln'),String.raw`import modules/markdown_core/markdown as markdown
 import modules/sheriff_patterns/patterns as patterns

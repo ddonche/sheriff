@@ -1,0 +1,123 @@
+import modules/markdown_core/fenced_code as fences
+
+/// Author-requested columns. Keep the original lists and their reading order.
+act count(value)
+    if value.nix? => return ""
+    text | :trim(:str(value))
+    if :has(["2", "3", "4"], text) => return text
+    return ""
+xx
+
+act directive_line(line)
+    return :starts_with(line, "    ") == false and :starts_with(line, "\t") == false
+xx
+
+/// Comments and raw code examples are literal, even when they contain directives.
+act literal_after(line, closing)
+    work | line
+    current | closing
+    while !work.nix?
+        if !current.nix?
+            if :has(work, current) == false => return current
+            work |= :keep_after(work, current) ?? ""
+            current |= ""
+        else
+            first | work.len
+            opening | ""
+            for marker in ["<!--", "<pre", "<code"]
+                found | :find_all(work, marker)
+                if !found.nix? and found[0] < first
+                    first |= found[0]
+                    opening |= marker
+                xx
+            xx
+            if opening.nix? => return ""
+            work |= :keep_after(work, opening) ?? ""
+            if opening == "<!--" => current |= "-->"
+            if opening == "<pre" => current |= "</pre>"
+            if opening == "<code" => current |= "</code>"
+        xx
+    xx
+    return current
+xx
+
+act read_group(lines, start)
+    content | []
+    depth | 0
+    code, literal | ""
+    for n in :range(start + 1, lines.len)
+        line | lines[n]
+        t | :trim(line)
+        if !code.nix?
+            :put_last!(content, line)
+            if fences::closes(line, code) => code |= ""
+            skip
+        xx
+        if !literal.nix? or :has(line, "<!--") or :has(line, "<pre") or :has(line, "<code")
+            literal |= literal_after(line, literal)
+            :put_last!(content, line)
+            skip
+        xx
+        marker | fences::marker(line)
+        if !marker.nix?
+            code |= marker
+            :put_last!(content, line)
+            skip
+        xx
+        if directive_line(line)
+            if :starts_with(t, "::: ")
+                depth += 1
+            elif t == ":::"
+                if depth == 0 => return {"valid": true, "body": :join(content, "\n"), "end": n}
+                depth -= 1
+            xx
+        xx
+        :put_last!(content, line)
+    xx
+    return {"valid": false}
+xx
+
+act prepare(text)
+    if text.nix? or :has(text, "::: columns") == false => return text
+    lines | :split(text, "\n")
+    out | []
+    consumed | -1
+    code, literal | ""
+    for n in :range(0, lines.len)
+        if n <= consumed => skip
+        line | lines[n]
+        if !code.nix?
+            :put_last!(out, line)
+            if fences::closes(line, code) => code |= ""
+            skip
+        xx
+        if !literal.nix? or :has(line, "<!--") or :has(line, "<pre") or :has(line, "<code")
+            literal |= literal_after(line, literal)
+            :put_last!(out, line)
+            skip
+        xx
+        marker | fences::marker(line)
+        if !marker.nix?
+            code |= marker
+            :put_last!(out, line)
+            skip
+        xx
+        if directive_line(line)
+            t | :trim(line)
+            if :starts_with(t, "::: columns ")
+                columns | count(:keep_after(t, "::: columns "))
+                if !columns.nix?
+                    group | read_group(lines, n)
+                    if group{"valid"}
+                        inner | prepare(group{"body"})
+                        :put_last!(out, "\n<div class=\"sheriff-columns sheriff-columns-{columns}\">\n\n{inner}\n\n</div>\n")
+                        consumed |= group{"end"}
+                        skip
+                    xx
+                xx
+            xx
+        xx
+        :put_last!(out, line)
+    xx
+    return :join(out, "\n")
+xx

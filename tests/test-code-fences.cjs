@@ -16,11 +16,11 @@ const cases=[
  {name:'html-workaround',body:workaround,literal:sample},
  {name:'actual-tabs',body:sample,tab:true}
 ];
-try{for(const rel of ['modules/markdown_core/markdown.gbln','modules/markdown_core/content_tabs.gbln','modules/markdown_core/fenced_code.gbln','modules/sheriff_patterns/patterns.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/badge_labels/badge.gbln']){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
+try{for(const rel of ['modules/markdown_core/markdown.gbln','modules/markdown_core/content_columns.gbln','modules/markdown_core/content_tabs.gbln','modules/markdown_core/fenced_code.gbln','modules/sheriff_patterns/patterns.gbln','modules/trailboss_wiki/stub_source.gbln','modules/trailboss_wiki/routes_json.gbln','modules/badge_labels/badge.gbln']){const dest=path.join(core,rel);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core',rel),dest);}
 fs.writeFileSync(path.join(core,'cases.json'),JSON.stringify(cases));fs.writeFileSync(path.join(core,'verify.gbln'),String.raw`import modules/sheriff_patterns/patterns as patterns
 import modules/markdown_core/markdown as markdown
 import modules/badge_labels/badge as badge
-register_token("SHERIFF", "PATTERN_SHARED", "<aside>Shared pattern</aside>")
+:register_token("SHERIFF", "PATTERN_SHARED", "<aside>Shared pattern</aside>")
 for item in :read_json("cases.json")
     ctx | {"body": item{"body"}, "frontmatter": {}}
     ctx |= patterns::apply_patterns(ctx)

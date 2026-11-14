@@ -94,7 +94,7 @@ overrides. See `docs/stubs.md`.
   unique heading/TOC anchors. Keep a category icon wherever categories appear
   alongside articles in mixed listings.
   Implemented and browser-tested locally across all three themes on 2026-11-12;
-  Programming was rebuilt for review. These category changes are not yet deployed.
+  Programming was rebuilt for review. These category changes shipped in Cloud release 606.
 - [x] Preserve build boundaries: a page build updates that article; a portal build
   refreshes shared category/directory listings. Do not silently trigger full builds.
 - [x] Keep this in modules and scheduled actions; no stub-specific logic in the
@@ -131,7 +131,10 @@ Status: agreed architecture; no MOWI implementation found in the active checkout
 
 ## Local Desk to Cloud
 
-Status: planned; local Cloud Sync is still a placeholder.
+Status: priority for the upcoming YC submission/demo, raised by the owner on
+2026-11-13. Local Cloud Sync is still a placeholder; do not present it as working.
+Reuse existing Cloud login, ownership checks and publishing infrastructure.
+Resolve source-versus-built-output deployment explicitly before implementation.
 
 - [ ] Authenticate local Desk to Cloud and select/link an authorized remote site.
 - [ ] Add deliberate one-click deployment of selected portal source or built output.
@@ -166,25 +169,72 @@ rebuild those completed pieces.
 - [ ] Extract the Spur theme and build paired Sheriff/Spur theme families for Spur,
   Compendium, Outpost, and Siegemate.
 
+## Spur static publishing, Discovery and Thistle integration
+
+Status: agreed architecture on 2026-11-13; implementation is future work. See
+[the integration plan](sheriff-spur-thistle-plan.md). Keep Sheriff independently
+usable and Spur a full creator platform; retain current interaction services until
+Thistle replacements are ready.
+
+- [ ] Reuse/extend Campfire for standalone blog publication; define the shared
+  content/metadata interface and optional Spur adapter in Goblin modules.
+- [ ] Pilot Sheriff-generated public Spur blog articles at existing URLs, preserving
+  Studio, themes, authentication and current comments/interaction services. Verify
+  edits, withdrawal, dependent indexes/feeds and actual static-serving routes.
+- [ ] Connect authenticated Sheriff-to-Spur full-content Discovery submissions and
+  Spur-to-Sheriff publication with stable IDs, revisions, source ownership,
+  attribution, opt-in preferences and update/removal synchronization.
+- [ ] Migrate dynamic functionality to Thistle incrementally, preserving identities,
+  permissions and existing functionality until each replacement works.
+- [ ] Expand static publication to public forum topics/replies, portfolios, galleries,
+  episodes and downloads; add a WordPress integration through the same interface.
+  Respect private content and explicit moderation/cache/pagination behavior.
+
 ## Distribution and smaller follow-ups
 
-- [ ] Design mobile navigation so the left sidebar does not become a long menu
-  above the article. Review an explicit Browse/Menu control that opens the site
-  navigation on demand, with a separate On this page control for the page TOC.
-  Choose and review the interaction before implementation. Preserve nested menus,
-  current-page indication, keyboard access, focus handling, and consistent behavior
-  across Compendium, Outpost, and Siegemate.
+- [x] Design and implement mobile navigation across Compendium, Outpost and
+  Siegemate. The reviewed Browse and On this page drawers replace stacked sidebars
+  below 960px, preserving nested menus, current-page indication, keyboard access,
+  focus return and normal desktop layouts. The Special dropdown stays above the
+  wrapped search row. Local implementation verified; not deployed to Cloud yet.
+  See [mobile navigation](mobile-navigation.md).
 
-- [ ] Add author-controlled list columns in content using `::: columns 2`,
-  `::: columns 3`, or `::: columns 4` blocks. Support 2–4 requested columns,
-  reduce the count to fit available width, and use one column on phones.
-  Keep list semantics and consistent styling across all three themes.
+- [x] Add author-controlled list columns with ::: columns 2/3/4 blocks. Preserve
+  list order, numbering and nested content; use fewer columns to fit their
+  container and one column on phones. Per-page footnote_columns: 2/3/4 applies
+  the same behavior to generated references without moving them or changing
+  citation IDs/backlinks. Verified across all three themes; local, not deployed.
+  See [content columns](content-columns.md).
+
+- [x] Add click-to-enlarge viewing for ordinary content images, including
+  thumbnails and images in patterns/infoboxes. Use original image URLs, fit large
+  images to the screen, keep small images at natural size, and support close,
+  Escape, backdrop and keyboard focus across all three themes. Preserve explicit
+  image links. Interactive maps are already complete and excluded from this task.
+  Verified locally with 147 viewer checks and the actual Everwind portrait page;
+  not deployed to Cloud. See [image viewer](image-viewer.md).
+
+- [ ] Explore an optional interactive-timeline plugin later. Present dated events
+  and periods with annotations/media and links to wiki articles, making timelines
+  another way to explore the wiki. Keep this separate from the existing
+  interactive-map feature and from generic Sheriff Core. Planning only for now.
 
 - [ ] Document a public Spur Downloads metadata/download integration for other sites
   and UIs. Keep simple digital-file distribution separate from dependency resolution
   and the full Glamr marketplace.
 - [ ] Add a Desk video-embed insertion button/picker alongside image/icon/pattern
   insertion, when we return to editor conveniences.
+
+## Publishing metadata — future work
+
+- [ ] Give draft: true actual publishing semantics. Exclude draft articles from
+  public output and generated public listings/search; handle pages that were
+  previously published so stale public HTML does not remain accessible. Define
+  deliberate preview behavior. Current draft handling only excludes search records.
+- [ ] Add optional last-updated display for documentation/wiki layouts in all
+  themes. Define the metadata fields and retain the actual content-edit timestamp,
+  rather than changing it on every build. Allow an author-supplied date and connect
+  authenticated edit attribution when multi-author Desk support is implemented.
 
 ## Deliberately deferred
 

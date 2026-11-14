@@ -49,6 +49,29 @@ act apply_layout(ctx)
 
     layout_html | :read_text(layout_path)
 
+    /// Keep rendered markup and its theme assets in step, even for page builds.
+    /// This stays in the page schedule; no portal pre/post actions are needed.
+    page_build | (ctx{"build_mode"} ?? "") == "page"
+    assets | [["modules/brindle_themes/sheriff-image-viewer.js", "js/sheriff-image-viewer.js"], ["modules/brindle_themes/sheriff-mobile-navigation.js", "js/sheriff-mobile-navigation.js"], ["themes/mobile-navigation.css", "css/sheriff-mobile-navigation.css"]]
+    if page_build
+        :put_last!(assets, ["themes/{theme_name}/css/{theme_name}.css", "css/{theme_name}.css"])
+        :put_last!(assets, ["themes/{theme_name}/css/{theme_name}-header.css", "css/{theme_name}-header.css"])
+    xx
+    for asset in assets
+        source | "../sheriff-core/" + asset[0]
+        destination | build_output::directory(portal) + "/public/" + asset[1]
+        if :file_exists(source) == false => skip
+        missing | :file_exists(destination) == false
+        refresh | missing
+        if page_build and missing == false
+            refresh |= :read_text(source) != :read_text(destination)
+        xx
+        if refresh
+            :create_dir!(:dirname(destination))
+            :copy_file!(source, destination)
+        xx
+    xx
+
     /// ----------------------------------------------
     /// PAGE TITLE / AUTHOR / META / SEO
     /// ----------------------------------------------
@@ -144,6 +167,9 @@ act apply_layout(ctx)
     :register_token("BRINDLE", "SCRIPTS", scripts_html)
 
     final_html | :resolve_token(layout_html)
+    if :has(layout_html, "sheriff-main-layout-")
+        :update_where!(final_html, "</body>", "<script src=\"/public/js/sheriff-mobile-navigation.js\" defer></script>\n<script src=\"/public/js/sheriff-image-viewer.js\" defer></script>\n</body>")
+    xx
     :update!(ctx{"body"}, final_html)
     return ctx
 xx
@@ -356,6 +382,7 @@ act apply_tokens(ctx)
     <link rel="icon" type="image/x-icon" href="{favicon_href}">
     <link rel="stylesheet" href="/public/css/{theme_name}.css">
     <link rel="stylesheet" href="/public/css/{theme_name}-header.css">
+    <link rel="stylesheet" href="/public/css/sheriff-mobile-navigation.css">
     <link rel="stylesheet" href="/public/css/override.css">
     """
 

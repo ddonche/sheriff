@@ -555,6 +555,26 @@ act render_footnotes(ctx)
             xx
     xx
 
+    /// References are generated after the article; opt in through page metadata.
+    fm | ctx{"frontmatter"} ?? {}
+    columns | ""
+    if :valtype(fm) == "map" and :has(fm, "footnote_columns")
+        requested | :trim(:str(fm{"footnote_columns"}))
+        if :has(["2", "3", "4"], requested) => columns |= requested
+    xx
+    if !columns.nix?
+        sweep out
+            "<section" ... ">":
+                if :has(self, "sheriff-footnotes")
+                    tag | self
+                    cls | :keep_between(tag, "class=\"", "\"")
+                    :update_where!(tag, "class=\"{cls}\"", "class=\"{cls} sheriff-footnote-columns sheriff-columns-{columns}\"")
+                    :update_where!(out, self, tag)
+                    stop
+                xx
+        xx
+    xx
+
     /// Add stable Sheriff classes for refs + backrefs (Comrak uses these)
     :update_where!(out, "class=\"footnote-ref\"", "class=\"footnote-ref sheriff-footnote-ref\"")
     :update_where!(out, "class=\"footnote-backref\"", "class=\"footnote-backref sheriff-footnote-backref\"")
