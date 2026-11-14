@@ -57,9 +57,9 @@
     let source=await check();
     if(remote.revision!==connection.baseline&&remote.files>0&&local!==remote.revision&&!confirm('Cloud has changes that are not in this local portal. Deploy this local copy and replace Cloud’s source? Cloud will keep its previous source for recovery. Choose Cancel, then Download, to use Cloud’s copy.'))return;
     logPanel.hidden=false;$('log').textContent='';message('Building locally…');log('Building '+context.current+' locally…\n');
-    const started=performance.now();
-    const built=await result(await window.SheriffBuildLog.fetch('/api/build?'+encodeURIComponent(context.current),{method:'POST'}));
-    log((built.stdout||'')+(built.stderr||'')+'\n');const buildMs=built.build_ms??performance.now()-started;
+    const started=performance.now();let streamed=false;
+    const built=await result(await window.SheriffBuildLog.fetch('/api/build?'+encodeURIComponent(context.current),{method:'POST',onProgress:update=>{if(update.chunk){streamed=true;log(update.chunk);}}}));
+    if(!streamed)log((built.stdout||'')+(built.stderr||'')+'\n');const buildMs=built.build_ms??performance.now()-started;
     const after=await exportSource();if(await T.fingerprint(after)!==await T.fingerprint(source))throw Error('Source changed while building. Save your edits and deploy again.');source=after;
     const bundle=await api('build-archive');let output;
     try{const response=await fetch(bundle.url,{cache:'no-store'});if(!response.ok)throw Error('Could not read the completed build.');output=await T.unzip(await response.arrayBuffer(),T.outputPath);}
@@ -71,7 +71,7 @@
     await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
   async function run(work){if(busy)return;busy=true;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
-  async function load(){const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?'Sign in to check changes, download, or deploy.':'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
+  async function load(){if(busy)return;const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?'Sign in to check changes, download, or deploy.':'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
   $('connect').addEventListener('click',()=>{
     if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
     const state=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
@@ -90,6 +90,6 @@
   });
   $('check').addEventListener('click',()=>void run(check));$('download').addEventListener('click',()=>void run(download));$('deploy').addEventListener('click',()=>void run(deploy));
   $('disconnect').addEventListener('click',()=>void run(async()=>{if(!confirm('Disconnect this portal? Local and Cloud files will stay where they are.'))return;await api('forget');session=null;connection=null;local=null;remote=null;message('Disconnected.');}));
-  context.subscribe(()=>{if(pending){clearTimeout(pending.timer);pending.popup?.close();pending=null;}void load();});
+  context.subscribe(()=>{if(pending){clearTimeout(pending.timer);pending.popup?.close();pending=null;}if(location.hash==='#cloud')void load();else{connection=null;local=null;remote=null;render();}});
   window.SheriffCloudSync={enter:load};render();
 }());

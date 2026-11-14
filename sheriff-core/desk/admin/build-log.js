@@ -150,6 +150,7 @@
           function event(line) {
             if (!line.trim()) return;
             const update = JSON.parse(line);
+            if (typeof options?.onProgress === 'function') options.onProgress(update);
             if (update.stream && typeof update.chunk === 'string') {
               if(!Object.hasOwn(job,'build_stdout'))job.build_stdout='';
               const key=(update.phase === 'uploading' ? 'upload_' : 'build_') + (update.stream === 'stderr' ? 'stderr' : 'stdout');
