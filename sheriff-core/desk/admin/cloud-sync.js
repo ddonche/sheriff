@@ -55,7 +55,7 @@
     const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await window.SheriffDesk.portalRestored(context.current);await saveBaseline(data.revision);message('Downloaded. Your previous local source is in Snapshots. Build locally when you are ready.');
     window.dispatchEvent(new CustomEvent('sheriff:cloud-download',{detail:{portal:context.current}}));
   }
-  function authored(files){return files.filter(file=>{if(!/^content\/.*\.md$/i.test(file.path))return true;const head=new TextDecoder().decode(file.bytes).match(/^\uFEFF?\s*\^\^\^\^[ \t]*\r?\n([\s\S]*?)\r?\n\^\^\^\^/);return !head||!/^generated_by\s*:\s*\S/m.test(head[1]);});}
+  function authored(files){return files.filter(file=>{if(!/^content\/.*\.md$/i.test(file.path))return true;const head=new TextDecoder().decode(file.bytes).match(/^\uFEFF?\s*\^\^\^\^[ \t]*\r?\n([\s\S]*?)\r?\n\^\^\^\^/);return !head||!(/^(?:generated_by\s*:\s*\S|meta_type\s*:\s*generated\s*$)/m.test(head[1]));});}
   async function deploy(){
     requireSaved();
     let source=await check();
