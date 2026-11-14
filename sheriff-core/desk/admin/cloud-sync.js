@@ -1,113 +1,72 @@
-(function () {
+// Account sign-in and source/output sync. Site identity is automatic, never a setup step.
+(function(){
   'use strict';
   if(window.SheriffDeskBackend.mode==='cloud')return;
-  const view=document.getElementById('view-cloud'),context=window.SheriffPortalContext,T=window.SheriffCloudTransfer;
-  const CLOUD='https://admin.sheriffcloud.com';
-  let connection=null,session=null,authModule=null,busy=false,remote=null,local=null,revision=0;
-  const icons={cloud:'M20 16.6A4.5 4.5 0 0 0 18 8a6 6 0 0 0-11.7 1.8A3.5 3.5 0 0 0 7 17h2',download:'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',upload:'M12 16V4m-5 5 5-5 5 5M5 17v4h14v-4',link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'};
-  const svg=name=>'<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+icons[name]+'"/></svg>';
-  view.innerHTML='<div class="cloud-wrap"><div class="view-head"><h2 class="bracket">Cloud Sync</h2></div><section class="panel cloud-card"><div class="cloud-card-heading">'+svg('cloud')+'<div><h3 id="cl-title">Connect this portal</h3><p id="cl-description">Work locally. Publish to your Cloud site.</p></div><span id="cl-badge" class="cloud-badge">Not connected</span></div><div id="cl-site" hidden><a id="cl-url" target="_blank" rel="noopener"></a><p id="cl-details" class="mono-hint"></p></div><p id="cl-status" role="status" aria-live="polite"></p><div class="cloud-actions"><button id="cl-connect" class="btn teal" type="button">'+svg('link')+'Connect to Cloud</button><button id="cl-download" class="btn" type="button" hidden>'+svg('download')+'Download</button><button id="cl-deploy" class="btn primary" type="button" hidden>'+svg('upload')+'Deploy</button><button id="cl-check" class="btn" type="button" hidden>Check changes</button></div><p class="mono-hint">First version: up to 48 MB for source and build combined.</p><div class="cloud-secondary" id="cl-secondary" hidden><a href="https://admin.sheriffcloud.com" target="_blank" rel="noopener">Cloud settings ↗</a><button id="cl-signout" class="btn ghost small" type="button">Sign out</button><button id="cl-disconnect" class="btn ghost small" type="button">Disconnect</button></div></section><section class="panel"><h3>Portal connections</h3><p class="mono-hint">One account sign-in. Each local portal keeps its own Cloud destination.</p><div id="cl-links"></div></section><section class="panel cloud-explanation"><h3>Your local and live site</h3><p><strong>Download</strong> brings Cloud’s source into this local portal so you can work offline. <strong>Deploy</strong> builds locally and uploads the finished site and matching source. Cloud does not build it again.</p><p>If both copies changed, choose which copy to keep. Replaced source is backed up. Saving a file still only saves it; publishing happens when you click Deploy.</p></section><section class="panel cloud-progress" hidden><h3>Deployment progress</h3><pre id="cl-log" aria-live="polite"></pre></section></div>';
-  const $=id=>document.getElementById('cl-'+id);
-  const logPanel=view.querySelector('.cloud-progress');
+  const view=document.getElementById('view-cloud'),context=window.SheriffPortalContext,T=window.SheriffCloudTransfer,CLOUD='https://admin.sheriffcloud.com';
+  let session=null,client=null,sites=[],directoryOwner='',busy=false,remote=null,local=null,syncState={},generation=0;
+  view.innerHTML='<div class="cloud-wrap"><div class="view-head"><h2 class="bracket">Sheriff Cloud</h2></div><section class="panel cloud-card"><div class="cloud-card-heading"><div><h3>Account</h3><p id="cl-account">Sign in to Sheriff to push and pull your sites.</p></div><span id="cl-badge" class="cloud-badge">Not signed in</span></div><p id="cl-description"></p><p id="cl-status" role="status" aria-live="polite"></p><div class="cloud-actions"><button id="cl-connect" class="btn teal" type="button">Sign in to Sheriff</button><button id="cl-deploy" class="btn primary" type="button" disabled>Push to Cloud</button><button id="cl-download" class="btn" type="button" disabled>Pull from Cloud</button><button id="cl-check" class="btn" type="button" disabled>Check changes</button><button id="cl-signout" class="btn ghost" type="button" hidden>Sign out</button></div><p class="mono-hint">Push builds locally and uploads the finished site and source. Pull downloads Cloud source for offline editing. Current transfer limit: 48 MB.</p><a href="https://admin.sheriffcloud.com" target="_blank" rel="noopener">Open online Desk ↗</a></section><section class="panel"><h3>Your Cloud sites</h3><div id="cl-sites"></div></section><section class="panel cloud-progress" hidden><h3>Sync progress</h3><pre id="cl-log" aria-live="polite"></pre></section></div>';
+  const $=name=>document.getElementById('cl-'+name),logPanel=view.querySelector('.cloud-progress');
   function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('cloud-error',error);}
   function log(text){logPanel.hidden=false;$('log').textContent+=text;$('log').scrollTop=$('log').scrollHeight;}
-  function validSession(){return session&&session.expires_at*1000>Date.now()+15000&&(!connection||session.account===connection.account);}
-  const authReady=import(CLOUD+'/assets-home/desk-auth.js?v=2').then(async module=>{
-    authModule=module;const auth=await module.prepareDeskAuth();
-    const apply=value=>{session=value?{token:value.access_token,account:value.user.id,expires_at:value.expires_at}:null;render();};
-    auth.onAuthStateChange((_event,value)=>apply(value));
-    const {data,error}=await auth.getSession();if(error)throw error;apply(data.session);return auth;
-  }).catch(()=>{message('Cloud sign-in could not be loaded. Check your connection and reload Desk.',true);return null;});
-  async function currentSession(){const auth=await authReady;if(auth){const {data,error}=await auth.getSession();if(error)throw error;const value=data.session;session=value?{token:value.access_token,account:value.user.id,expires_at:value.expires_at}:null;}return validSession();}
+  function signedIn(){return !!session&&session.expires_at*1000>Date.now()+15000;}
+  function siteFor(portal=context.current){if(!client||!portal)return null;let name;try{name=client.cloudPortalName(portal)}catch{return null}return sites.find(site=>site.portal===name)||null;}
+  function apply(value){const previous=session?.account;session=value?{token:value.access_token,account:value.user.id,email:value.user.email||'',expires_at:value.expires_at}:null;if(previous!==session?.account){sites=[];directoryOwner='';remote=null;local=null;}render();if(previous!==session?.account)setTimeout(()=>void load(),0);}
+  const authReady=import(CLOUD+'/assets-home/desk-auth.js?v=3').then(async module=>{client=module;const auth=await module.prepareDeskAuth();auth.onAuthStateChange((_event,value)=>apply(value));const {data,error}=await auth.getSession();if(error)throw error;apply(data.session);return auth;}).catch(()=>{message('Cloud sign-in could not be loaded. Check your internet connection and reload Desk.',true);return null;});
+  async function currentSession(){const auth=await authReady;if(!auth)throw Error('Cloud sign-in is unavailable. Reload Desk when online.');const {data,error}=await auth.getSession();if(error)throw error;apply(data.session);if(!signedIn())throw Error('Sign in to Sheriff to continue.');return auth;}
+  async function refreshSites(force=false){if(!signedIn()){sites=[];directoryOwner='';render();return;}const owner=session.account;if(!force&&directoryOwner===owner)return;const data=await client.getDeskSites();if(owner!==session?.account)return;sites=data.sites;directoryOwner=owner;render();}
   function render(){
-    const connected=!!connection,authenticated=validSession();
-    $('title').textContent=connected?'Connected to Cloud':'Connect this portal';$('description').textContent=context.current?'Local portal: '+context.current:'Choose a portal first.';
-    $('site').hidden=!connected;$('secondary').hidden=!connected;
-    $('connect').hidden=false;$('connect').innerHTML=svg('link')+(authenticated?(connected?'Change Cloud site':'Choose Cloud site'):'Sign in to Cloud');
-    $('signout').hidden=!session;
-    if(connection){$('url').textContent=connection.url;$('url').href=connection.url;$('details').textContent='Cloud site: '+connection.portal;}
-    for(const id of ['download','deploy','check'])$(id).hidden=!connected;
-    for(const id of ['connect','download','deploy','check','disconnect','signout'])$(id).disabled=busy||!context.current||(['download','deploy','check'].includes(id)&&!authenticated);
-    $('badge').textContent=!connected?'Not connected':!authenticated?'Sign in to sync':remote?.files===0?'Ready to deploy':remote&&local?remote.revision===local?'Up to date':connection.baseline&&remote.revision===connection.baseline?'Local changes':connection.baseline&&local===connection.baseline?'Cloud changes':'Changes on both sides':'Connected';
-    view.querySelectorAll('#cl-links button').forEach(button=>{button.disabled=busy;});
-    const status=connected?(authenticated?'Connected':'Sign in to sync'):session?'Signed in · portal not linked':'Not connected';
-    const stat=document.getElementById('stat-cloud');if(stat){stat.textContent=status;stat.classList.toggle('placeholder',!authenticated);}
-    const label=document.getElementById('dashboard-cloud-status');if(label)label.textContent=connected&&authenticated?'Connected to '+connection.url:status;
-    const connect=document.getElementById('dashboard-cloud-connect');if(connect){connect.textContent=connected&&authenticated?'Manage Cloud connection':connected?'Sign in to Cloud':'Connect Sheriff Cloud';connect.disabled=busy||!context.current;}
-    for(const id of ['deploy','download']){const button=document.getElementById('dashboard-cloud-'+id);if(button)button.disabled=busy||!connected||!authenticated;}
-
+    const authenticated=signedIn(),site=siteFor(),portal=context.current;
+    $('account').textContent=authenticated?(session.email||'Signed in to Sheriff'):'Sign in to Sheriff to push and pull your sites.';
+    $('badge').textContent=authenticated?'Connected':'Not signed in';
+    $('description').textContent=portal?'Current portal: '+portal+(site?' · '+site.url:''):'Choose a portal.';
+    $('connect').hidden=authenticated;$('connect').disabled=busy;$('signout').hidden=!authenticated;$('signout').disabled=busy;
+    $('deploy').disabled=busy||!authenticated||!portal;$('download').disabled=busy||!authenticated||!site;$('check').disabled=busy||!authenticated||!portal;
+    const stat=document.getElementById('stat-cloud');if(stat){stat.textContent=authenticated?'Connected':'Not signed in';stat.classList.toggle('placeholder',!authenticated);}
+    const label=document.getElementById('dashboard-cloud-status');if(label)label.textContent=authenticated?'Connected'+(session.email?' · '+session.email:''):'Not signed in';
+    const connect=document.getElementById('dashboard-cloud-connect');if(connect){connect.textContent=authenticated?'Open Cloud sync':'Sign in to Sheriff';connect.disabled=busy;}
+    for(const [id,allowed] of [['deploy',authenticated&&portal],['download',authenticated&&site]]){const button=document.getElementById('dashboard-cloud-'+id);if(button)button.disabled=busy||!allowed;}
+    const push=document.getElementById('desk-publish');if(push){push.hidden=!authenticated;push.textContent='Push to Cloud';push.disabled=busy||!portal;}
+    renderSites($('sites'));
   }
+  function renderSites(container){container.replaceChildren();if(!signedIn()){container.textContent='Sign in to see the sites in your account.';return;}if(!sites.length){container.textContent='Your first push will create the Cloud copy of that site.';return;}for(const site of sites){const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border,#d9dedd)';const link=document.createElement('a');link.href=site.url;link.textContent=site.name||site.portal;link.target='_blank';link.rel='noopener';const pull=document.createElement('button');pull.className='btn small';pull.type='button';pull.textContent='Pull from Cloud';pull.disabled=busy;pull.addEventListener('click',()=>{location.hash='#cloud';void run(()=>pullSite(site));});row.append(link,pull);container.append(row);}}
   async function result(response){let data;try{data=await response.json()}catch{throw Error('The server returned an unreadable response.');}if(!response.ok||data.ok===false)throw Error(data.stderr||data.error||'The operation failed.');return data;}
   async function api(verb,body,params={}){return result(await fetch('/api/cloud?'+verb+'&'+new URLSearchParams({portal:context.current,...params}),{method:'POST',headers:{'Content-Type':body instanceof Uint8Array?'application/octet-stream':'application/json'},body:body instanceof Uint8Array?body:JSON.stringify(body||{})}));}
-  async function cloud(op,body){
-    if(!await currentSession())throw Error('Sign in to Cloud again to continue.');
-    const response=await fetch(CLOUD+'/api/desk/sync.'+op+'?'+new URLSearchParams({portal:connection.portal}),{method:'POST',headers:{Authorization:'Bearer '+session.token,'Content-Type':'application/json',Accept:op==='deploy'?'application/x-ndjson':'application/json'},body:JSON.stringify(body||{}),credentials:'omit'});
-    if(response.status===401){session=null;render();throw Error('Your Cloud session expired. Sign in again.');}
+  async function cloud(op,body,site=siteFor()){
+    await currentSession();if(!site)throw Error('This site has not been pushed to Cloud yet.');
+    const response=await fetch(CLOUD+'/api/desk/sync.'+op+'?'+new URLSearchParams({portal:site.portal}),{method:'POST',headers:{Authorization:'Bearer '+session.token,'Content-Type':'application/json',Accept:op==='deploy'?'application/x-ndjson':'application/json'},body:JSON.stringify(body||{}),credentials:'omit'});
+    if(response.status===401)throw Error('Your sign-in expired. Sign in to Sheriff again.');
     if(!response.headers.get('Content-Type')?.includes('application/x-ndjson'))return result(response);
     const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',doneResult;
     for(;;){const chunk=await reader.read();buffer+=decoder.decode(chunk.value||new Uint8Array(),{stream:!chunk.done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line)continue;const item=JSON.parse(line);if(item.chunk)log(item.chunk);if(item.phase==='result')doneResult=item;}if(chunk.done)break;}
-    if(!doneResult||doneResult.ok===false||!doneResult.published)throw Error(doneResult?.stderr||'Cloud could not finish publishing. Your last sync was not advanced.');return doneResult;
+    if(!doneResult||doneResult.ok===false||!doneResult.published)throw Error(doneResult?.stderr||'Cloud could not finish publishing. The last sync was not advanced.');return doneResult;
   }
-  async function exportSource(){
-    const created=await result(await window.SheriffDeskBackend.request('snapshots.create',{portal:context.current},{method:'POST',body:JSON.stringify({name:'Cloud transfer'})}));
-    const id=created.snapshot.id;
-    try{const data=await result(await window.SheriffDeskBackend.request('snapshots.download',{portal:context.current,id},{method:'POST'}));return await T.unzip(T.bytes(data.zip_base64),T.sourcePath);}
-    finally{await window.SheriffDeskBackend.request('snapshots.delete',{portal:context.current,id},{method:'POST'}).catch(()=>{});}
-  }
-  async function check(){message('Checking local and Cloud changes…');const files=await exportSource();local=await T.fingerprint(files);remote=await cloud('inspect');render();message($('badge').textContent+'.');return files;}
-  async function saveBaseline(value){connection=(await api('link',{...connection,baseline:value})).connection;local=value;remote={revision:value};render();}
-  function requireSaved(){const panels=window.SheriffDesk?.unsavedPanels()||[];if(panels.length)throw Error('Save your changes in '+panels.join(', ')+' before downloading or deploying.');}
-  async function download(){
-    requireSaved();
-    const files=await check();
-    if(local!==remote.revision&&(!connection.baseline||local!==connection.baseline)&&!confirm('Replace this local portal with Cloud’s source? Your current local source will be saved in Snapshots.'))return;
-    message('Downloading Cloud source…');const data=await cloud('download');
-    if(!data.files.length)throw Error('This Cloud site has no source yet. Deploy your local portal first.');
-    const incoming=[];for(const file of data.files){if(!T.sourcePath(file.path))throw Error('Cloud returned an unsupported source path.');const bytes=T.bytes(file.base64);if(await T.hash(bytes)!==file.sha256)throw Error('Downloaded file failed its checksum.');incoming.push({path:file.path,bytes});}
-    if(await T.fingerprint(incoming)!==data.revision)throw Error('Downloaded source failed its revision check.');
-    // Recheck local edits made from another window while the download was in flight.
-    if(await T.fingerprint(await exportSource())!==await T.fingerprint(files))throw Error('Local files changed during download. Check changes and retry.');
-    const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await window.SheriffDesk.portalRestored(context.current);await saveBaseline(data.revision);message('Downloaded. Your previous local source is in Snapshots. Build locally when you are ready.');
-    window.dispatchEvent(new CustomEvent('sheriff:cloud-download',{detail:{portal:context.current}}));
-  }
+  async function exportSource(){const created=await result(await window.SheriffDeskBackend.request('snapshots.create',{portal:context.current},{method:'POST',body:JSON.stringify({name:'Cloud transfer'})}));const id=created.snapshot.id;try{const data=await result(await window.SheriffDeskBackend.request('snapshots.download',{portal:context.current,id},{method:'POST'}));return await T.unzip(T.bytes(data.zip_base64),T.sourcePath);}finally{await window.SheriffDeskBackend.request('snapshots.delete',{portal:context.current,id},{method:'POST'}).catch(()=>{});}}
+  async function readSyncState(){const data=(await api('state')).connection,site=siteFor();syncState=data&&site&&data.site_id===site.id&&data.account===session?.account?data:{baseline:''};}
+  async function check(){await currentSession();await refreshSites(true);await readSyncState();message('Checking local and Cloud changes…');const files=await exportSource();local=await T.fingerprint(files);const site=siteFor();remote=site?await cloud('inspect',{},site):{files:0,revision:await T.fingerprint([])};message(!site?'Ready for its first push.':local===remote.revision?'Up to date.':syncState.baseline===remote.revision?'Local changes.':syncState.baseline===local?'Cloud changes.':'Local and Cloud copies differ.');render();return files;}
+  async function saveBaseline(value){const site=siteFor();syncState=(await api('link',{portal:site.portal,site_id:site.id,url:site.url,account:session.account,baseline:value})).connection;local=value;remote={revision:value};render();}
+  function requireSaved(){const panels=window.SheriffDesk?.unsavedPanels()||[];if(panels.length)throw Error('Save your changes in '+panels.join(', ')+' before pulling or pushing.');}
+  async function decodeDownload(data){if(!data.files.length)throw Error('This Cloud site has no source to pull yet.');const incoming=[];for(const file of data.files){if(!T.sourcePath(file.path))throw Error('Cloud returned an unsupported source path.');const bytes=T.bytes(file.base64);if(await T.hash(bytes)!==file.sha256)throw Error('Downloaded file failed its checksum.');incoming.push({path:file.path,bytes});}if(await T.fingerprint(incoming)!==data.revision)throw Error('Downloaded source failed its revision check.');return incoming;}
+  async function importDownload(data,incoming){const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await window.SheriffDesk.portalRestored(context.current);await saveBaseline(data.revision);message('Pulled from Cloud. The source is available offline; previous local files are in Snapshots.');}
+  async function download(){requireSaved();const files=await check();if(!siteFor())throw Error('This site has not been pushed to Cloud yet.');if(local!==remote.revision&&(!syncState.baseline||local!==syncState.baseline)&&!confirm('Replace this local copy with Cloud source? Your current local files will be saved in Snapshots.'))return;message('Pulling Cloud source…');const data=await cloud('download'),incoming=await decodeDownload(data);if(await T.fingerprint(await exportSource())!==await T.fingerprint(files))throw Error('Local files changed during download. Check changes and retry.');await importDownload(data,incoming);}
+  async function pullSite(site){requireSaved();await currentSession();const locals=window.SheriffDesk.portals(),portal=locals.find(name=>client.cloudPortalName(name)===site.portal)||site.portal;if(locals.includes(portal)){context.select(portal,{force:true});await download();return;}message('Pulling '+site.name+' for offline editing…');const data=await cloud('download',{},site),incoming=await decodeDownload(data);await result(await window.SheriffDeskBackend.request('portals.create',{portal,theme:'outpost',brand:''},{method:'POST'}));await window.SheriffDesk.refreshPortals();context.select(portal,{force:true});await importDownload(data,incoming);}
   function authored(files){return files.filter(file=>{if(!/^content\/.*\.md$/i.test(file.path))return true;const head=new TextDecoder().decode(file.bytes).match(/^\uFEFF?\s*\^\^\^\^[ \t]*\r?\n([\s\S]*?)\r?\n\^\^\^\^/);return !head||!(/^(?:generated_by\s*:\s*\S|meta_type\s*:\s*generated\s*$)/m.test(head[1]));});}
   async function deploy(){
-    requireSaved();
-    let source=await check();
-    if(remote.revision!==connection.baseline&&remote.files>0&&local!==remote.revision&&!confirm('Cloud has changes that are not in this local portal. Deploy this local copy and replace Cloud’s source? Cloud will keep its previous source for recovery. Choose Cancel, then Download, to use Cloud’s copy.'))return;
-    logPanel.hidden=false;$('log').textContent='';message('Building locally…');log('Building '+context.current+' locally…\n');
-    const started=performance.now();let streamed=false;
-    const built=await result(await window.SheriffBuildLog.fetch('/api/build?'+encodeURIComponent(context.current),{method:'POST',onProgress:update=>{if(update.chunk){streamed=true;log(update.chunk);}}}));
-    if(!streamed)log((built.stdout||'')+(built.stderr||'')+'\n');const buildMs=built.build_ms??performance.now()-started;
-    const after=await exportSource();if(await T.fingerprint(authored(after))!==await T.fingerprint(authored(source)))throw Error('Source changed while building. Save your edits and deploy again.');source=after;
-    const state=(await api('state-export')).state;
-    const bundle=await api('build-archive');let output;
-    try{const response=await fetch(bundle.url,{cache:'no-store'});if(!response.ok)throw Error('Could not read the completed build.');output=await T.unzip(await response.arrayBuffer(),T.outputPath);}
-    finally{await api('cleanup',{}, {id:bundle.id}).catch(()=>{});}
+    requireSaved();let source=await check();if(remote.revision!==syncState.baseline&&remote.files>0&&local!==remote.revision&&!confirm('Cloud has changes that are not in this local copy. Push this copy and replace Cloud source? Cloud keeps its previous source for recovery. Cancel and Pull from Cloud to use Cloud’s copy.'))return;
+    logPanel.hidden=false;$('log').textContent='';message('Building locally…');log('Building '+context.current+' locally…\n');const started=performance.now();let streamed=false;
+    const built=await result(await window.SheriffBuildLog.fetch('/api/build?'+encodeURIComponent(context.current),{method:'POST',onProgress:update=>{if(update.chunk){streamed=true;log(update.chunk);}}}));if(!streamed)log((built.stdout||'')+(built.stderr||'')+'\n');const buildMs=built.build_ms??performance.now()-started;
+    const after=await exportSource();if(await T.fingerprint(authored(after))!==await T.fingerprint(authored(source)))throw Error('Source changed while building. Save your edits and push again.');source=after;const state=(await api('state-export')).state,bundle=await api('build-archive');let output;
+    try{const response=await fetch(bundle.url,{cache:'no-store'});if(!response.ok)throw Error('Could not read the completed build.');output=await T.unzip(await response.arrayBuffer(),T.outputPath);}finally{await api('cleanup',{}, {id:bundle.id}).catch(()=>{});}
     if(source.reduce((n,f)=>n+f.bytes.length,0)+output.reduce((n,f)=>n+f.bytes.length,0)>T.MAX_BYTES)throw Error('Source and build together exceed the current 48 MB transfer limit.');
+    if(!siteFor()){await client.ensureDeskSite(context.current);await refreshSites(true);if(!siteFor())throw Error('The Cloud site could not be loaded. Retry the push.');remote=await cloud('inspect');}
     async function encode(files){const out=[];for(const file of files)out.push({path:file.path,base64:T.base64(file.bytes),sha256:await T.hash(file.bytes)});return out;}
-    message('Build succeeded. Uploading to Cloud and R2…');log('BUILD SUCCESS · Sheriff: '+(buildMs/1000).toFixed(2)+'s\nUploading the completed build and matching source…\n');
-    const done=await cloud('deploy',{expected_revision:remote.revision,build_ms:buildMs,state,source:await encode(source),output:await encode(output)});
-    await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
+    message('Build succeeded. Uploading to Cloud and R2…');log('BUILD SUCCESS · Sheriff: '+(buildMs/1000).toFixed(2)+'s\nUploading the completed build and matching source…\n');const done=await cloud('deploy',{expected_revision:remote.revision,build_ms:buildMs,state,source:await encode(source),output:await encode(output)});await saveBaseline(done.revision);message('Pushed to Cloud. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
-  async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;revision++;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
-  async function load(){if(busy)return;const own=++revision;try{await authReady;const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();void renderLinks();}catch(error){message(error.message,true);}}
-  let linksRevision=0;
-  async function renderLinks(){const own=++linksRevision;const portals=context.portals;const rows=await Promise.all(portals.map(async portal=>({portal,link:(await api('state',{}, {portal})).connection}))).catch(()=>null);if(own!==linksRevision||!rows)return;const list=$('links');list.replaceChildren();for(const {portal,link} of rows){const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:16px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border,#d9dedd)';const text=document.createElement('span');text.textContent=portal+' → '+(link?.portal||'Not linked');const button=document.createElement('button');button.className='btn small';button.type='button';button.textContent=link?'Manage':'Connect';button.disabled=busy;button.addEventListener('click',async()=>{if(!context.select(portal))return;location.hash='#cloud';await load();if(!link)$('connect').click();});row.append(text,button);list.append(row);}}
-  $('connect').addEventListener('click',()=>void run(async()=>{
-    if(!await authReady||!authModule)throw Error('Cloud sign-in could not be loaded. Reload Desk.');
-    const chosen=await authModule.openDeskConnection(connection?.site_id||'');if(!chosen)return;
-    const value=chosen.session;session={token:value.access_token,account:value.user.id,expires_at:value.expires_at};
-    const same=connection?.site_id===chosen.site.id&&connection?.account===session.account;
-    connection=(await api('link',{...chosen.site,site_id:chosen.site.id,account:session.account,baseline:same?connection.baseline:''})).connection;
-    await check();await renderLinks();
-  }));
-  $('check').addEventListener('click',()=>void run(check));$('download').addEventListener('click',()=>void run(download));$('deploy').addEventListener('click',()=>void run(deploy));
-  $('signout').addEventListener('click',()=>void run(async()=>{const auth=await authReady;if(auth){const result=await auth.signOut({scope:'local'});if(result.error)throw result.error;}session=null;render();message('Signed out. Your portal connection is saved.');}));
-  $('disconnect').addEventListener('click',()=>void run(async()=>{if(!confirm('Disconnect this portal? Local and Cloud files will stay where they are.'))return;await api('forget');session=null;connection=null;local=null;remote=null;message('Disconnected.');await currentSession();void renderLinks();}));
-  context.subscribe(()=>{connection=null;local=null;remote=null;render();void load();});
-  for(const [id,action] of [['connect',()=>{if(!connection||!validSession())$('connect').click();}],['deploy',()=>void run(deploy)],['download',()=>void run(download)]]){
-    document.getElementById('dashboard-cloud-'+id)?.addEventListener('click',()=>{location.hash='#cloud';action();});
-  }
-  window.SheriffCloudSync={enter:load};render();
+  async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;generation++;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
+  async function load(){if(busy)return;const own=++generation;try{await authReady;if(own!==generation)return;if(signedIn())await refreshSites();if(own!==generation)return;remote=null;local=null;syncState={};message(signedIn()?'Push your local work to Cloud or pull the latest source.':'Sign in to Sheriff to continue.');render();}catch(error){message(error.message,true);}}
+  $('connect').addEventListener('click',()=>void run(async()=>{if(!await authReady)throw Error('Cloud sign-in is unavailable.');await client.signInDesk();await currentSession();await refreshSites(true);message('Connected to Sheriff. Your account sites are ready.');}));
+  $('deploy').addEventListener('click',()=>void run(deploy));$('download').addEventListener('click',()=>void run(download));$('check').addEventListener('click',()=>void run(check));$('signout').addEventListener('click',()=>void run(async()=>{const auth=await authReady;if(auth){const result=await auth.signOut({scope:'local'});if(result.error)throw result.error;}apply(null);message('Signed out.');}));
+  context.subscribe(()=>{remote=null;local=null;syncState={};render();void load();});
+  for(const [id,action] of [['connect',()=>{if(!signedIn())$('connect').click();}],['deploy',()=>void run(deploy)],['download',()=>void run(download)]])document.getElementById('dashboard-cloud-'+id)?.addEventListener('click',()=>{location.hash='#cloud';action();});
+  document.getElementById('desk-publish')?.addEventListener('click',()=>{location.hash='#cloud';void run(deploy);});
+  window.SheriffCloudSync={enter:load,get sites(){return sites.slice()},get connected(){return signedIn()}};render();
 }());
