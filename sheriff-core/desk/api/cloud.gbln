@@ -42,6 +42,14 @@ act handle()
     folder | "{root}/data/desk-cloud"
     :create_dir!(folder)
     file | "{folder}/{portal}.json"
+    if verb == "state-export" or verb == "state-import"
+        mode | "export"
+        if verb == "state-import" => mode |= "import"
+        env | {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":"mode={mode}&portal={portal}","GOBLIN_REQUEST_FILE": :env("GOBLIN_REQUEST_FILE")}
+        result | :json_parse(:run_cmd("goblin run cloud_state.gbln","{root}/sheriff-core",env))
+        if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+        return :json_parse(result{"stdout"})
+    xx
     if verb == "state"
         state | ..
         if :file_exists(file) => state |= :read_json(file)

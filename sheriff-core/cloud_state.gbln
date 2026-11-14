@@ -1,0 +1,28 @@
+import modules/cloud_sync/state as sync_state
+act value(query,key)
+    for part in :split(query,"&")
+        if :starts_with(part,key + "=") => return :url_decode(:keep_after(part,"=") ?? "")
+    xx
+    return ""
+xx
+act handle()
+    query | :env("GOBLIN_QUERY_STRING")
+    portal | value(query,"portal")
+    if portal == "" => return {"ok":false,"stderr":"Missing portal."}
+    for character in :split(portal,"")
+        if !:has("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-",character) => return {"ok":false,"stderr":"Invalid portal."}
+    xx
+    mode | value(query,"mode")
+    if mode == "export" => return {"ok":true,"state":sync_state::export_state(portal)}
+    request | :env("GOBLIN_REQUEST_FILE")
+    if request.nix? => return {"ok":false,"stderr":"Missing build metadata."}
+    state | :read_json(request)
+    if mode == "validate" => return {"ok":sync_state::validate_state(state),"stderr":"Unsupported build metadata."}
+    if mode == "import" => return sync_state::import_state(portal,state)
+    return {"ok":false,"stderr":"Unknown build metadata action."}
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

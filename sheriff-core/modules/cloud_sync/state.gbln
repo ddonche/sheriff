@@ -1,0 +1,89 @@
+/// Manual Desk/Cloud integration. Build-state adapters live in this module;
+/// Sheriff's build kernel and the Cloud transport know no module/glam schemas.
+act state_root()
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    return root
+xx
+act read_if_present(path)
+    if :file_exists(path) => return :read_json(path)
+    return nil
+xx
+act export_state(portal)
+    root | state_root()
+    source | "{root}/site/portals/{portal}"
+    return {"version":1,"source_portal":portal,"routes":read_if_present("{source}/routes.json"),"report":read_if_present("{source}/report.json"),"search":read_if_present("{root}/site/.desk/prospector/{portal}/records.json")}
+xx
+act source_path_ok(value, portal)
+    if value.nix? => return true
+    if :valtype(value) != "str" => return false
+    prefix | "../site/portals/{portal}/"
+    if !:starts_with(value,prefix) => return false
+    tail | :keep_after(value,prefix) ?? ""
+    if !:starts_with(tail,"content/") and !:starts_with(tail,"blog/") => return false
+    if :has(tail,"..") or :has(tail,":") or :has(tail,"\\") => return false
+    return true
+xx
+act validate_state(state)
+    if :valtype(state) != "map" => return false
+    if state{"version"} != 1 or :valtype(state{"source_portal"}) != "str" => return false
+    for character in :split(state{"source_portal"},"")
+        if !:has("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-",character) => return false
+    xx
+    if !state{"routes"}.nix?
+        if :valtype(state{"routes"}) != "map" => return false
+        if :valtype(state{"routes"}{"routes"}) != "array" => return false
+        for route in state{"routes"}{"routes"}
+            if :valtype(route) != "map" => return false
+            if !source_path_ok(route{"source_path"},state{"source_portal"}) => return false
+            rel | route{"rel"} ?? ""
+            if :has(rel,"..") or :starts_with(rel,"/") or :has(rel,":") or :has(rel,"\\") => return false
+            versions | route{"version_rel_rows"} ?? []
+            if :valtype(versions) != "array" => return false
+            for version in versions
+                fields | :split(version,"|||")
+                if fields.len < 2 => return false
+                rel | fields[1]
+                if :has(rel,"..") or :starts_with(rel,"/") or :has(rel,":") or :has(rel,"\\") => return false
+            xx
+            rows | route{"revision_history_rows"} ?? []
+            if :valtype(rows) != "array" => return false
+            for row in rows
+                fields | :split(row,"|||")
+                if fields.len < 2 => return false
+                if !source_path_ok(fields[1],state{"source_portal"}) => return false
+            xx
+        xx
+    xx
+    if !state{"report"}.nix? and :valtype(state{"report"}) != "map" => return false
+    if !state{"search"}.nix?
+        cache | state{"search"}
+        if :valtype(cache) != "map" => return false
+        if cache{"version"} != 1 or cache{"complete"} != true or :valtype(cache{"records"}) != "array" => return false
+    xx
+    return true
+xx
+act import_state(portal, state)
+    if !validate_state(state) => return {"ok":false,"stderr":"The transferred build metadata is incompatible. Update Desk and rebuild locally."}
+    root | state_root()
+    source | "{root}/site/portals/{portal}"
+    original | state{"source_portal"}
+    routes | state{"routes"}
+    if !routes.nix?
+        /// Route source paths are portal-relative. Remap a differently named site.
+        encoded | :json_stringify(routes)
+        :update_where!(encoded,"../site/portals/{original}/","../site/portals/{portal}/")
+        routes |= :json_parse(encoded)
+        :update!(routes{"portal"},portal)
+        :write_json!("{source}/routes.json",routes)
+    xx
+    if !state{"report"}.nix? => :write_json!("{source}/report.json",state{"report"})
+    cache_path | "{root}/site/.desk/prospector/{portal}/records.json"
+    if !state{"search"}.nix?
+        :create_dir!("{root}/site/.desk/prospector/{portal}")
+        :write_json!(cache_path,state{"search"})
+    elif :file_exists(cache_path)
+        :delete_path!(cache_path)
+    xx
+    return {"ok":true}
+xx
