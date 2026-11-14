@@ -29,6 +29,8 @@ act handle()
     headers | :json_parse(raw_headers)
     origin | headers{"origin"} ?? ""
     host | headers{"host"} ?? ""
+    loopback | host == "" or host == "localhost" or host == "127.0.0.1" or host == "[::1]" or :starts_with(host,"localhost:") or :starts_with(host,"127.0.0.1:") or :starts_with(host,"[::1]:")
+    if !loopback => return {"ok":false,"stderr":"Cloud connections require local Desk on a loopback address."}
     if origin != "" and origin != "http://{host}" => return {"ok":false,"stderr":"Open Cloud Sync from local Desk."}
     query | :env("GOBLIN_QUERY_STRING")
     verb | :keep_before(query,"&") ?? query
@@ -89,7 +91,11 @@ act handle()
         :copy_file!(incoming,"{saved}.zip")
         :write_json!("{saved}.json",{"id":id,"portal":portal,"name":"Downloaded from Cloud","created_at":backup{"snapshot"}{"created_at"}, "sha256":checksum})
         restored | snapshot(root,portal,"restore",id)
-        if restored{"ok"} == false => return restored
+        if restored{"ok"} == false
+            :delete_path!("{saved}.zip")
+            :delete_path!("{saved}.json")
+            return restored
+        xx
         return {"ok":true,"backup":backup{"snapshot"},"download":id}
     xx
     return {"ok":false,"stderr":"Unknown Cloud connection action."}
