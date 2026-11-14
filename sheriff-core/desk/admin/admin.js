@@ -3331,6 +3331,7 @@
     },
     insertContentImage(text, target) { return this.insertContent(text, target); },
     portals: () => portalNames.slice(),
+    refreshPortals: () => loadPortals(portalContext.current),
     async portalRestored(portal) {
       if (portal === portalContext.current) resetPortalPanels();
       await loadPortals(portal);

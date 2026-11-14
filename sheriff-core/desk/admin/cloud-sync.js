@@ -3,17 +3,17 @@
   if(window.SheriffDeskBackend.mode==='cloud')return;
   const view=document.getElementById('view-cloud'),context=window.SheriffPortalContext,T=window.SheriffCloudTransfer;
   const CLOUD='https://admin.sheriffcloud.com';
-  let connection=null,session=null,pending=null,busy=false,remote=null,local=null,revision=0;
+  let connection=null,session=null,authModule=null,busy=false,remote=null,local=null,revision=0;
   const icons={cloud:'M20 16.6A4.5 4.5 0 0 0 18 8a6 6 0 0 0-11.7 1.8A3.5 3.5 0 0 0 7 17h2',download:'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',upload:'M12 16V4m-5 5 5-5 5 5M5 17v4h14v-4',link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'};
   const svg=name=>'<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="'+icons[name]+'"/></svg>';
-  view.innerHTML='<div class="cloud-wrap"><div class="view-head"><h2 class="bracket">Cloud Sync</h2></div><section class="panel cloud-card"><div class="cloud-card-heading">'+svg('cloud')+'<div><h3 id="cl-title">Connect this portal</h3><p id="cl-description">Work locally. Publish to your Cloud site.</p></div><span id="cl-badge" class="cloud-badge">Not connected</span></div><div id="cl-site" hidden><a id="cl-url" target="_blank" rel="noopener"></a><p id="cl-details" class="mono-hint"></p></div><p id="cl-status" role="status" aria-live="polite"></p><div class="cloud-actions"><button id="cl-connect" class="btn teal" type="button">'+svg('link')+'Connect to Cloud</button><button id="cl-download" class="btn" type="button" hidden>'+svg('download')+'Download</button><button id="cl-deploy" class="btn primary" type="button" hidden>'+svg('upload')+'Deploy</button><button id="cl-check" class="btn" type="button" hidden>Check changes</button></div><p class="mono-hint">First version: up to 48 MB for source and build combined.</p><div class="cloud-secondary" id="cl-secondary" hidden><a href="https://admin.sheriffcloud.com" target="_blank" rel="noopener">Cloud settings ↗</a><button id="cl-signout" class="btn ghost small" type="button">Sign out</button><button id="cl-disconnect" class="btn ghost small" type="button">Disconnect</button></div></section><section class="panel cloud-explanation"><h3>Your local and live site</h3><p><strong>Download</strong> brings Cloud’s source into this local portal so you can work offline. <strong>Deploy</strong> builds locally and uploads the finished site and matching source. Cloud does not build it again.</p><p>If both copies changed, choose which copy to keep. Replaced source is backed up. Saving a file still only saves it; publishing happens when you click Deploy.</p></section><section class="panel cloud-progress" hidden><h3>Deployment progress</h3><pre id="cl-log" aria-live="polite"></pre></section></div>';
+  view.innerHTML='<div class="cloud-wrap"><div class="view-head"><h2 class="bracket">Cloud Sync</h2></div><section class="panel cloud-card"><div class="cloud-card-heading">'+svg('cloud')+'<div><h3 id="cl-title">Connect this portal</h3><p id="cl-description">Work locally. Publish to your Cloud site.</p></div><span id="cl-badge" class="cloud-badge">Not connected</span></div><div id="cl-site" hidden><a id="cl-url" target="_blank" rel="noopener"></a><p id="cl-details" class="mono-hint"></p></div><p id="cl-status" role="status" aria-live="polite"></p><div class="cloud-actions"><button id="cl-connect" class="btn teal" type="button">'+svg('link')+'Connect to Cloud</button><button id="cl-download" class="btn" type="button" hidden>'+svg('download')+'Download</button><button id="cl-deploy" class="btn primary" type="button" hidden>'+svg('upload')+'Deploy</button><button id="cl-check" class="btn" type="button" hidden>Check changes</button></div><p class="mono-hint">First version: up to 48 MB for source and build combined.</p><div class="cloud-secondary" id="cl-secondary" hidden><a href="https://admin.sheriffcloud.com" target="_blank" rel="noopener">Cloud settings ↗</a><button id="cl-signout" class="btn ghost small" type="button">Sign out</button><button id="cl-disconnect" class="btn ghost small" type="button">Disconnect</button></div></section><section class="panel"><h3>Portal connections</h3><p class="mono-hint">One account sign-in. Each local portal keeps its own Cloud destination.</p><div id="cl-links"></div></section><section class="panel cloud-explanation"><h3>Your local and live site</h3><p><strong>Download</strong> brings Cloud’s source into this local portal so you can work offline. <strong>Deploy</strong> builds locally and uploads the finished site and matching source. Cloud does not build it again.</p><p>If both copies changed, choose which copy to keep. Replaced source is backed up. Saving a file still only saves it; publishing happens when you click Deploy.</p></section><section class="panel cloud-progress" hidden><h3>Deployment progress</h3><pre id="cl-log" aria-live="polite"></pre></section></div>';
   const $=id=>document.getElementById('cl-'+id);
   const logPanel=view.querySelector('.cloud-progress');
   function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('cloud-error',error);}
   function log(text){logPanel.hidden=false;$('log').textContent+=text;$('log').scrollTop=$('log').scrollHeight;}
   function validSession(){return session&&session.expires_at*1000>Date.now()+15000&&(!connection||session.account===connection.account);}
-  const authReady=import(CLOUD+'/assets-home/desk-auth.js?v=1').then(async module=>{
-    const auth=module.getDeskAuth();
+  const authReady=import(CLOUD+'/assets-home/desk-auth.js?v=2').then(async module=>{
+    authModule=module;const auth=await module.prepareDeskAuth();
     const apply=value=>{session=value?{token:value.access_token,account:value.user.id,expires_at:value.expires_at}:null;render();};
     auth.onAuthStateChange((_event,value)=>apply(value));
     const {data,error}=await auth.getSession();if(error)throw error;apply(data.session);return auth;
@@ -23,7 +23,7 @@
     const connected=!!connection,authenticated=validSession();
     $('title').textContent=connected?'Connected to Cloud':'Connect this portal';$('description').textContent=context.current?'Local portal: '+context.current:'Choose a portal first.';
     $('site').hidden=!connected;$('secondary').hidden=!connected;
-    $('connect').hidden=connected&&authenticated;$('connect').innerHTML=svg('link')+(connected?'Sign in to Cloud':'Connect to Cloud');
+    $('connect').hidden=false;$('connect').innerHTML=svg('link')+(authenticated?(connected?'Change Cloud site':'Choose Cloud site'):'Sign in to Cloud');
     $('signout').hidden=!session;
     if(connection){$('url').textContent=connection.url;$('url').href=connection.url;$('details').textContent='Cloud site: '+connection.portal;}
     for(const id of ['download','deploy','check'])$(id).hidden=!connected;
@@ -90,26 +90,21 @@
     await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
   async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;revision++;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
-  async function load(){if(busy)return;const own=++revision;try{await authReady;const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
-  $('connect').addEventListener('click',()=>{
-    if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
-    const state=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
-    const popup=window.open(CLOUD+'/desk-connect?'+new URLSearchParams({origin:location.origin,state,site:connection?.site_id||''}),'sheriff-cloud-connect-'+state,'width=600,height=760');
-    if(!popup){message('Allow the Cloud sign-in window, then click Connect again.',true);return;}
-    const timer=setTimeout(()=>{if(pending?.state===state){pending=null;message('Connection timed out. Click Connect to try again.',true);}},300000);
-    pending={state,popup,timer,portal:context.current};message('Choose or create your site in the Cloud window.');
-  });
-  window.addEventListener('message',event=>{
-    const data=event.data;if(!pending||event.origin!==CLOUD||event.source!==pending.popup||data?.type!=='sheriff:cloud-connected'||data.state!==pending.state)return;
-    if(pending.portal!==context.current){message('The selected portal changed. Connect again.',true);return;}
-    clearTimeout(pending.timer);pending=null;
-    if(!data.token||!data.site?.id||!data.site?.portal||!/^https:\/\//.test(data.site.url)||!data.account||!Number.isFinite(data.expires_at)){message('Cloud returned an invalid connection.',true);return;}
-    void run(async()=>{const auth=await authReady;if(!auth||!data.refresh_token)throw Error('Reload Desk and reconnect to enable persistent Cloud sign-in.');const restored=await auth.setSession({access_token:data.token,refresh_token:data.refresh_token});if(restored.error)throw restored.error;session={token:restored.data.session.access_token,account:restored.data.session.user.id,expires_at:restored.data.session.expires_at};const same=connection?.site_id===data.site.id&&connection?.account===data.account;connection=(await api('link',{...data.site,site_id:data.site.id,account:data.account,baseline:same?connection.baseline:''})).connection;await check();});
-  });
+  async function load(){if(busy)return;const own=++revision;try{await authReady;const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();void renderLinks();}catch(error){message(error.message,true);}}
+  let linksRevision=0;
+  async function renderLinks(){const own=++linksRevision;const portals=context.portals;const rows=await Promise.all(portals.map(async portal=>({portal,link:(await api('state',{}, {portal})).connection}))).catch(()=>null);if(own!==linksRevision||!rows)return;const list=$('links');list.replaceChildren();for(const {portal,link} of rows){const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:16px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border,#d9dedd)';const text=document.createElement('span');text.textContent=portal+' → '+(link?.portal||'Not linked');const button=document.createElement('button');button.className='btn small';button.type='button';button.textContent=link?'Manage':'Connect';button.disabled=busy;button.addEventListener('click',async()=>{if(!context.select(portal))return;location.hash='#cloud';await load();if(!link)$('connect').click();});row.append(text,button);list.append(row);}}
+  $('connect').addEventListener('click',()=>void run(async()=>{
+    if(!await authReady||!authModule)throw Error('Cloud sign-in could not be loaded. Reload Desk.');
+    const chosen=await authModule.openDeskConnection(connection?.site_id||'');if(!chosen)return;
+    const value=chosen.session;session={token:value.access_token,account:value.user.id,expires_at:value.expires_at};
+    const same=connection?.site_id===chosen.site.id&&connection?.account===session.account;
+    connection=(await api('link',{...chosen.site,site_id:chosen.site.id,account:session.account,baseline:same?connection.baseline:''})).connection;
+    await check();await renderLinks();
+  }));
   $('check').addEventListener('click',()=>void run(check));$('download').addEventListener('click',()=>void run(download));$('deploy').addEventListener('click',()=>void run(deploy));
   $('signout').addEventListener('click',()=>void run(async()=>{const auth=await authReady;if(auth){const result=await auth.signOut({scope:'local'});if(result.error)throw result.error;}session=null;render();message('Signed out. Your portal connection is saved.');}));
-  $('disconnect').addEventListener('click',()=>void run(async()=>{if(!confirm('Disconnect this portal? Local and Cloud files will stay where they are.'))return;await api('forget');session=null;connection=null;local=null;remote=null;message('Disconnected.');}));
-  context.subscribe(()=>{if(pending){clearTimeout(pending.timer);pending.popup?.close();pending=null;}connection=null;local=null;remote=null;render();void load();});
+  $('disconnect').addEventListener('click',()=>void run(async()=>{if(!confirm('Disconnect this portal? Local and Cloud files will stay where they are.'))return;await api('forget');session=null;connection=null;local=null;remote=null;message('Disconnected.');await currentSession();void renderLinks();}));
+  context.subscribe(()=>{connection=null;local=null;remote=null;render();void load();});
   for(const [id,action] of [['connect',()=>{if(!connection||!validSession())$('connect').click();}],['deploy',()=>void run(deploy)],['download',()=>void run(download)]]){
     document.getElementById('dashboard-cloud-'+id)?.addEventListener('click',()=>{location.hash='#cloud';action();});
   }
