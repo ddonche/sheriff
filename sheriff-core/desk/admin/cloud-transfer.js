@@ -45,7 +45,7 @@
       const size=view.getUint32(at+24,true),packed=view.getUint32(at+20,true),method=view.getUint16(at+10,true),flags=view.getUint16(at+8,true),length=view.getUint16(at+28,true),start=view.getUint32(at+42,true),mode=view.getUint32(at+38,true)>>>16;
       const path=decoder.decode(data.subarray(at+46,at+46+length)).replaceAll('\\','/');at+=46+length+view.getUint16(at+30,true)+view.getUint16(at+32,true);
       if(path.endsWith('/'))continue;
-      if(!allowed(path))continue;
+      if(!allowed(path)){if(allowed===outputPath&&safePath(path)&&/^(admin|api|site|data|node_modules|sheriff-core)\//.test(path))throw Error('Publication stopped: the build contains a reserved folder ('+path+').');continue;}
       if(!safePath(path)||((mode&0xf000)===0xa000)||flags&1)throw Error('Unsafe ZIP entry.');
       const key=path.toLowerCase();if(seen.has(key))throw Error('Duplicate ZIP entry.');seen.add(key);
       if(!allowed(path))continue;

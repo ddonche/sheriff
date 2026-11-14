@@ -76,7 +76,7 @@
   $('connect').addEventListener('click',()=>{
     if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
     const state=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
-    const popup=window.open(CLOUD+'/desk-connect?'+new URLSearchParams({origin:location.origin,state,site:connection?.site_id||''}),'sheriff-cloud-connect','width=600,height=760');
+    const popup=window.open(CLOUD+'/desk-connect?'+new URLSearchParams({origin:location.origin,state,site:connection?.site_id||''}),'sheriff-cloud-connect-'+state,'width=600,height=760');
     if(!popup){message('Allow the Cloud sign-in window, then click Connect again.',true);return;}
     const timer=setTimeout(()=>{if(pending?.state===state){pending=null;message('Connection timed out. Click Connect to try again.',true);}},300000);
     pending={state,popup,timer,portal:context.current};message('Choose or create your site in the Cloud window.');
