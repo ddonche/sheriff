@@ -55,6 +55,7 @@
     const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await window.SheriffDesk.portalRestored(context.current);await saveBaseline(data.revision);message('Downloaded. Your previous local source is in Snapshots. Build locally when you are ready.');
     window.dispatchEvent(new CustomEvent('sheriff:cloud-download',{detail:{portal:context.current}}));
   }
+  function authored(files){return files.filter(file=>{if(!/^content\/.*\.md$/i.test(file.path))return true;const head=new TextDecoder().decode(file.bytes).match(/^\uFEFF?\s*\^\^\^\^[ \t]*\r?\n([\s\S]*?)\r?\n\^\^\^\^/);return !head||!/^generated_by\s*:\s*\S/m.test(head[1]);});}
   async function deploy(){
     requireSaved();
     let source=await check();
@@ -63,7 +64,7 @@
     const started=performance.now();let streamed=false;
     const built=await result(await window.SheriffBuildLog.fetch('/api/build?'+encodeURIComponent(context.current),{method:'POST',onProgress:update=>{if(update.chunk){streamed=true;log(update.chunk);}}}));
     if(!streamed)log((built.stdout||'')+(built.stderr||'')+'\n');const buildMs=built.build_ms??performance.now()-started;
-    const after=await exportSource();if(await T.fingerprint(after)!==await T.fingerprint(source))throw Error('Source changed while building. Save your edits and deploy again.');source=after;
+    const after=await exportSource();if(await T.fingerprint(authored(after))!==await T.fingerprint(authored(source)))throw Error('Source changed while building. Save your edits and deploy again.');source=after;
     const state=(await api('state-export')).state;
     const bundle=await api('build-archive');let output;
     try{const response=await fetch(bundle.url,{cache:'no-store'});if(!response.ok)throw Error('Could not read the completed build.');output=await T.unzip(await response.arrayBuffer(),T.outputPath);}
