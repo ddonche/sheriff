@@ -41,7 +41,9 @@
   }
   async function check(){message('Checking local and Cloud changes…');const files=await exportSource();local=await T.fingerprint(files);remote=await cloud('inspect');render();message($('badge').textContent+'.');return files;}
   async function saveBaseline(value){connection=(await api('link',{...connection,baseline:value})).connection;local=value;remote={revision:value};render();}
+  function requireSaved(){const panels=window.SheriffDesk?.unsavedPanels()||[];if(panels.length)throw Error('Save your changes in '+panels.join(', ')+' before downloading or deploying.');}
   async function download(){
+    requireSaved();
     const files=await check();
     if(local!==remote.revision&&(!connection.baseline||local!==connection.baseline)&&!confirm('Replace this local portal with Cloud’s source? Your current local source will be saved in Snapshots.'))return;
     message('Downloading Cloud source…');const data=await cloud('download');
@@ -50,10 +52,11 @@
     if(await T.fingerprint(incoming)!==data.revision)throw Error('Downloaded source failed its revision check.');
     // Recheck local edits made from another window while the download was in flight.
     if(await T.fingerprint(await exportSource())!==await T.fingerprint(files))throw Error('Local files changed during download. Check changes and retry.');
-    const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await saveBaseline(data.revision);message('Downloaded. Your previous local source is in Snapshots. Build locally when you are ready.');
+    const archive=T.zip(incoming);await api('import',archive,{sha256:await T.hash(archive)});await api('state-import',data.state);await window.SheriffDesk.portalRestored(context.current);await saveBaseline(data.revision);message('Downloaded. Your previous local source is in Snapshots. Build locally when you are ready.');
     window.dispatchEvent(new CustomEvent('sheriff:cloud-download',{detail:{portal:context.current}}));
   }
   async function deploy(){
+    requireSaved();
     let source=await check();
     if(remote.revision!==connection.baseline&&remote.files>0&&local!==remote.revision&&!confirm('Cloud has changes that are not in this local portal. Deploy this local copy and replace Cloud’s source? Cloud will keep its previous source for recovery. Choose Cancel, then Download, to use Cloud’s copy.'))return;
     logPanel.hidden=false;$('log').textContent='';message('Building locally…');log('Building '+context.current+' locally…\n');
@@ -71,7 +74,7 @@
     const done=await cloud('deploy',{expected_revision:remote.revision,build_ms:buildMs,state,source:await encode(source),output:await encode(output)});
     await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
-  async function run(work){if(busy)return;busy=true;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
+  async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
   async function load(){if(busy)return;const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?'Sign in to check changes, download, or deploy.':'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
   $('connect').addEventListener('click',()=>{
     if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
