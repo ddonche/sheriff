@@ -12,6 +12,13 @@
   function message(text,error=false){$('status').textContent=text;$('status').classList.toggle('cloud-error',error);}
   function log(text){logPanel.hidden=false;$('log').textContent+=text;$('log').scrollTop=$('log').scrollHeight;}
   function validSession(){return session&&session.expires_at*1000>Date.now()+15000&&(!connection||session.account===connection.account);}
+  const authReady=import(CLOUD+'/assets-home/desk-auth.js?v=1').then(async module=>{
+    const auth=module.getDeskAuth();
+    const apply=value=>{session=value?{token:value.access_token,account:value.user.id,expires_at:value.expires_at}:null;render();};
+    auth.onAuthStateChange((_event,value)=>apply(value));
+    const {data,error}=await auth.getSession();if(error)throw error;apply(data.session);return auth;
+  }).catch(()=>{message('Cloud sign-in could not be loaded. Check your connection and reload Desk.',true);return null;});
+  async function currentSession(){const auth=await authReady;if(auth){const {data,error}=await auth.getSession();if(error)throw error;const value=data.session;session=value?{token:value.access_token,account:value.user.id,expires_at:value.expires_at}:null;}return validSession();}
   function render(){
     const connected=!!connection,authenticated=validSession();
     $('title').textContent=connected?'Connected to Cloud':'Connect this portal';$('description').textContent=context.current?'Local portal: '+context.current:'Choose a portal first.';
@@ -21,11 +28,17 @@
     for(const id of ['download','deploy','check'])$(id).hidden=!connected;
     for(const id of ['connect','download','deploy','check','disconnect'])$(id).disabled=busy||!context.current||(['download','deploy','check'].includes(id)&&!authenticated);
     $('badge').textContent=!connected?'Not connected':!authenticated?'Sign in to sync':remote?.files===0?'Ready to deploy':remote&&local?remote.revision===local?'Up to date':connection.baseline&&remote.revision===connection.baseline?'Local changes':connection.baseline&&local===connection.baseline?'Cloud changes':'Changes on both sides':'Connected';
+    const status=connected?(authenticated?'Connected':'Sign in to sync'):session?'Signed in · portal not linked':'Not connected';
+    const stat=document.getElementById('stat-cloud');if(stat){stat.textContent=status;stat.classList.toggle('placeholder',!authenticated);}
+    const label=document.getElementById('dashboard-cloud-status');if(label)label.textContent=connected&&authenticated?'Connected to '+connection.url:status;
+    const connect=document.getElementById('dashboard-cloud-connect');if(connect){connect.textContent=connected&&authenticated?'Manage Cloud connection':connected?'Sign in to Cloud':'Connect Sheriff Cloud';connect.disabled=busy||!context.current;}
+    for(const id of ['deploy','download']){const button=document.getElementById('dashboard-cloud-'+id);if(button)button.disabled=busy||!connected||!authenticated;}
+
   }
   async function result(response){let data;try{data=await response.json()}catch{throw Error('The server returned an unreadable response.');}if(!response.ok||data.ok===false)throw Error(data.stderr||data.error||'The operation failed.');return data;}
   async function api(verb,body,params={}){return result(await fetch('/api/cloud?'+verb+'&'+new URLSearchParams({portal:context.current,...params}),{method:'POST',headers:{'Content-Type':body instanceof Uint8Array?'application/octet-stream':'application/json'},body:body instanceof Uint8Array?body:JSON.stringify(body||{})}));}
   async function cloud(op,body){
-    if(!validSession())throw Error('Sign in to Cloud again to continue.');
+    if(!await currentSession())throw Error('Sign in to Cloud again to continue.');
     const response=await fetch(CLOUD+'/api/desk/sync.'+op+'?'+new URLSearchParams({portal:connection.portal}),{method:'POST',headers:{Authorization:'Bearer '+session.token,'Content-Type':'application/json',Accept:op==='deploy'?'application/x-ndjson':'application/json'},body:JSON.stringify(body||{}),credentials:'omit'});
     if(response.status===401){session=null;render();throw Error('Your Cloud session expired. Sign in again.');}
     if(!response.headers.get('Content-Type')?.includes('application/x-ndjson'))return result(response);
@@ -76,7 +89,7 @@
     await saveBaseline(done.revision);message('Published. Local and Cloud source are synced.');log('PUBLISHED · R2: '+((done.upload_ms||0)/1000).toFixed(2)+'s\n');
   }
   async function run(work){if(busy)return;if(context.locked){message('Wait for the current save or file operation to finish.',true);return;}busy=true;revision++;const unlock=context.lock();render();try{await work()}catch(error){message(error.message,true);if(!logPanel.hidden)log('ERROR: '+error.message+'\n');}finally{busy=false;unlock();render();}}
-  async function load(){if(busy)return;const own=++revision;try{const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
+  async function load(){if(busy)return;const own=++revision;try{await authReady;const data=await api('state');if(own!==revision)return;connection=data.connection||null;local=null;remote=null;message(connection?(validSession()?'Check changes, download Cloud source, or deploy your local build.':'Sign in to check changes, download, or deploy.'):'Connect this local portal to a new or existing Cloud site.');render();}catch(error){message(error.message,true);}}
   $('connect').addEventListener('click',()=>{
     if(pending){pending.popup?.close();clearTimeout(pending.timer);pending=null;}
     const state=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
@@ -90,11 +103,13 @@
     if(pending.portal!==context.current){message('The selected portal changed. Connect again.',true);return;}
     clearTimeout(pending.timer);pending=null;
     if(!data.token||!data.site?.id||!data.site?.portal||!/^https:\/\//.test(data.site.url)||!data.account||!Number.isFinite(data.expires_at)){message('Cloud returned an invalid connection.',true);return;}
-    session={token:data.token,account:data.account,expires_at:data.expires_at};
-    void run(async()=>{const same=connection?.site_id===data.site.id&&connection?.account===data.account;connection=(await api('link',{...data.site,site_id:data.site.id,account:data.account,baseline:same?connection.baseline:''})).connection;await check();});
+    void run(async()=>{const auth=await authReady;if(!auth||!data.refresh_token)throw Error('Reload Desk and reconnect to enable persistent Cloud sign-in.');const restored=await auth.setSession({access_token:data.token,refresh_token:data.refresh_token});if(restored.error)throw restored.error;session={token:restored.data.session.access_token,account:restored.data.session.user.id,expires_at:restored.data.session.expires_at};const same=connection?.site_id===data.site.id&&connection?.account===data.account;connection=(await api('link',{...data.site,site_id:data.site.id,account:data.account,baseline:same?connection.baseline:''})).connection;await check();});
   });
   $('check').addEventListener('click',()=>void run(check));$('download').addEventListener('click',()=>void run(download));$('deploy').addEventListener('click',()=>void run(deploy));
   $('disconnect').addEventListener('click',()=>void run(async()=>{if(!confirm('Disconnect this portal? Local and Cloud files will stay where they are.'))return;await api('forget');session=null;connection=null;local=null;remote=null;message('Disconnected.');}));
-  context.subscribe(()=>{if(pending){clearTimeout(pending.timer);pending.popup?.close();pending=null;}if(location.hash==='#cloud')void load();else{connection=null;local=null;remote=null;render();}});
+  context.subscribe(()=>{if(pending){clearTimeout(pending.timer);pending.popup?.close();pending=null;}connection=null;local=null;remote=null;render();void load();});
+  for(const [id,action] of [['connect',()=>{if(!connection||!validSession())$('connect').click();}],['deploy',()=>void run(deploy)],['download',()=>void run(download)]]){
+    document.getElementById('dashboard-cloud-'+id)?.addEventListener('click',()=>{location.hash='#cloud';action();});
+  }
   window.SheriffCloudSync={enter:load};render();
 }());

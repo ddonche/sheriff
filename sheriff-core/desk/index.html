@@ -137,7 +137,7 @@
               </div>
               <div class="stat">
                 <div class="k">Cloud</div>
-                <div class="v placeholder">Not connected</div>
+                <div class="v placeholder" id="stat-cloud">Not connected</div>
               </div>
             </div>
           </div>
@@ -195,12 +195,12 @@
           <div class="panel">
             <h2 class="bracket">Sheriff Cloud</h2>
             <div class="cloud-state">
-              <span class="dot"></span> Not connected
+              <span class="dot" id="dashboard-cloud-dot"></span> <span id="dashboard-cloud-status">Not connected</span>
             </div>
             <div class="stack">
-              <a class="btn teal block" href="#" data-dead>Connect Sheriff Cloud</a>
-              <a class="btn block disabled" href="#" data-dead aria-disabled="true">Push to Cloud</a>
-              <a class="btn block disabled" href="#" data-dead aria-disabled="true">Pull from Cloud</a>
+              <button class="btn teal block" id="dashboard-cloud-connect" type="button">Connect Sheriff Cloud</button>
+              <button class="btn block" id="dashboard-cloud-deploy" type="button" disabled>Deploy to Cloud</button>
+              <button class="btn block" id="dashboard-cloud-download" type="button" disabled>Download from Cloud</button>
             </div>
           </div>
 
@@ -921,7 +921,7 @@ leadership = [[House Andergard]]</pre>
 <script src="/admin/portal-context.js?v=2"></script>
 <script src="/admin/build-log.js?v=3"></script>
 <script src="/admin/cloud-transfer.js?v=1"></script>
-<script src="/admin/cloud-sync.js?v=1"></script>
+<script src="/admin/cloud-sync.js?v=2"></script>
 <script src="/admin/admin.js?v=47"></script>
 <script src="/admin/content-images.js?v=2"></script>
 <script src="/admin/content-inserts.js?v=4"></script>
