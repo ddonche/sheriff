@@ -10,7 +10,7 @@ Sheriff turns Markdown, templates, and site configuration into static websites. 
 
 Sheriff is built around a configurable, module-driven publishing pipeline. It also includes **Sheriff Desk**, a local browser-based interface for editing content, managing assets, configuring themes, and building sites.
 
-**[Website and documentation](https://sheriff.sheriffcloud.com/)** · **[Source code](https://github.com/ddonche/sheriff)** · **[Report an issue](https://github.com/ddonche/sheriff/issues)**
+**[Website](https://sheriffcloud.com/)** · **[Documentation](https://sheriff.sheriffcloud.com/)** · **[Source code](https://github.com/ddonche/sheriff)** · **[Report an issue](https://github.com/ddonche/sheriff/issues)**
 
 ## Features
 
@@ -64,7 +64,7 @@ Sheriff resolves the wiki links, renders the content, applies the selected layou
 
 Sheriff is under active development and currently requires the **[Goblin programming language](https://github.com/ddonche/goblin-lang)** to run its build system.
 
-For the current setup instructions, use the **[Sheriff website and documentation](https://sheriff.sheriffcloud.com/)**.
+For the current setup instructions, use the **[Sheriff documentation](https://sheriff.sheriffcloud.com/)**.
 
 Once your Sheriff installation and portals are configured, the documented build commands include:
 
@@ -87,7 +87,7 @@ Sheriff Desk provides a local web interface for managing site content and assets
 
 ## See Sheriff in action
 
-The **[Sheriff website and documentation](https://sheriff.sheriffcloud.com/)** are built with Sheriff itself.
+The **[Sheriff documentation](https://sheriff.sheriffcloud.com/)** is built with Sheriff itself.
 
 The repository includes the source for that site, alongside the generator, modules, themes, and regression tests.
 
@@ -104,4 +104,4 @@ The repository includes the source for that site, alongside the generator, modul
 
 Sheriff is actively developed, and interfaces and setup instructions may change as the project evolves.
 
-For bugs, feature requests, or discussions, please [open a GitHub issue](https://github.com/ddonche/sheriff/issues). For implementation details, browse the [source repository](https://github.com/ddonche/sheriff) and the [official documentation](https://sheriff.sheriffcloud.com/).
+For bugs, feature requests, or discussions, please [open a GitHub issue](https://github.com/ddonche/sheriff/issues). For implementation details, browse the [source repository](https://github.com/ddonche/sheriff) and the [documentation](https://sheriff.sheriffcloud.com/). Visit [Sheriff Cloud](https://sheriffcloud.com/) for the official website.
