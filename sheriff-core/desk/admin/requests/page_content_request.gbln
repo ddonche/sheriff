@@ -1,0 +1,71 @@
+/// Public content requests: verified SSO + shared Howdy policy, never local-owner bypass.
+import modules/howdy/access as access
+import modules/sheriff_sso/sheriff_sso as sso
+import modules/site_portals/context as sites
+import modules/desk_changes/state as changes
+import "build-support/output.gbln" as output
+act value(query, key)
+    for part in :split(query,"&")
+        if :starts_with(part,key + "=") => return :url_decode(part[key.len + 1:])
+    xx
+    return ""
+xx
+act handle()
+    root | :env("SHERIFF_ROOT")
+    query | :env("GOBLIN_QUERY_STRING")
+    portal | value(query,"portal")
+    verb | :keep_before(query,"&") ?? query
+    if verb != "read" and verb != "library" and verb != "save" => return access::denial("Unknown page action.")
+    if !sites::valid_id(portal) => return access::denial("Invalid portal.")
+    bearer | :env("SHERIFF_ACCESS_BEARER") ?? ""
+    if !:starts_with(bearer,"Bearer ") => return access::denial("Sign in to Sheriff to edit this page.","unauthorized")
+    identity | sso::verify(bearer[7:])
+    if identity{"ok"} != true => return access::denial("Your Sheriff session has expired. Sign in again.","unauthorized")
+    payload | :json_parse(:read_text(:env("GOBLIN_REQUEST_FILE")))
+    path | payload{"path"} ?? ""
+    if !:starts_with(path,"content/") or !access::page(path) => return access::denial("Select a Markdown content page.")
+    subject | identity{"user_id"}
+    if verb == "read" or verb == "library" => return access::execute(root,portal,verb,payload,subject,false)
+    /// Reject before taking the output lease. Check again after acquiring it.
+    prepared | access::execute(root,portal,"prepare",payload,subject,false)
+    if prepared{"ok"} != true => return prepared
+    lease | output::lifecycle(portal,"page-begin","")
+    ticket | nil
+    result | {"ok":false,"saved":false}
+    attempt
+        prepared |= access::execute(root,portal,"prepare",payload,subject,false)
+        result |= prepared
+        if prepared{"ok"} == true
+            ticket |= changes::execute(root,portal,"begin",{"mode":"page","path":path,"text":prepared{"content"}})
+            result |= access::execute(root,portal,"save",payload,subject,false)
+            if result{"ok"} == true
+                target | path[8:]
+                env | {"SHERIFF_PAGE_TARGET":target,"SHERIFF_SKIP_DESK_SYNC":"1","SHERIFF_BUILD_OUTPUT":"","SHERIFF_BUILD_DEFER_ACTIVATION":""}
+                member | sites::for_portal(portal)
+                if !member.nix? => :update!(env{"SHERIFF_BUILD_OUTPUT"},"../dist/" + member{"site_id"} + "/p/" + member{"portal_id"} + "/wiki")
+                started | :to_epoch_ms(:utc_now())
+                built | :json_parse(:run_cmd("goblin run main.gbln {portal} page",".",env))
+                elapsed | :to_epoch_ms(:utc_now()) - started
+                :update!(result{"ok"},built{"ok"})
+                :update!(result{"build_ms"},elapsed)
+                :update!(result{"build_stdout"},built{"stdout"})
+                :update!(result{"build_stderr"},built{"stderr"})
+                if built{"ok"} != true => :update!(result{"stderr"},"Source saved, but this page did not build. Fix the error and retry. " + built{"stderr"})
+                changes::execute(root,portal,"finish",{"id":ticket{"id"},"success":built{"ok"},"build_ms":elapsed})
+                ticket |= nil
+            xx
+        xx
+    rescue err
+        :update!(result{"ok"},false)
+        :update!(result{"stderr"},:str(err))
+    ensure
+        if !ticket.nix? => changes::execute(root,portal,"finish",{"id":ticket{"id"},"success":false})
+        output::lifecycle(portal,"page-finish",lease{"id"})
+    xx
+    return result
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"saved":false,"stderr": :str(err)}))
+xx

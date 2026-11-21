@@ -2,6 +2,7 @@
 (function(){
   'use strict';
   if(window.__sheriffProspector)return;window.__sheriffProspector=true;
+  const publicBase=new URL('.',document.currentScript?.src||new URL('/public/prospector.js',location.href));
   function init(){
     const wrapper=document.getElementById('sheriff-search'),input=document.getElementById('sheriff-search-input');if(!wrapper||!input)return;
     const panel=document.createElement('div');panel.className='sheriff-search-results';panel.hidden=true;
@@ -23,7 +24,7 @@
         const excerpt=document.createElement('div');excerpt.className='sheriff-search-result-summary';excerpt.textContent=item.excerpt||'';content.append(title,excerpt);
         if(typeof item.thumbnail==='string'&&item.thumbnail.trim()){
           try{
-            const src=new URL(item.thumbnail,url);
+            const src=new URL(item.thumbnail.startsWith('/public/')?item.thumbnail.slice('/public/'.length):item.thumbnail,item.thumbnail.startsWith('/public/')?publicBase:url);
             if(['http:','https:'].includes(src.protocol)&&!src.username&&!src.password){
               const image=document.createElement('img');image.className='sheriff-search-result-thumbnail';image.alt='';image.width=64;image.height=64;image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
               image.addEventListener('error',()=>{image.remove();link.classList.remove('has-thumbnail');},{once:true});
@@ -46,9 +47,9 @@
         link.addEventListener('pointermove',()=>select(links.indexOf(link)));list.append(link);links.push(link);
       }
     }
-    function runFallback(message){if(!fallbackLoad)fallbackLoad=fetch('/public/search-index.json',{cache:'no-cache'}).then(response=>{if(!response.ok)throw Error();return response.text();}).then(text=>fallback=window.ProspectorEngine.create(window.ProspectorEngine.parse(text))).catch(error=>{fallbackLoad=null;throw error;});fallbackLoad.then(()=>setTimeout(()=>receive({id:message.id,...fallback.query(message.query,{category:message.category,limit:10})}),0)).catch(()=>receive({id:message.id,error:'Search is unavailable right now. Try again shortly.'}));}
+    function runFallback(message){if(!fallbackLoad)fallbackLoad=fetch(new URL('search-index.json',publicBase),{cache:'no-cache'}).then(response=>{if(!response.ok)throw Error();return response.text();}).then(text=>fallback=window.ProspectorEngine.create(window.ProspectorEngine.parse(text))).catch(error=>{fallbackLoad=null;throw error;});fallbackLoad.then(()=>setTimeout(()=>receive({id:message.id,...fallback.query(message.query,{category:message.category,limit:10})}),0)).catch(()=>receive({id:message.id,error:'Search is unavailable right now. Try again shortly.'}));}
     function search(){clearTimeout(timer);const query=input.value.trim();if(!query){list.replaceChildren();close();return;}const message={id:++sequence,query,category:filter.value};show();panel.setAttribute('aria-busy','true');status.textContent='Searching…';
-      if(!worker&&workerAvailable&&typeof Worker==='function'){try{worker=new Worker('/public/prospector-worker.js');const current=worker;worker.onmessage=event=>receive(event.data);worker.onerror=()=>{if(worker!==current)return;current.terminate();worker=null;workerAvailable=false;if(open&&input.value.trim())runFallback({id:sequence,query:input.value.trim(),category:filter.value});};}catch{worker=null;workerAvailable=false;}}
+      if(!worker&&workerAvailable&&typeof Worker==='function'){try{worker=new Worker(new URL('prospector-worker.js',publicBase));const current=worker;worker.onmessage=event=>receive(event.data);worker.onerror=()=>{if(worker!==current)return;current.terminate();worker=null;workerAvailable=false;if(open&&input.value.trim())runFallback({id:sequence,query:input.value.trim(),category:filter.value});};}catch{worker=null;workerAvailable=false;}}
       if(worker)worker.postMessage(message);else runFallback(message);
     }
     input.addEventListener('input',event=>{if(event.isComposing)return;sequence++;clearTimeout(timer);list.replaceChildren();links=[];select(-1);if(!input.value.trim()){list.replaceChildren();close();return;}timer=setTimeout(search,100);});input.addEventListener('compositionend',search);input.addEventListener('focus',()=>{if(input.value.trim())search();});filter.addEventListener('change',search);

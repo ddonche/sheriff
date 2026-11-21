@@ -7,14 +7,14 @@ const tempRoot=path.resolve(os.tmpdir());
 const fixture=fs.mkdtempSync(path.join(tempRoot,'sheriff-file-manager-'));
 const portal=path.join(fixture,'site/portals/example');
 fs.mkdirSync(path.join(portal,'content'),{recursive:true});
-fs.copyFileSync(path.join(root,'sheriff-core/desk/api/file.gbln'),path.join(fixture,'file.gbln'));
+const core=path.join(fixture,'sheriff-core');fs.mkdirSync(path.join(core,'modules/howdy'),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/modules/howdy/access.gbln'),path.join(core,'modules/howdy/access.gbln'));fs.copyFileSync(path.join(root,'sheriff-core/desk/api/file.gbln'),path.join(core,'file.gbln'));
 let checks=0;
 function check(name,run){run();checks++;}
 function write(rel,data='page'){const p=path.join(portal,rel);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,data);}
 function exists(rel){return fs.existsSync(path.join(portal,rel));}
 function api(verb,...args){
  const query=[verb,...args.map(encodeURIComponent)].join('&');
- const result=spawnSync('goblin',['run','file.gbln'],{cwd:fixture,encoding:'utf8',timeout:15000,env:{...process.env,SHERIFF_ROOT:fixture.replace(/\\/g,'/'),GOBLIN_QUERY_STRING:query}});
+ const result=spawnSync('goblin',['run','file.gbln'],{cwd:core,encoding:'utf8',timeout:15000,env:{...process.env,SHERIFF_ROOT:fixture.replace(/\\/g,'/'),GOBLIN_QUERY_STRING:query}});
  if(result.error)throw result.error;
  assert.equal(result.status,0,result.stdout+'\n'+result.stderr);
  const line=result.stdout.trim().split(/\r?\n/).findLast(s=>s.startsWith('{'));
@@ -55,7 +55,7 @@ check('successful case-only moves remove their temporary recovery data',()=>{con
 if(!exists('content/UPPERCASE.MD'))check('case-sensitive filesystems still reject a distinct destination',()=>{write('content/UPPERCASE.MD','separate destination');assert.equal(api('move','example','content/uppercase.md','content/UPPERCASE.MD').ok,false);assert.equal(fs.readFileSync(path.join(portal,'content/UPPERCASE.MD'),'utf8'),'separate destination');assert.equal(fs.readFileSync(path.join(portal,'content/uppercase.md'),'utf8'),'case-only file bytes');});
 check('failed final case-only copy restores the original and retains recovery data',()=>{
  write('content/Rollback.md','original survives failure');
- const apiPath=path.join(fixture,'file.gbln'),original=fs.readFileSync(apiPath,'utf8');
+ const apiPath=path.join(core,'file.gbln'),original=fs.readFileSync(apiPath,'utf8');
  const call='        copy_managed_tree(recovery_item, destination)';assert(original.includes(call));
  fs.writeFileSync(apiPath,original.replace(call,()=> '        :read_text("forced-case-rename-failure.txt")'));
  try{

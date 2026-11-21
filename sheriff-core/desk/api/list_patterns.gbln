@@ -1,3 +1,4 @@
+import "../sheriff-core/build-support/workspace_files.gbln" as workspace_files
 /// api/list_patterns.gbln
 /// /api/list_patterns?{portal}
 /// Returns every pattern scaffold in site/portals/{portal}/patterns/*.txt
@@ -43,7 +44,7 @@ else
     patterns | []
 
     if :file_exists(patterns_dir)
-        for file in :walk(patterns_dir, "**/*.txt")
+        for file in workspace_files::files(patterns_dir, "**/*.txt")
             file_norm | file
             :update_where!(file_norm, "\\", "/")
 

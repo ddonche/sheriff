@@ -6,7 +6,7 @@ $fixture = Join-Path ([System.IO.Path]::GetTempPath()) ('sheriff-hash-links-' + 
 $core = Join-Path $fixture 'sheriff-core'
 $portal = Join-Path $fixture 'site\portals\hash-link-fixture'
 New-Item -ItemType Directory -Path $core,$portal -Force | Out-Null
-foreach ($relative in @('modules\trailboss_wiki\routes_json.gbln','modules\trailboss_wiki\trailboss.gbln','modules\scout_nav\scout.gbln')) {
+foreach ($relative in @('modules\site_portals\context.gbln','modules\trailboss_wiki\routes_json.gbln','modules\trailboss_wiki\trailboss.gbln','modules\scout_nav\scout.gbln')) {
     $dest = Join-Path $core $relative
     New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path "$repoRoot\sheriff-core" $relative) -Destination $dest

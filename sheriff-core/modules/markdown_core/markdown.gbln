@@ -1,6 +1,7 @@
 import modules/markdown_core/fenced_code as fenced_code
 import modules/markdown_core/content_tabs as content_tabs
 import modules/markdown_core/content_columns as content_columns
+import modules/markdown_core/image_gallery as image_gallery
 
 /// modules/markdown_core/markdown.gbln
 /// Render Markdown in ctx["body"] → HTML, store back in ctx["body"].
@@ -45,6 +46,7 @@ act render(ctx)
     fence_stash | fenced{"stash"}
     tabbed | content_tabs::prepare(fenced{"text"}, 1)
     protected |= content_columns::prepare(tabbed{"body"})
+    protected |= image_gallery::prepare(protected)
     for item in fence_stash
         k | item{"k"}
         :update_where!(protected, k, "\n\n" + k + "\n\n")

@@ -1,5 +1,8 @@
+import "build-support/workspace_files.gbln" as workspace_files
+import modules/frontier_fm/text_lists as fm_lists
+import modules/site_portals/context as site_context
 import modules/trailboss_wiki/stub_source as stub_source
-import build_output as build_output
+import "build-support/output.gbln" as build_output
 import modules/markdown_core/fenced_code as category_code
 
 /// modules/trailboss_wiki/routes_json.gbln
@@ -21,7 +24,7 @@ act load_cfg(portal)
     if :file_exists(path) == false
         return nil
     xx
-    return :yall_parse_file(path)
+    return site_context::config(path)
 xx
 
 /// Theme icon maps inherit Core defaults and apply portal overrides per entry.
@@ -95,6 +98,8 @@ act get_routing_map(cfg)
 xx
 
 act get_url_root(cfg)
+    membership | site_context::membership(cfg)
+    if !membership.nix? => return "p/" + membership{"portal_id"} + "/wiki"
     routing | get_routing_map(cfg)
     if routing.nix? => send ..
     
@@ -347,7 +352,7 @@ act source_row_sets(portal)
 
     rows | []
 
-    for src in :walk(content_root, "**/*.md")
+    for src in workspace_files::files(content_root, "**/*.md", true)
         src_norm | src
         :update_where!(src_norm, "\\", "/")
 
@@ -373,7 +378,7 @@ act source_row_sets(portal)
             skip
         elif is_revision
             md_text | :read_text(src_norm)
-            fm | extract_frontmatter_map(md_text)
+            fm | extract_frontmatter_map(md_text, src_norm)
             if frontmatter_is_tombstone(fm)
                 skip
             xx
@@ -693,6 +698,13 @@ xx
 act collect_page_categories(ctx)
     fm | ctx{"frontmatter"} ?? {}
     categories | fm{"categories"} ?? []
+    /// Frontier's flat map can expose bracket lists as text. Use the same
+    /// source-list interpretation as the category-directory route builder.
+    /// Read only this page; no route rebuild or shared-output writes.
+    path | ctx{"path"}
+    if !path.nix? and :file_exists(path)
+        categories |= extract_frontmatter_list(:read_text(path), fm, "categories")
+    xx
     if fm{"generated_by"} != "categories"
         categories |= merge_categories(categories, content_categories(ctx{"body"}))
     else
@@ -832,9 +844,9 @@ xx
 
 /// ------------------------------------------------------------------------
 /// Extract Sheriff frontmatter (^^^^ ... ^^^^) as a map.
-/// If missing or unparseable, returns {}.
+/// Missing metadata returns {}. Invalid metadata reports its source and fails.
 /// ------------------------------------------------------------------------
-act extract_frontmatter_map(md_text)
+act extract_frontmatter_map(md_text, source | "frontmatter")
     if md_text.nix? => return {}
 
     t | md_text
@@ -845,7 +857,7 @@ act extract_frontmatter_map(md_text)
     block | :keep_between(t, "^^^^", "^^^^")
     if block.nix? or :trim(block) == .. => return {}
 
-    parsed | :yall_parse(block, "frontmatter")
+    parsed | fm_lists::parse_reported(block, source)
     if parsed.nix? => return {}
     if :valtype(parsed) != "map" => return {}
 
@@ -1158,7 +1170,7 @@ act build_routes_json_for_portal(portal)
         if slug == "missing" => skip
 
         md_text | :read_text(src_norm)
-        fm      | extract_frontmatter_map(md_text)
+        fm      | extract_frontmatter_map(md_text, src_norm)
 
         if :starts_with(rel_no_ext, "categories/") or (fm.nix? == false and :valtype(fm) == "map" and :has(fm, "canonical"))
             canonical_slug | canonical_to_slug(fm{"canonical"})
@@ -1205,7 +1217,7 @@ act build_routes_json_for_portal(portal)
         page_title | :title(title_src)
 
         md_text | :read_text(src_norm)
-        fm      | extract_frontmatter_map(md_text)
+        fm      | extract_frontmatter_map(md_text, src_norm)
 
         gloss, meta_kind, meta_type, summary, generated_by | ..
         categories | extract_frontmatter_list(md_text, fm, "categories")
@@ -1407,10 +1419,10 @@ act clean_category_pages_once(pre_ctx)
     xx
 
     if :file_exists(categories_root)
-        for old_category_page in :walk(categories_root, "**/*.md")
+        for old_category_page in workspace_files::files(categories_root, "**/*.md", true)
             old_category_text | :read_text(old_category_page)
             if :has(old_category_text, "generated_by: categories")
-                old_fm | extract_frontmatter_map(old_category_text)
+                old_fm | extract_frontmatter_map(old_category_text, old_category_page)
                 old_categories | extract_frontmatter_list(old_category_text, old_fm, "categories")
                 if :valtype(old_categories) == "array" and old_categories.len != 0
                     skip
@@ -1493,10 +1505,10 @@ act build_category_pages_once(pre_ctx)
         xx
     xx
 
-    for old_category_page in :walk(category_root, "**/*.md")
+    for old_category_page in workspace_files::files(category_root, "**/*.md", true)
         old_category_text | :read_text(old_category_page)
         if :has(old_category_text, "generated_by: categories")
-            old_fm | extract_frontmatter_map(old_category_text)
+            old_fm | extract_frontmatter_map(old_category_text, old_category_page)
             category_title_old | old_fm{"title"} ?? ..
             category_slug_old | normalize_to_slug(category_title_old)
             fm_block_old | extract_frontmatter_block(old_category_text)
@@ -1546,6 +1558,12 @@ categories: []
 
     index_lines | [index_frontmatter]
     index_items | []
+
+    for route in routes
+        if route{"generated_by"} == "missing-pages"
+            :put_last!(index_items,{"title":"Missing Pages","line":"* " + category_directory_link("Missing Pages","Category:Missing Pages",wiki_icons{"category"})})
+        xx
+    xx
 
     sorted_category_rows | :sort(category_rows)
 
@@ -1829,7 +1847,7 @@ summary: Alphabetical index of all pages.
             generated_by |= route{"generated_by"} ?? ..
         xx
 
-        if generated_by == "categories"
+        if generated_by == "categories" or generated_by == "missing-pages"
             skip
         xx
 
@@ -1844,7 +1862,9 @@ summary: Alphabetical index of all pages.
         xx
     xx
 
-    :put_last!(lines, render_alphabetical_index(page_rows))
+    directory | render_alphabetical_index(page_rows)
+    if directory.nix? => directory |= "No articles yet."
+    :put_last!(lines, directory)
 
     :write_text!(out_path, :join(lines, "\n"))
 

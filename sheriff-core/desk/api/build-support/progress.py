@@ -36,15 +36,29 @@ def main():
         lifecycle=None;output_job=None
         try:
             helper=root/'sheriff-core/build-support/lifecycle.py'
-            if request['mode']=='portal' and helper.is_file():
+            if helper.is_file():
                 os.environ.update(SHERIFF_BUILD_PORTAL=portal,SHERIFF_BUILD_OWNER_PID=str(os.getpid()),SHERIFF_LIFECYCLE_ROOT=str(root))
                 spec=importlib.util.spec_from_file_location('sheriff_build_lifecycle',helper)
                 lifecycle=importlib.util.module_from_spec(spec);spec.loader.exec_module(lifecycle)
-                lifecycle.phase='begin';output_job=lifecycle.main();env['SHERIFF_BUILD_OUTPUT']=output_job['output']
+                lifecycle.phase='page-begin' if request['mode']=='page' else 'begin';output_job=lifecycle.main()
+                if request['mode']=='portal': env['SHERIFF_BUILD_OUTPUT']=output_job['output']
             with (job/'stdout.txt').open('wb') as out,(job/'stderr.txt').open('wb') as err:
-                result=subprocess.run(args,cwd=root/'sheriff-core',env=env,stdout=out,stderr=err,timeout=180)
+                child=subprocess.Popen(args,cwd=root/'sheriff-core',env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=err)
+                completed=None
+                while child.poll() is None:
+                    text=(job/'stderr.txt').read_text(encoding='utf-8',errors='replace')
+                    footer=re.search(r'^goblin run main\.gbln → exit (\d+) in \d+ms \([\d.]+s\)\r?$',text,re.M)
+                    if footer:
+                        completed=int(footer[1])
+                        try:child.wait(timeout=.3)
+                        except subprocess.TimeoutExpired:child.kill();child.wait()
+                        break
+                    if time.perf_counter()-started>=180:
+                        child.kill();child.wait();raise TimeoutError('Build timed out.')
+                    time.sleep(.05)
+                result=subprocess.CompletedProcess(args,completed if completed is not None else child.wait())
             if output_job:
-                lifecycle.phase='activate' if result.returncode==0 else 'abort';lifecycle.build_id=output_job['id']
+                lifecycle.phase='page-finish' if request['mode']=='page' else ('activate' if result.returncode==0 else 'abort');lifecycle.build_id=output_job['id']
                 activated=lifecycle.main();output_job=None
                 with (job/'stdout.txt').open('ab') as out:out.write((activated['message']+'\n').encode('utf-8'))
             stdout=(job/'stdout.txt').read_text(encoding='utf-8',errors='replace');stderr=(job/'stderr.txt').read_text(encoding='utf-8',errors='replace')
@@ -53,7 +67,7 @@ def main():
         except Exception as error:
             if output_job:
                 try:
-                    lifecycle.phase='abort';lifecycle.build_id=output_job['id'];lifecycle.main()
+                    lifecycle.phase='page-finish' if request['mode']=='page' else 'abort';lifecycle.build_id=output_job['id'];lifecycle.main()
                 except Exception:pass
             atomic(job/'result.json',{'ok':False,'code':1,'stdout':'','stderr':str(error),'build_ms':(time.perf_counter()-started)*1000})
         return {'ok':True}

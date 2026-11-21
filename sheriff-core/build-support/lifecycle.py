@@ -61,7 +61,7 @@ def main():
     global build_id
     checked(base); checked(active)
     base.mkdir(parents=True, exist_ok=True)
-    if phase == 'begin':
+    if phase in ('begin', 'page-begin'):
         if lease.exists():
             meta = lease / 'job.json'
             if not meta.exists() and time.time() - lease.stat().st_mtime < 30:
@@ -73,16 +73,20 @@ def main():
             remove(lease)
         lease.mkdir()
         try:
-            remove(work)
-            work.mkdir()
+            if phase == 'begin':
+                remove(work)
+                work.mkdir()
             build_id = uuid.uuid4().hex
             data = {'id': build_id, 'portal': portal, 'output': str(work), 'owner': owner(), 'state': 'building'}
             write(lease / 'job.json', data)
-            return {**data, 'message': 'Building fresh output; the current site is unchanged.'}
+            return {**data, 'message': 'Building only the selected page.' if phase == 'page-begin' else 'Building fresh output; the current site is unchanged.'}
         except Exception:
             remove(lease)
             raise
     data = load()
+    if phase == 'page-finish':
+        remove(lease)
+        return {'message': 'Page build finished.'}
     if phase == 'ready':
         data['state'] = 'ready'; write(lease / 'job.json', data)
         return {**data, 'message': 'Build complete; output ready for publishing.'}

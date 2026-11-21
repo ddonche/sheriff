@@ -5,40 +5,43 @@
   const context = window.SheriffPortalContext, $ = id => document.getElementById(id);
   const grid = $('ic-grid'), search = $('ic-search'), color = $('ic-color'), picker = $('ic-color-picker'), refresh = $('ic-refresh');
   const copyButton = $('ic-copy'), selectedPreview = $('ic-selected-preview');
+  const options=window.SheriffIconOptions;
   const batchSize=96;let shown=batchSize;
   let icons = [], selectedName = '', loaded = null, pending = null, request = 0, copyTimer;
   function status(text, error) { $('ic-status').textContent = text; $('ic-status').classList.toggle('err', !!error); }
-  function chosenColor() { const value = color.value.trim(); return value && value.length <= 120 && /^[a-zA-Z0-9#(),.% /+\-]+$/.test(value) && CSS.supports('color', value) ? value : ''; }
-  function chosenSize() { const value=$('ic-size').value.trim(),number=Number(value);return /^\d+$/.test(value)&&Number.isInteger(number)&&number>=8&&number<=256?String(number):''; }
-  function syntax(name) { const size=chosenSize(),color=icons.find(icon=>icon.name===name)?.format==='png'?'':chosenColor();return '[[icon|' + name + (color||size ? '|' + color : '') + (size ? '|'+size : '') + ']]'; }
+  function chosenColor() { return options.color(color.value); }
+  function chosenSize() { return options.size($('ic-size').value); }
+  function syntax(name) { return options.syntax(icons.find(icon=>icon.name===name),chosenColor(),chosenSize(),$('ic-link').value); }
   function paint(preview, icon) {
     preview.dataset.format=icon.format==='png'?'png':'svg';
     preview.style.setProperty('--icon-preview', icon.format==='png'?'url("'+icon.png+'")':'url("data:image/svg+xml,' + encodeURIComponent(icon.svg).replace(/'/g,'%27') + '")');
-    preview.style.color = chosenColor();
+    preview.style.color = options.previewColor(icon,chosenColor());
     if(preview===selectedPreview){preview.style.width=preview.style.height=chosenSize()?chosenSize()+'px':'';}
   }
   function updateStatus() {
-    const count = icons.filter(icon => icon.name.includes(search.value.trim().toLowerCase())).length;
+    const count = icons.filter(icon => options.matches(icon,search.value.trim(),$('ic-collection').value)).length;
     const invalid = !!color.value.trim() && !chosenColor(); color.setAttribute('aria-invalid', invalid ? 'true' : 'false');
     const invalidSize=!!$('ic-size').value.trim()&&!chosenSize();$('ic-size').setAttribute('aria-invalid',String(invalidSize));
     if (pending) status('Loading icons…');
+    else if(!options.linkValid($('ic-link').value)) status('Enter a valid web URL, site path, or #section.',true);
     else if(invalidSize) status('Use a whole-number size from 8 to 256 pixels. Using the theme size.');
     else status(invalid ? 'That color is not valid. Using the surrounding styling.' : Math.min(shown,count) + ' of ' + icons.length + ' icons shown' + (search.value.trim() ? ' · '+count+' matches' : '') + (context.current ? ' available for ' + context.current : ' in Core') + '.');
   }
   function updateSelection() {
     const selected = icons.find(icon => icon.name === selectedName);
     grid.querySelectorAll('.icon-tile').forEach(tile => tile.setAttribute('aria-pressed', tile.dataset.icon === selectedName ? 'true' : 'false'));
-    selectedPreview.hidden = !selected; copyButton.disabled = !selected; clearTimeout(copyTimer);
+    selectedPreview.hidden = !selected; copyButton.disabled = !selected||!options.linkValid($('ic-link').value);$('ic-link').setAttribute('aria-invalid',String(!options.linkValid($('ic-link').value))); clearTimeout(copyTimer);
     copyButton.textContent = 'Copy syntax'; copyButton.setAttribute('aria-label', selected ? 'Copy ' + selected.name : 'Copy syntax'); $('ic-copy-status').textContent = '';
     $('ic-selected-name').textContent = selected ? selected.name : 'Select an icon';
-    $('ic-selected-source').textContent = selected ? selected.source + ' icon' : 'Choose a tile to see its syntax.';
+    $('ic-selected-source').textContent = selected ? (selected.title?selected.title+' · ':'')+selected.source + ' icon' : 'Choose a tile to see its syntax.';
     $('ic-syntax').value = selected ? syntax(selected.name) : '';
     for(const control of [color,picker,$('ic-reset-color')])control.disabled=selected?.format==='png';
+    $('ic-brand-color').disabled=!selected?.brandColor;
     $('ic-color-help').textContent=selected?.format==='png'?'PNG icons keep their original colors.':'Uses the surrounding text color.';
     if (selected) { paint(selectedPreview, selected); selectedPreview.setAttribute('aria-label', selected.name); }
   }
   function render() {
-    const query = search.value.trim().toLowerCase(), matches = icons.filter(icon => icon.name.includes(query)); grid.replaceChildren();
+    const query = search.value.trim().toLowerCase(), matches = icons.filter(icon => options.matches(icon,query,$('ic-collection').value)); grid.replaceChildren();
     for (const icon of matches.slice(0,shown)) {
       const tile = document.createElement('button'); tile.type = 'button'; tile.className = 'icon-tile'; tile.dataset.icon = icon.name;
       tile.setAttribute('aria-label', 'Select ' + icon.name); tile.title = icon.name; tile.setAttribute('aria-pressed', icon.name === selectedName ? 'true' : 'false');
@@ -51,8 +54,8 @@
     updateSelection(); updateStatus();
   }
   function updateColor() {
-    grid.querySelectorAll('.icons-preview').forEach(preview => { preview.style.color = chosenColor(); }); updateSelection(); updateStatus();
-    const probe = document.createElement('span'); probe.style.color = chosenColor() || '#22282c'; document.body.append(probe);
+    grid.querySelectorAll('.icon-tile').forEach(tile => {const icon=icons.find(icon=>icon.name===tile.dataset.icon);if(icon)paint(tile.firstElementChild,icon);}); updateSelection(); updateStatus();
+    const probe = document.createElement('span'); probe.style.color = options.previewColor(icons.find(icon=>icon.name===selectedName),chosenColor()) || '#22282c'; document.body.append(probe);
     const rgb = getComputedStyle(probe).color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/); probe.remove();
     if (rgb) picker.value = '#' + rgb.slice(1,4).map(value => Number(value).toString(16).padStart(2,'0')).join('');
   }
@@ -100,7 +103,7 @@
     const file=uploadFile.files[0],name=uploadName.value.trim(),portal=context.current;
     if(!file||!/\.png$/i.test(file.name)){uploadStatus('Choose a PNG image.',true);return;}
     if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)){uploadStatus('Use lowercase letters, numbers, and hyphens for the icon name.',true);return;}
-    if(icons.some(icon=>icon.name===name)){uploadStatus('That icon name already exists. Choose a different name.',true);return;}
+    if(icons.some(icon=>icon.name===name||(icon.collection==='brands'&&name==='brand-'+icon.name.replace(/^brand-/,'')))){uploadStatus('That icon name already exists. Choose a different name.',true);return;}
     if(file.size>1048576){uploadStatus('Choose a PNG no larger than 1 MB.',true);return;}
     const release=context.lock();uploadBusy=true;for(const control of uploadForm.elements)control.disabled=true;uploadToggle.disabled=true;uploadStatus('Uploading '+name+'…');
     try{
@@ -109,18 +112,25 @@
       await $('ic-upload-preview').decode();
       const response=await fetch('/api/file?upload&'+encodeURIComponent(portal)+'&'+encodeURIComponent('public/icons/'+name+'.png')+'&no_overwrite=1',{method:'POST',body:file}),data=await response.json();
       if(!response.ok||data.ok===false)throw Error(data.stderr||'Icon upload failed.');
-      search.value=name;selectedName=name;await enter(true);if(!icons.some(icon=>icon.name===name))throw Error('The icon was uploaded, but the catalog could not refresh. Try Refresh.');
+      $('ic-collection').value='';search.value=name;selectedName=name;await enter(true);if(!icons.some(icon=>icon.name===name))throw Error('The icon was uploaded, but the catalog could not refresh. Try Refresh.');
       selectedName=name;render();uploadBusy=false;closeUpload();status('Uploaded '+name+'. Choose a size and copy its syntax. Build pages to publish the icon.');
     }catch(error){uploadStatus(error.message||'Icon upload failed.',true);}
     finally{uploadBusy=false;for(const control of uploadForm.elements)control.disabled=false;uploadToggle.disabled=false;release();}
   });
   context.subscribe(()=>{closeUpload();uploadToggle.disabled=!context.current;});uploadToggle.disabled=!context.current;
+  $('ic-link').addEventListener('input',()=>{updateSelection();updateStatus();});
+  $('ic-collection').addEventListener('change',()=>{shown=batchSize;render();});
+  $('ic-brand-color').addEventListener('click',()=>{color.value='brand';updateColor();});
   $('ic-size').addEventListener('input',()=>{updateSelection();updateStatus();});
   $('ic-more').addEventListener('click',()=>{shown+=batchSize;render();});
   search.addEventListener('input',()=>{shown=batchSize;render();}); color.addEventListener('input', updateColor);
   picker.addEventListener('input', () => { color.value = picker.value; updateColor(); });
   $('ic-reset-color').addEventListener('click', () => { color.value = ''; updateColor(); });
-  $('ic-clear-search').addEventListener('click', () => { search.value = ''; shown=batchSize; render(); search.focus(); });
-  refresh.addEventListener('click', () => enter(true)); window.SheriffIcons = { enter };
+  $('ic-clear-search').addEventListener('click', () => { search.value = ''; $('ic-collection').value=''; shown=batchSize; render(); search.focus(); });
+  window.addEventListener('sheriff:saved-changes', event => {
+    const d=event.detail||{};
+    if(d.mutated&&d.portal===context.current){loaded=null;if(!uploadBusy&&document.getElementById('view-icons')?.hidden===false)void enter(true);}
+  });
+  refresh.addEventListener('click', () => enter(true)); window.SheriffIcons = { enter, isBusy:()=>uploadBusy };
   if (location.hash === '#icons') enter();
 }());

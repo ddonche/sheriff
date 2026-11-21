@@ -1,0 +1,16 @@
+import modules/howdy/howdy as howdy
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for Howdy settings."}
+    text | :env("GOBLIN_BODY") ?? ""
+    request | :env("GOBLIN_REQUEST_FILE")
+    if !request.nix? => text |= :read_text(request)
+    if text.len > 4194304 => return {"ok":false,"stderr":"Configuration is too large."}
+    payload | :json_parse(text)
+    if :valtype(payload{"text"}) != "str" => return {"ok":false,"stderr":"Missing configuration buffer."}
+    return howdy::settings(payload{"text"},payload{"enabled"})
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr":"Howdy settings could not be read. " + :str(err)}))
+xx

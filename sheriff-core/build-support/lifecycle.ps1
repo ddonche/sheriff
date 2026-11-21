@@ -64,7 +64,7 @@ function Invoke-BuildLifecycle([string]$root,[string]$portal,[string]$phase,[str
     $active=Build-Checked "$buildRoot/dist/$buildPortal"
     $work=Build-Checked "$base/next";$previous=Build-Checked "$base/previous";$lease=Build-Checked "$base/lease"
     [IO.Directory]::CreateDirectory($base)|Out-Null
-    if ($buildPhase -eq 'begin') {
+    if ($buildPhase -in @('begin','page-begin')) {
         if ([IO.Directory]::Exists($lease)) {
             $meta="$lease/job.json"
             if (-not [IO.File]::Exists($meta) -and ((Get-Date).ToUniversalTime()-(Get-Item -LiteralPath $lease).LastWriteTimeUtc).TotalSeconds -lt 30) {throw 'Another build is starting for this portal.'}
@@ -81,14 +81,14 @@ function Invoke-BuildLifecycle([string]$root,[string]$portal,[string]$phase,[str
         $bytes=[Text.Encoding]::UTF8.GetBytes(($data|ConvertTo-Json -Depth 8 -Compress))
         $gate=[IO.File]::Open("$lease/job.json",[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
         try {$gate.Write($bytes,0,$bytes.Length);$gate.Flush()} finally {$gate.Dispose()}
-        Remove-BuildTree $work
-        [IO.Directory]::CreateDirectory($work)|Out-Null
-        $data.message='Building fresh output; the current site is unchanged.'
+        if ($buildPhase -eq 'begin') {Remove-BuildTree $work;[IO.Directory]::CreateDirectory($work)|Out-Null}
+        $data.message=if($buildPhase -eq 'page-begin'){'Building only the selected page.'}else{'Building fresh output; the current site is unchanged.'}
         $data
         return
     }
     $data=Get-Content -LiteralPath "$lease/job.json" -Raw -Encoding UTF8|ConvertFrom-Json
     if ($data.id -ne $buildId) {throw 'Build ownership changed.'}
+    if ($buildPhase -eq 'page-finish') {Remove-BuildTree $lease;@{message='Page build finished.'};return}
     if ($buildPhase -eq 'ready') {
         $data.state='ready';Write-BuildJson "$lease/job.json" $data
         @{id=$data.id;output=$data.output;state='ready';message='Build complete; output ready for publishing.'}

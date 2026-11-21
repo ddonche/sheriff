@@ -1,0 +1,211 @@
+/// Saved-source/build comparison for Desk. No build-kernel or glam knowledge.
+/// State belongs to this workspace, never to a portal or published output.
+act valid_portal(portal)
+    if portal.nix? => return false
+    for c in :split(portal, "")
+        if !:has("abcdefghijklmnopqrstuvwxyz0123456789_-", c) => return false
+    xx
+    return true
+xx
+act folder(root, portal)
+    if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud" => return "{root}/site/.desk/changes/{portal}"
+    return "{root}/data/.desk/changes/{portal}"
+xx
+act text_source(path)
+    if :has(["config.yall", "nav.yall", "assets.yall", "widgets.yall"], path) => return true
+    if :starts_with(path, "content/") or :starts_with(path, "blog/") => return :ends_with(path, ".md") or :ends_with(path, ".html")
+    if :starts_with(path, "themes/") => return :ends_with(path, "/templates.yall") or :ends_with(path, "/override.css")
+    if :starts_with(path, "patterns/") => return :ends_with(path, ".txt")
+    if :starts_with(path, "public/")
+        for ext in [".svg", ".json", ".css", ".js", ".html"]
+            if :ends_with(path, ext) => return true
+        xx
+    xx
+    return false
+xx
+act scan(root, portal)
+    base | "{root}/site/portals/{portal}"
+    files | {}
+    for file in :walk(base, "**/*")
+        path | :str(file)
+        :update_where!(path, "\\", "/")
+        rel | :keep_after(path, base + "/") ?? ""
+        if !text_source(rel) => skip
+        text | :read_text(path)
+        /// Generated listings are outputs, not editor changes.
+        front | ""
+        if :starts_with(text, "^^^^") => front |= :keep_before(:keep_after(text, "^^^^") ?? "", "^^^^") ?? ""
+        if :starts_with(rel, "content/") and :has(front, "meta_type: generated") => skip
+        :update!(files{rel}, text)
+    xx
+    return files
+xx
+act routing_metadata(text)
+    fields | {}
+    /// Removing a stub or changing inline category membership also changes
+    /// generated listings, even though the article's frontmatter is unchanged.
+    :update!(fields{"stub"}, :has(text, "{{{SHERIFF::STUB}}}"))
+    cats | []
+    initial | true
+    for part in :split(:lower(text), "[[category:")
+        if initial
+            initial |= false
+            skip
+        xx
+        :put_last!(cats, :keep_before(part, "]]") ?? part)
+    xx
+    :update!(fields{"inline_categories"}, cats)
+    if !:starts_with(text, "^^^^") => return fields
+    front | :keep_before(:keep_after(text, "^^^^") ?? "", "^^^^") ?? ""
+    for line in :split(front, "\n")
+        key | :trim(:keep_before(line, ":") ?? "")
+        if :has(["title", "canonical", "aliases", "categories", "version", "default_version", "summary", "gloss"], key)
+            :update!(fields{key}, :trim(:keep_after(line, ":") ?? ""))
+        xx
+    xx
+    return fields
+xx
+act load(root, portal)
+    dir | folder(root, portal)
+    path | "{dir}/state.json"
+    if :file_exists(path) => return :read_json(path)
+    legacy | "{root}/data/.desk/changes/{portal}/state.json"
+    if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud" and :file_exists(legacy)
+        state | :read_json(legacy)
+        :create_dir!(dir)
+        :write_json!(path, state)
+        return state
+    xx
+    /// Existing sites have no historical source snapshot. Begin watching their
+    /// current source; brand-new/unbuilt portals start with an empty baseline.
+    baseline | {}
+    if :file_exists("{root}/dist/{portal}/index.html") => baseline |= scan(root, portal)
+    state | {"version":1, "baseline":baseline, "assets":{}, "built_assets":{}}
+    :create_dir!(dir)
+    :write_json!(path, state)
+    return state
+xx
+act save(root, portal, state)
+    :write_json!(folder(root, portal) + "/state.json", state)
+xx
+act status(root, portal, state)
+    current | scan(root, portal)
+    prior | state{"baseline"}
+    pages | []
+    shared | []
+    paths | :keys(current)
+    for path in :keys(prior)
+        if !:has(current, path) => :put_last!(paths, path)
+    xx
+    for path in paths
+        if current{path} == prior{path} => skip
+        if :starts_with(path, "content/") and :ends_with(path, ".md") and :has(current, path)
+            :put_last!(pages, path)
+            if !:has(prior, path) or routing_metadata(current{path}) != routing_metadata(prior{path})
+                :put_last!(shared, {"path":path,"reason":"Page membership or link metadata changed"})
+            xx
+        else
+            :put_last!(shared, {"path":path,"reason":"Shared source changed"})
+        xx
+    xx
+    for path in :keys(state{"assets"})
+        if state{"assets"}{path} != state{"built_assets"}{path}
+            :put_last!(shared, {"path":path,"reason":"Media or source structure changed"})
+        xx
+    xx
+    unique | {}
+    for item in shared
+        :update!(unique{item{"path"}}, item)
+    xx
+    shared |= []
+    for key in :keys(unique)
+        :put_last!(shared, unique{key})
+    xx
+    return {"ok":true,"pages":pages,"shared":shared,"page_count":pages.len,"portal_required":shared.len > 0,"history":state{"history"} ?? {}}
+xx
+act execute(root, portal, verb, payload)
+    if !valid_portal(portal) => return {"ok":false,"stderr":"Invalid portal."}
+    if !:file_exists("{root}/site/portals/{portal}/config.yall") => return {"ok":false,"stderr":"Portal source not found."}
+    state | load(root, portal)
+    if verb == "status" => return status(root, portal, state)
+    if verb == "publish"
+        history | state{"history"} ?? {}
+        built | history{"last_build"}
+        now | :to_epoch_ms(:utc_now())
+        if payload{"adopt"} == true
+            :update!(state{"baseline"}, scan(root, portal))
+            :update!(state{"built_assets"}, state{"assets"})
+            built |= {"id": :uuid_v4(),"at_ms":now,"mode":"portal","path":"","build_ms":payload{"build_ms"}}
+            :update!(history{"last_build"}, built)
+        xx
+        if built.nix? => return {"ok":false,"stderr":"No completed build is recorded for this publication."}
+        if !payload{"build_id"}.nix? and payload{"build_id"} != built{"id"} => return {"ok":false,"stderr":"A newer build completed during publication; its publication has not been confirmed."}
+        published | {"build_id":built{"id"},"at_ms":now,"mode":built{"mode"},"path":built{"path"},"build_ms":built{"build_ms"},"upload_ms":payload{"upload_ms"}}
+        :update!(history{"last_publication"}, published)
+        :update!(history{"last_attempt"}, {"at_ms":now,"state":"published"})
+        :update!(state{"history"}, history)
+        save(root, portal, state)
+        return status(root, portal, state)
+    xx
+    if verb == "touch"
+        path | payload{"path"} ?? ""
+        if :has(path, "..") or :starts_with(path, "/") or :has(path, ":") => return {"ok":false,"stderr":"Invalid changed path."}
+        :update!(state{"assets"}{path}, :uuid_v4())
+        save(root, portal, state)
+        return {"ok":true}
+    xx
+    if verb == "begin"
+        id | :uuid_v4()
+        files | scan(root, portal)
+        if :valtype(payload{"text"}) == "str" and text_source(payload{"path"} ?? "")
+            :update!(files{payload{"path"}}, payload{"text"})
+        xx
+        ticket | {"files":files,"assets":state{"assets"},"mode":payload{"mode"},"path":payload{"path"}}
+        :write_json!(folder(root, portal) + "/" + id + ".json", ticket)
+        return {"ok":true,"id":id}
+    xx
+    if verb == "finish"
+        id | payload{"id"} ?? ""
+        if id.len != 36 => return {"ok":false,"stderr":"Invalid build ticket."}
+        for c in :split(id, "")
+            if !:has("abcdef0123456789-", c) => return {"ok":false,"stderr":"Invalid build ticket."}
+        xx
+        path | folder(root, portal) + "/" + id + ".json"
+        if !:file_exists(path) => return {"ok":true}
+        ticket | :read_json(path)
+        history | state{"history"} ?? {}
+        now | :to_epoch_ms(:utc_now())
+        outcome | "failed"
+        if payload{"success"} == true => outcome |= "built"
+        if payload{"published"} == true => outcome |= "published"
+        :update!(history{"last_attempt"}, {"at_ms":now,"state":outcome,"mode":ticket{"mode"},"path":ticket{"path"},"build_ms":payload{"build_ms"},"upload_ms":payload{"upload_ms"}})
+        if payload{"build_success"} == true or payload{"success"} == true
+            built | {"id":id,"at_ms":now,"mode":ticket{"mode"},"path":ticket{"path"},"build_ms":payload{"build_ms"}}
+            :update!(history{"last_build"}, built)
+            if payload{"published"} == true
+                :update!(history{"last_publication"}, {"build_id":id,"at_ms":now,"mode":ticket{"mode"},"path":ticket{"path"},"build_ms":payload{"build_ms"},"upload_ms":payload{"upload_ms"}})
+            xx
+        xx
+        :update!(state{"history"}, history)
+        if payload{"success"} == true
+            if ticket{"mode"} == "portal"
+                :update!(state{"baseline"}, ticket{"files"})
+                :update!(state{"built_assets"}, ticket{"assets"})
+            elif ticket{"mode"} == "page" and :has(ticket{"files"}, ticket{"path"})
+                target | ticket{"path"}
+                old | state{"baseline"}{target}
+                next | ticket{"files"}{target}
+                /// Keep routing changes pending until a portal build updates
+                /// category listings, aliases, statistics, and other pages.
+                if old.nix? or routing_metadata(old) != routing_metadata(next)
+                    :update!(state{"assets"}{target}, :uuid_v4())
+                xx
+                :update!(state{"baseline"}{target}, next)
+            xx
+        xx
+        save(root, portal, state)
+        :delete_path!(path)
+        return {"ok":true}
+    xx
+    return {"ok":false,"stderr":"Unknown change-tracking operation."}
+xx

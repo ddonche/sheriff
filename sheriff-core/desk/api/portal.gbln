@@ -50,6 +50,17 @@ act is_bad_name(p)
     return false
 xx
 
+/// Multiline literals retain indentation after the first line. Keep starter
+/// source at column zero so its nested YALL maps and frontmatter parse normally.
+act write_starter(path, text)
+    lines | []
+    for line in :split(text, "\n")
+        if :starts_with(line, "    ") => line |= :keep_after(line, "    ")
+        :put_last!(lines, line)
+    xx
+    :write_text!(path, :join(lines, "\n"))
+xx
+
 act do_create(query)
     parts | :split(query, "&")
 
@@ -157,7 +168,7 @@ act do_create(query)
         :create_dir!("{root}/themes")
         :create_dir!("{root}/themes/{theme_name}")
 
-        :write_text!(
+        write_starter(
         "{root}/config.yall",
         """
     id: {portal}
@@ -179,6 +190,10 @@ act do_create(query)
       highlight_light: "InspiredGitHub"
       overrides: {}
 
+    # Enable Sheriff Cloud login and the shared account menu.
+    # howdy:
+    #   enabled: true
+
     routing:
       dist_root: "{portal}"
       url_root: ""
@@ -187,7 +202,7 @@ act do_create(query)
     """
         )
 
-        :write_text!(
+        write_starter(
         "{root}/nav.yall",
         """
     menus:
@@ -208,7 +223,7 @@ act do_create(query)
     """
         )
 
-        :write_text!(
+        write_starter(
         "{root}/assets.yall",
         """
     # Optional portal asset injection.
@@ -224,7 +239,7 @@ act do_create(query)
     """
         )
 
-        :write_text!(
+        write_starter(
         "{root}/widgets.yall",
         """
     badge:
@@ -235,7 +250,7 @@ act do_create(query)
     """
         )
 
-        :write_text!(
+        write_starter(
         "{root}/themes/{theme_name}/templates.yall",
         """
     layouts:
@@ -454,7 +469,7 @@ act do_create(query)
             xx
         xx
 
-        :write_text!(
+        write_starter(
         "{root}/content/index.md",
         """
     ^^^^
@@ -481,6 +496,29 @@ act do_create(query)
 
         :say(:json_stringify(out))
     xx
+xx
+
+/// Keep private Desk records out of source and move them with a local portal.
+act clear_desk_records(root_base, portal)
+    for path in ["{root_base}/site/.desk/changes/{portal}", "{root_base}/data/.desk/changes/{portal}", "{root_base}/data/desk-cloud/{portal}.json"]
+        if :file_exists(path) => :delete_path!(path)
+    xx
+xx
+act move_desk_records(root_base, from, to)
+    clear_desk_records(root_base, to)
+    for dir in ["site/.desk/changes", "data/.desk/changes", "data/desk-cloud"]
+        old | "{root_base}/{dir}/{from}.json"
+        target | "{root_base}/{dir}/{to}.json"
+        if dir == "data/.desk/changes" or dir == "site/.desk/changes"
+            old |= "{root_base}/{dir}/{from}/state.json"
+            target |= "{root_base}/{dir}/{to}/state.json"
+        xx
+        if :file_exists(old)
+            :create_dir!(:dirname(target))
+            :copy_file!(old, target)
+        xx
+    xx
+    clear_desk_records(root_base, from)
 xx
 
 /// ---------- delete_portal.gbln ----------
@@ -526,6 +564,7 @@ act do_delete(query)
 
     else
         :delete_path!(root)
+        clear_desk_records(root_base, portal)
 
         if :file_exists(built)
             :delete_path!(built)
@@ -653,6 +692,7 @@ act do_rename(query)
             copied |= copied + 1
         xx
 
+        move_desk_records(root_base, from, to)
         :delete_path!(old_root)
 
         if :file_exists(old_dist)

@@ -1,0 +1,352 @@
+import modules/howdy/howdy as howdy
+import modules/site_portals/context as site_context
+import modules/trailboss_wiki/routes_json as site_routes
+import modules/trailboss_wiki/trailboss as site_links
+
+act template(theme, name, values)
+    html | :read_text("themes/{theme}/layouts/{name}.html")
+    for pair in values
+        token | "\{\{\{SITE::{pair[0]}\}\}\}"
+        :update_where!(html, token, pair[1])
+    xx
+    return html
+xx
+
+act portal_cards(site)
+    html | ""
+    for pair in site{"portals"}
+        slug | pair[0]
+        entry | pair[1]
+        if site_context::valid_id(slug) == false => skip
+        name | site_context::escape(entry{"name"} ?? slug)
+        description | site_context::escape(entry{"description"} ?? "")
+        icon | portal_identity(entry,slug)
+        html |= html + """<a class="sheriff-portal-card" href="/p/{slug}/"><span class="sheriff-portal-card-icon">{icon}</span><span><strong>{name}</strong><span>{description}</span></span><span aria-hidden="true">&#8594;</span></a>"""
+    xx
+    return html
+xx
+
+act initials_html(name)
+    text | :trim(name ?? "")
+    if text.nix? => text |= "?"
+    return "<span class=\"sheriff-identity-initials\">" + site_context::escape(:upper(text[0])) + "</span>"
+xx
+
+act portal_identity(entry, slug)
+    logo | site_context::portal_logo(entry{"source"})
+    if !logo.nix? => return "<img src=\"/p/{slug}/wiki/public/" + site_context::escape(logo) + "\" alt=\"\">"
+    if !entry{"icon"}.nix? and entry{"icon"} != "layers" => return icon_html(entry{"icon"})
+    return initials_html(entry{"name"} ?? slug)
+xx
+
+act icon_html(name)
+    if site_context::valid_id(name) == false => name |= "layers"
+    file | "assets/icons/{name}.svg"
+    if :file_exists(file) == false => file |= "assets/icons/layers.svg"
+    return :read_text(file)
+xx
+
+act supports_theme(theme)
+    if site_context::valid_id(theme) == false => return false
+    for file in ["layouts/site_header.html", "layouts/site_home.html", "layouts/portal_home.html", "css/{theme}.css", "css/site-portals.css"]
+        if :file_exists("themes/{theme}/{file}") == false => return false
+    xx
+    return true
+xx
+
+act header(site, member, section)
+    site_name | site_context::escape(site{"name"})
+    icon | initials_html(site{"name"})
+    logo | site_context::site_logo(site{"id"})
+    if !logo.nix? => icon |= "<img src=\"/public/{logo}\" alt=\"\">"
+    theme | site{"theme"} ?? "compendium"
+    if !member.nix? => theme |= member{"entry"}{"theme"} ?? theme
+    /// Existing portal pages already have their theme toggle and search.
+    toggle | ""
+    if section != "wiki" => toggle |= "<button class=\"sheriff-site-theme\" type=\"button\" data-site-theme aria-label=\"Toggle theme\" title=\"Toggle theme\">" + icon_html("sun-moon") + "</button>"
+    return template(theme, "site_header", {"NAME":site_name,"ICON":icon,"THEME_TOGGLE":toggle})
+xx
+
+act resolve_links(ctx)
+    member | site_context::for_portal(ctx{"portal"})
+    if member.nix? => return ctx
+    stashed | site_links::stash_code_segments(ctx{"body"})
+    work | stashed{"html"}
+    out | work
+    sweep work
+        "[[p/" ... "]]":
+            inner | :keep_between(self, "[[p/", "]]")
+            target | :keep_before(inner, "|") ?? inner
+            label | :keep_after(inner, "|") ?? ""
+            slug | :keep_before(target, "/") ?? ""
+            entry | member{"site"}{"portals"}{slug}
+            if site_context::valid_id(slug) == false or :valtype(entry) != "map" => skip
+            rest | :keep_after(target, "{slug}/") ?? ""
+            href | ""
+            if rest == "wiki" or rest == "wiki/"
+                href |= "/p/{slug}/wiki/"
+                if label.nix? => label |= entry{"name"} + " wiki"
+            elif :starts_with(rest, "wiki/")
+                page | :keep_after(rest, "wiki/")
+                source | entry{"source"}
+                if site_context::valid_id(source) == false => skip
+                parts | site_links::split_anchor(page, {}, source)
+                href |= site_links::lookup_href_by_slug({}, source, site_routes::normalize_to_slug(parts{"page"})) ?? ""
+                if !href.nix? and !parts{"anchor"}.nix? => href |= href + "#" + parts{"anchor"}
+                if label.nix? => label |= parts{"page"}
+            xx
+            if href.nix? => skip
+            replacement | site_links::build_wikilink_html(href,label,false,"sheriff-link","")
+            :update_where!(out, self, replacement)
+    xx
+    :update!(ctx{"body"}, site_links::restore_code_segments(out, stashed{"stash"}))
+    return ctx
+xx
+
+/// Mount only actual HTML URL attributes. Leave code examples and scripts intact.
+act mount_html(html, base)
+    stashed | site_links::stash_code_segments(html)
+    work | stashed{"html"}
+    out | work
+    sweep work
+        "<" ... ">":
+            tag | self
+            for attr in ["href", "src", "poster", "data-src"]
+                for quote in ["\"", "'"]
+                    prefix | attr + "=" + quote
+                    start | prefix + "/"
+                    if :has(tag, start)
+                        value | :keep_between(tag, prefix, quote)
+                        if !value.nix?
+                            mounted | site_context::mount_url(value, base)
+                            :update_where!(tag, prefix + value + quote, prefix + mounted + quote)
+                        xx
+                    xx
+                xx
+            xx
+            if tag != self => :update_where!(out, self, tag)
+    xx
+    return site_links::restore_code_segments(out, stashed{"stash"})
+xx
+
+act apply(ctx)
+    member | site_context::for_portal(ctx{"portal"})
+    if member.nix? => return ctx
+    body | ctx{"body"}
+    base | member{"wiki"}
+    /// Mount the portal's own output without replacing its header or navigation.
+    body |= mount_html(body, base)
+    /// Site account UI belongs to the parent header, never both headers.
+    :update_where!(body, "\{\{\{HOWDY::ACCOUNT\}\}\}", "")
+    if site_context::portal_logo(member{"source"}).nix?
+        sweep body
+            "<img class=\"sheriff-logo-mark\"" ... ">":
+                initial | initials_html(member{"entry"}{"name"} ?? member{"portal_id"})
+                :update_where!(initial,"sheriff-identity-initials","sheriff-logo-mark sheriff-identity-initials")
+                :update_where!(body,self,initial)
+        xx
+    xx
+    :update_where!(body, "id=\"sheriff-search\"", "id=\"sheriff-search\" data-public-base=\"{base}/public/\"")
+    /// The network bar sits above the complete portal shell. Headerless layouts
+    /// remain headerless. There is no per-page list of every portal in the site.
+    if :has(body,"<header class=\"sheriff-header\">")
+        network | header(member{"site"}, member, "wiki")
+        :update_where!(body,"<body>","<body>" + network)
+    xx
+    theme | member{"entry"}{"theme"} ?? member{"site"}{"theme"} ?? "compendium"
+    :update_where!(body, "</head>", "<link rel=\"stylesheet\" href=\"{base}/public/css/site-portals.css\"></head>")
+    :update!(ctx{"body"}, body)
+    return ctx
+xx
+
+act page(site, member, directory | false)
+    theme | site{"theme"} ?? "compendium"
+    title | site{"name"}
+    description | site{"description"} ?? ""
+    content | portal_cards(site)
+    eyebrow | "Explore the portals"
+    layout | "site_home"
+    if directory
+        title |= "Portals"
+        description |= "Choose a community to explore its wiki and featured content."
+    xx
+    if !member.nix?
+        layout |= "portal_home"
+        theme |= member{"entry"}{"theme"} ?? theme
+        title |= member{"entry"}{"name"}
+        description |= member{"entry"}{"description"} ?? ""
+        eyebrow |= "Portal overview"
+        content |= ""
+        content |= "<a class=\"sheriff-section-card\" href=\"" + member{"wiki"} + "/\">" + icon_html("book-open") + "<strong>Explore the wiki</strong><span>Articles, categories, and reference material</span></a>"
+        content |= content + "<section class=\"sheriff-portal-feature\"><h2>Featured articles</h2><div class=\"sheriff-portal-links\">"
+        source | member{"source"}
+        routes | :read_json("../site/portals/{source}/routes.json")
+        count | 0
+        for route in routes{"routes"}
+            if route{"meta_type"} == "generated" or route{"slug"} == "index" => skip
+            if count >= 4 => stop
+            content |= content + "<a href=\"" + site_context::escape(route{"href"}) + "\"><strong>" + site_context::escape(route{"title"}) + "</strong><span>" + site_context::escape(route{"summary"} ?? "") + "</span></a>"
+            count += 1
+        xx
+        content |= content + "</div></section>"
+    xx
+    html | template(theme, layout, {"TITLE":site_context::escape(title),"DESCRIPTION":site_context::escape(description),"EYEBROW":eyebrow,"HEADER":header(site,member,"overview"),"CONTENT":content,"THEME":theme})
+    return howdy::render(html,site,"")
+xx
+
+act copy_tree(source, destination)
+    :create_dir!(destination)
+    for file in :walk(source, "**/*.*")
+        rel | :path_relative_to(file, source)
+        /// Only the parent site's local endpoint is needed; never mount CGI in wiki output.
+        if rel == "api/page_content.gbln" => skip
+        target | destination + "/" + rel
+        :create_dir!(:dirname(target))
+        :copy_file!(file, target)
+    xx
+    /// Remove retired output only within this portal's completed wiki tree.
+    for file in :walk(destination, "**/*.*")
+        rel | :path_relative_to(file, destination)
+        if :file_exists(source + "/" + rel) == false => :delete_path!(file)
+    xx
+xx
+
+act prepare(site_id, selected | "", target | "")
+    site | site_context::load_site(site_id)
+    if site.nix? => return {"ok":false,"error":"Unknown site."}
+    theme | site{"theme"} ?? "compendium"
+    if :has(["shared","individual"], site_context::theming(site)) == false => return {"ok":false,"error":"multisite_theming must be shared or individual in site.yall."}
+    if supports_theme(theme) == false => return {"ok":false,"error":"Site theme needs the site/portal layouts and stylesheet."}
+    if !selected.nix? and :has(site{"portals"}, selected) == false => return {"ok":false,"error":"Unknown portal in this site."}
+    if !target.nix? and selected.nix? => return {"ok":false,"error":"Select a portal before building one page."}
+    output | "../dist/{site_id}"
+    /// Validate the whole registry and prepare cross-portal route lookup first.
+    for pair in site{"portals"}
+        slug | pair[0]
+        if :valtype(pair[1]) != "map" => return {"ok":false,"error":"Portal entries must be maps."}
+        source | pair[1]{"source"}
+        if site_context::valid_id(slug) == false or site_context::valid_id(source) == false => return {"ok":false,"error":"Invalid portal identity."}
+        if source == site_id or :file_exists("../site/portals/{site_id}/config.yall") => return {"ok":false,"error":"Site output identity must be different from every standalone portal."}
+        member | site_context::for_portal(source)
+        if member.nix? => return {"ok":false,"error":"Portal source must explicitly declare this site membership."}
+        if member{"site_id"} != site_id or member{"portal_id"} != slug => return {"ok":false,"error":"Site membership mismatch."}
+        portal_theme | member{"entry"}{"theme"} ?? theme
+        if supports_theme(portal_theme) == false => return {"ok":false,"error":"Portal theme needs the site/portal layouts and stylesheet."}
+        if target.nix? and (selected.nix? or selected == slug) => site_routes::build_routes_json_for_portal(source)
+    xx
+    jobs | []
+    for pair in site{"portals"}
+        if !selected.nix? and selected != pair[0] => skip
+        :put_last!(jobs,{"id":pair[0],"source":pair[1]{"source"}})
+    xx
+    return {"ok":true,"site":site_id,"jobs":jobs}
+xx
+
+/// Hosted builds stream native page jobs through the existing Cloud gateway.
+/// This module alone decides how completed output is mounted into a site.
+act assemble(site_id, selected, output, completed)
+    site | site_context::load_site(site_id)
+    if site.nix? => return {"ok":false,"error":"Unknown site."}
+    theme | site{"theme"} ?? "compendium"
+    for pair in site{"portals"}
+        slug | pair[0]
+        if !selected.nix? and selected != slug => skip
+        source | pair[1]{"source"}
+        input | completed{source}
+        if input.nix? or :file_exists(input + "/index.html") == false => return {"ok":false,"error":"Missing completed portal output."}
+        copy_tree(input,"{output}/p/{slug}/wiki")
+        member | site_context::for_portal(source)
+        :write_text!("{output}/p/{slug}/index.html",page(site,member))
+    xx
+    :create_dir!("{output}/p")
+    :create_dir!("{output}/public/css")
+    logo | site_context::site_logo(site_id)
+    if !logo.nix? => :copy_file!("../site/sites/{site_id}/public/{logo}","{output}/public/{logo}")
+    for file in ["{theme}.css"]
+        :copy_file!("themes/{theme}/css/{file}", "{output}/public/css/{file}")
+    xx
+    :copy_file!("themes/{theme}/css/site-portals.css", "{output}/public/css/{theme}-site-portals.css")
+    for pair in site{"portals"}
+        member | site_context::for_portal(pair[1]{"source"})
+        portal_theme | member{"entry"}{"theme"} ?? theme
+        :copy_file!("themes/{portal_theme}/css/{portal_theme}.css", "{output}/public/css/{portal_theme}.css")
+        :copy_file!("themes/{portal_theme}/css/site-portals.css", "{output}/public/css/{portal_theme}-site-portals.css")
+    xx
+    if howdy::enabled(site) => howdy::copy_assets(output)
+    :write_text!("{output}/index.html", page(site, nil))
+    :write_text!("{output}/p/index.html", page(site, nil, true))
+    :copy_file!("modules/site_portals/site-portals.js", "{output}/public/site-portals.js")
+
+    return {"ok":true}
+xx
+
+act build(site_id, selected | "", target | "")
+    site | site_context::load_site(site_id)
+    if site.nix? => return {"ok":false,"error":"Unknown site."}
+    theme | site{"theme"} ?? "compendium"
+    if :has(["shared","individual"], site_context::theming(site)) == false => return {"ok":false,"error":"multisite_theming must be shared or individual in site.yall."}
+    if supports_theme(theme) == false => return {"ok":false,"error":"Site theme needs the site/portal layouts and stylesheet."}
+    if !selected.nix? and :has(site{"portals"}, selected) == false => return {"ok":false,"error":"Unknown portal in this site."}
+    if !target.nix? and selected.nix? => return {"ok":false,"error":"Select a portal before building one page."}
+    output | "../dist/{site_id}"
+    /// Validate the whole registry and prepare cross-portal route lookup first.
+    for pair in site{"portals"}
+        slug | pair[0]
+        if :valtype(pair[1]) != "map" => return {"ok":false,"error":"Portal entries must be maps."}
+        source | pair[1]{"source"}
+        if site_context::valid_id(slug) == false or site_context::valid_id(source) == false => return {"ok":false,"error":"Invalid portal identity."}
+        if source == site_id or :file_exists("../site/portals/{site_id}/config.yall") => return {"ok":false,"error":"Site output identity must be different from every standalone portal."}
+        member | site_context::for_portal(source)
+        if member.nix? => return {"ok":false,"error":"Portal source must explicitly declare this site membership."}
+        if member{"site_id"} != site_id or member{"portal_id"} != slug => return {"ok":false,"error":"Site membership mismatch."}
+        portal_theme | member{"entry"}{"theme"} ?? theme
+        if supports_theme(portal_theme) == false => return {"ok":false,"error":"Portal theme needs the site/portal layouts and stylesheet."}
+        if target.nix? and (selected.nix? or selected == slug) => site_routes::build_routes_json_for_portal(source)
+    xx
+    for pair in site{"portals"}
+        slug | pair[0]
+        if !selected.nix? and selected != slug => skip
+        source | pair[1]{"source"}
+        command | "goblin run main.gbln {source}"
+        env | {"SHERIFF_SKIP_DESK_SYNC":"1"}
+        if !target.nix?
+            if :file_exists("{output}/p/{slug}/wiki/index.html") == false => return {"ok":false,"error":"Build the site or portal once before building a single page."}
+            if :has(target, "..") or :starts_with(target, "/") or :has(target, "\\") or :has(target, ":") => return {"ok":false,"error":"Use a page path relative to the portal content directory."}
+            cfg | :yall_parse_file("../site/portals/{source}/config.yall")
+            content_dir | cfg{"routing"}{"content_dir"} ?? "content"
+            if :file_exists("../site/portals/{source}/{content_dir}/{target}") == false => return {"ok":false,"error":"Page source does not exist. Use its relative .md path."}
+            command |= command + " page"
+            :update!(env{"SHERIFF_PAGE_TARGET"}, target)
+            :update!(env{"SHERIFF_BUILD_OUTPUT"}, "{output}/p/{slug}/wiki")
+        xx
+        result | :json_parse(:run_cmd(command, ".", env))
+        :say(result{"stdout"})
+        if result{"ok"} == false => return {"ok":false,"error":result{"stderr"},"portal":slug}
+        if target.nix?
+            copy_tree("../dist/{source}", "{output}/p/{slug}/wiki")
+            member | site_context::for_portal(source)
+            :write_text!("{output}/p/{slug}/index.html", page(site, member))
+        xx
+    xx
+    if target.nix?
+        :create_dir!("{output}/p")
+        :create_dir!("{output}/public/css")
+        logo | site_context::site_logo(site_id)
+        if !logo.nix? => :copy_file!("../site/sites/{site_id}/public/{logo}","{output}/public/{logo}")
+        for file in ["{theme}.css"]
+            :copy_file!("themes/{theme}/css/{file}", "{output}/public/css/{file}")
+        xx
+        :copy_file!("themes/{theme}/css/site-portals.css", "{output}/public/css/{theme}-site-portals.css")
+        for pair in site{"portals"}
+            member | site_context::for_portal(pair[1]{"source"})
+            portal_theme | member{"entry"}{"theme"} ?? theme
+            :copy_file!("themes/{portal_theme}/css/{portal_theme}.css", "{output}/public/css/{portal_theme}.css")
+            :copy_file!("themes/{portal_theme}/css/site-portals.css", "{output}/public/css/{portal_theme}-site-portals.css")
+        xx
+        if howdy::enabled(site) => howdy::copy_assets(output)
+        :write_text!("{output}/index.html", page(site, nil))
+        :write_text!("{output}/p/index.html", page(site, nil, true))
+        :copy_file!("modules/site_portals/site-portals.js", "{output}/public/site-portals.js")
+    xx
+    return {"ok":true,"site":site_id,"portal":selected,"page":target,"output":output}
+xx

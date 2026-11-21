@@ -1,0 +1,28 @@
+import modules/desk_modules/panels as panels
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for module settings."}
+    body | :env("GOBLIN_BODY") ?? ""
+    file | :env("GOBLIN_REQUEST_FILE")
+    if !file.nix? => body |= :read_text(file)
+    if body.len > 4194304 => return {"ok":false,"stderr":"Configuration is too large."}
+    data | :json_parse(body)
+    query | :env("GOBLIN_QUERY_STRING") ?? "inspect"
+    verb | :keep_before(query,"&") ?? query
+    if verb == "panel" => return panels::panel_source(data{"module"})
+    if verb == "action"
+        portal | ""
+        for part in :split(query,"&")
+            if :starts_with(part,"portal=") => portal |= :url_decode(part[7:])
+        xx
+        return panels::panel_action(data{"module"},data{"action"},data{"payload"},portal)
+    xx
+    if :valtype(data{"text"}) != "str" => return {"ok":false,"stderr":"Missing configuration buffer."}
+    if verb == "patch" => return panels::patch(data{"text"},data{"module"},data{"field"},data{"value"})
+    if verb != "inspect" => return {"ok":false,"stderr":"Unknown module operation."}
+    return panels::inspect(data{"text"})
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr":"Module settings: " + :str(err)}))
+xx

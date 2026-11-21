@@ -11,6 +11,7 @@
     return safePath(path) && !/(^|\/)(?:credentials(?:\.[^/]*)?|[^/]*\.pem|[^/]*\.key)$/i.test(path)
       && (/^(content|blog|public|patterns|themes)\//.test(path) || /^(config|nav|assets|widgets|seeder)\.yall$/.test(path));
   }
+  function groupedSourcePath(path){return safePath(path)&&!/(^|\/)(?:credentials(?:\.[^/]*)?|[^/]*\.(pem|key))$/i.test(path)&&(path==='site/site.yall'||path.startsWith('site/public/')||/^portals\/[a-z0-9][a-z0-9_-]*\/((content|blog|public|patterns|themes)\/.+|(config|nav|assets|widgets|seeder)\.yall)$/.test(path));}
   function outputPath(path) { return safePath(path) && !/^(admin|api|site|data|node_modules|sheriff-core)\//.test(path); }
   async function hash(bytes) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), n => n.toString(16).padStart(2,'0')).join(''); }
   function base64(bytes) { let text=''; for(let i=0;i<bytes.length;i+=32768) text+=String.fromCharCode(...bytes.subarray(i,i+32768)); return btoa(text); }
@@ -24,10 +25,10 @@
   }
   function crc32(data) { let n=0xffffffff; for(const byte of data){n^=byte;for(let j=0;j<8;j++)n=(n>>>1)^((n&1)?0xedb88320:0);}return (n^0xffffffff)>>>0; }
   function join(chunks) { const out=new Uint8Array(chunks.reduce((n,b)=>n+b.length,0));let i=0;for(const b of chunks){out.set(b,i);i+=b.length;}return out; }
-  function zip(files) {
+  function zip(files,allowed=sourcePath) {
     const local=[],central=[];let offset=0;
     for(const file of files){
-      if(!sourcePath(file.path))throw Error('Unsupported source path: '+file.path);
+      if(!allowed(file.path))throw Error('Unsupported source path: '+file.path);
       const name=encoder.encode(file.path),data=file.bytes,crc=crc32(data),h=new Uint8Array(30),v=new DataView(h.buffer);
       v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x800,true);v.setUint16(12,33,true);v.setUint32(14,crc,true);v.setUint32(18,data.length,true);v.setUint32(22,data.length,true);v.setUint16(26,name.length,true);
       local.push(h,name,data);
@@ -45,6 +46,8 @@
       const size=view.getUint32(at+24,true),packed=view.getUint32(at+20,true),method=view.getUint16(at+10,true),flags=view.getUint16(at+8,true),length=view.getUint16(at+28,true),start=view.getUint32(at+42,true),mode=view.getUint32(at+38,true)>>>16;
       const path=decoder.decode(data.subarray(at+46,at+46+length)).replaceAll('\\','/');at+=46+length+view.getUint16(at+30,true)+view.getUint16(at+32,true);
       if(path.endsWith('/'))continue;
+      // Local Howdy's native endpoint is intentionally absent from static publication.
+      if(allowed===outputPath&&path==='api/page_content.gbln')continue;
       if(!allowed(path)){if(allowed===outputPath&&safePath(path)&&/^(admin|api|site|data|node_modules|sheriff-core)\//.test(path))throw Error('Publication stopped: the build contains a reserved folder ('+path+').');continue;}
       if(!safePath(path)||((mode&0xf000)===0xa000)||flags&1)throw Error('Unsafe ZIP entry.');
       const key=path.toLowerCase();if(seen.has(key))throw Error('Duplicate ZIP entry.');seen.add(key);
@@ -61,5 +64,5 @@
     }
     return files;
   }
-  window.SheriffCloudTransfer={sourcePath,outputPath,hash,base64,bytes,fingerprint,zip,unzip,MAX_BYTES};
+  window.SheriffCloudTransfer={sourcePath,groupedSourcePath,outputPath,hash,base64,bytes,fingerprint,zip,unzip,MAX_BYTES};
 }());

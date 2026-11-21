@@ -1,0 +1,18 @@
+import modules/site_portals/sites as sites
+
+#local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
+
+/// From sheriff-core: goblin run modules/site_portals/cli.gbln <site> [portal <portal> [page <target>]]
+if args.len != 1 and args.len != 3 and args.len != 5
+    :say(:json_stringify({"ok":false,"error":"Usage: goblin run modules/site_portals/cli.gbln <site> [portal <portal> [page <relative.md>]]"}))
+elif (args.len >= 3 and args[1] != "portal") or (args.len == 5 and args[3] != "page")
+    :say(:json_stringify({"ok":false,"error":"Use portal and page to select the build scope."}))
+else
+    site | args[0]
+    portal, page | ""
+    if args.len >= 3 and args[1] == "portal" => portal |= args[2]
+    if args.len >= 5 and args[3] == "page" => page |= args[4]
+    if args.len == 5 and !:env("SHERIFF_SITE_PAGE_TARGET").nix? => page |= :env("SHERIFF_SITE_PAGE_TARGET")
+    result | sites::build(site, portal, page)
+    :say(:json_stringify(result))
+xx

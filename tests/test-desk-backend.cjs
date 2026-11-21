@@ -1,10 +1,10 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync(path.join(__dirname,'../sheriff-core/desk/admin/backend.js'),'utf8');
 function setup(mode='local'){
-  const calls=[];let token='first';const host={mode,session:async()=>({token,initialPortal:'alpha',sites:[{subdomain:'alpha',url:'https://custom.example/'}]})};
-  const window={SheriffDeskHost:host,fetch:async(url,options)=>{calls.push({url,options});return new Response('{"ok":true}',{headers:{'Content-Type':'application/json'}})},addEventListener(){}};
-  const context={window,document:{visibilityState:'visible',addEventListener(){}},location:{href:'http://desk.test:5173/',origin:'http://desk.test:5173',port:'5173'},URL,URLSearchParams,Response,Headers,Date,setInterval:()=>1,clearInterval(){}};
-  vm.runInNewContext(source,context);return {backend:window.SheriffDeskBackend,calls,host,setToken(value){token=value}};
+  const calls=[],tracking=[];let token='first';const host={mode,session:async()=>({token,initialPortal:'alpha',sites:[{subdomain:'alpha',url:'https://custom.example/'}]})};
+  const window={SheriffDeskHost:host,fetch:async(url,options)=>{if(/\/api\/(changes\?|desk\/changes\.)/.test(url))tracking.push({url,options});else calls.push({url,options});return new Response(JSON.stringify(url.startsWith('/api/desk/sites.list')?{ok:true,sites:[{id:'alpha',grouped:false,portals:[{id:'alpha',source:'alpha'}]}]}:{ok:true}),{headers:{'Content-Type':'application/json'}})},addEventListener(){},dispatchEvent(){}};
+  const context={window,document:{visibilityState:'visible',addEventListener(){}},location:{href:'http://desk.test:5173/',origin:'http://desk.test:5173',port:'5173'},URL,URLSearchParams,Response,Headers,Date,CustomEvent:class CustomEvent{constructor(type,options){this.type=type;this.detail=options?.detail;}},setInterval:()=>1,clearInterval(){}};
+  vm.runInNewContext(source,context);return {backend:window.SheriffDeskBackend,calls,tracking,host,setToken(value){token=value}};
 }
 (async()=>{
   let checks=0;const local=setup();
@@ -15,13 +15,14 @@ function setup(mode='local'){
   assert.equal(local.backend.portalUrl('alpha'),'http://alpha.localhost:5173/');assert.equal(local.backend.assetUrl('alpha','public/images/a b.svg'),'http://alpha.localhost:5173/public/images/a%20b.svg');checks++;
   for(const build of ['none','page','portal']){await local.backend.fetch('/api/file?write&portal=alpha&path=content%2Fa.md&build='+build,{method:'POST',body:'Draft'});assert.equal(new URL(local.calls.at(-1).url,'http://desk.test').searchParams.get('build'),build);checks++;}
   await local.backend.request('seed.preview',{portal:'alpha'},{method:'POST',body:'seed: {}'});assert.equal(local.calls.at(-1).url,'/api/seed?preview&portal=alpha');assert.equal(local.calls.at(-1).options.body,'seed: {}');checks++;
-  const cloud=setup('cloud');let response=await cloud.backend.request('portals.list');assert.deepEqual((await response.json()).portals,['alpha']);assert.equal(cloud.calls.length,1);assert.equal(cloud.calls[0].url,'/api/desk/session');checks++;
+  const cloud=setup('cloud');let response=await cloud.backend.request('portals.list');assert.deepEqual((await response.json()).portals,['alpha']);assert.equal(cloud.calls.length,2);assert.equal(cloud.calls[0].url,'/api/desk/session');checks++;
   await cloud.backend.request('files.upload',{portal:'alpha',path:'public/a.png'},{method:'POST',body:binary});let call=cloud.calls.at(-1);assert(call.url.startsWith('/api/desk/files.upload?'));assert.equal(call.options.body,binary);assert.equal(call.options.headers.get('Authorization'),'Bearer first');assert(!call.url.includes('first'));checks++;
   await cloud.backend.request('seed.create',{portal:'alpha'},{method:'POST',body:'seed: {}'});assert(cloud.calls.at(-1).url.startsWith('/api/desk/seed.create?'));assert.equal(cloud.calls.at(-1).options.headers.get('Authorization'),'Bearer first');checks++;
   cloud.setToken('refreshed');await cloud.backend.request('portal.build',{portal:'alpha'});call=cloud.calls.at(-1);assert.equal(call.options.headers.get('Authorization'),'Bearer refreshed');assert(!call.url.includes('refreshed'));checks++;
   assert.equal(cloud.backend.portalUrl('alpha','docs/page.html'),'https://custom.example/docs/page.html');assert.equal(cloud.backend.assetUrl('alpha','public/a.png'),'/api/desk/asset?portal=alpha&path=public%2Fa.png');checks++;
-  response=await cloud.backend.request('portals.delete',{portal:'alpha'});assert.equal(response.status,400);assert(!cloud.calls.some(call=>call.url.includes('portals.delete')));checks++;
+  response=await cloud.backend.request('portals.delete',{portal:'alpha'});assert.equal(response.status,200);assert(cloud.calls.some(call=>call.url.includes('portals.delete')));checks++;
   cloud.setToken('');const before=cloud.calls.length;await assert.rejects(cloud.backend.request('files.read',{portal:'alpha',path:'config.yall'}),/Sign in/);assert.equal(cloud.calls.length,before);checks++;
   assert.throws(()=>local.backend.fetch('https://elsewhere.example/api/file?list&alpha'),/own API/);assert.throws(()=>local.backend.fetch('/api/unknown'),/Unknown Desk API/);checks++;
-  console.log('Passed '+checks+' Desk backend contract checks: local URL/body compatibility, file names with spaces, binary uploads, fresh Cloud sessions, scoped site lists, custom domains, authenticated media URLs, denied lifecycle operations, and expired-session rejection.');
+  const checkedContent='^^^^\ntitle: Draft\n^^^^\nBody';await local.backend.request('files.write',{portal:'alpha',path:'content/checked.md',build:'portal',checked:'1'},{method:'POST',body:JSON.stringify({content:checkedContent,base:'old',base_path:'content/checked.md'})});assert.equal(JSON.parse(local.tracking.findLast(c=>c.url.startsWith('/api/changes?begin')).options.body).text,checkedContent);assert.equal(new URL(local.calls.at(-1).url,'http://desk.test').searchParams.get('checked'),'1');checks++;
+  console.log('Passed '+checks+' Desk backend contract checks: local URL/body compatibility, file names with spaces, binary uploads, fresh Cloud sessions, scoped site lists, custom domains, authenticated media URLs, authenticated lifecycle requests, and expired-session rejection.');
 })().catch(error=>{console.error(error);process.exitCode=1});

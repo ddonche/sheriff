@@ -1,0 +1,6 @@
+import modules/site_portals/desk as desk
+attempt
+    :say(:json_stringify(desk::upload_logo(:env("GOBLIN_QUERY_STRING"))))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

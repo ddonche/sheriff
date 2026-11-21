@@ -1,7 +1,18 @@
 // One source of build output for Desk's page, portal, and dashboard views.
 (function () {
   'use strict';
-  const context = window.SheriffPortalContext, latest = new Map();
+  const context = window.SheriffPortalContext, latest = new Map(), transfers = new Map(), stored = new Map();
+  // Config keeps its build log. Module controls do not allocate a log column.
+  const logTemplate=document.querySelector('[data-build-log="portals"]');
+  for(const name of ['config']){
+    const view=document.getElementById('view-'+name),settings=view?.querySelector('.cfg-wrap');
+    if(!settings||!logTemplate)continue;
+    const layout=document.createElement('div'),panel=logTemplate.cloneNode(true);
+    layout.className='settings-build-layout';panel.classList.remove('portals-build-panel');panel.classList.add('settings-build-panel');
+    panel.dataset.buildLog=name;panel.setAttribute('aria-label',(name==='config'?'Configuration':'Modules')+' build log');
+    panel.querySelector('[data-build-output]').setAttribute('aria-label',(name==='config'?'Configuration':'Modules')+' build output');
+    view.append(layout);layout.append(settings,panel);
+  }
   const panels = Array.from(document.querySelectorAll('[data-build-log]'));
   const dashboard = document.getElementById('build-log');
   const editor = document.getElementById('ed-tab-editor'), log = document.getElementById('ed-tab-log');
@@ -61,7 +72,7 @@
   }
   function render() {
     for (const panel of panels) {
-      const portal = panel.dataset.buildLog === 'content' ? context.current : selectedPortal || context.current;
+      const portal = panel.dataset.buildLog === 'portals' ? selectedPortal || context.current : context.current;
       const job = latest.get(portal);
       panel.dataset.state = job ? job.state : 'idle';
       panel.querySelector('[data-build-title]').textContent = job ? job.label + ' · ' + job.portal : 'Build log' + (portal ? ' · ' + portal : '');
@@ -72,10 +83,33 @@
     const current = latest.get(context.current), dot = document.getElementById('ed-log-dot');
     dot.hidden = !current; dot.dataset.state = current ? current.state : 'idle';
     log.setAttribute('aria-label', 'Log' + (current ? ': ' + current.state : ''));
+    const transfer = transfers.get(context.current);
+    const activeTransfer = transfer && (!current || (transfer.ended || transfer.started) >= current.started || transfer.state === 'running') ? transfer : null;
+    const saved=stored.get(context.current),history=saved?.history||{},last=history.last_attempt;
+    const when=value=>new Date(value).toLocaleString();
+    const records=[];
+    if(history.last_build)records.push('Last build: '+when(history.last_build.at_ms)+(history.last_build.mode==='page'?' · '+(history.last_build.path||'').replace(/^content\//,''):' · portal'));
+    if(history.last_publication)records.push('Last published: '+when(history.last_publication.at_ms));
+    else if(history.last_build)records.push('Publication not recorded');
+    if(saved&&(saved.page_count||saved.portal_required))records.push('Saved changes still need building');
+    if(history.last_build&&history.last_build.id!==history.last_publication?.build_id)records.push('Built changes need publishing');
+    const historyNode=document.getElementById('stat-build-history');
+    if(historyNode){historyNode.textContent=records.join('\n');historyNode.hidden=!records.length;}
+    const summary = document.getElementById('stat-build');
+    const label = activeTransfer ? activeTransfer.label : !current ? last?last.state==='published'?'Published':last.state==='built'?'Built':Number.isFinite(last.upload_ms)?'Upload failed':'Build failed':'No build recorded'
+      : current.state === 'running' ? current.phase === 'uploading' ? 'Uploading to R2…' : current.phase === 'queued' ? 'Waiting to build…' : 'Building…'
+      : current.state === 'success' ? current.published ? 'Published' : 'Built'
+      : Number.isFinite(current.upload_ms) ? 'Upload failed' : 'Build failed';
+    if (summary) {
+      summary.textContent = label;
+      summary.classList.toggle('placeholder', !current && !activeTransfer && !last);
+      summary.title = activeTransfer ? activeTransfer.detail : current ? current.portal + ' · ' + phaseStatus(current) : records.length?records.join(' · '):'Selected portal: ' + context.current;
+    }
     if (dashboard) {
       const group = batch || lastBatch;
-      dashboard.dataset.state = lastJob ? lastJob.state : 'idle';
-      setOutput(dashboard, group ? [group.label, ...group.jobs.map(text)].join('\n\n') : text(lastJob) || 'Build status: idle');
+      dashboard.dataset.state = activeTransfer?.state || current?.state || 'idle';
+      const output = group ? [group.label, ...group.jobs.map(text)].join('\n\n') : text(current);
+      setOutput(dashboard, [output, activeTransfer?.detail].filter(Boolean).join('\n\n') || records.join('\n') || 'No build recorded for ' + context.current + '.');
     }
   }
   for (const panel of panels) panel.querySelector('[data-build-copy]').addEventListener('click', async event => {
@@ -87,7 +121,9 @@
   function describe(input, options) {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
     if (url.origin !== location.origin) return null;
+    if(url.pathname==='/api/sites'&&url.searchParams.has('build'))return {portal:context.current,label:'Site build · '+url.searchParams.get('site')};
     if (url.pathname === '/api/build') return {portal:decodeURIComponent(url.search.slice(1)),label:options?.deskOperation === 'portal.publish' ? 'Publish' : 'Portal build'};
+    if (url.pathname === '/api/page_build') return {portal:url.searchParams.get('portal'),label:'Page build · '+url.searchParams.get('path')};
     if (url.pathname !== '/api/file' || !/^\?write(?:&|$)/.test(url.search)) return null;
     const method = options && options.method || (typeof input !== 'string' && input.method) || 'GET';
     if (method.toUpperCase() !== 'POST') return null;
@@ -188,6 +224,9 @@
   }
   context.subscribe(portal => { selectedPortal = portal; showTab('editor'); render(); });
   window.SheriffBuildLog = {
+    isBusy:()=>!!batch || Array.from(latest.values()).some(job=>job.state==='running'),
+    setTransfer(info) { transfers.set(info.portal, info); render(); },
+    setStoredStatus(portal,value) { stored.set(portal,value); render(); },
     duration, fetch:buildFetch, publish:portal => buildFetch('/api/build?' + encodeURIComponent(portal), {deskOperation:'portal.publish'}), showEditor:() => showTab('editor'),
     startBatch(label) { batch = {label,jobs:[]}; lastBatch = null; render(); },
     endBatch() { lastBatch = batch; batch = null; render(); }

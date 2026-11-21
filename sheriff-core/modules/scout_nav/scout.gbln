@@ -1,3 +1,5 @@
+import modules/trailboss_wiki/destinations as missing
+import modules/site_portals/context as site_context
 /// modules/scout_nav/scout.gbln
 /// - TOC + breadcrumbs (page-scoped)
 /// - Nav menus from nav.yall (portal-scoped)
@@ -46,6 +48,7 @@ xx
 /// Inline markup (including icons) must not hide a heading's text from the TOC.
 act scout_heading_text(header)
     text | :keep_after(header, "</a>") ?? header
+    if :has(text, "<") == false => return :trim(text)
     sweep text
         "<" ... ">":
             :update_where!(text, self, "")
@@ -143,6 +146,23 @@ xx
 /// - Uses sheriff-breadcrumb-* classes to match CSS / React mock
 /// ------------------------------------------------------------------------
 act build_breadcrumbs(ctx)
+    /// Generated directories may supply meaningful labels instead of exposing
+    /// their internal output filenames as breadcrumb text.
+    items | ctx{"breadcrumb_items"}
+    if :valtype(items) == "array"
+        html | "<nav class=\"sheriff-breadcrumbs\" aria-label=\"Breadcrumb\">"
+        for item in items
+            label | :escape_html(item{"title"} ?? "")
+            content | "<span class=\"sheriff-breadcrumb-current\">{label}</span>"
+            url | item{"href"} ?? ""
+            if !url.nix?
+                safe_url | :escape_html(url)
+                content |= "<a class=\"sheriff-breadcrumb-link sheriff-link\" href=\"{safe_url}\">{label}</a>"
+            xx
+            html |= html + "<div class=\"sheriff-breadcrumb-row\"><span class=\"sheriff-breadcrumb-arrow\">↳</span>{content}</div>"
+        xx
+        return html + "</nav>"
+    xx
     path   | ctx{"path"} ?? => return ""
     portal | ctx{"portal"} ?? => return ""
 
@@ -483,7 +503,9 @@ act scout_link_info_for_wikilink(portal, raw)
         return {"class": "sheriff-link", "href": generated_fallback}
     xx
 
-    return scout_missing_link_info()
+    href | missing::href(portal,slug)
+    if !anchor.nix? => href |= "{href}#{anchor}"
+    return {"class":"sheriff-link sheriff-missing-link","href":href}
 xx
 
 act scout_nav_link_info(portal, raw)
@@ -537,6 +559,10 @@ xx
 /// Render only icon syntax in labels; navigation destinations are left alone.
 /// Menus are inserted after the article's wikilink pass, so resolve these here.
 act scout_nav_label(portal, label)
+    return scout_label(portal, label, false)
+xx
+
+act scout_label(portal, label, allow_icon_links)
     out | :trim(label)
     /// Yall retains wrapping quotes on mapping keys; they are syntax, not text.
     if out.len >= 2
@@ -544,15 +570,31 @@ act scout_nav_label(portal, label)
             out |= out[1:out.len - 1]
         xx
     xx
-    sweep out
-        "[[" ... "]]":
-            inner | :keep_between(self, "[[", "]]") ?? ..
-            if :starts_with(:lower(inner), "icon|")
-                rendered | trailboss::render_icon(inner, portal)
-                :update_where!(rendered, "class=\"sheriff-icon\"", "class=\"sheriff-icon sheriff-nav-icon\"")
-                :update_where!(out, self, rendered)
-            xx
+    /// Labels are text, even when they happen to name an existing directory.
+    /// Do not pass them to sweep, which auto-opens paths on disk.
+    parts | :split(out, "[[")
+    rendered_label | ""
+    first | true
+    for part in parts
+        if first
+            rendered_label |= part
+            first |= false
+            skip
+        xx
+        if :has(part, "]]") == false
+            rendered_label |= rendered_label + "[[" + part
+            skip
+        xx
+        inner | :keep_before(part, "]]") ?? ""
+        rendered | "[[" + inner + "]]"
+        if :starts_with(:lower(inner), "icon|")
+            rendered |= trailboss::render_nav_icon(inner, portal)
+            if allow_icon_links => rendered |= trailboss::render_icon(inner, portal)
+            :update_where!(rendered, "class=\"sheriff-icon\"", "class=\"sheriff-icon sheriff-nav-icon\"")
+        xx
+        rendered_label |= rendered_label + rendered + (:keep_after(part, "]]") ?? "")
     xx
+    out |= rendered_label
     return out
 xx
 
@@ -743,6 +785,7 @@ act scout_render_footer(portal, footer_content)
         if is_link
             :update!(item, "{sep}<a data-sheriff-nav-link href=\"{url_str}\" class=\"{cls}\">{label_html}</a>")
         else
+            label_html |= scout_label(portal, text, true)
             :update!(item, "{sep}<span>{label_html}</span>")
         xx
 
@@ -915,7 +958,7 @@ act scout_active_theme_name(portal)
     cfg_path | "../site/portals/{portal}/config.yall"
     if :file_exists(cfg_path) == false => return "outpost"
 
-    cfg   | :yall_parse_file(cfg_path)
+    cfg   | site_context::config(cfg_path)
     theme | cfg{"theme"} ?? => return "outpost"
     name | theme{"name"} ?? => return "outpost"
 
@@ -938,7 +981,7 @@ act scout_load_theme_nav_mapping(portal)
         return nil
     xx
 
-    cfg   | :yall_parse_file(cfg_path)
+    cfg   | site_context::config(cfg_path)
     theme | cfg{"theme"}
     if theme.nix?
         :say("SCOUT: Portal '{portal}' has no theme entry in config.yall")

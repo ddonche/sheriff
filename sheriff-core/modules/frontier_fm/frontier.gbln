@@ -1,9 +1,10 @@
+import modules/frontier_fm/text_lists as fm_lists
 /// modules/frontier_fm/frontier.gbln
 /// Frontier: shared frontmatter handling for Sheriff.
 
 /// --- String-based extractor (back-compat) ---------------------------------
 /// Takes raw Markdown text, returns frontmatter map or nil.
-act frontier_extract_frontmatter(md_text)
+act frontier_extract_frontmatter(md_text, source | "frontmatter")
     if md_text.nix? => return nil
 
     fm_map | nil
@@ -17,6 +18,10 @@ act frontier_extract_frontmatter(md_text)
 
                 if !trimmed.nix?
                     parsed | :to_map(trimmed)
+                    checked | fm_lists::parse_reported(trimmed, source)
+                    for field in ["aliases", "categories"]
+                        if :has(checked, field) => :update!(parsed{field}, checked{field})
+                    xx
                     :update!(fm_map, parsed)
                 xx
             xx
@@ -35,7 +40,7 @@ act frontier_extract_into_ctx(ctx)
         return ctx
     xx
     
-    fm_map | frontier_extract_frontmatter(body)
+    fm_map | frontier_extract_frontmatter(body, ctx{"path"} ?? "frontmatter")
     if fm_map.nix? or :valtype(fm_map) != "map"
         fm_map |= {}
     xx
@@ -60,7 +65,7 @@ act strip_frontmatter(ctx)
     body | ctx{"body"} ?? => return ctx
         
     /// 1) Extract frontmatter map from the current body
-    fm_map | frontier_extract_frontmatter(body)
+    fm_map | frontier_extract_frontmatter(body, ctx{"path"} ?? "frontmatter")
     if fm_map.nix? or :valtype(fm_map) != "map"
         fm_map |= {}
     xx

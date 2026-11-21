@@ -1,0 +1,50 @@
+act handle()
+    if :env("SHERIFF_RUNTIME_MODE") == "cloud" => return {"ok":false,"stderr":"Use the authenticated hosted page API."}
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for page editing."}
+    headers | :json_parse(:env("GOBLIN_HEADERS_JSON") ?? "{}")
+    host | headers{"host"} ?? ""
+    hostname | :keep_before(host,":") ?? host
+    if :starts_with(host,"[::1]") => hostname |= "[::1]"
+    loopback | hostname == "localhost" or hostname == "127.0.0.1" or hostname == "[::1]" or :ends_with(hostname,".localhost")
+    if !loopback or headers{"origin"} != "http://{host}" => return {"ok":false,"stderr":"Open the page editor on this local site's origin."}
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix?
+        root |= ".."
+        for depth in :range(0,8)
+            if :file_exists(root + "/sheriff-core/main.gbln") => stop
+            root |= root + "/.."
+        xx
+    xx
+    if !:file_exists(root + "/sheriff-core/main.gbln") => return {"ok":false,"stderr":"Sheriff workspace could not be located."}
+    body | :env("GOBLIN_BODY")
+    incoming | :env("GOBLIN_REQUEST_FILE")
+    if !incoming.nix? => body |= :read_text(incoming)
+    if body.len > 4194304 => return {"ok":false,"stderr":"Page request exceeds 4 MB."}
+    dir | "{root}/data/desk-page-requests"
+    :create_dir!(dir)
+    id | :uuid_v4()
+    file | "{dir}/{id}.json"
+    :write_text!(file,body)
+    result | nil
+    attempt
+        env | {"SHERIFF_ROOT":"..","GOBLIN_QUERY_STRING": :env("GOBLIN_QUERY_STRING"),"GOBLIN_REQUEST_FILE":"../data/desk-page-requests/{id}.json","SHERIFF_ACCESS_BEARER":headers{"authorization"} ?? ""}
+        result |= :json_parse(:run_cmd("goblin run desk/admin/requests/page_content_request.gbln","{root}/sheriff-core",env))
+    ensure
+        :delete_path!(file)
+    xx
+    if result{"ok"} != true => return {"ok":false,"stderr":result{"stderr"}}
+    text | result{"stdout"}
+    /// Lifecycle messages precede the structured response; return only its final line.
+    lines | :split(:trim(text),"\n")
+    data | :json_parse(lines[lines.len - 1])
+    while :valtype(data) == "map" and :has(data,"body") and :has(data,"status")
+        lines |= :split(:trim(data{"body"}),"\n")
+        data |= :json_parse(lines[lines.len - 1])
+    xx
+    return data
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"saved":false,"stderr": :str(err)}))
+xx

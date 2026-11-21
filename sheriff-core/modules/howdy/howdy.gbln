@@ -1,0 +1,137 @@
+/// Howdy connects public headers to the existing Sheriff Cloud account.
+/// It grants no editing rights and stores no identity/session in generated files.
+import modules/site_portals/context as site_context
+import "build-support/output.gbln" as build_output
+
+act enabled(cfg)
+    if :valtype(cfg) != "map" => return false
+    options | cfg{"howdy"}
+    if :valtype(options) != "map" => return false
+    return options{"enabled"} == true
+xx
+
+act copy_editor(output)
+    dir | output + "/public/howdy/editor"
+    :create_dir!(dir)
+    for file in ["admin.css","visual-editor.js","visual-licenses.txt","floating-panel.js","page-editor.js","page-editor.css","content-images.js","content-inserts.js","icon-options.js","pattern-options.js"]
+        :copy_file!("desk/admin/{file}",dir + "/{file}")
+    xx
+    html | :read_text("desk/index.html")
+    fragment | :keep_between(html,"<div id=\"ed-editor-panel\"", "<div id=\"ed-log-panel\"")
+    html |= """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit page</title><link rel="stylesheet" href="admin.css"><link rel="stylesheet" href="page-editor.css"></head><body><main class="editor-main"><div class="editor-bar"><strong id="ed-path">Edit page</strong><button class="btn small primary" id="page-save" type="button">Save &amp; build page</button><button class="btn small" id="page-close" type="button">Cancel</button></div><p class="page-edit-note">Only this page’s content is saved and built. This never rebuilds the whole site.</p><p id="page-status" role="status"></p><div id="ed-editor-panel"{fragment}</main><script src="floating-panel.js"></script><script src="icon-options.js"></script><script src="pattern-options.js"></script><script src="page-editor.js"></script></body></html>"""
+    :write_text!(dir + "/index.html",html)
+xx
+
+act copy_assets(output, refresh | false)
+    /// Native editing is served by the local Goblin host, never a published CGI.
+    if :env("SHERIFF_RUNTIME_MODE") != "cloud"
+        :create_dir!(output + "/api")
+        endpoint | output + "/api/page_content.gbln"
+        if refresh or !:file_exists(endpoint) => :copy_file!("desk/api/page_content.gbln",endpoint)
+    xx
+    :create_dir!(output + "/public/howdy")
+    if refresh or !:file_exists(output + "/public/howdy/editor/index.html") => copy_editor(output)
+    for file in ["howdy.js", "howdy.css", "page-editing.js"]
+        destination | output + "/public/howdy/{file}"
+        if :file_exists(destination)
+            if :read_text(destination) == :read_text("modules/howdy/{file}") => skip
+        xx
+        :copy_file!("modules/howdy/{file}",output + "/public/howdy/{file}")
+    xx
+xx
+
+/// Full builds prepare assets once before concurrent page workers start.
+/// Page builds still refresh these assets through the ordinary page schedule.
+act init(ctx)
+    portal | ctx{"portal"}
+    cfg | site_context::config("../site/portals/{portal}/config.yall")
+    member | site_context::for_portal(portal)
+    if !member.nix? => cfg |= member{"site"}
+    if enabled(cfg) => copy_assets(ctx{"output_dir"} ?? build_output::directory(portal),true)
+    return ctx
+xx
+
+act render(body, cfg, output, public_base | "/public")
+    token | "\{\{\{HOWDY::ACCOUNT\}\}\}"
+    if :has(body, token) == false => return body
+    control | ""
+    if enabled(cfg)
+        control |= """<div class="sheriff-howdy" data-howdy><button type="button" class="howdy-login sheriff-header-action" data-howdy-login>Log in / Sign up</button><span class="howdy-status" role="status" aria-live="polite"></span></div>"""
+        if !output.nix? => copy_assets(output)
+        assets | """<link rel="stylesheet" href="{public_base}/howdy/howdy.css"><script src="{public_base}/howdy/page-editing.js" defer></script><script src="{public_base}/howdy/howdy.js" defer></script>"""
+        :update_where!(body,"</head>",assets + "</head>")
+    xx
+    :update_where!(body, token, control)
+    return body
+xx
+
+act apply(ctx)
+    portal | ctx{"portal"}
+    cfg | site_context::config("../site/portals/{portal}/config.yall")
+    public_base | "/public"
+    member | site_context::for_portal(portal)
+    if !member.nix?
+        cfg |= member{"site"}
+        public_base |= member{"wiki"} + "/public"
+    xx
+    if enabled(cfg) and ctx{"build_mode"} == "page" => copy_editor(build_output::directory(portal))
+    rendered | render(ctx{"body"},cfg,build_output::directory(portal),public_base)
+    prefix | "../site/portals/{portal}/"
+    source | ctx{"path"} ?? ""
+    if enabled(cfg) and :starts_with(source,prefix + "content/") and :ends_with(:lower(source),".md") and :file_exists(source) and ctx{"frontmatter"}{"meta_type"} != "generated"
+        site | portal
+        portal_id | portal
+        if !member.nix?
+            site |= member{"site_id"}
+            portal_id |= member{"portal_id"}
+        xx
+        metadata | :json_stringify({"site":site,"portal":portal_id,"source":portal,"path":source[prefix.len:],"public_base":public_base})
+        metadata |= site_context::escape(metadata)
+        :update_where!(rendered,"data-howdy>","data-howdy data-page=\"{metadata}\">")
+    xx
+    :update!(ctx{"body"},rendered)
+    return ctx
+xx
+
+/// Buffer-only Desk settings. Preserve all other configuration and comments.
+act settings(text, next | nil)
+    cfg | :yall_parse(text,"Howdy configuration")
+    if :valtype(cfg) != "map" => return {"ok":false,"stderr":"Configuration must be a YALL map."}
+    if :valtype(next) != "bool" => return {"ok":true,"enabled":enabled(cfg)}
+    lines | :split(text,"\n")
+    section, at, finish | -1
+    for i in :range(0,lines.len)
+        line | lines[i]
+        clean | :trim(line)
+        if :starts_with(clean,"#") or clean.nix? => skip
+        if :starts_with(line," ") == false and :starts_with(line,"\t") == false
+            if section >= 0
+                finish |= i
+                stop
+            xx
+            if :trim(:keep_before(line,":") ?? "") == "howdy"
+                section |= i
+                if :trim(:keep_after(line,":") ?? "") != "" => return {"ok":false,"stderr":"Edit the inline Howdy map in configuration before using this switch."}
+            xx
+        elif section >= 0 and :trim(:keep_before(clean,":") ?? "") == "enabled"
+            at |= i
+        xx
+    xx
+    value | "false"
+    if next => value |= "true"
+    if section < 0
+        text |= text + "\n# Sheriff Cloud login and shared account menu.\nhowdy:\n  enabled: {value}\n"
+    elif at >= 0
+        comment | :keep_after(lines[at],"#") ?? ""
+        prefix | ""
+        if !comment.nix? => prefix |= "  #" + comment + "\n"
+        :update_at!(lines,at,prefix + "  enabled: {value}")
+        text |= :join(lines,"\n")
+    else
+        :update_at!(lines,section,lines[section] + "\n  enabled: {value}")
+        text |= :join(lines,"\n")
+    xx
+    cfg |= :yall_parse(text,"Howdy configuration")
+    if enabled(cfg) != next => return {"ok":false,"stderr":"Could not change Howdy safely. Edit the configuration directly."}
+    return {"ok":true,"enabled":next,"content":text}
+xx

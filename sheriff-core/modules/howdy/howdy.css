@@ -1,0 +1,29 @@
+.sheriff-howdy { position:relative; display:inline-flex; align-items:center; gap:.5rem; color:var(--sheriff-text); font:inherit; font-size:.875rem; line-height:1.4; }
+.sheriff-howdy button { font:inherit; cursor:pointer; }
+.sheriff-howdy .howdy-login { white-space:nowrap; }
+.sheriff-howdy .howdy-avatar { display:grid; place-items:center; padding:0; width:34px; height:34px; border:1px solid var(--sheriff-border); border-radius:50%; background:var(--sheriff-panel); overflow:hidden; }
+.howdy-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
+.sheriff-howdy :is(button,a):focus-visible { outline:2px solid var(--sheriff-accent); outline-offset:3px; }
+.sheriff-howdy .howdy-menu { position:absolute; top:calc(100% + .6rem); right:0; z-index:500; min-width:210px; max-width:calc(100vw - 2rem); padding:.4rem; border:1px solid var(--sheriff-border); border-radius:var(--sheriff-panel-radius,0); background:var(--sheriff-panel); box-shadow:0 12px 32px #0004; text-align:left; }
+.howdy-menu[hidden] { display:none; }
+.howdy-menu strong { display:block; padding:.65rem; border-bottom:1px solid var(--sheriff-border); overflow-wrap:anywhere; }
+.sheriff-howdy .howdy-menu :is(button,a) { display:block; box-sizing:border-box; width:100%; padding:.65rem; border:0; border-radius:var(--sheriff-control-radius,0); background:transparent; color:var(--sheriff-text); text-align:left; text-decoration:none; }
+.sheriff-howdy .howdy-menu :is(button,a):hover { background:var(--sheriff-bg); }
+.sheriff-howdy .howdy-menu a::after { content:none!important; }
+.howdy-status:not(:empty) { position:absolute; top:100%; right:0; z-index:501; width:220px; padding:.6rem; background:var(--sheriff-panel); border:1px solid var(--sheriff-border); font-size:.8rem; visibility:hidden; pointer-events:none; }
+.sheriff-howdy:is(:hover,:focus-within) .howdy-status:not(:empty) { visibility:visible; }
+.sheriff-site-bar>.sheriff-howdy { margin-left:auto; }
+.sheriff-site-theme + .sheriff-howdy { margin-left:0; }
+.howdy-dialog { position:fixed; inset:0; z-index:10050; background:#0007; display:grid; place-items:center; padding:1rem; font-family:var(--sheriff-font-body,inherit); font-size:14px; line-height:1.5; color:var(--sheriff-text); }
+.howdy-dialog-card { position:relative; width:min(760px,100%); max-height:90dvh; overflow:auto; background:var(--sheriff-bg,#fff); border:1px solid var(--sheriff-border,#ddd); border-radius:var(--sheriff-panel-radius,0); box-shadow:0 24px 80px #0005; }
+.howdy-dialog-close { position:sticky; top:.5rem; float:right; z-index:1; margin:.5rem; padding:.4rem .8rem; border:1px solid var(--sheriff-border); border-radius:var(--sheriff-control-radius,0); background:var(--sheriff-panel); color:var(--sheriff-text); cursor:pointer; }
+.howdy-security { margin:0 32px 32px; padding:24px; border:1px solid var(--sheriff-border); border-radius:var(--sheriff-panel-radius,0); background:var(--sheriff-panel); }
+.howdy-security h2 { font-family:inherit; font-weight:700; font-size:1.1rem; line-height:1.4; margin:0 0 1rem; }
+.howdy-security label { display:block; margin:.8rem 0; }
+.howdy-security input { display:block; box-sizing:border-box; width:100%; padding:.6rem; margin-top:.3rem; color:var(--sheriff-text); background:var(--sheriff-bg); border:1px solid var(--sheriff-border); border-radius:var(--sheriff-control-radius,0); }
+.howdy-security button { padding:.5rem .8rem; border:1px solid var(--sheriff-border); border-radius:var(--sheriff-control-radius,0); color:var(--sheriff-text); background:var(--sheriff-bg); cursor:pointer; }
+@media(max-width:480px) { .sheriff-howdy { font-size:.75rem; } .sheriff-howdy .howdy-login { padding:.4rem; } .howdy-security { margin:0 16px 16px; padding:16px; } }
+
+.howdy-edit { display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap; }
+.howdy-page-dialog {position:fixed;inset:0;margin:auto;padding:0;width:min(1100px,96vw);height:92dvh;max-width:none;max-height:96dvh;background:var(--sheriff-bg);border:1px solid var(--sheriff-border);border-radius:var(--sheriff-panel-radius,0);box-shadow:0 24px 80px #0005;overflow:hidden;}
+.howdy-page-dialog::backdrop{background:#0007}.howdy-page-dialog iframe{display:block;width:100%;height:100%;border:0}

@@ -112,8 +112,8 @@
     dialog.showModal(); input.focus();
   }
   function restoreDialog(row) {
-    if (!openDialog('Restore snapshot?', 'Restore and rebuild', 'restore', row)) return;
-    paragraph('Replace all source files in ' + context.current + ' with this snapshot, then rebuild the site. Changes made since this save point will be removed.');
+    if (!openDialog('Restore snapshot?', 'Restore source', 'restore', row)) return;
+    paragraph('Replace all source files in ' + context.current + ' with this snapshot. Changes made since this save point will be removed. This does not build or publish the site. Build the portal when ready to apply the restored files.');
     const dirty = pending(); if (dirty.length) paragraph('Unsaved edits in ' + dirty.join(', ') + ' will also be discarded.');
     dialog.showModal(); $('ss-cancel').focus();
   }
@@ -142,26 +142,16 @@
     });
   }
   async function restore(portal, row) {
-    status('Restoring source files…'); $('ss-build-log').hidden = true; $('ss-build-output').textContent = '';
+    status('Restoring source files…');
     const result = await api('restore', portal, row.id);
-    // From this point the source was replaced successfully, even if a refresh or build fails.
+    // From this point the source was replaced successfully, even if a refresh fails.
     let refreshWarning = '';
     try {
       await window.SheriffDesk.portalRestored(portal);
       sources = window.SheriffDesk.portals();
     } catch (error) { refreshWarning = ' Desk refresh failed: ' + error.message; }
-    status('Source restored. Rebuilding ' + portal + '…');
-    let message, failed = false;
-    try {
-      const response = await window.SheriffBuildLog.fetch('/api/build?' + encodeURIComponent(portal));
-      const build = await response.json();
-      failed = !response.ok || build.ok === false || (build.code !== undefined && build.code !== null && build.code !== 0);
-      message = failed ? 'Snapshot restored, but the rebuild failed.' : 'Snapshot restored and site rebuilt.';
-      $('ss-build-output').textContent = [build.stdout, build.stderr].filter(Boolean).join('\n') || (failed ? 'The build API reported a failure.' : 'Build completed.');
-    } catch (error) { failed = true; message = 'Snapshot restored, but the rebuild could not finish.'; $('ss-build-output').textContent = error.message; }
-    $('ss-build-log').hidden = false; $('ss-build-log').open = failed;
     try { await refreshCatalog(); await loadRows(); } catch (error) { refreshWarning += ' Snapshot list refresh failed: ' + error.message; }
-    status(message + (result.warning ? ' ' + result.warning : '') + refreshWarning, failed || !!refreshWarning);
+    status('Snapshot source restored. No build or publish run. Build the portal when ready.' + (result.warning ? ' ' + result.warning : '') + refreshWarning, !!refreshWarning);
   }
   $('ss-form').addEventListener('submit', async event => {
     event.preventDefault(); if (!modal) return;
@@ -180,10 +170,10 @@
   $('ss-cancel').addEventListener('click', closeDialog); dialog.addEventListener('cancel', () => { modal = null; });
   $('ss-refresh').addEventListener('click', () => enter(sources));
   context.subscribe(() => {
-    closeDialog(); ++loading; rows = []; render(); status(''); $('ss-build-log').hidden = true;
+    closeDialog(); ++loading; rows = []; render(); status('');
     if (visible() && !busy) loadRows();
   });
   window.addEventListener('hashchange', () => { if (!visible()) closeDialog(); });
-  window.SheriffSnapshots = {enter, setSourcePortals, isArchived:archived, isBlocking:() => busy === 'create' || busy === 'restore'};
+  window.SheriffSnapshots = {enter, setSourcePortals, isArchived:archived, isBusy:()=>!!busy, isBlocking:() => busy === 'create' || busy === 'restore'};
   if (visible()) enter(window.SheriffDesk ? window.SheriffDesk.portals() : context.portals);
 }());

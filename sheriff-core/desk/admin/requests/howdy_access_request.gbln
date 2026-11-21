@@ -1,0 +1,35 @@
+import modules/howdy/access as access
+import modules/sheriff_sso/sheriff_sso as sso
+attempt
+    root | :env("SHERIFF_ROOT")
+    query | :env("GOBLIN_QUERY_STRING")
+    body | :env("GOBLIN_BODY") ?? "{}"
+    file | :env("GOBLIN_REQUEST_FILE")
+    if !file.nix? => body |= :read_text(file)
+    payload | :json_parse(body)
+    portal | ""
+    for part in :split(query,"&")
+        if :starts_with(part,"portal=") => portal |= :url_decode(part[7:])
+    xx
+    owner | :env("SHERIFF_ACCESS_OWNER") == "1"
+    if :env("SHERIFF_RUNTIME_MODE") != "cloud" => owner |= true
+    /// Only the trusted local Desk management endpoint can bind its signed-in owner.
+    bearer | :env("SHERIFF_ACCESS_BEARER") ?? ""
+    if owner and :env("SHERIFF_RUNTIME_MODE") != "cloud" and :starts_with(bearer,"Bearer ")
+        identity | sso::verify(bearer[7:])
+        if identity{"ok"} != true => :provoke("Sign in to Sheriff again.")
+        state | access::load(root,portal)
+        :update!(state{"owner"},identity{"user_id"})
+        access::store(root,portal,state)
+    xx
+    verb | :keep_before(query,"&") ?? query
+    if verb == "grant" and owner and :valtype(payload{"username"}) == "str"
+        account | sso::find_account(payload{"username"})
+        if account{"ok"} != true => :provoke(false, account{"error"})
+        payload |= {"subject":account{"id"},"label":account{"username"}}
+    xx
+    result | access::execute(root,portal,:keep_before(query,"&") ?? query,payload,:env("SHERIFF_ACCESS_SUBJECT") ?? "",owner)
+    :say(:json_stringify(result))
+rescue err
+    :say(:json_stringify({"ok":false,"saved":false,"stderr":"Howdy access: " + :str(err)}))
+xx

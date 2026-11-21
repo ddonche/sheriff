@@ -1,0 +1,26 @@
+/// Read-only picker catalogs, called only after current-page editing authorization.
+act list(root, portal, kind)
+    if kind == "images"
+        base | "{root}/site/portals/{portal}/"
+        :update_where!(base, "\\", "/")
+        folder | base + "public/images"
+        files | []
+        if :file_exists(folder)
+            for file in :walk(folder, "**/*")
+                :update_where!(file, "\\", "/")
+                if !:starts_with(file,base) => skip
+                relative | file[base.len:]
+                parts | :split(:lower(relative),".")
+                extension | parts[parts.len - 1]
+                if :has(["png","jpg","jpeg","gif","webp","svg","avif","ico"],extension)
+                    :put_last!(files,relative)
+                xx
+            xx
+        xx
+        return {"ok":true,"files":files,"dirs":["public/images"]}
+    xx
+    if kind != "icons" and kind != "patterns" => return {"ok":false,"stderr":"Unknown page asset catalog."}
+    result | :json_parse(:run_cmd("goblin run desk/api/list_{kind}.gbln", ".", {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":portal}))
+    if result{"ok"} != true => return {"ok":false,"stderr":"Could not load the portal's " + kind + ". " + result{"stderr"}}
+    return :json_parse(:trim(result{"stdout"}))
+xx

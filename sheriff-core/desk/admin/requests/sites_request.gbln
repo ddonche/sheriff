@@ -1,0 +1,9 @@
+import modules/site_portals/desk as desk_sites
+
+#local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
+
+attempt
+    :say(:json_stringify(desk_sites::handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"code":1,"stderr": :str(err)}))
+xx

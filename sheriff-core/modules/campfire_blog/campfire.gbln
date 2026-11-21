@@ -1,3 +1,4 @@
+import "build-support/workspace_files.gbln" as workspace_files
 /// modules/campfire_blog/campfire.gbln
 /// Campfire: blog-only behavior
 /// - BLOG_LIST: sidebar list (frontmatter title, skip index)
@@ -40,7 +41,7 @@ act build_blog_list(portal)
 
     items | []
 
-    for markdown_path in :walk(blog_root, "**/*.md")
+    for markdown_path in workspace_files::files(blog_root, "**/*.md", true)
 
         rel_path | :path_relative_to(markdown_path, content_root)
         dir      | :dirname(rel_path)
@@ -86,7 +87,7 @@ act build_blog_index(portal)
 
     cards | []
 
-    for markdown_path in :walk(blog_root, "**/*.md")
+    for markdown_path in workspace_files::files(blog_root, "**/*.md", true)
 
         rel_path | :path_relative_to(markdown_path, content_root)
         dir      | :dirname(rel_path)

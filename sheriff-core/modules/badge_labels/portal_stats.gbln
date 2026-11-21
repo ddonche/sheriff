@@ -1,3 +1,4 @@
+import "build-support/workspace_files.gbln" as workspace_files
 /// Portal source statistics, calculated once in the pre-build schedule.
 import modules/trailboss_wiki/routes_json as stats_routes
 import modules/frontier_fm/frontier as stats_frontier
@@ -9,7 +10,7 @@ act image_count(portal)
     if :file_exists(root) == false => return 0
     extensions | ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "ico", "bmp", "tif", "tiff", "jfif"]
     count | 0
-    for file in :walk(root, "**/*")
+    for file in workspace_files::files(root, "**/*", true)
         if :is_dir(file) => skip
         name | :lower(:basename(file))
         parts | :split(name, ".")

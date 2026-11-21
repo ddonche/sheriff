@@ -16,7 +16,7 @@ act handle()
     result | ..
     attempt
         env | {"SHERIFF_ROOT":root, "GOBLIN_METHOD":"POST", "GOBLIN_QUERY_STRING": :env("GOBLIN_QUERY_STRING"), "GOBLIN_BODY":"", "GOBLIN_REQUEST_FILE":"../data/desk-seeding-requests/{id}.txt"}
-        result |= :json_parse(:run_cmd("goblin run seed_request.gbln", "{root}/sheriff-core", env))
+        result |= :json_parse(:run_cmd("goblin run desk/admin/requests/seed_request.gbln", "{root}/sheriff-core", env))
     rescue err
         :delete_path!(request_file)
         return {"ok":false,"stderr": :str(err)}

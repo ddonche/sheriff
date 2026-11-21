@@ -4,6 +4,7 @@ $script:snapshotDir = if ($env:SHERIFF_RUNTIME_MODE -eq 'cloud') { 'site/.desk/s
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
 $script:root = [IO.Path]::GetFullPath($env:SHERIFF_SNAPSHOT_ROOT)
 $script:portal = $env:SHERIFF_SNAPSHOT_PORTAL
 $script:id = $env:SHERIFF_SNAPSHOT_ID
@@ -47,7 +48,9 @@ function List-Snapshots([string]$folder) {
     if ([IO.Directory]::Exists($folder)) {
         foreach ($file in Get-ChildItem -LiteralPath $folder -Filter '*.json' -File -Force) {
             $meta = Read-Snapshot $folder $file.BaseName
-            $meta.bytes = (Get-Item -LiteralPath (Join-Workspace "$script:snapshotDir/$script:portal/$($meta.id).zip")).Length
+            # Cloud download snapshots predate the stored bytes property.
+            $bytes = (Get-Item -LiteralPath (Join-Workspace "$script:snapshotDir/$script:portal/$($meta.id).zip")).Length
+            Add-Member -InputObject $meta -NotePropertyName bytes -NotePropertyValue $bytes -Force
             $items += $meta
         }
     }
@@ -82,9 +85,85 @@ function Extract-Snapshot([string]$zip, [string]$destination) {
         }
     } finally { $archive.Dispose() }
 }
+
+function Test-TransferSource([string]$name) {
+    if (-not $name -or $name.Length -gt 1024 -or $name -match '[\\:\x00-\x1f]' -or $name.StartsWith('/')) { return $false }
+    foreach ($part in $name.Split('/')) { if (-not $part -or $part.StartsWith('.')) { return $false } }
+    if ($name -match '(?i)(^|/)(credentials(?:\.[^/]*)?|[^/]*\.(pem|key))$') { return $false }
+    if ($name -ceq 'site/site.yall' -or $name.StartsWith('site/public/')) { return $true }
+    return $name -cmatch '^portals/[a-z0-9][a-z0-9_-]*/((content|blog|public|patterns|themes)/.+|(config|nav|assets|widgets|seeder)\.yall)$'
+}
+function Invoke-SiteTransfer {
+    Assert-Portal $script:portal
+    $plan = $env:SHERIFF_SNAPSHOT_BODY | ConvertFrom-Json
+    $work = Join-Workspace "data/.desk/site-transfers/$script:portal"
+    [IO.Directory]::CreateDirectory($work) | Out-Null
+    try { $script:lock = [IO.File]::Open((Join-Path $work '.operation.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None) } catch { throw 'Another transfer is running for this site.' }
+    if ($script:action -in @('site-export','site-output')) {
+        $memory = New-Object IO.MemoryStream
+        $zip = New-Object IO.Compression.ZipArchive($memory,[IO.Compression.ZipArchiveMode]::Create,$true)
+        try {
+            $roots = @(@{folder=(Join-Workspace "site/sites/$script:portal");prefix='site/'})
+            if ($script:action -eq 'site-output') { $roots = @(@{folder=(Join-Workspace "dist/$script:portal");prefix=''}) }
+            else { foreach ($p in $plan.sources) { Assert-Portal $p; $roots += @{folder=(Join-Workspace "site/portals/$p");prefix="portals/$p/"} } }
+            $total = 0
+            foreach ($item in $roots) {
+                Check-Source $item.folder
+                foreach ($file in Get-ChildItem -LiteralPath $item.folder -File -Recurse -Force) {
+                    $name = $item.prefix + $file.FullName.Substring($item.folder.Length+1).Replace('\','/')
+                    if ($script:action -eq 'site-export' -and -not (Test-TransferSource $name)) { continue }
+                    if ($script:action -eq 'site-output' -and ($name -match '(^|/)\.' -or $name -match '^(admin|api|site|data|node_modules|sheriff-core)/')) { continue }
+                    $total += $file.Length
+                    if ($total -gt 48MB) { throw 'Transfer exceeds 48 MB.' }
+                    [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$file.FullName,$name,[IO.Compression.CompressionLevel]::Optimal) | Out-Null
+                }
+            }
+        } finally { $zip.Dispose() }
+        try { return @{ok=$true;zip_base64=[Convert]::ToBase64String($memory.ToArray())} } finally { $memory.Dispose() }
+    }
+    if ($script:action -ne 'site-import') { throw 'Unknown site transfer action.' }
+    $stage = Join-Workspace ("data/.desk/site-transfers/$script:portal/incoming-"+[Guid]::NewGuid().ToString('N'))
+    $fresh = Join-Path $stage 'source'
+    try {
+        $zip = [IO.Compression.ZipFile]::OpenRead($env:SHERIFF_TRANSFER_FILE)
+        try {
+            if ($zip.Entries.Count -gt 20000) { throw 'Too many transfer files.' }; $total=0
+            foreach ($entry in $zip.Entries) { $total += $entry.Length; if ($total -gt 48MB) { throw 'Transfer exceeds 48 MB.' }; if (-not $entry.FullName.EndsWith('/') -and -not (Test-TransferSource $entry.FullName)) { throw 'Unsupported grouped source path.' } }
+        } finally { $zip.Dispose() }
+        Extract-Snapshot $env:SHERIFF_TRANSFER_FILE $fresh
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = if ($env:SHERIFF_GOBLIN) { $env:SHERIFF_GOBLIN } else { 'goblin' }
+        $start.Arguments = 'run desk/admin/requests/site_transfer_request.gbln'; $start.WorkingDirectory = Join-Path $script:root 'sheriff-core'
+        $start.UseShellExecute=$false; $start.CreateNoWindow=$true; $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
+        foreach ($key in @($start.EnvironmentVariables.Keys)) { if ($key.StartsWith('GOBLIN_')) { $start.EnvironmentVariables.Remove($key) } }
+        $start.EnvironmentVariables['SHERIFF_TRANSFER_FOLDER']=$fresh; $start.EnvironmentVariables['SHERIFF_TRANSFER_SITE']=$script:portal
+        $child = [Diagnostics.Process]::Start($start); $stdout=$child.StandardOutput.ReadToEnd(); $stderr=$child.StandardError.ReadToEnd(); $child.WaitForExit()
+        $result=$stdout | ConvertFrom-Json
+        if ($child.ExitCode -ne 0 -or -not $result.ok) { throw ($result.stderr+$stderr) }; $child.Dispose()
+        $targets=@(@{relative="site/sites/$script:portal";incoming=(Join-Path $fresh 'site')})
+        foreach ($p in @(@($result.sources)+@($result.previous_sources) | Select-Object -Unique)) { Assert-Portal $p; $targets += @{relative="site/portals/$p";incoming=(Join-Path $fresh "portals/$p")} }
+        $previous = Join-Workspace "data/.desk/site-transfers/$script:portal/previous"
+        if (Test-Path -LiteralPath $previous) { Remove-Item -LiteralPath $previous -Recurse -Force }
+        $moved=@();$installed=@()
+        try {
+            foreach ($item in $targets) {
+                $target=Join-Workspace $item.relative; $backup=Join-Workspace "data/.desk/site-transfers/$script:portal/previous/$($item.relative)"
+                if (Test-Path -LiteralPath $target) { Check-Source $target; [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($backup)) | Out-Null; Move-Item -LiteralPath $target -Destination $backup; $moved+=@{target=$target;backup=$backup} }
+                if (Test-Path -LiteralPath $item.incoming) { [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null; Move-Item -LiteralPath $item.incoming -Destination $target; $installed+=,$target }
+            }
+        } catch {
+            [array]::Reverse($installed); foreach ($target in $installed) { Remove-Item -LiteralPath $target -Recurse -Force }
+            [array]::Reverse($moved); foreach ($item in $moved) { Move-Item -LiteralPath $item.backup -Destination $item.target }
+            throw
+        }
+        return @{ok=$true;site=$script:portal;portals=@($result.sources);backup="data/.desk/site-transfers/$script:portal/previous"}
+    } finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force } }
+}
+
 try {
     $base = Join-Workspace $script:snapshotDir
-    if (-not $script:portal -and $script:action -eq 'list') {
+    if ($script:action.StartsWith('site-')) { $out = Invoke-SiteTransfer }
+    elseif (-not $script:portal -and $script:action -eq 'list') {
         $catalog = @()
         if ([IO.Directory]::Exists($base)) {
             foreach ($folder in Get-ChildItem -LiteralPath $base -Directory -Force) {
@@ -174,3 +253,4 @@ try {
     $out | ConvertTo-Json -Depth 12 -Compress
 } catch { @{ok=$false; stderr=$_.Exception.Message} | ConvertTo-Json -Compress }
 finally { if ($null -ne $script:lock) { $script:lock.Dispose() } }
+

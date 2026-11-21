@@ -1,0 +1,70 @@
+import modules/site_portals/context as context
+
+/// Transfer policy belongs to the site module. Helpers only move binary files.
+act inspect(folder, id, check_existing | true)
+    if context::valid_id(id) == false => return {"ok":false,"stderr":"Invalid site identity."}
+    file | folder + "/site/site.yall"
+    if :file_exists(file) == false => return {"ok":false,"stderr":"Missing parent site configuration."}
+    cfg | :yall_parse_file(file)
+    if :valtype(cfg) != "map" or :valtype(cfg{"portals"}) != "map" => return {"ok":false,"stderr":"Site configuration needs a portals map."}
+    if :has(["shared","individual"],context::theming(cfg)) == false => return {"ok":false,"stderr":"Invalid multisite theme policy."}
+    members, sources, previous | []
+    for pair in cfg{"portals"}
+        slug | pair[0]
+        entry | pair[1]
+        if context::valid_id(slug) == false or :valtype(entry) != "map" => return {"ok":false,"stderr":"Invalid portal entry."}
+        source | entry{"source"}
+        /// Group source names cannot claim unrelated standalone/Cloud site storage.
+        if source != id + "-" + slug => return {"ok":false,"stderr":"Grouped source names must use site-id plus portal-id."}
+        path | folder + "/portals/{source}/config.yall"
+        if :file_exists(path) == false => return {"ok":false,"stderr":"Missing config for portal {slug}."}
+        portal | :yall_parse_file(path)
+        if portal{"id"} != source or portal{"membership"}{"site"} != id or portal{"membership"}{"portal"} != slug => return {"ok":false,"stderr":"Portal {slug} has conflicting site membership."}
+        if check_existing and :file_exists("../site/portals/{source}/config.yall")
+            existing | :yall_parse_file("../site/portals/{source}/config.yall")
+            if existing{"membership"}{"site"} != id or existing{"membership"}{"portal"} != slug => return {"ok":false,"stderr":"An unrelated local portal already uses {source}."}
+        xx
+        :put_last!(sources,source)
+        :put_last!(members,{"id":slug,"source":source,"name":entry{"name"} ?? slug})
+    xx
+    if :file_exists(folder + "/portals")
+        for source in :list_dirs(folder + "/portals")
+            if :has(sources,source) == false => return {"ok":false,"stderr":"Transfer contains an unregistered portal."}
+        xx
+    xx
+    if :has(cfg,"id") and cfg{"id"} != id => return {"ok":false,"stderr":"Conflicting site identity."}
+    if sources.len == 0 => return {"ok":false,"stderr":"A grouped site needs at least one portal."}
+    if check_existing
+        if :file_exists("../site/portals/{id}/config.yall") => return {"ok":false,"stderr":"A standalone site already uses this site address."}
+        old | context::load_site(id)
+        if !old.nix?
+            for pair in old{"portals"}
+                member | context::for_portal(pair[1]{"source"})
+                if member.nix? or member{"site_id"} != id => return {"ok":false,"stderr":"Existing site membership is inconsistent; no source replaced."}
+                :put_last!(previous,pair[1]{"source"})
+            xx
+        xx
+    xx
+    return {"ok":true,"id":id,"name":cfg{"name"} ?? id,"portals":members,"sources":sources,"previous_sources":previous}
+xx
+
+act helper(id, transfer_action, payload)
+    command | "python3 desk/api/snapshot-support/snapshots.py"
+    if :env("OS") == "Windows_NT" => command |= "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File desk/api/snapshot-support/snapshots.ps1"
+    result | :json_parse(:run_cmd(command,".",{"SHERIFF_SNAPSHOT_ROOT":"..","SHERIFF_SNAPSHOT_PORTAL":id,"SHERIFF_SNAPSHOT_ACTION":transfer_action,"SHERIFF_SNAPSHOT_BODY": :json_stringify(payload),"SHERIFF_GOBLIN": :env("SHERIFF_GOBLIN") ?? "goblin","SHERIFF_TRANSFER_FILE": :env("GOBLIN_REQUEST_FILE") ?? ""}))
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+    return :json_parse(result{"stdout"})
+xx
+
+act export_site(id)
+    site | context::load_site(id)
+    if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    sources | []
+    for pair in site{"portals"}
+        member | context::for_portal(pair[1]{"source"})
+        if member.nix? or member{"site_id"} != id => return {"ok":false,"stderr":"Invalid site membership."}
+        :put_last!(sources,pair[1]{"source"})
+    xx
+    return helper(id,"site-export",{"sources":sources})
+xx
+

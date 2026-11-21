@@ -23,10 +23,19 @@ public static class SheriffLogProcess {
   CloseHandle(info.process);CloseHandle(info.thread);
  }
  public static int Run(string exe,string arguments,string directory,string output,string error) {
-  var settings=new ProcessStartInfo(exe,arguments);settings.WorkingDirectory=directory;settings.UseShellExecute=false;settings.CreateNoWindow=true;settings.RedirectStandardOutput=true;settings.RedirectStandardError=true;
+  var settings=new ProcessStartInfo(exe,arguments);settings.WorkingDirectory=directory;settings.UseShellExecute=false;settings.CreateNoWindow=true;settings.RedirectStandardOutput=true;settings.RedirectStandardError=true;settings.RedirectStandardInput=true;
   using(var p=new Process())using(var stdout=new FileStream(output,FileMode.Create,FileAccess.Write,FileShare.ReadWrite,1,FileOptions.WriteThrough))using(var stderr=new FileStream(error,FileMode.Create,FileAccess.Write,FileShare.ReadWrite,1,FileOptions.WriteThrough)) {
-   p.StartInfo=settings;p.Start();var a=p.StandardOutput.BaseStream.CopyToAsync(stdout);var b=p.StandardError.BaseStream.CopyToAsync(stderr);
-   if(!p.WaitForExit(180000)){p.Kill();throw new Exception("Build timed out.");}p.WaitForExit();Task.WaitAll(a,b);return p.ExitCode;
+   p.StartInfo=settings;p.Start();p.StandardInput.Close();var a=p.StandardOutput.BaseStream.CopyToAsync(stdout);var b=p.StandardError.BaseStream.CopyToAsync(stderr);
+   var timer=Stopwatch.StartNew();int? completed=null;
+   while(!p.WaitForExit(50)) {
+    // Goblin can print its final result while runtime teardown is still waiting
+    // on actors started by pre-schedule modules. That run is already finished.
+    string text;using(var input=new FileStream(error,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(input)){text=reader.ReadToEnd();}
+    var footer=System.Text.RegularExpressions.Regex.Match(text,@"(?m)^goblin run main\.gbln → exit (\d+) in \d+ms \([\d.]+s\)\r?$");
+    if(footer.Success){completed=int.Parse(footer.Groups[1].Value);if(!p.WaitForExit(300))p.Kill();break;}
+    if(timer.ElapsedMilliseconds>=180000){p.Kill();p.WaitForExit();Task.WaitAll(a,b);throw new Exception("Build timed out.");}
+   }
+   p.WaitForExit();Task.WaitAll(a,b);return completed??p.ExitCode;
   }
  }
 }
@@ -74,11 +83,12 @@ try {
         $outputJob=$null
         $lifecycle="$taskRoot/sheriff-core/build-support/lifecycle.ps1"
         try {
-            if ($request.mode -eq 'portal' -and [IO.File]::Exists($lifecycle)) {
+            if ([IO.File]::Exists($lifecycle)) {
                 $env:SHERIFF_BUILD_LIBRARY='1';$env:SHERIFF_BUILD_OWNER_PID=$PID.ToString()
                 . $lifecycle
-                $outputJob=Invoke-BuildLifecycle $taskRoot $taskPortal 'begin' ''
-                $env:SHERIFF_BUILD_OUTPUT=$outputJob.output
+                $beginPhase=if($request.mode -eq 'page'){'page-begin'}else{'begin'}
+                $outputJob=Invoke-BuildLifecycle $taskRoot $taskPortal $beginPhase ''
+                if($request.mode -eq 'portal'){$env:SHERIFF_BUILD_OUTPUT=$outputJob.output}
             }
             $env:SHERIFF_PAGE_TARGET=$request.target
             $env:GOBLIN_NONINTERACTIVE='0'
@@ -87,7 +97,7 @@ try {
             if ($request.mode -eq 'page') {$arguments+='page'}
             $code=[SheriffLogProcess]::Run($exe,($arguments -join ' '),"$taskRoot/sheriff-core","$taskJob/stdout.txt","$taskJob/stderr.txt")
             if ($outputJob) {
-                $phase=if($code -eq 0){'activate'}else{'abort'}
+                $phase=if($request.mode -eq 'page'){'page-finish'}elseif($code -eq 0){'activate'}else{'abort'}
                 $activated=Invoke-BuildLifecycle $taskRoot $taskPortal $phase $outputJob.id
                 [IO.File]::AppendAllText("$taskJob/stdout.txt",$activated.message+"`n")
                 $outputJob=$null
@@ -98,7 +108,7 @@ try {
             Write-Json "$taskJob/result.json" @{ok=($code -eq 0);code=$code;stdout=$stdout;stderr=$stderr;build_ms=$ms}
         } catch {
             $problem=$_.Exception.Message
-            if ($outputJob) {try {Invoke-BuildLifecycle $taskRoot $taskPortal 'abort' $outputJob.id | Out-Null} catch {}}
+            if ($outputJob) {try {$endPhase=if($request.mode -eq 'page'){'page-finish'}else{'abort'};Invoke-BuildLifecycle $taskRoot $taskPortal $endPhase $outputJob.id | Out-Null} catch {}}
             Write-Json "$taskJob/result.json" @{ok=$false;code=1;stdout='';stderr=$problem;build_ms=$timer.Elapsed.TotalMilliseconds}
         }
         exit

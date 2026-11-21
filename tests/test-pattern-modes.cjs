@@ -23,10 +23,11 @@ controls.patCopyScaffold.addEventListener = (_,fn) => { handlers.copy = fn; };
 controls.patCopyToken.addEventListener = (_,fn) => { handlers.token = fn; };
 controls.patMode.addEventListener = (_,fn) => { handlers.mode = fn; };
 const copied = [];
-const context = vm.createContext({...controls,patSelected:0,patDirtyFlag:false,patItems:[{body:'saved old content'}],
+const context = vm.createContext({...controls,patSelected:0,patDirtyFlag:false,patSaving:false,patItems:[{body:'saved old content'}],
   setPatDirty(value){context.dirty=value;},copyText(text,label){copied.push({text,label});},
   document:{querySelector(){return {checked:false};}},setTimeout(){},say(msg){throw new Error(msg);}});
-vm.runInContext(between(admin,'  // Modes belong to each block;','  function patternsEnter()'),context);
+context.window={};vm.runInContext(fs.readFileSync(path.join(root,'sheriff-core/desk/admin/pattern-options.js'),'utf8'),context);Object.assign(context,context.window.SheriffPatternOptions);context.parsePatternHeader=context.patternHeader;
+vm.runInContext(between(admin,'  let patLoadedPortal','  function patternsEnter()'),context);
 vm.runInContext(between(admin,'  function setPatDirty(v)','  function setPatStatus('),context);
 vm.runInContext(between(admin,'  function refreshPatternMeta()','  patText.addEventListener'),context);
 vm.runInContext(between(admin,"  patMode.addEventListener('change'",'  async function savePattern()'),context);
@@ -90,6 +91,8 @@ const core = path.join(fixture,'sheriff-core');
 const moduleDest = path.join(core,'modules/sheriff_patterns/patterns.gbln');
 fs.mkdirSync(path.dirname(moduleDest),{recursive:true});
 fs.copyFileSync(path.join(root,'sheriff-core/modules/sheriff_patterns/patterns.gbln'),moduleDest);
+fs.cpSync(path.join(root,'sheriff-core/build-support'),path.join(core,'build-support'),{recursive:true});
+fs.cpSync(path.join(root,'sheriff-core/modules/markdown_core'),path.join(core,'modules/markdown_core'),{recursive:true});
 const fencesDest=path.join(core,'modules/markdown_core/fenced_code.gbln');fs.mkdirSync(path.dirname(fencesDest),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/fenced_code.gbln'),fencesDest);
 fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/content_tabs.gbln'),path.join(path.dirname(fencesDest),'content_tabs.gbln'));
 fs.copyFileSync(path.join(root,'sheriff-core/modules/markdown_core/content_columns.gbln'),path.join(path.dirname(fencesDest),'content_columns.gbln'));
@@ -121,14 +124,14 @@ code_ctx | patterns::apply_patterns({"body": code})
 :say("CODE_CHECK " + :json_stringify({"before": code, "after": code_ctx{"body"}}))
 patterns::publish_patterns({"portal": "one"})
 :say("PUBLISH_CHECK " + :json_stringify({
-    "phase": "first", "shared": resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"),
-    "blank": resolve_token("{{{SHERIFF::PATTERN_BLANK}}}"), "legacy": resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}")
+    "phase": "first", "shared": :resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"),
+    "blank": :resolve_token("{{{SHERIFF::PATTERN_BLANK}}}"), "legacy": :resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}")
 }))
 :write_text!("../site/portals/one/patterns/mixed.txt", "::: pattern vertical Shared\n@mode = template\ncreator = Ada\n:::\n")
 patterns::publish_patterns({"portal": "one"})
-:say("PUBLISH_CHECK " + :json_stringify({"phase": "changed", "inline": patterns::render_pattern_block("vertical", "Shared", "creator = Page-specific"), "shared": resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"), "legacy": resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}")}))
+:say("PUBLISH_CHECK " + :json_stringify({"phase": "changed", "inline": patterns::render_pattern_block("vertical", "Shared", "creator = Page-specific"), "shared": :resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"), "legacy": :resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}")}))
 patterns::publish_patterns({"portal": "two"})
-:say("PUBLISH_CHECK " + :json_stringify({"phase": "second", "inline": patterns::render_pattern_block("vertical", "Shared", "creator = Page-specific"), "absent": patterns::render_pattern_block("vertical", "Blank", "creator = Standalone"), "shared": resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"), "legacy": resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}"), "other": resolve_token("{{{SHERIFF::PATTERN_OTHER}}}")}))
+:say("PUBLISH_CHECK " + :json_stringify({"phase": "second", "inline": patterns::render_pattern_block("vertical", "Shared", "creator = Page-specific"), "absent": patterns::render_pattern_block("vertical", "Blank", "creator = Standalone"), "shared": :resolve_token("{{{SHERIFF::PATTERN_SHARED}}}"), "legacy": :resolve_token("{{{SHERIFF::PATTERN_LEGACY}}}"), "other": :resolve_token("{{{SHERIFF::PATTERN_OTHER}}}")}))
 `;
 fs.writeFileSync(path.join(core,'verify.gbln'),harness);
 const result = spawnSync('goblin',['run','verify.gbln'],{cwd:core,encoding:'utf8',timeout:30000});

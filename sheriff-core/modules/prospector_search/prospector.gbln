@@ -1,4 +1,4 @@
-import build_output as build_output
+import "build-support/output.gbln" as build_output
 /// modules/prospector_search/prospector.gbln
 /// Prospector: Search index + search UI
 /// - init(pre_ctx): clear index + copy JS

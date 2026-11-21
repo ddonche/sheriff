@@ -1,6 +1,7 @@
 pre:
   - "prospector::init"
   - "stagehand::copy_assets"
+  - "howdy::init"
   - "goblin_repl::init"
   - "trailboss::init_wanted_pages"
   - "trailboss::init_backlinks"
@@ -28,6 +29,7 @@ schedule:
   - "brindle::apply_layout"
   - "trailboss::render_fences"
   - "trailboss::render_footnotes"
+  - "site_portals::resolve_links"
   - "trailboss::process_wikilinks"
   - "stagehand::wire_slots"
   - "trailboss::publish_what_links_here"
@@ -42,7 +44,10 @@ schedule:
   - "prospector::apply_tokens"
   - "goblin_repl::apply_tokens"
   - "badge::apply_version_badges"
+  - "site_portals::apply"
+  - "howdy::apply"
   - "prospector::commit_page"
+  - "trailboss::publish_missing_destinations"
 
 post:
   - "trailboss::build_wanted_pages_once"

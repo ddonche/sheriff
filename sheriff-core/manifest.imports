@@ -14,3 +14,7 @@ import modules/sheriff_patterns/patterns    as sheriff
 import modules/debug_body/debug_body        as debug
 
 import modules/badge_labels/portal_stats    as portal_stats
+
+import modules/site_portals/sites as site_portals
+
+import modules/howdy/howdy as howdy

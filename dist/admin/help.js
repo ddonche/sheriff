@@ -5,16 +5,30 @@
 (function () {
   const D = 'https://sheriff.sheriffcloud.com/docs';
 
+  const hosted = window.SheriffDeskBackend?.mode === 'cloud';
+  const publication = {title:'Building and publishing',html:hosted
+    ? '<p><strong>Save</strong> writes source only. <strong>Build page</strong> saves, builds, and publishes that page. <strong>Build portal</strong> and <strong>Save &amp; rebuild</strong> build and publish the whole portal. <strong>Publish</strong> builds and publishes the selected portal from saved source; save editor changes first. No second Publish click is needed after a successful Cloud build.</p><p>The log streams Sheriff build progress, then R2 upload progress with separate timings. Build success alone does not mean publication succeeded; check the final upload result.</p>'
+    : '<p><strong>Save</strong> writes local source only. <strong>Build page</strong> saves and builds one page; <strong>Build portal</strong> and <strong>Save &amp; rebuild</strong> build the whole portal for local preview. These builds do not publish online.</p><p><strong>Push to Cloud</strong> opens a review where you can change the portal. Only <strong>Build &amp; push this portal</strong> starts the local build and uploads its finished output and matching source. Cloud does not rebuild it. Pull downloads source for offline work.</p>'};
   window.DESK_HELP = {
+  settings: {
+    title:'Settings', sections:[
+      {title:'Website source',html:'<p>Use <strong>Configuration</strong> for config.yall, <strong>Navigation</strong> for nav.yall, and <strong>Themes</strong> for theme selection, templates, and CSS. Each editor applies to the portal shown in the header. Settings links open those existing editors and preserve unsaved buffers.</p>'},
+      {title:'Cloud account and hosting',html:hosted
+        ? '<p>Use the surrounding Cloud admin workspace for account, custom domains, enabled features, and plan settings. These controls are separate from Sheriff build configuration.</p>'
+        : '<p><strong>Sheriff Cloud account</strong> opens the existing sign-in or account dialog. Sign-in is account-wide and does not transfer a site. Use <strong>Open Cloud admin</strong> to manage hosted-site and account settings. Local site configuration remains available offline.</p>'},
+      publication
+    ]
+  },
 
   seeding: {
     title: 'Seeding Pages',
     docs: D + '/guides/seeding.html',
     sections: [
+      publication,
       {title:'What seeding creates',html:'<p>List the articles you intend to write in <code>seeder.yall</code>. Sheriff creates ordinary Markdown files marked as stubs, with their titles and category membership. Existing articles are skipped, including completed articles whose stub notice was removed.</p>'},
       {title:'Categories and destination folders',html:'<pre>seed:\n  Books:\n    directory: content/books\n    "Dune": {}\n    "Dune Messiah":\n      summary: "The second Dune novel."\n      categories: ["Science Fiction"]</pre><p><strong>Books</strong> assigns a category; <strong>directory</strong> chooses the folder for its article files. Each group can use a different directory. Missing folders are created. Without a directory, files go directly under <code>content/</code>. A page-level <code>path</code> overrides its group directory.</p><p><code>{}</code> means no extra settings. Settings such as <code>summary</code>, <code>author</code>, and <code>categories</code> become article frontmatter. Lines starting with <code>#</code> are comments; remove those markers from the sample seed entries to activate them.</p>'},
       {title:'Save, preview, create, build',html:'<p><strong>Save seeder.yall</strong> keeps only the plan. <strong>Preview pages</strong> checks proposed paths, existing articles, and conflicts without creating pages. <strong>Create pages</strong> saves the plan and creates missing source files. Review them in Content, then use <strong>Build portal</strong> to update the site and generated lists.</p><p>Repeated titles merge category assignments. Conflicting paths or metadata block creation. Download the result report to keep a record.</p>'},
-      {title:'Use the terminal',html:'<p>Save your plan beside the portal\'s <code>config.yall</code>. From the Sheriff repository root:</p><pre>cd sheriff-core\ngoblin run seed.gbln programming preview\ngoblin run seed.gbln programming create\ngoblin run main.gbln programming</pre><p>Replace <code>programming</code> with your portal name. Preview and create return JSON reports. Only the final command builds the portal. To use another input file, append its path to both seeding commands:</p><pre>goblin run seed.gbln programming preview "../plans/my plan.yall"\ngoblin run seed.gbln programming create "../plans/my plan.yall"</pre>'},
+      {title:'Use the terminal',html:'<p>Save your plan beside the portal\'s <code>config.yall</code>. From the Sheriff repository root:</p><pre>cd sheriff-core\ngoblin run modules/trailboss_wiki/seed.gbln programming preview\ngoblin run modules/trailboss_wiki/seed.gbln programming create\ngoblin run main.gbln programming</pre><p>Replace <code>programming</code> with your portal name. Preview and create return JSON reports. Only the final command builds the portal. To use another input file, append its path to both seeding commands:</p><pre>goblin run modules/trailboss_wiki/seed.gbln programming preview "../plans/my plan.yall"\ngoblin run modules/trailboss_wiki/seed.gbln programming create "../plans/my plan.yall"</pre>'},
       {title:'Keep using your plan',html:'<p>The saved plan stays beside <code>config.yall</code>. Add entries and rerun to create more articles. Removing an entry does not delete an article; changing an entry does not overwrite an existing article. Refreshing Desk reloads your saved plan, including its original comments. <strong>Use example</strong> replaces the editor contents with the current template; save only when you intend to keep that replacement.</p>'}
     ]
   },
@@ -24,7 +38,7 @@
     sections: [
       { title: 'Save a point', html: '<p>Choose a portal and click <strong>Save snapshot</strong>. Give it an optional name. Desk ZIPs the entire saved portal source, including content, assets, patterns, configuration, and portal-local module settings. Unsaved editor changes are not included.</p>' },
       { title: 'Keep and export', html: '<p>Keep as many snapshots as your storage allows. Each shows its name, date, time, and size. <strong>Download ZIP</strong> exports a copy; <strong>Delete</strong> removes the saved ZIP.</p>' },
-      { title: 'Restore', html: '<p><strong>Restore</strong> replaces the selected portal source with the snapshot and rebuilds that portal. Changes made since the snapshot are discarded. Desk confirms before restoring and reports restore and build results separately. Other portals and Sheriff Core are left intact.</p>' },
+      { title: 'Restore', html: '<p><strong>Restore</strong> replaces the selected portal source with the snapshot. Changes made since the snapshot are discarded. Desk confirms before restoring. Restoring does not build or publish; the pending-build notice lets you build the restored portal when ready. Other portals and Sheriff Core are left intact.</p>' },
       { title: 'Storage', html: '<p>Snapshots live outside portal directories, under <code>data/snapshots</code>, so they are never included in another snapshot or removed by a site build. Snapshot-only portals appear in the picker so you can restore a deleted portal. Modules can recommend taking a snapshot; Desk does not decide when one is needed.</p>' }
     ]
   },
@@ -44,13 +58,15 @@
     title: 'Writing content',
     docs: D + '/guides/writing_docs.html',
     sections: [
-      { title: 'Insert an image', html: '<p>Open a Markdown page and click <strong>Insert image</strong>. Upload an image or select an existing one, choose its folder, size, alignment, and optional caption, then insert the generated syntax at your cursor. Folders are shared with Media and live under <code>public/images</code>. Use New folder to create a subfolder; Desk remembers your last folder for each portal.</p><p>Uploads preserve existing files: if a filename is already taken, choose that image or another folder. Uploading and inserting do not save or build the page. Use Save &amp; build when ready.</p>' },
+      publication,
+      {title:'Visual and Source',html:'<p>Open a Markdown article and choose <strong>Visual</strong> above the insertion tools. Type in paragraphs, choose a heading level, format bold or italic text, make lists, use <strong>Blockquote</strong> for quoted text (including inside admonitions), and use <strong>Link</strong> to insert Sheriff wikilinks. The existing image, icon, and pattern pickers insert at your Visual selection.</p><p>Citation markers such as <code>[^origin]</code> appear as superscript names in editable text. Consecutive reference definitions stay together in one <strong>References &amp; footnotes</strong> source section. Click <strong>+ Add paragraph</strong> between protected blocks or at their edges to type there; empty paragraphs behave like ordinary blank lines. Patterns, code, HTML, and other advanced syntax are preserved as source-backed blocks. Use their <strong>Edit in Source</strong> button to select the original syntax. Use <strong>Insert admonition</strong> beside Insert pattern to add a new callout at your cursor. Its draggable window opens with <strong>Type</strong>, <strong>Title</strong>, and the editable <strong>Content</strong> together. Type immediately; the content toolbar supports bold, italic, lists, and blockquotes. Edit a note, tip, warning, important, example, strategy, lore, or spoiler directly in Visual. <strong>Callout settings</strong> reopens that window for an existing callout; <strong>Done</strong> or the close button dismisses it while keeping your unsaved edits; <strong>Remove from page</strong> can be undone. Callouts inherit the theme’s configured icons, and explicit icon syntax is preserved. Spoilers stay expanded while editing. Advanced constructs inside a callout remain intact and can be edited in Source. Image settings, the image gallery, and the icon/pattern pickers use the same draggable window style. Click an image preview or its <strong>Image settings</strong> button to change size, alignment, or caption. <strong>Replace image</strong> opens the existing gallery/upload picker with those properties prefilled. <strong>Remove from page</strong> removes only this occurrence; Undo restores it. Changes remain unsaved until Save or a build action. Edit in Source remains available for exact syntax. Unsupported syntax is kept intact.</p><p>Both modes update the same unsaved Markdown. Switching modes does not save or build. Use the existing <strong>Save</strong>, <strong>Build page</strong>, or <strong>Build portal</strong> action when ready. Configuration and other non-article files stay in Source.</p>'},
+      { title: 'Insert an image', html: '<p>Open a Markdown page and click <strong>Insert image</strong>. Upload an image or select an existing one. Use <strong>Expand gallery</strong> for more room, filter by filename, or drag the picker’s lower edge to resize it. The selected image stays selected while filtering or shrinking the gallery. Choose its size, alignment, and optional caption, then insert the generated syntax at your cursor. Folders are shared with Media and live under <code>public/images</code>. Use New folder to create a subfolder; Desk remembers your last folder for each portal.</p><p>Uploads preserve existing files: if a filename is already taken, choose that image or another folder. Uploading and inserting do not save or build the page. Save keeps your edits; Build page saves and builds this page. Build portal saves and rebuilds the whole portal, including new media.</p>' },
       { title: 'Insert icons and patterns', html: '<p>Use <strong>Insert icon</strong> or <strong>Insert pattern</strong> beside Insert image. Pick an icon visually and optionally choose its color. Templates insert editable source; reusable patterns insert their shared token, with an option for an editable copy. Insertion replaces the selected text or uses your cursor position, and leaves the page unsaved.</p><p>Manage the originals in Icons and Patterns. Rename and delete files from their actions menu in the file tree.</p>' },
-        { title: 'Editor and build log', html: '<p>The <strong>Editor</strong> and <strong>Log</strong> tabs share the main content area. Save &amp; build opens Log automatically and displays the full build output, errors, exit code, and elapsed time. Return to Editor to continue writing; switching tabs preserves your text. The latest build result stays available while you move around Desk.</p>' },
+        { title: 'Editor and build log', html: '<p>The <strong>Editor</strong> and <strong>Log</strong> tabs share the main content area. Save writes the file without building. Build page and Build portal save first, then open Log and display the build output, errors, exit code, and timing. Return to Editor to continue writing; switching tabs preserves your text. The latest build result stays available while you move around Desk.</p>' },
       { title: 'Active portal', html: '<p>The portal name and logo in the Desk header show which site you are working on. Use this header picker to choose a portal once and keep working across Content, Media, Interactive, Patterns, Navigation, Config, Themes, and Snapshots.</p><p>Desk remembers the selection after a refresh. Switching portals checks for unsaved edits across panels; canceling keeps your current portal and edits.</p>' },
       { title: 'Content tabs', html: '<p>Group sections inside one <code>::: tabs</code> fence. Start each panel with <code>@tab Your label</code>, and close the group with <code>:::</code>.</p><pre>::: tabs\n\n@tab ALGOL 58\nContent for ALGOL 58.\n\n@tab ALGOL 60\nContent for ALGOL 60.\n\n:::</pre><p>Panels support normal Markdown, code examples, wikilinks, patterns, and badges. Each group switches independently. The first tab opens by default. Use the arrow keys, Home, and End to move between tabs. Without JavaScript, every panel stays visible.</p>' },
       { title: 'Inline version badges', html: '<p>Every label in <code>documentation.versions</code> has a badge token: for example, <code>{{{SHERIFF::v1.0.0}}}</code>. Use <strong>Copy badge token</strong> in the Content version bar, or open <strong>Config → Version badge tokens</strong>. Paste it beside regular text, a heading, or inside a table.</p><p>The badge uses a tag icon and the exact version label. A separate page version is not required. Tokens inside code examples stay literal.</p>' },
-      { title: 'Rename and delete', html: '<p>Use the <strong>⋯</strong> button beside a file or folder, or right-click its row, to rename or delete it. Renaming a versioned page moves all its versions and revisions together. Deleting a page or folder removes everything inside it after confirmation.</p><p>Renaming keeps page content and its canonical name. Filename-based URLs change; rebuild the portal and update any direct links or navigation paths that use the old filename.</p>' },
+      { title: 'Move, rename, and delete', html: '<p>Use the <strong>⋯</strong> button beside a file or folder, or right-click its row, to move, rename, or delete it. Move to chooses a destination folder without changing the canonical name. Renaming a versioned page moves all its versions and revisions together. Deleting a page or folder removes everything inside it after confirmation.</p><p>Renaming keeps page content and its canonical name. Filename-based URLs change; rebuild the portal and update any direct links or navigation paths that use the old filename.</p>' },
       { title: 'Managing revision files', html: '<p>Enable <strong>Show revision files</strong> to see version folders and individual R1.md, R2.md, and later revisions. Each has the same file actions. Deleting the latest revision makes the highest remaining revision current; deleting the final revision removes that version. When editing an older revision, New revision saves after the highest existing number.</p><p>File changes take effect in the source immediately. Use <strong>Build portal</strong> when ready to refresh generated pages.</p>' },
       {
         title: 'Markdown cheatsheet',
@@ -74,7 +90,7 @@
       {
         title: 'Frontmatter',
         html: `
-<p>Every page starts with a block fenced by <code>^^^^</code>:</p>
+<p>Open <strong>Page details</strong> above Source to edit the title, theme layout, author, categories, search summary, glossary description, and thumbnail. Categories use one line per entry. These controls update the same unsaved source buffer; <strong>Save</strong> writes it without building. Other frontmatter fields and advanced syntax remain available in Source.</p><p>Every page starts with a block fenced by <code>^^^^</code>:</p>
 <pre>^^^^
 title: Admonitions &amp; Spoilers
 author: Sheriff Docs
@@ -167,12 +183,13 @@ related [[Scope]]
     title: 'About portals',
     docs: D + '/guides/portals.html',
     sections: [
+      publication,
       { title: 'Build output', html: '<p>Build a portal from its card to see its full output in the log beside the portal list. The heading names the portal being built. Successes and failures show both standard output and error output, with exit code and elapsed time. On smaller screens the log appears below the cards. Use Copy log to copy the complete result.</p>' },
       {
         title: 'What is a portal?',
         html: `
 <p>A portal is an independent site living in your workspace. Each has its own content, theme, navigation, and config — one workspace can hold a docs site, a blog, and a wiki side by side.</p>
-<p>Source lives in <code>site/portals/{name}/</code>. Building compiles it to <code>dist/{name}/</code>, served at <code>{name}.localhost:5173</code>.</p>`
+${hosted ? '<p>Desk edits the selected Cloud portal’s source. Successful builds publish the output to its public URL.</p>' : '<p>Source lives in <code>site/portals/{name}/</code>. Building compiles it to <code>dist/{name}/</code>, served at <code>{name}.localhost:5173</code>.</p>'}`
       },
       {
         title: 'Names',
@@ -191,6 +208,7 @@ related [[Scope]]
     title: 'Managing media',
     docs: D + '/guides/images.html',
     sections: [
+      publication,
       {
         title: 'Where files live',
         html: `
@@ -206,7 +224,7 @@ related [[Scope]]
       {
         title: 'When files go live',
         html: `
-<p>Uploads trigger a build automatically, so new files are immediately servable. A thumbnail reading "not built yet" means the portal hasn't been built since that file appeared.</p>`
+<p>Uploads save the files without building or publishing. The pending-build notice shows when the portal needs a build. Use Build portal when ready. Local thumbnails may read "not built yet" until the new files are included in a build.</p>`
       }
     ]
   },
@@ -215,6 +233,8 @@ related [[Scope]]
     title: 'Editing navigation',
     docs: D + '/guides/navigation.html',
     sections: [
+      publication,
+      { title: 'Save or rebuild', html: '<p><strong>Save</strong> writes nav.yall without building. <strong>Save &amp; rebuild</strong> saves and rebuilds the whole portal so every page gets the updated navigation. Ctrl+S saves only.</p>' },
       {
         title: 'The two rules',
         html: `
@@ -267,6 +287,8 @@ related [[Scope]]
     title: 'Themes',
     docs: D + '/guides/themes.html',
     sections: [
+      publication,
+      { title: 'Save or rebuild', html: '<p><strong>Save</strong> writes the open theme file without building. <strong>Save &amp; rebuild</strong> saves and rebuilds the whole portal. Ctrl+S saves only. The separate <strong>Apply &amp; rebuild</strong> action switches the active theme and rebuilds the portal.</p>' },
       {
         title: 'How themes work',
         html: `
@@ -308,10 +330,11 @@ related [[Scope]]
     title: 'Site configuration',
     docs: D + '/guides/config.html',
     sections: [
+      publication,
       {
         title: 'What this file does',
         html: `
-<p><code>config.yall</code> is your site's identity: its name, active theme, branding, and routing. Because these values affect every page, saving here rebuilds the whole portal.</p>`
+<p><code>config.yall</code> is your site's identity: its name, active theme, branding, and routing. Save writes the file without building. Because these values affect every page, use Save &amp; rebuild when you are ready to update the whole portal. Ctrl+S saves only.</p>`
       },
       {
         title: 'The parts you change',

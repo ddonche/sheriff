@@ -154,7 +154,7 @@ act existing_articles(portal_root)
     if :file_exists(content) == false => return owners
     for file in :walk(content, "**/*.md")
         text | :read_text(file)
-        fm | routes::extract_frontmatter_map(text)
+        fm | routes::extract_frontmatter_map(text, file)
         normalized | file
         :update_where!(normalized, "\\", "/")
         relative | :keep_after(normalized, "/content/") ?? normalized

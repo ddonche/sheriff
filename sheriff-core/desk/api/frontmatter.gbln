@@ -1,0 +1,255 @@
+import "../sheriff-core/modules/frontier_fm/text_lists.gbln" as fm_lists
+/// Buffer-only page details. Goblin interprets metadata; no file writes/builds.
+act field_names()
+    return ["title", "layout", "author", "categories", "summary", "gloss", "thumb"]
+xx
+/// Category names are text, including years. Sheriff accepts unquoted names
+/// containing spaces; generic YALL tokenizes those differently from listings.
+act category_names(value, lines, end)
+    if :valtype(value) != "array" => return value
+    names | []
+    for item in value
+        if :valtype(item) != "str" and !:is_int(item) and !:is_float(item) => return value
+        :put_last!(names, :str(item))
+    xx
+    in_comment | false
+    for i in :range(1, end)
+        line | lines[i]
+        clean | :trim(line)
+        if clean == "////"
+            in_comment |= !in_comment
+            skip
+        xx
+        if in_comment or :starts_with(clean, "///") or :starts_with(line, " ") or :starts_with(line, "\t") => skip
+        if :trim(:keep_before(line, ":") ?? "") != "categories" => skip
+        raw | :trim(:keep_after(line, ":") ?? "")
+        if !:starts_with(raw, "[") => return names
+        parts | []
+        part | ""
+        quote | ""
+        escaped | false
+        closed | false
+        for n in :range(1, raw.len)
+            c | :slice(raw, n, n + 1)
+            if escaped
+                escaped |= false
+            elif c == "\\" and quote != ""
+                escaped |= true
+            elif quote != ""
+                if c == quote => quote |= ""
+            elif c == "\"" or c == "'"
+                quote |= c
+            elif c == "," or c == "]"
+                if !:trim(part).nix? => :put_last!(parts, :trim(part))
+                part |= ""
+                if c == "]"
+                    closed |= true
+                    stop
+                xx
+                skip
+            xx
+            part |= part + c
+        xx
+        if !closed => return names
+        names |= []
+        for part in parts
+            name | part
+            if :starts_with(part, "\"") or :starts_with(part, "'")
+                parsed | :yall_parse("name: " + part, "category name")
+                name |= parsed{"name"}
+            xx
+            :put_last!(names, :str(name))
+        xx
+        return names
+    xx
+    return names
+xx
+act inspect(text)
+    lines | :split(text, "\n")
+    first | lines[0] ?? ""
+    prefix | ""
+    if :starts_with(first, "﻿")
+        prefix |= "﻿"
+        first |= :slice(first, 1, first.len)
+    xx
+    header | :trim(first) == "^^^^"
+    end | -1
+    block | ""
+    if header
+        for i in :range(1, lines.len)
+            if :trim(lines[i]) == "^^^^"
+                end |= i
+                stop
+            xx
+            block |= block + lines[i] + "\n"
+        xx
+        if end == -1 => return {"ok":false,"stderr":"Close the frontmatter with ^^^^ in Source before editing page details."}
+    xx
+    metadata | {}
+    if !:trim(block).nix? => metadata |= fm_lists::parse(block, "page details")
+    if :valtype(metadata) != "map" => return {"ok":false,"stderr":"Frontmatter must be a map. Edit it in Source."}
+    fields | {}
+    editable | {}
+    for name in field_names()
+        value | metadata{name}
+        if name == "categories" => value |= category_names(value, lines, end)
+        /// YALL represents an empty `key:` as an empty map. Only a genuinely
+        /// blank scalar is editable as empty text; explicit maps stay advanced.
+        if :valtype(value) == "map" and :keys(value).len == 0
+            blank | false
+            comment_block | false
+            for i in :range(1, end)
+                line | lines[i]
+                clean | :trim(line)
+                if clean == "////"
+                    comment_block |= !comment_block
+                    skip
+                xx
+                if comment_block or :starts_with(clean, "///") or :starts_with(line, " ") or :starts_with(line, "\t") => skip
+                if :trim(:keep_before(line, ":") ?? "") != name => skip
+                raw | :trim(:keep_after(line, ":") ?? "")
+                if :starts_with(raw, "<----") => raw |= ""
+                blank |= raw == ""
+            xx
+            if blank
+                value |= ""
+                if name == "categories" => value |= []
+            xx
+        xx
+        valid | :valtype(value) == "nil" or :valtype(value) == "str"
+        if name == "categories"
+            valid |= :valtype(value) == "nil" or :valtype(value) == "array"
+            if :valtype(value) == "array"
+                for category in value
+                    if :valtype(category) != "str" => valid |= false
+                xx
+            xx
+        xx
+        :update!(fields{name}, value)
+        :update!(editable{name}, valid)
+    xx
+    return {"ok":true,"fields":fields,"editable":editable,"has_frontmatter":header,"end":end,"prefix":prefix}
+xx
+act encode(name, value)
+    if name == "categories"
+        if :valtype(value) != "array" => return nil
+        for item in value
+            if :valtype(item) != "str" or :has(item, "\n") or :has(item, "\r") => return nil
+        xx
+        return :json_stringify(value)
+    xx
+    if :valtype(value) != "str" or :has(value, "\n") or :has(value, "\r") => return nil
+    return value
+xx
+act patch(text, changes)
+    info | inspect(text)
+    if info{"ok"} == false => return info
+    if :valtype(changes) != "map" => return {"ok":false,"stderr":"Invalid page details."}
+    lines | :split(text, "\n")
+    newline | "\n"
+    ending | ""
+    if :has(text, "\r\n")
+        newline |= "\r\n"
+        ending |= "\r"
+    xx
+    for name in :keys(changes)
+        if !:has(field_names(), name) => return {"ok":false,"stderr":"Unsupported page field."}
+        if info{"editable"}{name} == false => return {"ok":false,"stderr":"Edit this complex field in Source."}
+    xx
+    if :keys(changes).len == 0 => return {"ok":true,"content":text,"fields":info{"fields"},"editable":info{"editable"},"has_frontmatter":info{"has_frontmatter"}}
+    if info{"has_frontmatter"} == false
+        text |= info{"prefix"} + "^^^^" + newline + "^^^^" + newline + :slice(text, info{"prefix"}.len, text.len)
+        lines |= :split(text, "\n")
+        info |= inspect(text)
+    xx
+    for name in :keys(changes)
+        if changes{name} == info{"fields"}{name} => skip
+        value | encode(name, changes{name})
+        if value.nix? and changes{name} != "" => return {"ok":false,"stderr":"Use a single line for this field, or edit it in Source."}
+        if value.nix? => value |= ""
+        found | -1
+        in_comment | false
+        for i in :range(1, info{"end"})
+            line | lines[i]
+            if :trim(line) == "////"
+                in_comment |= !in_comment
+                skip
+            xx
+            if in_comment or :starts_with(:trim(line), "///") => skip
+            if :starts_with(line, " ") or :starts_with(line, "\t") => skip
+            if :trim(:keep_before(line, ":") ?? "") == name
+                if found != -1 => return {"ok":false,"stderr":"This field is repeated. Resolve it in Source first."}
+                found |= i
+            xx
+        xx
+        if found != -1
+            /// Preserve inline comments and reject block/nested metadata instead
+            /// of silently replacing their continuation lines.
+            next | found + 1
+            while next < info{"end"}
+                clean | :trim(lines[next])
+                if clean.nix? or :starts_with(clean, "///")
+                    next |= next + 1
+                    skip
+                xx
+                if :starts_with(lines[next], " ") or :starts_with(lines[next], "\t")
+                    return {"ok":false,"stderr":"This field uses multiple lines. Edit it in Source."}
+                xx
+                stop
+            xx
+            old | lines[found]
+            comment | ""
+            quote | ""
+            escaped | false
+            for n in :range(0, old.len)
+                c | :slice(old, n, n + 1)
+                if escaped
+                    escaped |= false
+                elif c == "\\" and quote != ""
+                    escaped |= true
+                elif quote != ""
+                    if c == quote => quote |= ""
+                elif c == "\"" or c == "'"
+                    quote |= c
+                elif :slice(old, n, n + 5) == "<----" and n > 0 and :has([" ", "\t"], :slice(old, n - 1, n))
+                    comment |= " " + :slice(old, n, old.len)
+                    stop
+                xx
+            xx
+            :update_at!(lines, found, name + ": " + value + comment + ending)
+        else
+            at | info{"end"}
+            :update_at!(lines, at, name + ": " + value + newline + lines[at])
+        xx
+        text |= :join(lines, "\n")
+        lines |= :split(text, "\n")
+        info |= inspect(text)
+        if info{"ok"} == false => return info
+        expected | changes{name}
+        actual | info{"fields"}{name}
+        if expected == "" and actual.nix? => skip
+        if actual != expected => return {"ok":false,"stderr":"This value needs advanced YALL syntax. Use Source; the document was left unchanged."}
+    xx
+    :update!(info{"content"}, text)
+    return info
+xx
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for page details."}
+    body | :env("GOBLIN_BODY") ?? ""
+    request | :env("GOBLIN_REQUEST_FILE")
+    if !request.nix? => body |= :read_text(request)
+    if body.len > 4194304 => return {"ok":false,"stderr":"Page details support documents up to 4 MB."}
+    payload | :json_parse(body)
+    text | payload{"text"}
+    if :valtype(text) != "str" => return {"ok":false,"stderr":"Missing source buffer."}
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query, "&") ?? query
+    if verb == "inspect" => return inspect(text)
+    if verb == "patch" => return patch(text, payload{"changes"})
+    return {"ok":false,"stderr":"Unknown page-details operation."}
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr":"Page details could not parse this frontmatter. Edit it in Source. " + :str(err)}))
+xx

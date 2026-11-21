@@ -1,0 +1,41 @@
+/// Local Desk adapter. The site module owns registration and build scope.
+act handle()
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query, "&") ?? query
+    if verb != "list" and verb != "config_read" and :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for site changes."}
+    if :env("SHERIFF_RUNTIME_MODE") == "cloud" => return {"ok":false,"stderr":"Use the authenticated Cloud Desk gateway."}
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    body | :env("GOBLIN_BODY") ?? ""
+    incoming | :env("GOBLIN_REQUEST_FILE")
+    if verb != "logo" and verb != "transfer_import" and !incoming.nix? => body |= :read_text(incoming)
+    if body.len > 65536 => return {"ok":false,"stderr":"Site requests must be at most 64 KB."}
+    folder | "{root}/data/desk-site-requests"
+    :create_dir!(folder)
+    id | :uuid_v4()
+    file | "{folder}/{id}.json"
+    if verb == "logo" or verb == "transfer_import"
+        if incoming.nix? or :file_exists(incoming) == false => return {"ok":false,"stderr":"Missing upload file."}
+        :copy_file!(incoming,file)
+    else
+        :write_text!(file, body)
+    xx
+    result | nil
+    attempt
+        result |= :json_parse(:run_cmd("goblin run desk/admin/requests/sites_request.gbln", "{root}/sheriff-core", {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":query,"GOBLIN_BODY":"","GOBLIN_REQUEST_FILE":"../data/desk-site-requests/{id}.json"}))
+    ensure
+        :delete_path!(file)
+    xx
+    if result{"ok"} == false => return {"ok":false,"code":1,"stderr":result{"stderr"}}
+    data | :json_parse(result{"stdout"})
+    while :valtype(data) == "map" and :has(data, "body") and :has(data, "status")
+        data |= data{"body"}
+        if :valtype(data) == "str" => data |= :json_parse(data)
+    xx
+    return data
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"code":1,"stderr": :str(err)}))
+xx

@@ -1,0 +1,57 @@
+/// Files created by Visual Studio for local workspace state are not site input.
+/// Inspect paths only; never open or delete these files.
+act ignored_path(path)
+    clean | :str(path)
+    :update_where!(clean, "\\", "/")
+    parts | :split(clean, "/")
+    prefix | ""
+    for part in parts
+        if part == "" and prefix == "" and :starts_with(clean, "/")
+            prefix |= "/"
+            skip
+        xx
+        if !prefix.nix? and :ends_with(prefix, "/") == false => prefix |= prefix + "/"
+        prefix |= prefix + part
+        if :lower(part) == ".vs" => return prefix
+    xx
+    name | :lower(:basename(clean))
+    for suffix in [".suo", ".wsuo", ".user", ".userosscache", ".sln.docstates", ".vc.db", ".vc.opendb", ".vc.db-shm", ".vc.db-wal", ".ncb", ".sdf", ".opensdf", ".ipch", ".vspscc", ".vssscc"]
+        if :ends_with(name, suffix) => return clean
+    xx
+    return ""
+xx
+
+act warn(path)
+    seen | :resolve_token("SHERIFF_WORKSPACE_IGNORED", "SEEN") ?? []
+    if :has(seen, path) => return
+    :put_last!(seen, path)
+    :register_token("SHERIFF_WORKSPACE_IGNORED", "SEEN", seen)
+    :say("SHERIFF WARNING: Ignored Visual Studio workspace files")
+    :say("  Path: {path}")
+    :say("  These editor files are not site content. You can delete them after closing Visual Studio; Sheriff leaves them untouched.")
+xx
+
+act files(root, pattern, warnings | false)
+    kept | []
+    for path in :walk(root, "**/*")
+        ignored | ignored_path(path)
+        if !ignored.nix?
+            if warnings => warn(ignored)
+            skip
+        xx
+        /// Goblin 0.51.26 only filters md/gbln in walk; enforce text suffixes here.
+        if :starts_with(pattern, "**/*.")
+            suffix | :keep_after(pattern, "**/*")
+            if :ends_with(:lower(path), :lower(suffix)) == false => skip
+        xx
+        :put_last!(kept, path)
+    xx
+    return kept
+xx
+
+act report(root)
+    for path in :walk(root, "**/*")
+        ignored | ignored_path(path)
+        if !ignored.nix? => warn(ignored)
+    xx
+xx

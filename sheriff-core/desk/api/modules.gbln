@@ -1,0 +1,39 @@
+/// Local HTTP scripts run from dist. Resolve module imports in Core instead.
+act handle()
+    if :env("GOBLIN_METHOD") != "POST" => return {"ok":false,"stderr":"Use POST for Module settings."}
+    if :env("SHERIFF_RUNTIME_MODE") == "cloud" => return {"ok":false,"stderr":"Use the authenticated Cloud Desk gateway."}
+    headers | :json_parse(:env("GOBLIN_HEADERS_JSON") ?? "{}")
+    host | headers{"host"} ?? ""
+    origin | headers{"origin"} ?? ""
+    loopback | host == "" or host == "localhost" or host == "127.0.0.1" or host == "[::1]" or :starts_with(host,"localhost:") or :starts_with(host,"127.0.0.1:") or :starts_with(host,"[::1]:")
+    if !loopback or origin != "" and origin != "http://{host}" => return {"ok":false,"stderr":"Use local Desk on a loopback address for module controls."}
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    body | :env("GOBLIN_BODY") ?? ""
+    incoming | :env("GOBLIN_REQUEST_FILE")
+    if !incoming.nix? => body |= :read_text(incoming)
+    if body.len > 4194304 => return {"ok":false,"stderr":"Configuration is too large."}
+    folder | "{root}/data/desk-module-requests"
+    :create_dir!(folder)
+    id | :uuid_v4()
+    file | "{folder}/{id}.json"
+    :write_text!(file, body)
+    result | nil
+    attempt
+        result |= :json_parse(:run_cmd("goblin run desk/admin/requests/desk_modules_request.gbln", "{root}/sheriff-core", {"SHERIFF_ROOT":root,"GOBLIN_METHOD":"POST","GOBLIN_QUERY_STRING": :env("GOBLIN_QUERY_STRING") ?? "inspect","GOBLIN_BODY":"","GOBLIN_REQUEST_FILE":"../data/desk-module-requests/{id}.json"}))
+    ensure
+        :delete_path!(file)
+    xx
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+    data | :json_parse(result{"stdout"})
+    while :valtype(data) == "map" and :has(data, "body") and :has(data, "status")
+        data |= data{"body"}
+        if :valtype(data) == "str" => data |= :json_parse(data)
+    xx
+    return data
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr":"Module settings could not be read. " + :str(err)}))
+xx

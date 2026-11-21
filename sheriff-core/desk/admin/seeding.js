@@ -3,7 +3,8 @@
   'use strict';
   const $ = id => document.getElementById('seed-' + id);
   const dialog = $('dialog'), source = $('source'), context = window.SheriffPortalContext;
-  let portal = '', release = null, busy = false, saved = '', preview = '', report = null;
+  let portal = '', release = null, busy = false, saved = '', preview = '', report = null, initial = '';
+  const isDirty = () => dialog.open && source.value !== saved && source.value !== initial;
   const buttons = ['close', 'example', 'save', 'preview', 'upload'];
   function state(working) {
     busy = working;
@@ -39,7 +40,7 @@
     }
     $('results').hidden = !data.entries?.length; $('report').hidden = false;
     if (data.saved) {
-      saved = source.value; $('saved').textContent = 'Saved';
+      saved = source.value; initial = null; $('saved').textContent = 'Saved';
       status(`Created ${data.created} articles · Skipped ${data.skips} existing articles. Review them in Content, then use Build portal when ready.`);
     } else if (!data.entries?.length) {
       status('No active pages are listed. Remove # from the example seed entries, or replace it with your own plan.');
@@ -52,7 +53,7 @@
     state(true); status(verb === 'create' ? 'Creating source files…' : verb === 'preview' ? 'Checking articles and categories…' : 'Saving seeder.yall…');
     try {
       const data = await request(verb);
-      if (verb === 'save') { saved = source.value; $('saved').textContent = 'Saved'; status('Saved seeder.yall. No pages were created and no build ran.'); }
+      if (verb === 'save') { saved = source.value; initial = null; $('saved').textContent = 'Saved'; status('Saved seeder.yall. No pages were created and no build ran.'); }
       else { preview = source.value; render(data); if (verb === 'create') preview = ''; }
     } catch (error) { status(error.message, true); preview = ''; }
     finally { state(false); }
@@ -62,13 +63,13 @@
     portal = name; release = context.lock(); saved = ''; preview = ''; report = null;
     $('portal').textContent = name; source.value = ''; $('saved').textContent = ''; $('results').hidden = true; $('report').hidden = true;
     dialog.showModal(); state(true); status('Loading seeder.yall…');
-    try { const data = await request('load'); source.value = data.source; saved = data.exists ? data.source : ''; $('saved').textContent = data.exists ? 'Saved' : 'Example · not saved'; status('Preview your plan before creating pages.'); }
+    try { const data = await request('load'); source.value = data.source; initial = data.exists ? null : data.source; saved = data.exists ? data.source : ''; $('saved').textContent = data.exists ? 'Saved' : 'Example · not saved'; status('Preview your plan before creating pages.'); }
     catch (error) { status(error.message, true); }
     finally { state(false); source.focus({preventScroll:true}); }
   }
   function close() {
     if (busy) return;
-    if (source.value !== saved && source.value.trim() && !confirm('Close without saving your changes to seeder.yall?')) return;
+    if (isDirty() && !confirm('Close without saving your changes to seeder.yall?')) return;
     dialog.close();
     if (release) release(); release = null;
   }
@@ -98,5 +99,5 @@
     const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], {type:'application/json'}));
     const link = document.createElement('a'); link.href = url; link.download = portal + '-seeding-report.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  window.SheriffSeeding = {open};
+  window.SheriffSeeding = {open, isDirty, isBusy:()=>busy};
 }());

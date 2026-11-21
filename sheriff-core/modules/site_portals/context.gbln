@@ -1,0 +1,97 @@
+/// Explicit site membership. Existing ungrouped portals retain their URL behavior.
+act valid_id(value)
+    if :valtype(value) != "str" or value.nix? => return false
+    if :has("abcdefghijklmnopqrstuvwxyz0123456789", value[0]) == false => return false
+    for c in :split(value, "")
+        if :has("abcdefghijklmnopqrstuvwxyz0123456789_-", c) == false => return false
+    xx
+    return true
+xx
+
+act load_site(site)
+    if valid_id(site) == false => return nil
+    file | "../site/sites/{site}/site.yall"
+    if :file_exists(file) == false => return nil
+    cfg | :yall_parse_file(file)
+    if :valtype(cfg) != "map" or :valtype(cfg{"portals"}) != "map" => return nil
+    :update!(cfg{"id"},site)
+    return cfg
+xx
+
+/// Read the effective theme without changing a portal's saved configuration.
+act theming(site)
+    return site{"multisite_theming"} ?? "individual"
+xx
+
+act config(path)
+    cfg | :yall_parse_file(path)
+    member | membership(cfg)
+    if !member.nix? and theming(member{"site"}) == "shared"
+        :update!(cfg{"theme"}{"name"}, member{"site"}{"theme"} ?? "compendium")
+    xx
+    return cfg
+xx
+
+act site_logo(site)
+    if valid_id(site) == false => return ""
+    for extension in ["png","jpg","jpeg","webp","gif","avif","svg"]
+        name | "site-logo.{extension}"
+        if :file_exists("../site/sites/{site}/public/{name}") => return name
+    xx
+    return ""
+xx
+
+act portal_logo(source)
+    if valid_id(source) == false => return ""
+    file | "../site/portals/{source}/config.yall"
+    if :file_exists(file) == false => return ""
+    cfg | :yall_parse_file(file)
+    name | cfg{"theme"}{"logo"} ?? "logo.png"
+    if :valtype(name) != "str" => return ""
+    if :has(name,"..") or :has(name,"\\") or :has(name,":") or :starts_with(name,"/") => return ""
+    if :file_exists("../site/portals/{source}/public/{name}") => return name
+    return ""
+xx
+
+act membership(cfg)
+    if :valtype(cfg) != "map" => return nil
+    member | cfg{"membership"}
+    if :valtype(member) != "map" => return nil
+    site | member{"site"}
+    portal | member{"portal"}
+    if valid_id(site) == false or valid_id(portal) == false => return nil
+    registry | load_site(site)
+    if registry.nix? => return nil
+    entry | registry{"portals"}{portal}
+    if :valtype(entry) != "map" or valid_id(entry{"source"}) == false => return nil
+    if entry{"source"} != cfg{"id"} => return nil
+    if :valtype(cfg{"theme"}) == "map"
+        name | cfg{"theme"}{"name"}
+        if valid_id(name) == false => return nil
+        :update!(entry{"theme"}, name)
+        if theming(registry) == "shared" => :update!(entry{"theme"}, registry{"theme"} ?? "compendium")
+    xx
+    return {"site_id":site, "portal_id":portal, "site":registry, "entry":entry, "source":entry{"source"}, "home":"/p/{portal}/", "wiki":"/p/{portal}/wiki"}
+xx
+
+act for_portal(source)
+    if valid_id(source) == false => return nil
+    file | "../site/portals/{source}/config.yall"
+    if :file_exists(file) == false => return nil
+    return membership(:yall_parse_file(file))
+xx
+
+act escape(value)
+    out | :str(value ?? "")
+    for pair in [["&","&amp;"],["<","&lt;"],[">","&gt;"],["\"","&quot;"],["'","&#39;"]]
+        :update_where!(out, pair[0], pair[1])
+    xx
+    return out
+xx
+
+act mount_url(url, base)
+    if :starts_with(url, "/") == false or :starts_with(url, "//") => return url
+    if :starts_with(url, "/p/") or url == "/p/" => return url
+    if url == "/" => return base + "/"
+    return base + url
+xx

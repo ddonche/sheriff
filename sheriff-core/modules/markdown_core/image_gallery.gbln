@@ -1,0 +1,86 @@
+import modules/markdown_core/content_columns as blocks
+import modules/markdown_core/fenced_code as fences
+
+/// Explicit galleries group images and their following explanations. Ordinary
+/// aligned images outside the block keep their existing text-wrapping behavior.
+act items(body)
+    result | []
+    current | []
+    code, literal | ""
+    for line in :split(body,"\n")
+        clean | :trim(line)
+        protected | false
+        if !code.nix?
+            protected |= true
+            if fences::closes(line,code) => code |= ""
+        elif !literal.nix? or :has(line,"<!--") or :has(line,"<pre") or :has(line,"<code")
+            protected |= true
+            literal |= blocks::literal_after(line,literal)
+        else
+            marker | fences::marker(line)
+            if !marker.nix?
+                protected |= true
+                code |= marker
+            xx
+        xx
+        if !protected and blocks::directive_line(line) and :starts_with(clean,"[[image:") and :ends_with(clean,"]]") and :find_all(clean,"[[image:").len == 1
+            if !current.nix? => :put_last!(result,:join(current,"\n"))
+            current |= [line]
+        else
+            if current.nix? and !clean.nix? => return nil
+            if !current.nix? => :put_last!(current,line)
+        xx
+    xx
+    if !current.nix? => :put_last!(result,:join(current,"\n"))
+    return result
+xx
+
+act prepare(text)
+    if text.nix? or :has(text,"::: gallery") == false => return text
+    lines | :split(text,"\n")
+    out | []
+    consumed | -1
+    code, literal | ""
+    for n in :range(0,lines.len)
+        if n <= consumed => skip
+        line | lines[n]
+        if !code.nix?
+            :put_last!(out,line)
+            if fences::closes(line,code) => code |= ""
+            skip
+        xx
+        if !literal.nix? or :has(line,"<!--") or :has(line,"<pre") or :has(line,"<code")
+            literal |= blocks::literal_after(line,literal)
+            :put_last!(out,line)
+            skip
+        xx
+        marker | fences::marker(line)
+        if !marker.nix?
+            code |= marker
+            :put_last!(out,line)
+            skip
+        xx
+        clean | :trim(line)
+        if blocks::directive_line(line) and :starts_with(clean,"::: gallery ")
+            count | blocks::count(:keep_after(clean,"::: gallery "))
+            if !count.nix?
+                group | blocks::read_group(lines,n)
+                if group{"valid"}
+                    entries | items(group{"body"})
+                    if !entries.nix?
+                        html | "\n<div class=\"sheriff-gallery sheriff-gallery-{count}\" role=\"group\" aria-label=\"Image gallery\">\n<div class=\"sheriff-gallery-grid\">\n"
+                        for entry in entries
+                            html |= html + "\n<div class=\"sheriff-gallery-item\">\n\n" + entry + "\n\n</div>\n"
+                        xx
+                        html |= html + "\n</div>\n</div>\n"
+                        :put_last!(out,html)
+                        consumed |= group{"end"}
+                        skip
+                    xx
+                xx
+            xx
+        xx
+        :put_last!(out,line)
+    xx
+    return :join(out,"\n")
+xx

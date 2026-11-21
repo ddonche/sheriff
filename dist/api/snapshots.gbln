@@ -1,5 +1,13 @@
+import "../sheriff-core/modules/howdy/access.gbln" as access
+act guard(root, portal, payload)
+    attempt
+        return access::execute(root,portal,"guard",payload,"",true)
+    rescue err
+        return {"ok":false,"saved":false,"stderr":"Howdy access: " + :str(err)}
+    xx
+xx
 /// Desk snapshots operate only on portal source and data/snapshots.
-/// No build runs here; after restore the Desk client uses the existing build API.
+/// Restoring replaces source only. Building is a separate, explicit Desk action.
 act value(raw, key)
     for part in :split(raw, "&")
         if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
@@ -19,6 +27,10 @@ act handle()
     xx
     root | :trim(:env("SHERIFF_ROOT"))
     if root.nix? => root |= ".."
+    if verb == "restore"
+        decision | guard(root,value(query,"portal"),{"replace_source":true})
+        if decision{"ok"} == false => return decision
+    xx
     body | :env("GOBLIN_BODY")
     request_file | :env("GOBLIN_REQUEST_FILE")
     if body.nix? and !request_file.nix? and :file_exists(request_file) => body |= :read_text(request_file)

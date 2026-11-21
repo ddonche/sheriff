@@ -4,16 +4,34 @@
   'use strict';
   const key = window.SheriffDeskBackend?.mode === 'cloud' ? 'desk.activePortal.cloud' : 'desk.activePortal';
   const selectors = new Map(), metadata = new Map(), listeners = new Set(), guards = new Set(), locks = new Set();
-  let names = [], current = '', revision = 0, remembered = '';
+  let names = [], current = '', revision = 0, remembered = '', filtered=null;
   try { remembered = localStorage.getItem(key) || ''; } catch (_) {}
   const port = location.port || '5173';
-  function host(portal) { return portal ? new URL(window.SheriffDeskBackend.portalUrl(portal)).host : ''; }
+  const cardIcons=new Map();
+  function host(portal) { return portal ? new URL(window.SheriffDeskBackend.portalUrl(portal)).host + new URL(window.SheriffDeskBackend.portalUrl(portal)).pathname.replace(/\/$/,'') : ''; }
   function fallback(name) { return name.trim().split(/[\s_-]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?'; }
+  // Portal cards use the same metadata, asset transport and initials as the header.
+  function paintCardIcon(root,parts){
+    const {portal,img,initials,info:extra}=parts,info=extra||metadata.get(portal)||{},name=info.name||portal;
+    const src=info.logo||(names.includes(portal)?window.SheriffDeskBackend.assetUrl(portal,'public/logo.png'):'');
+    initials.textContent=fallback(name);initials.hidden=!img.hidden&&img.dataset.loaded===src;
+    if(src&&img.getAttribute('src')!==src){img.hidden=true;initials.hidden=false;img.dataset.loaded='';img.src=src;}
+    else if(!src){img.removeAttribute('src');img.hidden=true;initials.hidden=false;}
+  }
+  function createIcon(portal,info){
+    const root=document.createElement('span'),img=document.createElement('img'),initials=document.createElement('span');
+    root.className='desk-portal-icon portal-card-icon';root.setAttribute('aria-hidden','true');img.alt='';img.hidden=true;initials.className='desk-portal-initials';root.append(img,initials);
+    const parts={portal,img,initials,info};cardIcons.set(root,parts);
+    img.addEventListener('load',()=>{img.dataset.loaded=img.getAttribute('src');img.hidden=false;initials.hidden=true;});
+    img.addEventListener('error',()=>{img.hidden=true;initials.hidden=false;});paintCardIcon(root,parts);return root;
+  }
   function render() {
+    for(const [root,parts] of cardIcons){if(!root.isConnected){cardIcons.delete(root);continue;}paintCardIcon(root,parts);}
     selectors.forEach((parts, select) => {
-      if (Array.from(select.options).map(o => o.value).join('\n') !== names.join('\n')) {
+      const visible=filtered?names.filter(name=>filtered.includes(name)):names;
+      if (Array.from(select.options).map(o => o.value).join('\n') !== visible.join('\n')) {
         select.replaceChildren();
-        names.forEach(name => { const option = document.createElement('option'); option.value = name; select.appendChild(option); });
+        visible.forEach(name => { const option = document.createElement('option'); option.value = name; select.appendChild(option); });
       }
       Array.from(select.options).forEach(option => { option.textContent = (metadata.get(option.value) || {}).name || option.value; });
       select.value = current;
@@ -77,8 +95,9 @@
   window.SheriffPortalContext = {
     get current() { return current; }, get revision() { return revision; },
     get locked() { return locks.size > 0; },
-    get portals() { return names.slice(); }, mount, select: selectPortal, setPortals,
+    get portals() { return names.slice(); }, mount, createIcon, select: selectPortal, setPortals,
     setMetadata(portal, info) { if (!names.includes(portal)) return; metadata.set(portal, info || {}); render(); },
+    filter(next) {filtered=Array.isArray(next)?next:null;render();},
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     guard(fn) { guards.add(fn); return () => guards.delete(fn); }, lock
   };

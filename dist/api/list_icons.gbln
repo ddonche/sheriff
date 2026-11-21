@@ -1,4 +1,10 @@
 /// /api/list_icons?{portal}: Core icons plus portal-local overrides. Read-only.
+act explicit_brand(root, name)
+    if :starts_with(name, "brand-") == false => return false
+    slug | :keep_after(name, "brand-") ?? ""
+    return :file_exists("{root}/sheriff-core/assets/simple-icons/icons/{slug}.svg")
+xx
+
 root | :trim(:env("SHERIFF_ROOT"))
 if root == "" => root |= ".."
 portal | :trim(:url_decode(:env("GOBLIN_QUERY_STRING")))
@@ -12,6 +18,31 @@ if !portal.nix? and valid_portal == false
 else
     by_name | {}
     names | []
+    occupied | {}
+    for folder in ["{root}/sheriff-core/assets/icons", "{root}/site/portals/{portal}/public/icons"]
+        if :file_exists(folder) == false => skip
+        for file in :walk(folder, "**/*")
+            if :ends_with(file, ".svg") or :ends_with(file, ".png")
+                :update!(occupied{:stem(file)}, true)
+            xx
+        xx
+    xx
+    /// The explicit brand- prefix always selects Simple Icons. Bare names are
+    /// offered where they do not replace an existing Core or portal icon.
+    brand_metadata | "{root}/sheriff-core/assets/simple-icons/metadata.json"
+    if :file_exists(brand_metadata) == true
+        for brand in :read_json(brand_metadata)
+            slug | brand{"name"}
+            file | "{root}/sheriff-core/assets/simple-icons/icons/{slug}.svg"
+            if :file_exists(file) == false => skip
+            name | (slug)
+            if :has(occupied, name) == true
+                name |= "brand-{slug}"
+            xx
+            :put_last!(names, name)
+            :update!(by_name{name}, {"name":name,"title":brand{"title"},"source":"Simple Icons","collection":"brands","brandColor":brand{"brandColor"},"svg": :read_text(file)})
+        xx
+    xx
     folders | [{"path": "{root}/sheriff-core/assets/icons", "source": "Core"}]
     if valid_portal
         :put_last!(folders, {"path": "{root}/site/portals/{portal}/public/icons", "source": "Portal"})
@@ -35,6 +66,7 @@ else
             xx
             for icon in :json_parse(result{"stdout"})
                 name | icon{"name"}
+                if explicit_brand(root, name) => skip
                 if :has(by_name, name) == false => :put_last!(names, name)
                 :update!(by_name{name}, icon)
             xx
@@ -43,8 +75,9 @@ else
             if :ends_with(file, ".svg") == false => skip
             name | :stem(file)
             if :slug(name) != name => skip
+            if explicit_brand(root, name) => skip
             if :has(by_name, name) == false => :put_last!(names, name)
-            :update!(by_name{name}, {"name": name, "source": folder{"source"}, "svg": :read_text(file)})
+            :update!(by_name{name}, {"name": name, "source": folder{"source"}, "collection": :lower(folder{"source"}), "svg": :read_text(file)})
         xx
     xx
     icons | []

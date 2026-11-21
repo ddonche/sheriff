@@ -1,4 +1,4 @@
-import build_output as build_output
+import "build-support/output.gbln" as build_output
 /// modules/trailboss_wiki/trailboss.gbln
 /// Wikilinks + routing for Sheriff (JSON-based).
 ///
@@ -9,6 +9,7 @@ import build_output as build_output
 /// Standalone .. is sugar for "" and send is alias for return
 
 import modules/trailboss_wiki/routes_json as rjson
+import modules/trailboss_wiki/destinations as missing
 
 /// ======================================================================
 /// PIPELINES
@@ -24,6 +25,7 @@ act render_fences(ctx)
 xx
 
 act process_wikilinks(ctx)
+    ctx |= prepare_route_lookup(ctx, ctx{"portal"})
     pipeline | [
         "stash_code_for_wikilinks",
         "sweep_wikilinks",
@@ -69,6 +71,9 @@ act build_routes(pre_ctx)
 
     :say("TRAILBOSS: building routes.json for portal = {portal}")
     rjson::build_routes_json_for_portal(portal)
+    /// This snapshot belongs to this build. Refresh it after category generation.
+    :update!(pre_ctx{"trailboss_route_cache"}, {})
+    pre_ctx |= prepare_route_lookup(pre_ctx, portal)
 
     return pre_ctx
 xx
@@ -83,12 +88,15 @@ act init_wanted_pages(pre_ctx)
     out_path | "../site/portals/{portal}/content/wanted-pages.md"
 
     body | """^^^^
-title: Wanted Pages
+title: Missing Pages
 author: Sheriff
 layout: admin
 meta_kind: docs
 meta_type: generated
-summary: Missing wiki pages linked from this site.
+summary: Articles that haven’t been created yet.
+canonical: category:missing-pages
+aliases: [Wanted Pages, Missing Pages]
+generated_by: missing-pages
 ^^^^
 
 Wanted pages are collected while Sheriff renders missing wikilinks."""
@@ -735,106 +743,80 @@ act derive_portal_root_from_ctx(ctx, portal)
     return root
 xx
 
-act load_routes_for_portal(ctx, portal)
-    if portal.nix? => send []
+/// Build-local route tables. Canonical names and aliases keep the original
+/// first-match order; an alias must not override an earlier route's match.
+act route_lookup_index(routes)
+    hrefs | {}
+    glosses | {}
+    slugs | {}
+    for meta in routes
+        if meta.nix? => skip
+        names | [meta{"canonical_slug"} ?? meta{"slug"} ?? ..]
+        if :valtype(meta{"aliases"}) == "array"
+            for alias in meta{"aliases"}
+                :put_last!(names, rjson::normalize_to_slug(alias))
+            xx
+        xx
+        href | meta{"href"} ?? ..
+        for name in names
+            if !href.nix? and !:has(hrefs,name) => :update!(hrefs{name}, href)
+            /// An empty gloss still counts as the first matching route.
+            if !:has(glosses,name) => :update!(glosses{name}, meta{"gloss"} ?? ..)
+        xx
+        route_slug | meta{"slug"} ?? ..
+        if !href.nix? and !route_slug.nix? and !:has(slugs,href)
+            :update!(slugs{href}, route_slug)
+        xx
+    xx
+    return {"routes":routes,"hrefs":hrefs,"glosses":glosses,"slugs":slugs}
+xx
 
+act read_routes_for_portal(ctx, portal)
+    if portal.nix? => return []
     portal_root | derive_portal_root_from_ctx(ctx, portal)
     routes_path | "{portal_root}/routes.json"
-
-    if :file_exists(routes_path) == false => send []
-
-    parsed | :read_json(routes_path) ?? => send []
-
-    routes | parsed{"routes"} ?? => send []
-    if :valtype(routes) != "array" => send []
-
+    if :file_exists(routes_path) == false => return []
+    parsed | :read_json(routes_path) ?? => return []
+    routes | parsed{"routes"} ?? => return []
+    if :valtype(routes) != "array" => return []
     return routes
 xx
 
+act prepare_route_lookup(ctx, portal)
+    if portal.nix? => return ctx
+    cache | ctx{"trailboss_route_cache"} ?? {}
+    if :has(cache,portal) => return ctx
+    :update!(cache{portal}, route_lookup_index(read_routes_for_portal(ctx,portal)))
+    :update!(ctx{"trailboss_route_cache"}, cache)
+    return ctx
+xx
+
+act route_lookup(ctx, portal)
+    cache | ctx{"trailboss_route_cache"}
+    if :valtype(cache) == "map" and :has(cache,portal) => return cache{portal}
+    return route_lookup_index(read_routes_for_portal(ctx,portal))
+xx
+
+act load_routes_for_portal(ctx, portal)
+    return route_lookup(ctx,portal){"routes"}
+xx
+
 act lookup_href_by_slug(ctx, portal, slug)
-    if portal.nix? => send ..
-    if slug.nix?   => send ..
-
-    routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => send ..
-
-    for meta in routes
-        if meta.nix? => skip
-        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
-        if meta_slug == slug
-            href_abs | meta{"href"}
-            if !href_abs.nix? => send href_abs
-        xx
-
-        if :has(meta, "aliases") and :valtype(meta{"aliases"}) == "array"
-            for alias in meta{"aliases"}
-                alias_slug | rjson::normalize_to_slug(alias)
-                if alias_slug == slug
-                    href_abs | meta{"href"}
-                    if !href_abs.nix? => send href_abs
-                xx
-            xx
-        xx
-    xx
-
-    return ..
+    if portal.nix? or slug.nix? => return ..
+    index | route_lookup(ctx,portal)
+    return index{"hrefs"}{slug} ?? ..
 xx
 
 act lookup_gloss_by_slug(ctx, portal, slug)
-    if portal.nix? => send ..
-    if slug.nix?   => send ..
-
-    routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => send ..
-
-    for meta in routes
-        if meta.nix? => skip
-        meta_slug | meta{"canonical_slug"} ?? meta{"slug"} ?? ..
-        if meta_slug == slug
-            if :has(meta, "gloss")
-                g | meta{"gloss"} 
-                if !g.nix? => send g
-            xx
-            send ..
-        xx
-
-        if :has(meta, "aliases") and :valtype(meta{"aliases"}) == "array"
-            for alias in meta{"aliases"}
-                alias_slug | rjson::normalize_to_slug(alias)
-                if alias_slug == slug
-                    if :has(meta, "gloss")
-                        g | meta{"gloss"}
-                        if !g.nix? => send g
-                    xx
-                    send ..
-                xx
-            xx
-        xx
-    xx
-
-    return ..
+    if portal.nix? or slug.nix? => return ..
+    index | route_lookup(ctx,portal)
+    return index{"glosses"}{slug} ?? ..
 xx
 
 act lookup_slug_by_href(ctx, portal, href_abs)
-    if portal.nix?   => send ..
-    if href_abs.nix? => send ..
-
-    routes | load_routes_for_portal(ctx, portal)
-    if :valtype(routes) != "array" => send ..
-
-    href_s | href_abs
-
-    for meta in routes
-        if meta.nix? => skip
-        h | meta{"href"}
-        if h.nix? => skip
-        if (h) == href_s
-            s | meta{"slug"}
-            if !s.nix? => send s
-        xx
-    xx
-
-    return ..
+    if portal.nix? or href_abs.nix? => return ..
+    index | route_lookup(ctx,portal)
+    return index{"slugs"}{href_abs} ?? ..
 xx
 
 /// ======================================================================
@@ -932,56 +914,117 @@ act icon_size(value)
     return :str(size)
 xx
 
+/// Icon URLs deliberately accept only web URLs, site paths, and fragment links.
+act icon_link_valid(link)
+    if link.nix? or link.len > 2048 => return false
+    if :starts_with(link, "//") => return false
+    if (:starts_with(:lower(link), "https://") or :starts_with(:lower(link), "http://"))
+        host | :keep_after(link, "://") ?? ""
+        if host.nix? or :starts_with(host, "/") or :starts_with(host, "?") or :starts_with(host, "#") => return false
+    elif :starts_with(link, "/") == false and :starts_with(link, "#") == false
+        return false
+    xx
+    allowed | "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:/?#@!$&()*+,-._~=%"
+    for char in :split(link, "")
+        if :has(allowed, char) == false => return false
+    xx
+    return true
+xx
+
+/// Navigation owns its destination. Suppress an icon's optional link there so
+/// icon markup can never create nested anchors inside a menu link.
+act render_nav_icon(inner, portal)
+    parts | :split(inner, "|")
+    if parts.len == 5
+        inner |= "{parts[0]}|{parts[1]}|{parts[2]}|{parts[3]}"
+    xx
+    return render_icon(inner, portal)
+xx
+
 act render_icon(inner, portal)
     parts | :split(inner, "|")
-    name, color, size | ""
-    if parts.len > 3 => size |= icon_size(parts[3])
+    name, color, size, link | ""
     if parts.len > 1 => name |= :trim(parts[1])
     if parts.len > 2 => color |= :trim(parts[2])
+    if parts.len > 3 => size |= icon_size(parts[3])
+    if parts.len > 4 => link |= :trim(parts[4])
+    /// Keep color|size working. Also accept size|color when the first option
+    /// is a valid pixel size; CSS colors cannot be bare whole numbers.
+    if parts.len > 2 and !icon_size(parts[2]).nix?
+        size |= icon_size(parts[2])
+        color |= ""
+        if parts.len > 3 => color |= :trim(parts[3])
+    xx
     valid | icon_name_valid(name)
-    exists | false
     extension | "svg"
-    if valid and parts.len <= 4
-        if !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
-            exists |= true
-        elif !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.png")
-            exists |= true
-            extension |= "png"
-        elif :file_exists("assets/icons/{name}.svg")
-            exists |= true
+    icon_source, brand_name | ""
+    if valid and parts.len <= 5
+        if :starts_with(name, "brand-")
+            slug | :keep_after(name, "brand-") ?? ""
+            if icon_name_valid(slug) and :file_exists("assets/simple-icons/icons/{slug}.svg")
+                icon_source |= "assets/simple-icons/icons/{slug}.svg"
+                brand_name |= slug
+            xx
+        xx
+        if icon_source.nix?
+            if !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.svg")
+                icon_source |= "../site/portals/{portal}/public/icons/{name}.svg"
+            elif !portal.nix? and :file_exists("../site/portals/{portal}/public/icons/{name}.png")
+                icon_source |= "../site/portals/{portal}/public/icons/{name}.png"
+                extension |= "png"
+            elif :file_exists("assets/icons/{name}.svg")
+                icon_source |= "assets/icons/{name}.svg"
+            elif :file_exists("assets/simple-icons/icons/{name}.svg")
+                icon_source |= "assets/simple-icons/icons/{name}.svg"
+                brand_name |= name
+            xx
         xx
     xx
-    if exists == false
+    if icon_source.nix?
         safe | escape_attr(escape_text(name))
         return "<span class=\"sheriff-icon-missing\" role=\"img\" aria-label=\"Unknown icon: {safe}\" title=\"Unknown icon: {safe}\">?</span>"
     xx
-    /// Publish the referenced asset during the normal render schedule. This also
-    /// supports fresh single-page Cloud output without running pre/post schedules.
-    icon_source | "assets/icons/{name}.svg"
-    if :file_exists("../site/portals/{portal}/public/icons/{name}.{extension}")
-        icon_source |= "../site/portals/{portal}/public/icons/{name}.{extension}"
+    if :lower(color) == "brand"
+        color |= ""
+        if !brand_name.nix?
+            color |= :keep_between(:read_text(icon_source), "data-brand-color=\"", "\"") ?? ""
+        xx
     xx
+    /// Referenced assets publish during the page schedule, including fresh
+    /// single-page output. No provider request occurs on the visitor's browser.
     icon_output | (build_output::directory(portal) + "/public/icons")
     :create_dir!(icon_output)
     if :file_exists("{icon_output}/{name}.{extension}") == false
         :copy_file!(icon_source, "{icon_output}/{name}.{extension}")
     xx
-    if :file_exists("assets/lucide/LICENSE.txt") and :file_exists("{icon_output}/LUCIDE-LICENSE.txt") == false
-        :copy_file!("assets/lucide/LICENSE.txt", "{icon_output}/LUCIDE-LICENSE.txt")
+    license_source | "assets/lucide/LICENSE.txt"
+    license_name | "LUCIDE-LICENSE.txt"
+    if !brand_name.nix?
+        license_source |= "assets/simple-icons/LICENSE.md"
+        license_name |= "SIMPLE-ICONS-LICENSE.txt"
+        if :file_exists("assets/simple-icons/DISCLAIMER.md") and :file_exists("{icon_output}/SIMPLE-ICONS-DISCLAIMER.txt") == false
+            :copy_file!("assets/simple-icons/DISCLAIMER.md", "{icon_output}/SIMPLE-ICONS-DISCLAIMER.txt")
+        xx
     xx
-
+    if :file_exists(license_source) and :file_exists("{icon_output}/{license_name}") == false
+        :copy_file!(license_source, "{icon_output}/{license_name}")
+    xx
     color_style | ""
-    if extension == "svg" and icon_color_valid(color)
-        color_style |= "color:{color};"
-    xx
-    if !size.nix?
-        color_style |= color_style + "--sheriff-icon-size:{size}px;"
-    xx
+    if extension == "svg" and icon_color_valid(color) => color_style |= "color:{color};"
+    if !size.nix? => color_style |= color_style + "--sheriff-icon-size:{size}px;"
+    html | ""
     if extension == "png"
-        return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" data-sheriff-icon-format=\"png\" role=\"img\" aria-label=\"{name}\" style=\"background-color:transparent;-webkit-mask:none;mask:none;background-image:url('/public/icons/{name}.png');background-position:center;background-size:contain;background-repeat:no-repeat;{color_style}\"></span>"
+        html |= "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" data-sheriff-icon-format=\"png\" role=\"img\" aria-label=\"{name}\" style=\"background-color:transparent;-webkit-mask:none;mask:none;background-image:url('/public/icons/{name}.png');background-position:center;background-size:contain;background-repeat:no-repeat;{color_style}\"></span>"
+    else
+        html |= "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" role=\"img\" aria-label=\"{name}\" style=\"--sheriff-icon-url:url('/public/icons/{name}.svg');{color_style}\"></span>"
     xx
-    return "<span class=\"sheriff-icon\" data-sheriff-icon=\"{name}\" role=\"img\" aria-label=\"{name}\" style=\"--sheriff-icon-url:url('/public/icons/{name}.svg');{color_style}\"></span>"
+    if icon_link_valid(link)
+        href | escape_attr(escape_text(link))
+        return "<a class=\"sheriff-icon-link\" href=\"{href}\" aria-label=\"{name}\">{html}</a>"
+    xx
+    return html
 xx
+
 
 act missing_page_href()
     return "/docs/missing.html"
@@ -1259,11 +1302,13 @@ act resolve_wikilink(inner, ctx, portal)
             slug | normalize_to_slug(page)
             if slug.nix? => send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
 
-            href  | lookup_href_by_slug(ctx, portal_name, slug) ?? missing_page_href()
+            href  | lookup_href_by_slug(ctx, portal_name, slug)
+            unresolved | href.nix?
+            if unresolved => href |= missing::href(portal_name,slug)
             klass | "sheriff-link"
             title | ..
 
-            if href == missing_page_href()
+            if unresolved
                 klass |= " sheriff-missing-link"
             xx
 
@@ -1292,11 +1337,13 @@ act resolve_wikilink(inner, ctx, portal)
                 send build_wikilink_html(missing_page_href(), display_label, false, "sheriff-link sheriff-missing-link", ..)
             xx
 
-            href  | lookup_href_by_slug(ctx, portal, slug) ?? missing_page_href()
+            href  | lookup_href_by_slug(ctx, portal, slug)
+            unresolved | href.nix?
+            if unresolved => href |= missing::href(portal,slug)
             klass | "sheriff-link"
             title | ..
 
-            if href == missing_page_href()
+            if unresolved
                 klass |= " sheriff-missing-link"
             xx
 
@@ -1369,6 +1416,10 @@ act sweep_wikilinks(wl)
                 skip
             xx
 
+            if :starts_with(core, "p/")
+                external_portal | :keep_between(core, "p/", "/")
+                if !external_portal.nix? => ctx |= prepare_route_lookup(ctx,external_portal)
+            xx
             repl_raw |= resolve_wikilink(self, ctx, portal) ?? => skip
 
             repl |= repl_raw ?? => skip
@@ -1665,6 +1716,7 @@ act publish_canonical_link(ctx)
     slug      | normalize_to_slug(stem_name) ?? ..
 
     canonical | "[[{slug}]]"
+    if ctx{"missing_generated"} == true => canonical |= "[[" + (ctx{"missing_slug"} ?? "Category:Missing Pages") + "]]"
     canonical_slug, wikilink | ..
 
     href | ctx{"href"} ?? ..
@@ -1857,7 +1909,9 @@ act publish_categories(ctx)
     categories | []
 
     href | ctx{"href"} ?? ..
-    if !href.nix?
+    /// Scheduled page metadata is authoritative. Old route metadata must not
+    /// restore categories the author removed from the current source.
+    if !href.nix? and :has(ctx, "frontmatter") == false
         routes | load_routes_for_portal(ctx, portal)
         if :valtype(routes) == "array"
             for meta in routes
@@ -1982,6 +2036,16 @@ act write_backlinks_once(pre_ctx)
     routes | rjson::load_routes_json(portal)
     if :valtype(routes) != "array" => send pre_ctx
 
+    /// Group once rather than scanning every link again for every article.
+    by_target | {}
+    for entry in backlinks
+        if entry.nix? => skip
+        target | entry{"target_href"} ?? => skip
+        group | by_target{target} ?? []
+        :put_last!(group,entry)
+        :update!(by_target{target},group)
+    xx
+
     for meta in routes
         if meta.nix? => skip
 
@@ -1991,7 +2055,7 @@ act write_backlinks_once(pre_ctx)
         seen | []
         sources | []
 
-        for entry in backlinks
+        for entry in by_target{href} ?? []
             if entry.nix? => skip
 
             target_href | entry{"target_href"} ?? ..
@@ -2024,206 +2088,15 @@ act write_backlinks_once(pre_ctx)
     return pre_ctx
 xx
 
+/// The directory and placeholders are module-owned generated output.
 act build_wanted_pages_once(pre_ctx)
-    if pre_ctx.nix? => send pre_ctx
+    return missing::publish(pre_ctx,true)
+xx
 
-    portal | pre_ctx{"portal"} ?? => send pre_ctx
-
-    schedule | pre_ctx{"schedule"} ?? => send pre_ctx
-    wanted   | pre_ctx{"wanted_pages"}
-
-    if wanted == nil or :valtype(wanted) != "array"
-        wanted |= []
-    xx
-
-    md_path  | "../site/portals/{portal}/content/wanted-pages.md"
-    out_file | (build_output::directory(portal) + "/wanted-pages.html")
-
-    frontmatter | """^^^^
-title: Wanted Pages
-author: Sheriff
-layout: admin
-meta_kind: docs
-meta_type: generated
-summary: Missing wiki pages linked from this site.
-^^^^
-"""
-
-    lines | [frontmatter]
-
-    if wanted.nix?
-        :put_last!(lines, "No wanted pages.")
-    else
-        seen | []
-        rows | []
-        count_keys | []
-        wanted_blocks | []
-
-        for entry in wanted
-            if entry.nix? => skip
-
-            slug | entry{"slug"} ?? => skip
-            entry_portal | entry{"portal"} ?? portal
-            key | "{entry_portal}:{slug}"
-
-            if :has(seen, key)
-                skip
-            xx
-
-            :put_last!(seen, key)
-
-            title | entry{"title"} ?? entry{"target"} ?? entry{"slug"} ?? "missing"
-            count | 0
-
-            for item in wanted
-                if item.nix? => skip
-                item_slug | item{"slug"} ?? => skip
-                item_portal | item{"portal"} ?? portal
-
-                if item_slug == slug
-                    if item_portal == entry_portal
-                        count += 1
-                    xx
-                xx
-            xx
-
-            sort_key | "{count}"
-
-            if count < 10
-                sort_key |= "00000{count}"
-            elif count < 100
-                sort_key |= "0000{count}"
-            elif count < 1000
-                sort_key |= "000{count}"
-            elif count < 10000
-                sort_key |= "00{count}"
-            elif count < 100000
-                sort_key |= "0{count}"
-            xx
-
-            :put_last!(rows, "{sort_key}|||{title}|||{count}|||{entry_portal}|||{slug}")
-
-            if :has(count_keys, sort_key) == false
-                :put_last!(count_keys, sort_key)
-            xx
-        xx
-
-        sorted_rows | :sort(rows)
-        sorted_count_keys | :sort(count_keys)
-        wanted_count_keys | []
-
-        for count_key in sorted_count_keys
-            :put_first!(wanted_count_keys, count_key)
-        xx
-
-        for count_key in wanted_count_keys
-            for row in sorted_rows
-                if :starts_with(row, "{count_key}|||") == false
-                    skip
-                xx
-
-                title | :keep_between(row, "|||", "|||") ?? => skip
-                rest1 | :keep_after(row, "|||{title}|||") ?? => skip
-                count | :keep_before(rest1, "|||") ?? 0
-                rest2 | :keep_after(rest1, "|||") ?? => skip
-                entry_portal | :keep_before(rest2, "|||") ?? portal
-                slug | :keep_after(rest2, "|||") ?? => skip
-
-                source_seen | []
-                source_lines | []
-
-                for item in wanted
-                    if item.nix? => skip
-
-                    item_slug | item{"slug"} ?? => skip
-                    item_portal | item{"portal"} ?? portal
-
-                    if item_slug == slug
-                        if item_portal == entry_portal
-                            source_href | item{"source_href"} ?? => skip
-                            source_title | item{"source_title"} ?? source_href
-
-                            if :has(source_seen, source_href) == false
-                                source_href_safe | escape_attr(source_href)
-                                source_title_safe | escape_text(source_title)
-
-                                :put_last!(source_seen, source_href)
-                                :put_last!(source_lines, "<a class=\"sheriff-link\" href=\"{source_href_safe}\">{source_title_safe}</a>")
-                            xx
-                        xx
-                    xx
-                xx
-
-                source_count | source_lines.len
-                source_word | "pages"
-                if source_count == 1
-                    source_word |= "page"
-                xx
-
-                count_word | "links"
-                if count == "1"
-                    count_word |= "link"
-                xx
-
-                sources_md | :join(source_lines, "\n")
-                title_safe | escape_text(title)
-                missing_href_safe | escape_attr(missing_page_href())
-
-                block | """
-<details class="sheriff-wanted-item">
-  <summary class="sheriff-wanted-summary">
-    <span class="sheriff-wanted-toggle" aria-hidden="true"></span>
-    <span class="sheriff-wanted-title"><a class="sheriff-link sheriff-missing-link" href="{missing_href_safe}">{title_safe}</a></span>
-    <span class="sheriff-wanted-count">{count} incoming {count_word}</span>
-    <span class="sheriff-wanted-sources">{source_count} source {source_word}</span>
-  </summary>
-  <div class="sheriff-wanted-source-panel">
-{sources_md}
-  </div>
-</details>
-"""
-
-                :put_last!(wanted_blocks, block)
-            xx
-        xx
-
-        wanted_items | :join(wanted_blocks, "\n")
-        wanted_html | """
-<div class="sheriff-wanted-list">
-{wanted_items}
-</div>
-"""
-
-        :put_last!(lines, wanted_html)
-    xx
-
-    :write_text!(md_path, :join(lines, "\n"))
-
-    ctx | {
-        "body": :join(lines, "\n"),
-        "frontmatter": {},
-        "tokens": {},
-        "path": md_path,
-        "portal": portal,
-        "href": "",
-        "wanted_pages": wanted,
-        "schedule": schedule
-    }
-
-    for k in :keys(pre_ctx)
-        if k == "portal"
-            skip
-        xx
-
-        :update!(ctx{k}, pre_ctx{k})
-    xx
-
-    :clear_tokens("SLOT")
-
-    ctx |= :summon(ctx, schedule)
-
-    :create_dir!(build_output::directory(portal))
-    :write_text!(out_file, ctx{"body"})
-
-    return pre_ctx
+/// Called last in the page schedule; full builds consolidate after workers end.
+act publish_missing_destinations(ctx)
+    if ctx{"missing_generated"} == true => return ctx
+    ctx |= missing::collect(ctx)
+    if ctx{"build_mode"} == "page" => ctx |= missing::publish(ctx)
+    return ctx
 xx

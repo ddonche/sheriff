@@ -15,7 +15,7 @@ Each source path below currently has a `.py` and `.ps1` implementation.
 | Capability | Helper path under `sheriff-core/` | Goblin caller |
 | --- | --- | --- |
 | Create seeded articles and save the plan | `modules/trailboss_wiki/seed-support/write` | `modules/trailboss_wiki/seeder.gbln` |
-| Fresh build output, activation, rollback and private retention | `build-support/lifecycle` | `build_output.gbln` |
+| Fresh build output, activation, rollback and private retention | `build-support/lifecycle` | `build-support/output.gbln` |
 | Background local builds and live stdout/stderr | `desk/api/build-support/progress` | `desk/api/build_progress.gbln` |
 | Snapshot creation, listing, download, restore and deletion | `desk/api/snapshot-support/snapshots` | `desk/api/snapshots.gbln` |
 | Read and validate uploaded PNG icons | `desk/api/icon-support/png-icons` | `desk/api/list_icons.gbln` |
@@ -64,3 +64,12 @@ Source evidence: the local Goblin checkout at `C:/Users/kc516/Desktop/GoblinLang
 6. Remove all helper subprocess calls and source/generated copies only after their Goblin replacements pass on Windows and Linux. No shell-language substitute.
 7. Sync the tested Core into Cloud, update its integrity lock and verify packaging/runtime requirements. Exclude local portals and credentials; do not overwrite production sources.
 8. Remove Python from the production image only after auditing Cloud's own tooling and validation dependencies. Sheriff helper removal alone does not prove that the separate Cloud repository no longer uses it.
+
+## Runtime completion follow-up — observed 2026-11-15
+
+Goblin 0.51.26 can print the final main.gbln exit footer after a pre-schedule error while actor teardown leaves the process alive. The existing process bridges retire that specific completed child after a brief graceful-exit window; the original build exit code and error remain visible. Native runtime shutdown should eventually finish promptly on both success and failure so this bridge workaround can be removed. No runtime recompile or new helper language was added for this correction.
+
+
+## YALL quoted keys containing URLs
+
+Observed on Goblin 0.51.26 while testing linked brand icons (2026-11-16): a colon inside a quoted map key, such as an HTTPS URL embedded in an icon token in a nav.yall label, is treated as a mapping separator. Keep navigation URLs in the menu destination value; icon labels can use name, color, and size. Ordinary linked-icon syntax with full URLs works in article content and patterns. A future Goblin YALL parser fix should respect quotes when finding mapping separators. No alternate parser was introduced.

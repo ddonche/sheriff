@@ -18,7 +18,7 @@
   var wired = false;
   var portals = [], PORT = "5173";
   var els = {};
-  var saving = false;
+  var saving = false, imageRequest = 0, inventoryRequest = 0;
   var S = null; // { portal, imagePath, sidecarPath, model, sel, fit, ox, oy, dirty, icons }
   var IMG_EXT = { png:1, jpg:1, jpeg:1, gif:1, webp:1, svg:1, avif:1 };
   var ICON_ROOT = "public/images/icons";
@@ -49,7 +49,7 @@
   }
   function apiWrite(portal, path, content){
     var q = "portal="+encodeURIComponent(portal)+"&path="+encodeURIComponent(path);
-    return mutation("/api/file?write&"+q,{method:"POST",body:content})
+    return mutation("/api/file?write&"+q+"&build=none",{method:"POST",body:content})
       .then(function(r){return r.json();}).catch(function(){return {ok:false,stderr:"API unreachable"};});
   }
   function apiUpload(portal, path, file){
@@ -76,6 +76,7 @@
     if (!els.portal) return;
     if (window.SheriffPortalContext) window.SheriffPortalContext.mount(els.portal);
     if (els.portal.value && (!S || S.portal !== els.portal.value)) loadPortal();
+    else if (S) refreshInventory();
   }
 
   function cacheEls(){
@@ -114,7 +115,7 @@
       e.preventDefault(); e.dataTransfer.dropEffect = "copy";
     });
     els.canvas.addEventListener("drop", function(e){
-      if (!S || !S.imagePath) return;
+      if (!S || !S.imagePath || !S.model) return;
       var icon = e.dataTransfer.getData("text/ii-icon");
       if (!icon) return;
       e.preventDefault();
@@ -152,9 +153,12 @@
     resetCanvas();
     status("");
     if (!S.portal) return;
-    var state = S;
+    refreshInventory();
+  }
+  function refreshInventory(){
+    var state = S, request = ++inventoryRequest;
     apiList(state.portal).then(function(data){
-      if (S !== state) return;
+      if (S !== state || request !== inventoryRequest || data.ok === false) return;
       var files = (data && Array.isArray(data.files)) ? data.files.map(String) : [];
       var dirs  = (data && Array.isArray(data.dirs))  ? data.dirs.map(String)  : [];
       // images to annotate: public/images/*, excluding the icons tree and sidecars
@@ -168,6 +172,10 @@
         o.value = f; o.textContent = f.slice("public/images/".length);
         els.image.appendChild(o);
       });
+      if (state.imagePath && !imgs.includes(state.imagePath)) {
+        var missing = document.createElement("option"); missing.value = state.imagePath; missing.textContent = state.imagePath + " (missing)"; els.image.appendChild(missing);
+      }
+      els.image.value = state.imagePath || "";
       computeIcons(files, dirs);
       renderIcons();
     });
@@ -192,16 +200,8 @@
 
   function reloadIcons(){
     if (!S) return;
-    var state = S;
-    apiList(state.portal).then(function(data){
-      if (S !== state) return;
-      var files = (data && Array.isArray(data.files)) ? data.files.map(String) : [];
-      var dirs  = (data && Array.isArray(data.dirs))  ? data.dirs.map(String)  : [];
-      computeIcons(files, dirs);
-      renderIcons();
-    });
+    refreshInventory();
   }
-
   function renderIconCrumbs(){
     els.iconCrumbs.innerHTML = "";
     // path relative to ICON_ROOT, shown as "icons > set > ..."
@@ -313,6 +313,8 @@
 
   // ---------- image select ----------
   function selectImage(path){
+    if (saving) { els.image.value = S.imagePath || ""; return; }
+    var request = ++imageRequest;
     if (S && S.dirty && path !== S.imagePath &&
         !window.confirm("Discard unsaved marker changes?")){
       els.image.value = S.imagePath || ""; return;
@@ -320,6 +322,7 @@
     if (!path){ S.imagePath = null; els.save.disabled = true; resetCanvas(); return; }
     S.imagePath = path;
     S.sidecarPath = path + ".json";
+    S.model = null; els.save.disabled = true; els.markers.replaceChildren(); select(null);
     S.sel = null; S.dirty = false;
     els.canvasEmpty.hidden = true;
     els.img.hidden = false;
@@ -329,9 +332,9 @@
     var state = S, imagePath = path;
     var probe = new Image();
     probe.onload = function(){
-      if (S !== state || S.imagePath !== imagePath) return;
+      if (S !== state || S.imagePath !== imagePath || request !== imageRequest) return;
       apiRead(state.portal, state.sidecarPath).then(function(res){
-        if (S !== state || S.imagePath !== imagePath) return;
+        if (S !== state || S.imagePath !== imagePath || request !== imageRequest) return;
         var model = null;
         if (res && res.ok && res.content){
           try { model = JSON.parse(res.content); } catch(e){ model = null; }
@@ -346,7 +349,7 @@
       });
     };
     probe.onerror = function(){
-      if (S !== state || S.imagePath !== imagePath) return;
+      if (S !== state || S.imagePath !== imagePath || request !== imageRequest) return;
       S.model = { version:1, image:{width:0,height:0}, markers:[] };
       status("Could not load image \u2014 build the portal first?");
       els.save.disabled = false;
@@ -365,6 +368,7 @@
 
   // ---------- fit / projection ----------
   function computeFit(){
+    if (!S || !S.model) return;
     var cw = els.canvas.clientWidth, ch = els.canvas.clientHeight;
     var iw = S.model.image.width, ih = S.model.image.height;
     if (!iw || !ih){ S.fit=1; S.ox=0; S.oy=0; return; }
@@ -474,19 +478,24 @@
   }
 
   function save(){
-    if (!S || !S.imagePath) return;
+    if (!S || !S.imagePath || saving || !S.model) return;
+    var state = S, submitted = serialize();
+    els.image.disabled = true;
     status("Saving\u2026");
     saving = true;
     els.save.disabled = true;
-    apiWrite(S.portal, S.sidecarPath, serialize()).then(function(res){
-      saving = false;
+    apiWrite(state.portal, state.sidecarPath, submitted).then(function(res){
+      saving = false; els.image.disabled = false;
+      if (S !== state) return;
       els.save.disabled = false;
-      if (res && res.ok !== false){ S.dirty = false; status("Saved \u2014 portal rebuilt"); }
+      if (res && res.ok !== false){ S.dirty = serialize() !== submitted; status(S.dirty ? "Saved — newer marker edits unsaved" : "Saved — no build run"); }
       else status((res && res.stderr) || "Save failed");
     });
   }
 
   function reset(){
+    imageRequest++; inventoryRequest++;
+    if (els.image) els.image.disabled = false;
     if (!wired) { S = null; return; }
     S = null; els.save.disabled = true;
     resetCanvas();

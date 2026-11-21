@@ -6,6 +6,22 @@
   'use strict';
 
   const PORT = location.port || '5173';
+
+  // One navigation rail for every Desk workspace; labels remain accessible.
+  const deskShell=document.querySelector('.shell'),sidebarToggle=document.getElementById('desk-sidebar-toggle');
+  const sidebarIcons={"open":"<svg aria-hidden=\"true\" focusable=\"false\"\n  class=\"lucide lucide-panel-left-open\"\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n>\n  <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />\n  <path d=\"M9 3v18\" />\n  <path d=\"m14 9 3 3-3 3\" />\n</svg>","close":"<svg aria-hidden=\"true\" focusable=\"false\"\n  class=\"lucide lucide-panel-left-close\"\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n>\n  <rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />\n  <path d=\"M9 3v18\" />\n  <path d=\"m16 15-3-3 3-3\" />\n</svg>"};
+  for(const link of document.querySelectorAll('#desk-navigation a[data-view]')){
+    const name=link.textContent.trim();link.setAttribute('aria-label',name);link.title=name;
+    for(const node of Array.from(link.childNodes))if(node.nodeType===Node.TEXT_NODE&&node.textContent.trim()){const label=document.createElement('span');label.className='nav-copy';label.textContent=node.textContent.trim();node.replaceWith(label);}
+  }
+  function setSidebarCollapsed(collapsed){
+    deskShell.classList.toggle('sidebar-collapsed',collapsed);sidebarToggle.innerHTML=sidebarIcons[collapsed?'open':'close'];
+    sidebarToggle.setAttribute('aria-expanded',String(!collapsed));sidebarToggle.title=collapsed?'Expand navigation':'Collapse navigation';sidebarToggle.setAttribute('aria-label',sidebarToggle.title);
+    try{localStorage.setItem('desk.sidebarCollapsed',String(collapsed));}catch{}
+  }
+  let sidebarCollapsed=false;try{sidebarCollapsed=localStorage.getItem('desk.sidebarCollapsed')==='true';}catch{}
+  setSidebarCollapsed(sidebarCollapsed);sidebarToggle.addEventListener('click',()=>setSidebarCollapsed(!deskShell.classList.contains('sidebar-collapsed')));
+
   const portalContext = window.SheriffPortalContext;
 
   // Keep the portal stable until a mutating API response has finished arriving.
@@ -91,14 +107,15 @@
     navigation: { el: 'view-navigation' },
     themes:     { el: 'view-themes' },
     config:     { el: 'view-config' },
+    modules:    { el: 'view-modules' },
     snapshots:  { el: 'view-snapshots' },
-    cloud:      { el: 'view-cloud' },
-    settings:   { el: 'view-placeholder', title: 'Settings',
-                  text: 'Desk settings \u2014 nothing to set yet. Your site\u2019s configuration lives under Config.' }
+    settings:   { el: 'view-settings' }
   };
 
-  const phTitle = document.getElementById('ph-title');
-  const phText = document.getElementById('ph-text');
+  const hosted = window.SheriffDeskBackend.mode === 'cloud';
+  document.getElementById('settings-cloud').hidden = hosted;
+  document.getElementById('settings-hosted-note').hidden = !hosted;
+  document.getElementById('settings-account').addEventListener('click', () => document.getElementById('dashboard-cloud-connect').click());
 
   function currentViewKey() {
     const key = location.hash.replace('#', '') || 'dashboard';
@@ -106,12 +123,13 @@
   }
 
   function showView() {
+    if(location.hash==='#cloud')history.replaceState(null,'','#portals');
     const key = currentViewKey();
     if (window.SheriffSnapshots && window.SheriffSnapshots.isBlocking() && key !== 'snapshots') {
       location.hash = '#snapshots'; say('Wait for the snapshot operation to finish.'); return;
     }
     if (window.SheriffSnapshots && window.SheriffSnapshots.isArchived(portalContext.current)
-        && ['content','media','interactive','patterns','navigation','config','themes'].includes(key)) {
+        && ['content','media','interactive','patterns','navigation','config','modules','themes'].includes(key)) {
       location.hash = '#snapshots'; say('Restore this portal from a snapshot before editing it.'); return;
     }
     const view = VIEWS[key];
@@ -119,22 +137,18 @@
     document.querySelectorAll('.view').forEach(v => { v.hidden = true; });
     document.getElementById(view.el).hidden = false;
 
-    if (view.el === 'view-placeholder') {
-      phTitle.textContent = view.title;
-      phText.textContent = view.text;
-    }
 
     document.querySelectorAll('[data-view]').forEach(n => {
       n.classList.toggle('active', n.dataset.view === key);
     });
 
-    if (key === 'cloud' && window.SheriffCloudSync) window.SheriffCloudSync.enter();
     if (key === 'content') editorEnter();
     if (key === 'portals') renderManageList();
     if (key === 'media') mediaEnter();
     if (key === 'interactive' && window.SheriffInteractive) window.SheriffInteractive.enter(portalNames, PORT);
     if (key === 'navigation') nvEditor.enter();
-    if (key === 'config') cfEditor.enter();
+    if (key === 'config') configEnter();
+    if (key === 'modules') { if (!window.SheriffModuleConfig.enter()) { location.hash='#config'; return; } window.SheriffModules.enter(); }
     if (key === 'themes') themesEnter();
     if (key === 'patterns') patternsEnter();
     if (key === 'icons' && window.SheriffIcons) window.SheriffIcons.enter();
@@ -151,7 +165,8 @@
   }
 
   async function buildPortal(name, btn) {
-    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    const label=btn?.querySelector('[data-portal-action-label]')||btn;
+    if (btn) { btn.disabled = true; label.textContent = 'Building…'; }
     try {
       const res = await fetch('/api/build?' + encodeURIComponent(name));
       const data = await res.json();
@@ -164,7 +179,7 @@
       say('API unreachable — is goblin start running?');
       return false;
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Build portal'; }
+      if (btn) { btn.disabled = false; label.textContent = 'Build portal'; }
     }
   }
 
@@ -186,7 +201,9 @@
     list.innerHTML = '';
     names.forEach(name => {
       const node = tmpl.content.cloneNode(true);
+      node.querySelector('.portal').dataset.portal=name;
       node.querySelector('.portal-name').textContent = name;
+      node.querySelector('.portal-icon-slot').replaceWith(portalContext.createIcon(name));
 
       const siteUrl = window.SheriffDeskBackend.portalUrl(name);
       const host = new URL(siteUrl).host;
@@ -208,10 +225,13 @@
     });
   }
 
+  let portalListRequest=0;
   async function loadPortals(preferred) {
+    const request=++portalListRequest,revision=portalContext.revision;
     try {
       const res = await fetch('/api/portals');
       const data = await res.json();
+      if(request!==portalListRequest)return;
       portalNames = Array.isArray(data.portals) ? data.portals : [];
 
       if (portalNames.length === 0) {
@@ -223,11 +243,14 @@
         statPortals.textContent = String(portalNames.length) + ' detected';
         statPortals.classList.remove('placeholder');
       }
-      if (window.SheriffSnapshots) window.SheriffSnapshots.setSourcePortals(portalNames, preferred || window.SheriffDeskBackend.preferredPortal);
-      else portalContext.setPortals(portalNames, {preferred:preferred || window.SheriffDeskBackend.preferredPortal});
-      loadPortalIdentity(portalContext.current);
+      const target=revision===portalContext.revision?preferred||window.SheriffDeskBackend.preferredPortal:portalContext.current;
+      if (window.SheriffSnapshots) window.SheriffSnapshots.setSourcePortals(portalNames, target);
+      else portalContext.setPortals(portalNames, {preferred:target});
+      portalNames.forEach(portal=>void loadPortalIdentity(portal));
       fillPortalSelect();
+      await window.SheriffSites?.refresh();
     } catch (err) {
+      if(request!==portalListRequest)return;
       emptyState(window.SheriffDeskBackend.mode === 'cloud' ? (err.message || 'Cloud could not load your sites.') : 'API unreachable — start Sheriff with goblin start from dist.');
       statPortals.textContent = 'Unknown';
     }
@@ -277,11 +300,14 @@
       div.className = 'portal-empty';
       div.textContent = 'No portals yet. Create your first one above.';
       manageList.appendChild(div);
+      window.SheriffCloudSync?.decoratePortals();
       return;
     }
     portalNames.forEach(name => {
       const node = manageTmpl.content.cloneNode(true);
+      node.querySelector('.portal').dataset.portal=name;
       node.querySelector('.portal-name').textContent = name;
+      node.querySelector('.portal-icon-slot').replaceWith(portalContext.createIcon(name));
 
       const siteUrl = window.SheriffDeskBackend.portalUrl(name);
       const host = new URL(siteUrl).host;
@@ -298,6 +324,7 @@
         buildPortal(name, e.currentTarget);
       });
       node.querySelector('.portal-seed').addEventListener('click', () => window.SheriffSeeding.open(name));
+      for(const action of ['rename','delete']){const button=node.querySelector('.portal-'+action),label=(action==='rename'?'Rename ':'Delete ')+name;button.title=label;button.setAttribute('aria-label',label);}
       node.querySelector('.portal-rename').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
       node.querySelector('.portal-delete').hidden = !window.SheriffDeskBackend.capabilities.siteLifecycle;
       node.querySelector('.portal-rename').addEventListener('click', () => {
@@ -309,6 +336,9 @@
 
       manageList.appendChild(node);
     });
+    window.SheriffSites?.groupCards(manageList);
+    window.SheriffCloudSync?.decoratePortals();
+    window.dispatchEvent(new Event('sheriff:portal-cards-rendered'));
   }
 
   npName.addEventListener('input', () => {
@@ -320,6 +350,7 @@
   npCreate.addEventListener('click', createPortal);
 
   async function createPortal() {
+    if(window.SheriffSites?.current?.grouped){openWizard({site:window.SheriffSites.current});return;}
     const name = npName.value.trim();
     if (!name) { say('Enter a portal name'); return; }
     if (!PORTAL_NAME_RE.test(name)) {
@@ -347,11 +378,9 @@
       }
       npName.value = '';
       npPreview.textContent = 'name';
-      say('Portal created \u2014 building\u2026');
+      say('Portal created. Build it when ready.');
       await loadPortals();
       renderManageList();
-      const ok = await buildPortal(name, null);
-      if (ok) say(name + ' is ready at ' + name + '.localhost:' + PORT);
     } catch (err) {
       say(err.message || 'API unreachable');
     } finally {
@@ -377,6 +406,8 @@
     rpTarget = name;
     rpOld.textContent = name;
     rpName.value = name;
+    const hosted=window.SheriffDeskBackend.mode==='cloud';
+    rpOld.textContent=hosted?name+' — changing this address requires a new build before the site is available at its new address.':name;
     rpErr.hidden = true;
     rpBtn.disabled = false;
     rpBtn.textContent = 'Rename';
@@ -430,7 +461,7 @@
       }
 
       closeRenamePortal();
-      say('Renamed ' + from + ' to ' + to);
+      say('Renamed ' + from + ' to ' + to + '. Build it when ready.');
       const preferred = portalContext.current === from ? to : undefined;
 
       // The editor was pointed at a portal that no longer exists under that name.
@@ -451,15 +482,7 @@
       await loadPortals(preferred);
       renderManageList();
 
-      // dist/{from} was discarded, so the portal is unserved until this finishes.
-      say('Rebuilding ' + to + '\u2026');
-      const b = await fetch('/api/build?' + encodeURIComponent(to));
-      const bd = await apiJson(b);
-      if (buildFailed(bd)) {
-        say('Renamed, but the rebuild failed. Build it from its card.');
-        return;
-      }
-      say('Renamed and rebuilt ' + to);
+      // The renamed portal needs an explicit build at its new address.
     } catch (err) {
       rpError(err.message || 'API unreachable');
       rpBtn.disabled = false;
@@ -469,7 +492,7 @@
 
   async function deletePortal(name) {
     const typed = window.prompt(
-      'This deletes the portal source AND its built output. It cannot be undone.\n\n'
+      (window.SheriffDeskBackend.mode==='cloud'?'This removes the Cloud docs portal and its source. A docs-only site is also removed from your account. Other apps on a shared site are kept. It cannot be undone.\n\n':'This deletes the portal source AND its built output. It cannot be undone.\n\n')
       + 'Type the portal name to confirm: ' + name
     );
     if (typed === null) return;
@@ -510,6 +533,7 @@
   const edDirty = document.getElementById('ed-dirty');
   const edStatus = document.getElementById('ed-status');
   const edSave = document.getElementById('ed-save');
+  const edCancel = document.getElementById('ed-cancel');
   const edBuildPage = document.getElementById('ed-build-page');
   const edBuildPortal = document.getElementById('ed-build-portal');
   const edText = document.getElementById('ed-text');
@@ -525,20 +549,23 @@
   let openFile = null, editorGeneration = 0;
 
   // --- documentation versions/revisions (mirrors routes_json.gbln rules) ---
-  let docConfig = { versions: [], default: null, mode: 'manual' };
+  let docConfig = { versions: [], default: null, mode: 'manual', saveDefault: 'revision' };
   let versionedPages = {};        // "content/<page>" -> { versions: { ver: [{num,path}] } }
   let versionedPageSet = new Set();
   let openVersionCtx = null;      // { page, version } when a versioned page is open
   let saveMode = 'revision';      // manual-mode radio: 'revision' | 'overwrite'
   let dirty = false;
+  let openedSource = null, openedSourcePath = null;
   let expandedFolders = new Set();
   let edCwd = 'content';
   let renamingPath = null;
-  let fileOperationBusy = false, editorBusy = false;
+  let fileOperationBusy = false, editorBusy = false, contentLoading=false;
+  let fileListRequest=0,contentLoadRequest=0,fileInventoryDirty=true;
 
   function setDirty(v) {
     dirty = v;
     edDirty.hidden = !v;
+    if(v&&edStatus.classList.contains('ok'))setStatus('');
     updateFileActions();
   }
 
@@ -551,7 +578,7 @@
 
   function editorEnter() {
     fillPortalSelect();
-    if (edFiles.length === 0 && edPortal.value) loadFiles();
+    if ((fileInventoryDirty || edFiles.length === 0) && edPortal.value) loadFiles();
     updatePortalLink();
   }
 
@@ -573,7 +600,7 @@
   // Parse the config.yall `documentation:` block (string parse, same style as
   // the theme swap already in this file).
   function parseDocConfig(text) {
-    const out = { versions: [], default: null, mode: 'manual' };
+    const out = { versions: [], default: null, mode: 'manual', saveDefault: 'revision' };
     const lines = String(text).split(/\r?\n/);
     let i = lines.findIndex(l => /^documentation:\s*$/.test(l));
     if (i < 0) return out;
@@ -585,6 +612,8 @@
       if (m) { out.default = m[1].trim(); inVersions = false; continue; }
       m = line.match(/^\s+mode:\s*"?([a-z]+)"?\s*$/i);
       if (m) { out.mode = m[1].trim().toLowerCase(); inVersions = false; continue; }
+      m = line.match(/^\s+default_save_mode:\s*["']?(revision|overwrite)["']?\s*(?:#.*)?$/i);
+      if (m) { out.saveDefault = m[1].toLowerCase(); inVersions = false; continue; }
       if (/^\s+versions:\s*$/.test(line)) { inVersions = true; continue; }
       if (inVersions) {
         const mv = line.match(/^\s+-\s*"?([^"]+?)"?\s*$/);
@@ -620,6 +649,7 @@
     });
     if (!dirty && text && document.getElementById('desk-portal').value === edPortal.value) {
       docConfig = parseDocConfig(text);
+      saveMode = docConfig.saveDefault;
       versionedPages = detectVersionedPages(edFiles);
       versionedPageSet = new Set(Object.keys(versionedPages));
       if (openVersionCtx && openVersionCtx.flat) openVersionCtx.version = docConfig.default || docConfig.versions[0];
@@ -629,14 +659,14 @@
     }
   }
 
-  async function loadDocConfig(portal) {
+  async function loadDocConfig(portal, current=()=>true) {
     const revision = portalContext.revision;
-    docConfig = { versions: [], default: null, mode: 'manual' };
+    docConfig = { versions: [], default: null, mode: 'manual', saveDefault: 'revision' };
     try {
       const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
       const res = await fetch('/api/file?read&' + q, { cache: 'no-store' });
       const data = await res.json();
-      if (isCurrentPortal(portal, revision) && data && data.ok !== false && data.content) docConfig = parseDocConfig(data.content);
+      if (current() && isCurrentPortal(portal, revision) && data && data.ok !== false && data.content) docConfig = parseDocConfig(data.content);
     } catch (err) { /* no config → no versions, everything stays legacy-flat */ }
   }
 
@@ -698,7 +728,65 @@
     return ordered;
   }
 
+  // Set the caret before focusing a newly loaded textarea; assigning .value
+  // otherwise leaves it at the end and the browser scrolls there on focus.
+  function resetTextStart(element,focus=false) {
+    element.setSelectionRange(0,0);
+    if(focus)element.focus({preventScroll:true});
+    element.scrollTop=0;element.scrollLeft=0;
+  }
+
+  function revealContentRange(start,end=start) {
+    if(edText.disabled||edText.hidden)return;
+    start=Math.max(0,Math.min(start,edText.value.length));end=Math.max(start,Math.min(end,edText.value.length));
+    edText.focus({preventScroll:true});edText.setSelectionRange(start,end,'backward');
+    // Measure the wrapped source using the textarea's actual typography and
+    // inner width. Line counting alone is wrong for long, wrapped paragraphs.
+    const style=getComputedStyle(edText),mirror=document.createElement('div'),marker=document.createElement('span');
+    for(const name of ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','lineHeight','paddingTop','paddingRight','paddingBottom','paddingLeft','tabSize','wordBreak'])mirror.style[name]=style[name];
+    Object.assign(mirror.style,{position:'fixed',left:'-100000px',top:'0',visibility:'hidden',boxSizing:'border-box',width:edText.clientWidth+'px',whiteSpace:edText.wrap==='off'?'pre':'pre-wrap',overflowWrap:'break-word'});
+    mirror.append(document.createTextNode(edText.value.slice(0,start)));marker.textContent='\u200b';mirror.append(marker);document.body.append(mirror);
+    const top=Math.max(0,marker.offsetTop-(parseFloat(style.paddingTop)||0)-24);mirror.remove();
+    const generation=editorGeneration,text=edText.value;
+    const scroll=()=>{if(generation!==editorGeneration||edText.value!==text||edText.hidden)return;edText.scrollTop=top;edText.scrollLeft=0;updateEditorTopButton();};
+    scroll();requestAnimationFrame(scroll);
+  }
+
+  const editorTopButton=document.getElementById('ed-back-to-top'),editorPanel=document.getElementById('ed-editor-panel'),visualSurface=document.getElementById('visual-surface');
+
+  // Reuse the same insertion controls, moving only their container on narrow screens.
+  const insertTools=document.querySelector('.content-tools'),insertRail=document.createElement('aside'),insertMedia=matchMedia('(min-width:1301px)'),workspace=document.querySelector('.editor-shell');
+  insertRail.className='editor-insert-rail';insertRail.setAttribute('aria-label','Insert content');workspace.append(insertRail);
+  function positionInsertTools(){
+    const rail=insertMedia.matches&&!editorPanel.hidden;
+    workspace.classList.toggle('with-insert-rail',rail);insertRail.hidden=!rail;
+    if(rail)insertRail.append(insertTools);else editorPanel.insertBefore(insertTools,document.getElementById('ed-version-bar'));
+  }
+  insertMedia.addEventListener('change',positionInsertTools);new MutationObserver(positionInsertTools).observe(editorPanel,{attributes:true,attributeFilter:['hidden']});positionInsertTools();
+
+  function updateEditorTopButton(){
+    const active=currentViewKey()==='content'&&!editorPanel.hidden&&!!openFile;
+    const scroller=edText.hidden?visualSurface:edText;
+    const editor=document.querySelector('.editor-main'),main=document.querySelector('main');
+    const pastEditor=Math.max(0,main.getBoundingClientRect().top-editor.getBoundingClientRect().top,-editor.getBoundingClientRect().top);
+    editorTopButton.hidden=!active||Math.max(scroller.scrollTop,pastEditor)<100;
+  }
+  document.addEventListener('scroll',updateEditorTopButton,{capture:true,passive:true});
+  window.addEventListener('hashchange',updateEditorTopButton);
+  window.addEventListener('sheriff:editor-change',()=>requestAnimationFrame(updateEditorTopButton));
+  new MutationObserver(updateEditorTopButton).observe(editorPanel,{attributes:true,attributeFilter:['hidden']});
+  editorTopButton.addEventListener('mousedown',event=>event.preventDefault());
+  editorTopButton.addEventListener('click',()=>{
+    if(edText.hidden)window.SheriffVisualEditor?.scrollToTop();else revealContentRange(0);
+    // Mobile layouts can scroll the whole workspace rather than the text area.
+    const main=document.querySelector('main'),editor=document.querySelector('.editor-main');
+    main.scrollTop=Math.max(0,main.scrollTop+editor.getBoundingClientRect().top-main.getBoundingClientRect().top);
+    if(window.scrollY)window.scrollTo({top:Math.max(0,window.scrollY+editor.getBoundingClientRect().top),behavior:'instant'});
+    updateEditorTopButton();
+  });
+
   async function openVersionedPage(page, version, savedContent) {
+    const viewport=savedContent===undefined?null:{start:edText.selectionStart,end:edText.selectionEnd,direction:edText.selectionDirection,top:edText.scrollTop,left:edText.scrollLeft};
     if (savedContent === undefined && (editorBusy || !confirmDiscard())) return;
     const info = versionedPages[page];
     if (!info) { say('No versions for this page'); return; }
@@ -711,24 +799,30 @@
     const revs = info.versions[ver];
     const latest = revs[revs.length - 1];
     const portal = edPortal.value, revision = portalContext.revision;
+    const request=++contentLoadRequest;contentLoading=true;edText.disabled=true;updateFileActions();
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(latest.path);
       const res = await fetch('/api/file?read&' + q);
       const data = await res.json();
-      if (!isCurrentPortal(portal, revision)) return;
+      if (request!==contentLoadRequest || !isCurrentPortal(portal, revision)) return;
       if (data.ok === false) { say(data.stderr || 'Could not open revision'); return; }
       const pendingEdits = savedContent !== undefined && edText.value !== savedContent;
       const nextText = pendingEdits ? edText.value : data.content || '';
+      openedSource=data.content || '';openedSourcePath=latest.path;
       openFile = latest.path; editorGeneration++;
       edPath.textContent = page.replace(/^content\//, '');
       edText.value = nextText;
       edText.disabled = false;
       setDirty(pendingEdits);
       openVersionCtx = { page: page, version: ver, revNum: latest.num, flat: false };
+      if (savedContent === undefined) saveMode = docConfig.saveDefault;
       renderVersionBar();
       renderTree();
-      edText.focus();
-    } catch (err) { if (isCurrentPortal(portal, revision)) say('API unreachable'); }
+      if(viewport){edText.setSelectionRange(viewport.start,viewport.end,viewport.direction);edText.focus({preventScroll:true});edText.scrollTop=viewport.top;edText.scrollLeft=viewport.left;}
+      else resetTextStart(edText,true);
+      updateEditorTopButton();
+    } catch (err) { if (request===contentLoadRequest && isCurrentPortal(portal, revision)) say('API unreachable'); }
+    finally {if(request===contentLoadRequest){contentLoading=false;edText.disabled=!openFile;updateFileActions();}}
   }
 
   function addableVersions(page, isFlat) {
@@ -1063,7 +1157,8 @@
       const row = document.createElement(node.path === renamingPath ? 'div' : 'button');
       row.type = 'button'; row.className = 'tree-folder' + (isOpen ? ' expanded' : '');
       row.style.paddingLeft = (10 + depth * 16) + 'px'; row.title = node.path;
-      row.innerHTML = '<span class="caret">' + (isOpen ? '\u25be' : '\u25b8') + '</span>'
+      row.setAttribute('aria-expanded',String(isOpen));
+      row.innerHTML = '<span class="caret" aria-hidden="true">' + "<svg aria-hidden=\"true\" focusable=\"false\"\n  class=\"lucide lucide-chevron-right\"\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"2\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n>\n  <path d=\"m9 18 6-6-6-6\" />\n</svg>" + '</span>'
         + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
       wrapper.appendChild(row);
       if (node.path === renamingPath) appendRenameInput(row, node.path, node.path.split('/').pop());
@@ -1094,6 +1189,7 @@
   }
 
   function renderTree() {
+    if (renamingPath && tree.querySelector('input')) return;
     const q = edFilter.value.trim().toLowerCase();
     tree.innerHTML = '';
 
@@ -1126,12 +1222,14 @@
 
   async function loadFiles() {
     if (!edPortal.value) return;
-    const portal = edPortal.value, revision = portalContext.revision;
+    if (renamingPath) { fileInventoryDirty=true; return; }
+    const portal = edPortal.value, revision = portalContext.revision,request=++fileListRequest;
+    const current=()=>request===fileListRequest&&isCurrentPortal(portal,revision);
     tree.innerHTML = '<div class="tree-msg">Loading files\u2026</div>';
     try {
       const res = await fetch('/api/file?list&' + encodeURIComponent(edPortal.value), { cache: 'no-store' });
       const data = await res.json();
-      if (!isCurrentPortal(portal, revision)) return;
+      if (!current()) return;
       if (data.ok === false) {
         tree.innerHTML = '';
         const div = document.createElement('div');
@@ -1149,11 +1247,15 @@
         if (!edDirs.includes(d)) edDirs.push(d);
       }
 
-      await loadDocConfig(portal);
-      if (!isCurrentPortal(portal, revision)) return;
+      await loadDocConfig(portal,current);
+      if (!current()) return;
+      fileInventoryDirty=false;
       versionedPages = detectVersionedPages(edFiles);
       versionedPageSet = new Set(Object.keys(versionedPages));
-      if (openFile && !edFiles.includes(openFile)) clearContentEditor();
+      if (openFile && !edFiles.includes(openFile)) {
+        if(!dirty&&!editorBusy)clearContentEditor();
+        else setStatus('This file was moved or removed. Your unsaved edits are kept.');
+      }
       updateFileActions();
 
       // First load / portal switch: expand top-level folders containing
@@ -1166,7 +1268,7 @@
 
       renderTree();
     } catch (err) {
-      if (!isCurrentPortal(portal, revision)) return;
+      if (!current()) return;
       tree.innerHTML = '<div class="tree-msg">API unreachable.</div>';
       edFiles = [];
       edDirs = [];
@@ -1192,14 +1294,17 @@
   }
 
   function updateFileActions() {
-    const busy = editorBusy || fileOperationBusy;
-    edSave.disabled = busy || !dirty || !openFile;
-    edBuildPage.disabled = busy || !openFile || !/^content\/.+\.md$/i.test(openFile);
-    edBuildPortal.disabled = busy || !openFile;
+    const busy = editorBusy || fileOperationBusy || contentLoading;
+    const locked=window.SheriffHowdyAccess?.blocked(edPortal.value,openFile);
+    edSave.disabled = busy || locked || !dirty || !openFile;
+    edCancel.disabled = busy || !dirty || !openFile;
+    edBuildPage.disabled = busy || (locked&&dirty) || !openFile || !/^content\/.+\.md$/i.test(openFile);
+    edBuildPortal.disabled = busy || (locked&&dirty) || !openFile;
     window.dispatchEvent(new Event('sheriff:editor-change'));
   }
 
   function clearContentEditor() {
+    contentLoadRequest++;contentLoading=false;
     openFile = null; openVersionCtx = null; editorGeneration++;
     edPath.textContent = 'No file open'; edText.value = ''; edText.disabled = true;
     setDirty(false); renderVersionBar(); setStatus('');
@@ -1374,7 +1479,7 @@
       say('Move the whole document to keep its versions and revisions together.'); return;
     }
     const root = path.split('/')[0], parent = path.slice(0, path.lastIndexOf('/'));
-    const folders = new Set([root, ...edDirs.filter(dir => dir === root || dir.startsWith(root + '/'))]);
+    const folders = new Set([root, ...[...edDirs, ...knownDirs].filter(dir => dir === root || dir.startsWith(root + '/'))]);
     moveFolder.replaceChildren();
     for (const folder of Array.from(folders).sort()) {
       if (pathWithin(path, folder) || pages.some(page => pathWithin(page, folder))) continue;
@@ -1411,17 +1516,20 @@
       say('Image viewer lands with the Media panel');
       return;
     }
+    const request=++contentLoadRequest;contentLoading=true;edText.disabled=true;updateFileActions();
     setStatus('');
     try {
       const q = 'portal=' + encodeURIComponent(edPortal.value) + '&path=' + encodeURIComponent(path);
       const res = await fetch('/api/file?read&' + q);
       const data = await res.json();
-      if (!isCurrentPortal(portal, portalRevision)) return;
+      if (request!==contentLoadRequest || !isCurrentPortal(portal, portalRevision)) return;
       if (data.ok === false) {
         say(data.stderr || 'Could not open file');
         return;
       }
+      openedSource=data.content || '';openedSourcePath=path;
       openFile = path; editorGeneration++;
+      saveMode = docConfig.saveDefault;
       edPath.textContent = path;
       edText.value = data.content || '';
       edText.disabled = false;
@@ -1438,13 +1546,16 @@
       }
       renderVersionBar();
       renderTree();
-      edText.focus();
+      resetTextStart(edText,true);updateEditorTopButton();
     } catch (err) {
-      if (isCurrentPortal(portal, portalRevision)) say('API unreachable');
+      if (request===contentLoadRequest && isCurrentPortal(portal, portalRevision)) say('API unreachable');
+    } finally {
+      if(request===contentLoadRequest){contentLoading=false;edText.disabled=!openFile;updateFileActions();}
     }
   }
 
   async function saveFile(build = 'none') {
+    if(window.SheriffPageDetails&&!await window.SheriffPageDetails.flush()){say('Review page details before saving.');return;}
     if (window.SheriffContentImages?.isBusy()) { say('Wait for the image operation to finish.'); return; }
     if (!openFile || editorBusy || fileOperationBusy || (build === 'none' && !dirty)) return;
     if (build === 'page' && !/^content\/.+\.md$/i.test(openFile)) return;
@@ -1458,13 +1569,15 @@
     setStatus(build === 'none' ? 'saving…' : 'saving and building ' + (build === 'page' ? 'page…' : 'portal…'));
     try {
       if (dirty && versionsActive() && effectiveSaveMode() === 'revision') target = await nextRevisionTarget(portal);
-      const q = new URLSearchParams({portal,path:target.path,build});
-      const response = await fetch('/api/file?write&' + q, {
-        method:'POST',headers:{'Content-Type':'text/plain'},body:content
+      const checked=/^content\/.+\.md$/i.test(openFile)&&openedSourcePath===openFile&&openedSource!==null;
+      const q = new URLSearchParams({portal,path:target.path,build,...(checked?{checked:'1'}:{})});
+      const response = window.SheriffHowdyAccess?.blocked(portal,openFile)&&!dirty&&build!=='none' ? await window.SheriffDeskBackend.request(build==='page'?'page.build':'portal.build',{portal,path:openFile},{method:'POST',headers:{Accept:'application/x-ndjson'}}) : await fetch('/api/file?write&' + q, {
+        method:'POST',headers:{'Content-Type':checked?'application/json':'text/plain'},body:checked?JSON.stringify({content,base:openedSource,base_path:openedSourcePath}):content
       });
       const data = await apiJson(response);
       saved = data.saved === true || (response.ok && !buildFailed(data));
       if (saved) {
+        openedSource=content;openedSourcePath=target.path;
         setDirty(edText.value !== content);
         if (target.page) {
           openFile = target.path;
@@ -1491,7 +1604,22 @@
   }
 
   edText.addEventListener('input', () => setDirty(true));
+  window.addEventListener('sheriff:access-change',updateFileActions);
   edSave.addEventListener('click', () => saveFile('none'));
+  edCancel.addEventListener('click', async () => {
+    if (edCancel.disabled) return;
+    if (window.SheriffContentImages?.isBusy()) { say('Wait for the image operation to finish.'); return; }
+    const portal = edPortal.value, revision = portalContext.revision;
+    const wasVisual = window.SheriffVisualEditor?.mode() === 'visual';
+    // Reuse the existing confirmed file/revision reload. Its generation change
+    // discards pending details, visual history, and stale picker bookmarks too.
+    if (openVersionCtx && !openVersionCtx.flat) await openVersionedPage(openVersionCtx.page, openVersionCtx.version);
+    else await openPath(openFile);
+    if (!dirty && openFile && isCurrentPortal(portal, revision)) {
+      setStatus('Edits cancelled · restored saved version');
+      if (wasVisual) document.querySelector('#visual-mode-tabs [data-mode="visual"]').click();
+    }
+  });
   edBuildPage.addEventListener('click', () => saveFile('page'));
   edBuildPortal.addEventListener('click', () => saveFile('portal'));
 
@@ -1500,7 +1628,7 @@
       const k = currentViewKey();
       if (k === 'content') { e.preventDefault(); saveFile(); }
       if (k === 'navigation') { e.preventDefault(); nvEditor.save(); }
-      if (k === 'config') { e.preventDefault(); cfEditor.save(); }
+      if (k === 'config' || k === 'modules') { e.preventDefault(); cfEditor.save(); }
       if (k === 'themes') { e.preventDefault(); thSave(); }
       if (k === 'patterns') { e.preventDefault(); savePattern(); }
     }
@@ -1700,6 +1828,7 @@
   npmPath.addEventListener('keydown', e => { if (e.key === 'Enter') createNewPage(); });
 
   async function createNewPage() {
+    const portal = portalContext.current, revision = portalContext.revision;
     const title = npmTitle.value.trim();
     const file = npmPath.value.trim();
     const path = npmFolderSel.value + '/' + file;
@@ -1754,6 +1883,7 @@
       closeNewPage();
       say('Page created');
       await loadFiles();
+      if (!isCurrentPortal(portal, revision)) return;
       openPath(path);
     } catch (err) {
       npmError(err.message || 'API unreachable');
@@ -1789,6 +1919,7 @@
   let mediaCwd = 'public';
   let mediaViewMode = localStorage.getItem('desk.mediaView') || 'small';
   let lbCurrent = null;
+  let mediaUploading = false, mediaRequest = 0;
 
   function mediaPortalUrl(subpath) {
     return window.SheriffDeskBackend.assetUrl(mdPortal.value, subpath);
@@ -1827,12 +1958,12 @@
 
   async function loadMedia() {
     if (!mdPortal.value) return;
-    const portal = mdPortal.value, revision = portalContext.revision;
+    const portal = mdPortal.value, revision = portalContext.revision, request = ++mediaRequest;
     mdGrid.innerHTML = '<div class="portal-empty">Loading media…</div>';
     try {
       const res = await fetch('/api/file?list&' + encodeURIComponent(mdPortal.value), { cache: 'no-store' });
       const data = await res.json();
-      if (!isCurrentPortal(portal, revision)) return;
+      if (request !== mediaRequest || !isCurrentPortal(portal, revision)) return;
       if (data.ok === false) {
         mdGrid.innerHTML = '<div class="portal-empty">' + (data.stderr || 'Could not load media.') + '</div>';
         return;
@@ -1852,7 +1983,7 @@
       if (!mediaDirs.includes(mediaCwd)) mediaCwd = 'public';
       renderMedia();
     } catch (err) {
-      if (!isCurrentPortal(portal, revision)) return;
+      if (request !== mediaRequest || !isCurrentPortal(portal, revision)) return;
       mdGrid.innerHTML = '<div class="portal-empty">API unreachable.</div>';
     }
   }
@@ -2067,17 +2198,20 @@
   }
 
   async function uploadFiles(fileList) {
+    if(mediaUploading){say('An upload is already running.');return;}
     if (!mdPortal.value) { say('Pick a portal first'); return; }
     const folder = cleanFolder();
     if (folder === null) { say('Upload folder must be public/ or a subfolder of it'); return; }
     const files = Array.from(fileList);
     if (files.length === 0) return;
-
+    const portal=mdPortal.value,release=portalContext.lock();
+    mediaUploading=true;mdUploadBtn.disabled=true;
     let done = 0;
+    try {
     for (const file of files) {
       const subpath = folder + '/' + file.name;
       try {
-        const q = encodeURIComponent(mdPortal.value) + '&' + encodeURIComponent(subpath);
+        const q = encodeURIComponent(portal) + '&' + encodeURIComponent(subpath);
         const res = await fetch('/api/file?upload&' + q, {
           method: 'POST',
           body: file
@@ -2095,14 +2229,10 @@
     }
 
     if (done > 0) {
-      say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded — building…');
       await loadMedia();
-      const ok = await buildPortal(mdPortal.value, null);
-      if (ok) {
-        say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded and live');
-        renderMedia();
-      }
+      say(done + ' file' + (done === 1 ? '' : 's') + ' uploaded. Build the portal when ready.');
     }
+    } finally {mediaUploading=false;mdUploadBtn.disabled=false;release();}
   }
 
   // ---------- new folder ----------
@@ -2197,6 +2327,7 @@
     const dirtyEl = document.getElementById(ids.dirty);
     const statusEl = document.getElementById(ids.status);
     const saveBtn = document.getElementById(ids.save);
+    const buildBtn = document.getElementById(ids.build);
 
     const ed = { path: null, portal: null, dirty: false, missing: false, saving: false, generation: 0 };
     let loadRequest = 0;
@@ -2204,7 +2335,8 @@
     function setDirty(v) {
       ed.dirty = v;
       dirtyEl.hidden = !v;
-      saveBtn.disabled = !v || !ed.path;
+      saveBtn.disabled = !v || !ed.path || ed.saving;
+      buildBtn.disabled = !ed.path || text.disabled || ed.saving;
       if (opts && opts.onContentChange) opts.onContentChange(text.value, v);
       window.dispatchEvent(new Event('sheriff:editor-change'));
     }
@@ -2224,10 +2356,11 @@
       setStatus('loading…');
       try {
         const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/file?read&' + q);
+        const res = opts?.read ? await opts.read(portal, ed.path) : await fetch('/api/file?read&' + q);
         const data = await apiJson(res);
         if (request !== loadRequest || sel.value !== portal) return;
         if (data.ok === false) {
+          if (opts?.read) throw new Error(data.stderr || "Could not load configuration.");
           ed.missing = true;
           text.value = '';
           text.disabled = false;
@@ -2235,9 +2368,11 @@
         } else {
           ed.missing = false;
           text.value = data.content || '';
+          ed.original = text.value;
           text.disabled = false;
           setStatus('');
         }
+        resetTextStart(text);
         setDirty(false);
       } catch (err) {
         if (request !== loadRequest || sel.value !== portal) return;
@@ -2245,36 +2380,41 @@
       }
     };
 
-    ed.save = async function () {
-      if (!ed.path || saveBtn.disabled || ed.portal !== sel.value) return;
+    ed.save = async function (build='none') {
+      if (!ed.path || ed.saving || text.disabled || ed.portal !== sel.value || (build==='none'&&!ed.dirty)) return;
+      const portal=ed.portal,path=ed.path,content=text.value,generation=ed.generation;
+      const current=()=>ed.portal===portal&&ed.path===path&&ed.generation===generation;
       ed.saving = true;
       window.dispatchEvent(new Event('sheriff:editor-change'));
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving…';
-      setStatus('rebuilding…');
+      buildBtn.disabled = true;text.disabled=true;
+      (build==='none'?saveBtn:buildBtn).textContent=build==='none'?'Saving…':'Building…';
+      const buildScope = opts?.buildScope?.(path) || 'portal';
+      setStatus(build==='none'?'Saving…':'Saving and rebuilding ' + buildScope + '…');
       const started = Date.now();
       try {
-        const q = 'portal=' + encodeURIComponent(sel.value) + '&path=' + encodeURIComponent(ed.path);
-        const res = await fetch('/api/file?write&' + q + '&build=portal', {
-          method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text.value
+        const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent(path);
+        const res = opts?.write ? await opts.write(portal,path,content,build,ed.original) : await fetch('/api/file?write&' + q + '&build='+build, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: content
         });
         const data = await apiJson(res);
+        const saved=data.saved===true||!buildFailed(data);
+        if(saved){ed.original=content;if(opts?.onSave)opts.onSave(portal);}
+        if(!current())return;
+        setDirty(saved?text.value!==content:true);
         if (buildFailed(data)) {
-          setStatus((Number.isFinite(data.upload_ms) ? 'upload failed — ' : 'build failed — ') + String(data.stderr || '').trim().slice(0, 120), 'err');
-          setDirty(true);
+          setStatus((saved?'✓ saved · ':'')+(build==='none'?'save failed — ':Number.isFinite(data.upload_ms)?'upload failed — ':'build failed — ')+String(data.stderr || '').trim().slice(0,120), 'err');
           return;
         }
-        setStatus('✓ saved · portal rebuilt · ' + window.SheriffBuildLog.duration(data,Date.now()-started), 'ok');
-        setDirty(false);
-        if (opts && opts.onSave) opts.onSave(ed.portal);
+        setStatus(build==='none'?'✓ saved':'✓ saved · '+buildScope+' '+(data.published?'built and published':'rebuilt')+' · '+window.SheriffBuildLog.duration(data,Date.now()-started),'ok');
       } catch (err) {
-        setStatus(err.message || 'API unreachable', 'err');
-        setDirty(true);
+        if(current()){setStatus(err.message || 'API unreachable', 'err');setDirty(true);}
       } finally {
         ed.saving = false;
         window.dispatchEvent(new Event('sheriff:editor-change'));
-        saveBtn.textContent = 'Save & rebuild';
-        saveBtn.disabled = !ed.dirty;
+        saveBtn.textContent='Save';buildBtn.textContent='Save & rebuild';
+        if(current())text.disabled=false;
+        setDirty(ed.dirty);
       }
     };
 
@@ -2289,21 +2429,87 @@
     };
 
     text.addEventListener('input', () => setDirty(true));
-    saveBtn.addEventListener('click', ed.save);
+    saveBtn.addEventListener('click',()=>ed.save());
+    buildBtn.addEventListener('click',()=>ed.save('portal'));
 
     return ed;
   }
 
   const nvEditor = fileEditor(
-    { portal: 'desk-portal', text: 'nv-text', dirty: 'nv-dirty', status: 'nv-status', save: 'nv-save' },
+    { portal: 'desk-portal', text: 'nv-text', dirty: 'nv-dirty', status: 'nv-status', save: 'nv-save', build:'nv-build' },
     () => 'nav.yall'
   );
 
+  let cfScope = 'portal';
+  function configEnter() {
+    const match = window.SheriffSites?.member(portalContext.current);
+    const member = match?.site.grouped ? match : null;
+    if (!member) cfScope = 'portal';
+    document.getElementById('cf-scope').hidden = !member;
+    for (const scope of ['site','portal']) {
+      const button = document.getElementById('cf-' + scope);
+      button.classList.toggle('active',cfScope === scope);
+      button.setAttribute('aria-pressed',String(cfScope === scope));
+    }
+    document.getElementById('cf-scope-note').textContent = cfScope === 'site'
+      ? member.site.name + ' — site.yall. Shared site settings, including multisite themes. Save keeps your changes; Save & rebuild updates the whole site.'
+      : 'Portal configuration (config.yall). Save keeps your changes. Save & rebuild updates only the selected portal.';
+    cfEditor.enter();
+  }
+  for (const scope of ['site','portal']) document.getElementById('cf-' + scope).addEventListener('click',()=>{
+    if (cfScope === scope || cfEditor.saving) return;
+    if (cfEditor.dirty && !window.confirm('Discard unsaved configuration edits and switch?')) return;
+    cfEditor.reset(); cfScope = scope; configEnter();
+  });
+
   const cfEditor = fileEditor(
-    { portal: 'desk-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save' },
-    () => 'config.yall',
-    { onContentChange: renderConfigVersionBadges, onSave: loadPortalIdentity }
+    { portal: 'desk-portal', text: 'cf-text', dirty: 'cf-dirty', status: 'cf-status', save: 'cf-save', build:'cf-build' },
+    () => cfScope === 'site' ? 'site.yall' : 'config.yall',
+    {
+      buildScope: path => path === 'site.yall' ? 'site' : 'portal',
+      read: (portal,path) => path === 'site.yall'
+        ? window.SheriffDeskBackend.request('sites.config_read',{site:window.SheriffSites.member(portal).site.id})
+        : fetch('/api/file?read&portal='+encodeURIComponent(portal)+'&path=config.yall'),
+      async write(portal,path,content,build,previous) {
+        if (path !== 'site.yall') return fetch('/api/file?write&portal='+encodeURIComponent(portal)+'&path=config.yall&build='+build,{method:'POST',headers:{'Content-Type':'text/plain'},body:content});
+        const site = window.SheriffSites.member(portal).site.id;
+        const response = await window.SheriffDeskBackend.request('sites.config_write',{site},{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,previous})});
+        const saved = await response.clone().json();
+        if (!response.ok || saved.ok === false) return response;
+        await window.SheriffSites.refresh();
+        await window.SheriffPendingBuilds?.refresh();
+        if (build === 'none') return response;
+        const rebuilt = await fetch('/api/sites?build&site='+encodeURIComponent(site),{method:'POST'});
+        return new Response(JSON.stringify({...await rebuilt.json(),saved:true}),{status:rebuilt.status,headers:{'Content-Type':'application/json'}});
+      },
+      onContentChange(text,dirty) {
+        window.SheriffModules?.refresh();
+        if (cfScope === 'site') document.getElementById('cf-version-badges').hidden = true;
+        else renderConfigVersionBadges(text,dirty);
+      },
+      onSave: portal => { loadPortalIdentity(portal); thLoadedPortal = null; }
+    }
   );
+
+  // Modules and Config share one guarded buffer and the same persistence/build actions.
+  window.SheriffModuleConfig={
+    enter(){
+      const grouped=!!window.SheriffSites?.member(portalContext.current)?.site.grouped,next=grouped?'site':'portal';
+      if(cfScope!==next){
+        if(cfEditor.saving)return false;
+        if(cfEditor.dirty&&!window.confirm('Discard unsaved portal configuration edits and open site-wide module settings?'))return false;
+        cfEditor.reset();cfScope=next;
+      }
+      if(!cfEditor.saving)configEnter();return true;
+    },
+    state(){const text=document.getElementById('cf-text'),site=window.SheriffSites?.member(portalContext.current)?.site;return {text:text.value,disabled:text.disabled,dirty:cfEditor.dirty,saving:cfEditor.saving,scope:cfScope,portal:portalContext.current,grouped:!!site?.grouped,siteName:site?.name||''};},
+    patch(before,content){const text=document.getElementById('cf-text');if(typeof content!=='string'||text.disabled||cfEditor.saving||before.portal!==portalContext.current||before.scope!==cfScope||text.value!==before.text)return false;text.value=content;text.dispatchEvent(new Event('input',{bubbles:true}));return true;},
+    save(build){return cfEditor.save(build?'portal':'none');}
+  };
+  window.addEventListener('sheriff:sites-change',()=>{
+    if(currentViewKey()==='modules'&&!cfEditor.dirty&&!cfEditor.saving){window.SheriffModuleConfig.enter();window.SheriffModules.enter();}
+    if (currentViewKey() === 'config' && !cfEditor.dirty && !cfEditor.saving) configEnter();
+  });
 
   // ---------- Themes panel ----------
   const thPortal = document.getElementById('desk-portal');
@@ -2313,9 +2519,11 @@
   let thSelected = null;       // the theme whose files are shown below
   let thFile = 'templates.yall';
   let thLoadedPortal = null, thRequest = 0;
+  let thApplying = false;
+  let thSharedSite = "";
 
   const thEditor = fileEditor(
-    { portal: 'desk-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save' },
+    { portal: 'desk-portal', text: 'th-text', dirty: 'th-dirty', status: 'th-status', save: 'th-save', build:'th-build' },
     () => 'themes/' + thSelected + '/' + thFile
   );
 
@@ -2329,37 +2537,36 @@
       b.className = 'cfg-tab' + (f === thFile ? ' active' : '');
       b.textContent = f;
       b.addEventListener('click', () => {
+        if (thApplying) return;
         if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
         thFile = f;
         renderThTabs();
-        if (thCurrentTheme) thEditor.load();
+        if (thSelected) thEditor.load();
       });
       thTabs.appendChild(b);
     });
   }
 
   async function detectCurrentTheme(portal) {
-    try {
-      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
-      const res = await fetch('/api/file?read&' + q);
-      const data = await apiJson(res);
-      if (data.ok === false) return null;
-      const m = String(data.content || '').match(/theme:\s*\r?\n\s*name:\s*"([^"]+)"/);
-      return m ? m[1] : null;
-    } catch (err) { return null; }
+    const res = await fetch('/api/theme_config?' + encodeURIComponent(portal));
+    const data = await apiJson(res);
+    if (!res.ok || data.ok === false) throw new Error(data.stderr || 'Could not read the active theme.');
+    thSharedSite = data.shared_site || "";
+    return data.theme;
   }
 
+  let themeCardsRequest=0;
   async function renderThemeCards() {
-    const revision = portalContext.revision;
+    const revision = portalContext.revision, request=++themeCardsRequest;
     thCards.innerHTML = '<div class="tree-msg">Loading themes…</div>';
     let themes = [];
     try {
       const res = await fetch('/api/list_themes');
       const data = await apiJson(res);
-      if (revision !== portalContext.revision) return;
+      if (revision !== portalContext.revision || request !== themeCardsRequest) return;
       themes = Array.isArray(data.themes) ? data.themes : [];
     } catch (err) {
-      if (revision !== portalContext.revision) return;
+      if (revision !== portalContext.revision || request !== themeCardsRequest) return;
       thCards.innerHTML = '<div class="tree-msg">Could not load themes.</div>';
       return;
     }
@@ -2398,7 +2605,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn small primary theme-apply';
-        btn.textContent = 'Apply & rebuild';
+        btn.textContent = thSharedSite ? 'Apply to site & rebuild' : 'Apply & rebuild';
         btn.addEventListener('click', e => { e.stopPropagation(); switchTheme(t); });
         wrap.appendChild(btn);
         card.appendChild(wrap);
@@ -2410,9 +2617,11 @@
   }
 
   function selectTheme(t) {
+    if (thApplying) return;
     if (t === thSelected) return;
     if (thEditor.dirty && !window.confirm('Unsaved changes will be lost. Continue?')) return;
     thSelected = t;
+    thEditor.reset();
     ensureAndLoadTheme(t);
     renderThemeCards();
   }
@@ -2429,51 +2638,86 @@
 
   async function switchTheme(theme) {
     const portal = thPortal.value;
-    if (!portal) return;
-    if (!window.confirm('Switch ' + portal + ' to the "' + theme + '" theme and rebuild?')) return;
-
+    if (!portal || thApplying) return;
+    if (thEditor.saving || document.getElementById('th-text').disabled || thEditor.path !== 'themes/' + theme + '/' + thFile) { say('Wait for the theme file to finish loading.'); return; }
+    if (cfEditor.dirty || thEditor.dirty) { say('Save your Config and Themes edits before applying a theme.'); return; }
+    const scope = thSharedSite || portal;
+    if (!window.confirm('Switch ' + scope + (thSharedSite ? ' and all its portals' : '') + ' to the "' + theme + '" theme and rebuild?')) return;
+    thApplying = true; thEditor.saving = true;
+    const release = portalContext.lock();
+    const text = document.getElementById('th-text');
+    text.disabled = true;
+    document.getElementById('th-save').disabled = true;
+    document.getElementById('th-build').disabled = true;
     try {
       let res = await fetch('/api/ensure_theme?' + encodeURIComponent(portal) + '&' + encodeURIComponent(theme));
       let data = await apiJson(res);
       if (data.ok === false) { say(data.stderr || 'Theme prep failed'); return; }
 
-      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('config.yall');
-      res = await fetch('/api/file?read&' + q);
-      data = await apiJson(res);
-      if (data.ok === false) { say('Could not read config.yall'); return; }
-      const cfg = String(data.content || '');
-      const updated = cfg.replace(/(theme:\s*\r?\n\s*name:\s*")[^"]+(")/, '$1' + theme + '$2');
-      if (updated === cfg && !cfg.includes('"' + theme + '"')) {
-        say('Could not find theme name in config.yall');
+      if (thSharedSite) {
+        res = await fetch('/api/sites?theme&site=' + encodeURIComponent(thSharedSite), {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:thSharedSite,theme})
+        });
+        data = await apiJson(res);
+        if (!res.ok || data.ok === false) { say(data.stderr || 'Could not save the site theme'); return; }
+        say('Switching shared theme — rebuilding site…');
+        res = await fetch('/api/sites?build&site=' + encodeURIComponent(thSharedSite), {method:'POST'});
+        data = await apiJson(res);
+        if (buildFailed(data)) { say('Theme saved; rebuild failed — ' + String(data.stderr || '').slice(0,120)); return; }
+        thCurrentTheme = theme; thSelected = theme;
+        await window.SheriffSites?.refresh();
+        renderThemeCards(); loadPortalIdentity(portal); await thEditor.load();
+        say(scope + ' and its portals now use ' + theme);
         return;
       }
+      res = await fetch('/api/theme_config?' + encodeURIComponent(portal) + '&' + encodeURIComponent(theme));
+      data = await apiJson(res);
+      if (!res.ok || data.ok === false) { say(data.stderr || 'Could not prepare config.yall'); return; }
+      const updated = data.content;
+      const q = 'portal=' + encodeURIComponent(portal) + '&path=config.yall';
 
       say('Switching theme — rebuilding…');
       res = await fetch('/api/file?write&' + q + '&build=portal', {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: updated
       });
       data = await apiJson(res);
+      if (data.saved === true || !buildFailed(data)) {
+        thCurrentTheme = theme; thSelected = theme;
+        renderThemeCards(); loadPortalIdentity(portal);
+      }
       if (buildFailed(data)) { say('Rebuild failed — ' + String(data.stderr || '').slice(0, 120)); return; }
 
       thCurrentTheme = theme;
       thSelected = theme;
       renderThemeCards();
-      thEditor.load();
+      await thEditor.load();
       say(portal + ' now uses ' + theme);
     } catch (err) {
       say(err.message || 'API unreachable');
+    } finally {
+      thApplying = false; thEditor.saving = false; release();
+      text.disabled = !thEditor.path;
+      document.getElementById('th-save').disabled = !thEditor.path || !thEditor.dirty;
+      document.getElementById('th-build').disabled = !thEditor.path;
     }
   }
 
   async function themesEnter() {
 
     const portal = thPortal.value, revision = portalContext.revision, request = ++thRequest;
-    if (!portal || thLoadedPortal === portal) return;
-    const theme = await detectCurrentTheme(portal);
+    if (!portal || thLoadedPortal === portal || thEditor.saving || thApplying || thEditor.dirty && thEditor.portal === portal) return;
+    thEditor.reset(); thCurrentTheme = null; thSelected = null;
+    thCards.textContent = 'Loading themes…';
+    let theme;
+    try { theme = await detectCurrentTheme(portal); }
+    catch (error) {
+      if (request === thRequest && isCurrentPortal(portal, revision)) { thCards.textContent = error.message; thEditor.reset(); }
+      return;
+    }
     if (request !== thRequest || !isCurrentPortal(portal, revision)) return;
     thLoadedPortal = portal; thCurrentTheme = theme; thSelected = theme;
     renderThemeCards(); renderThTabs();
-    if (thSelected) thEditor.load();
+    if (thSelected) await ensureAndLoadTheme(thSelected);
   }
 
   // ---------- help drawer ----------
@@ -2514,51 +2758,8 @@
   }, true);
 
   // draggable: grab the header, position persists
-  (function () {
-    const head = helpDrawer.querySelector('.hd-head');
-
-    function clampPos(left, top) {
-      const w = helpDrawer.offsetWidth || 480;
-      return {
-        left: Math.min(Math.max(8, left), window.innerWidth - Math.min(w, 200)),
-        top: Math.min(Math.max(8, top), window.innerHeight - 60)
-      };
-    }
-
-    function applyPos(left, top) {
-      const p = clampPos(left, top);
-      helpDrawer.style.left = p.left + 'px';
-      helpDrawer.style.top = p.top + 'px';
-      helpDrawer.style.right = 'auto';
-    }
-
-    try {
-      const saved = JSON.parse(localStorage.getItem('desk.helpPos') || 'null');
-      if (saved && typeof saved.left === 'number') applyPos(saved.left, saved.top);
-    } catch (e) { /* default CSS position */ }
-
-    head.addEventListener('pointerdown', e => {
-      if (e.target.closest('.wiz-x')) return;
-      e.preventDefault();
-      head.setPointerCapture(e.pointerId);
-      const rect = helpDrawer.getBoundingClientRect();
-      const offX = e.clientX - rect.left;
-      const offY = e.clientY - rect.top;
-
-      function onMove(ev) {
-        applyPos(ev.clientX - offX, ev.clientY - offY);
-      }
-      function onUp() {
-        head.releasePointerCapture(e.pointerId);
-        head.removeEventListener('pointermove', onMove);
-        head.removeEventListener('pointerup', onUp);
-        const r = helpDrawer.getBoundingClientRect();
-        localStorage.setItem('desk.helpPos', JSON.stringify({ left: r.left, top: r.top }));
-      }
-      head.addEventListener('pointermove', onMove);
-      head.addEventListener('pointerup', onUp);
-    });
-  })();
+  const makeFloatingPanel = window.SheriffFloatingPanel;
+  makeFloatingPanel(helpDrawer, 'desk.helpPos');
 
   document.addEventListener('click', e => {
     const btn = e.target.closest('.help-btn');
@@ -2601,7 +2802,7 @@
 
   // warn on tab close with unsaved changes
   window.addEventListener('beforeunload', e => {
-    if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    if (unsavedPanels().length || operationBusy()) { e.preventDefault(); e.returnValue = ''; }
   });
 
   // ============================================================
@@ -2612,7 +2813,7 @@
   const wizDots = document.getElementById('wiz-dots');
   const wzName = document.getElementById('wz-name');
   const wzSlug = document.getElementById('wz-slug');
-  const wzSlugPreview = document.getElementById('wz-slug-preview');
+  const wzSlugPreview = document.getElementById('wz-slug-preview-compat');
   const wzNameErr = document.getElementById('wz-name-err');
   const wzThemes = document.getElementById('wz-themes');
   const wzLogoDrop = document.getElementById('wz-logo-drop');
@@ -2651,7 +2852,7 @@
       .replace(/^-+|-+$/g, '');
   }
 
-  function openWizard() {
+  function openWizard(options={}) {
     wiz = {
       step: 1, running: false,
       name: '', slug: '', slugEdited: false,
@@ -2670,6 +2871,7 @@
     wzDone.hidden = true;
     wzRunErr.hidden = true;
     loadWizThemes();
+    window.SheriffSites?.configure(wiz, options);
     wizGoto(1);
     wizard.hidden = false;
     setTimeout(() => wzName.focus(), 50);
@@ -2760,7 +2962,7 @@
       wizErr('"' + wiz.slug + '" is reserved by Sheriff Desk.');
       return false;
     }
-    if (portalNames.includes(wiz.slug)) {
+    if (wiz.structure!=='portal' && (portalNames.includes(wiz.slug)||window.SheriffSites?.siteIdExists(wiz.slug))) {
       wizErr('A portal named "' + wiz.slug + '" already exists.');
       return false;
     }
@@ -2835,12 +3037,17 @@
 
   async function runWizard() {
     wiz.running = true;
-    wzRunTitle.textContent = 'Building your site';
+    wzRunTitle.textContent = 'Creating your site';
     wzRunErr.hidden = true;
     wzDone.hidden = true;
     resetProgress();
 
     try {
+      if(wiz.structure&&wiz.structure!=='single'){
+        const created=await window.SheriffSites.createWizard(wiz,markTask); await loadPortals(created.portal);renderManageList();
+        wzRunTitle.textContent='Your site is ready';wzViewSite.href=created.url;wzViewSite.hidden=false;wzDone.hidden=false;wiz.running=false;
+        return;
+      }
       // 1. create portal
       markTask('create', 'doing');
       const brand = wiz.name.replace(/["']/g, '');
@@ -2889,7 +3096,7 @@
       if (buildFailed(data)) throw new Error(data.stderr || 'page write failed');
       markTask('page', 'done');
 
-      // 4. full build
+      // Setup finishes with a working local preview, for every site structure.
       markTask('build', 'doing');
       res = await fetch('/api/build?' + encodeURIComponent(wiz.slug));
       data = await apiJson(res);
@@ -2898,6 +3105,7 @@
 
       wzRunTitle.textContent = 'Your site is ready';
       wzViewSite.href = window.SheriffDeskBackend.portalUrl(wiz.slug);
+      wzViewSite.hidden = false;
       wzDone.hidden = false;
       wiz.running = false;
 
@@ -2933,49 +3141,15 @@
 
   let patItems = [];
   let patSelected = null;
-  let patDirtyFlag = false;
+  let patDirtyFlag = false, patSaving = false;
 
   // Modes belong to each block; legacy blocks remain reusable.
-  function parsePatternHeader(body) {
-    const lines = String(body || '').split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(/^:::\s*pattern\s+(\S+)\s+(.+?)\s*$/);
-      if (!m) continue;
-      let mode = 'reusable';
-      let endIndex = i + 1;
-      for (; endIndex < lines.length; endIndex++) {
-        if (/^\s*:::\s*$/.test(lines[endIndex])) break;
-        const option = lines[endIndex].match(/^\s*@mode\s*=\s*(template|reusable)\s*$/i);
-        if (option) mode = option[1].toLowerCase();
-      }
-      return { orientation: m[1], name: m[2].trim(), mode, lineIndex: i, endIndex };
-    }
-    return null;
-  }
-
-  function setPatternMode(body, mode) {
-    const text = String(body || '');
-    const header = parsePatternHeader(text);
-    if (!header) return text;
-    const eol = text.includes('\r\n') ? '\r\n' : '\n';
-    const lines = text.split(/\r?\n/);
-    const fields = lines.slice(header.lineIndex + 1, header.endIndex)
-      .filter(line => !/^\s*@mode\s*=/.test(line.toLowerCase()));
-    const value = mode === 'template' ? 'template' : 'reusable';
-    lines.splice(header.lineIndex + 1, header.endIndex - header.lineIndex - 1,
-      '@mode = ' + value, ...fields);
-    return lines.join(eol);
-  }
-
-  function patternToken(name) {
-    const up = name.trim().replace(/ \(pattern\)|\(pattern\)|[()]/g, '').replace(/[- ]/g, '_').toUpperCase();
-    return '{{{SHERIFF::PATTERN_' + up + '}}}';
-  }
+  const {patternHeader:parsePatternHeader,setPatternMode,patternToken}=window.SheriffPatternOptions;
 
   let patLoadedPortal = null, patRequest = 0;
   function patternsEnter() {
     fillPortalSel(patPortal);
-    if (patPortal.value && patLoadedPortal !== patPortal.value) loadPatterns();
+    if (patPortal.value && patLoadedPortal !== patPortal.value && !patDirtyFlag && !patSaving) loadPatterns();
   }
 
 
@@ -3044,7 +3218,7 @@
   function setPatDirty(v) {
     patDirtyFlag = v;
     patDirty.hidden = !v;
-    patSave.disabled = !v || patSelected === null;
+    patSave.disabled = patSaving || !v || patSelected === null;
     const header = parsePatternHeader(patText.value);
     patCopyToken.disabled = v || !header || header.mode !== 'reusable';
   }
@@ -3055,11 +3229,13 @@
   }
 
   function selectPattern(i) {
+    if (patSaving) return;
     if (patDirtyFlag && !window.confirm('Unsaved changes will be lost. Continue?')) return;
     patSelected = i;
     const p = patItems[i];
     patText.value = p.body;
     patText.disabled = false;
+    resetTextStart(patText);
     refreshPatternMeta();
     patCopyScaffold.disabled = false;
     patDelete.disabled = false;
@@ -3099,44 +3275,39 @@
   });
 
   async function savePattern() {
-    if (patSelected === null || patSave.disabled) return;
-    const p = patItems[patSelected];
-    patSave.disabled = true;
-    patSave.textContent = 'Saving…';
-    setPatStatus('saving…');
+    if (patSelected === null || patSave.disabled || patSaving) return;
+    const p = patItems[patSelected], portal = patPortal.value, revision = portalContext.revision, body = patText.value;
+    patSaving = true; patSave.disabled = true; patDelete.disabled = true;
+    patSave.textContent = 'Saving…'; setPatStatus('saving…');
     try {
-      const q = 'portal=' + encodeURIComponent(patPortal.value) + '&path=' + encodeURIComponent('patterns/' + p.filename);
-      const res = await fetch('/api/file?write&' + q, {
-        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: patText.value
-      });
-      const data = await apiJson(res);
-      if (data.ok === false) {
-        setPatStatus(data.stderr || 'save failed', 'err');
-        setPatDirty(true);
-        return;
-      }
-      p.body = patText.value;
-      setPatStatus('✓ saved', 'ok');
-      setPatDirty(false);
-      refreshPatternMeta();
-      renderPatternList();
+      const q = 'portal=' + encodeURIComponent(portal) + '&path=' + encodeURIComponent('patterns/' + p.filename);
+      const data = await apiJson(await fetch('/api/file?write&' + q, {
+        method:'POST', headers:{'Content-Type':'text/plain'}, body
+      }));
+      if (!isCurrentPortal(portal, revision) || patItems[patSelected] !== p) return;
+      if (data.ok === false) throw Error(data.stderr || 'save failed');
+      p.body = body;
+      setPatDirty(patText.value !== body);
+      setPatStatus(patDirtyFlag ? '✓ saved · newer edits unsaved' : '✓ saved', 'ok');
+      refreshPatternMeta(); renderPatternList();
     } catch (err) {
-      setPatStatus(err.message || 'API unreachable', 'err');
-      setPatDirty(true);
+      if (isCurrentPortal(portal, revision)) { setPatStatus(err.message || 'API unreachable', 'err'); setPatDirty(true); }
     } finally {
-      patSave.textContent = 'Save';
-      patSave.disabled = !patDirtyFlag;
+      patSaving = false; patSave.textContent = 'Save';
+      patSave.disabled = !patDirtyFlag || patSelected === null;
+      patDelete.disabled = patSelected === null;
     }
   }
 
   patSave.addEventListener('click', savePattern);
 
   async function deletePattern() {
-    if (patSelected === null) return;
+    if (patSelected === null || patSaving) return;
     const p = patItems[patSelected];
     const header = parsePatternHeader(p.body);
     const name = header ? header.name : p.filename;
     if (!window.confirm('Delete pattern "' + name + '"? This cannot be undone.')) return;
+    patSaving = true; patText.disabled = true; patMode.disabled = true; patSave.disabled = true; patDelete.disabled = true;
     try {
       const q = encodeURIComponent(patPortal.value) + '&' + encodeURIComponent('patterns/' + p.filename);
       const res = await fetch('/api/file?delete&' + q);
@@ -3148,6 +3319,9 @@
       await loadPatterns();
     } catch (err) {
       say(err.message || 'API unreachable');
+    } finally {
+      patSaving = false; patText.disabled = patSelected === null;
+      patDelete.disabled = patSelected === null; setPatDirty(patDirtyFlag); refreshPatternMeta();
     }
   }
 
@@ -3206,6 +3380,7 @@
   function patnewError(msg) { patnewErr.textContent = msg; patnewErr.hidden = false; }
 
   async function createPattern() {
+    const portal = portalContext.current, revision = portalContext.revision;
     const name = patnewName.value.trim();
     const orient = document.querySelector('input[name="patnew-orient"]:checked').value;
     const mode = patnewMode.value === 'template' ? 'template' : 'reusable';
@@ -3238,6 +3413,7 @@
       closePatNew();
       say('Pattern created — fill it in and save');
       await loadPatterns();
+      if (!isCurrentPortal(portal, revision)) return;
       const idx = patItems.findIndex(p => 'patterns/' + p.filename === file);
       if (idx >= 0) selectPattern(idx);
     } catch (err) {
@@ -3281,13 +3457,22 @@
     if (thEditor.dirty) pending.push('Themes');
     if (patDirtyFlag) pending.push('Patterns');
     if (window.SheriffInteractive && window.SheriffInteractive.isDirty()) pending.push('Interactive');
+    if (window.SheriffSeeding?.isDirty()) pending.push('Seeding');
+    if (wiz && !wizard.hidden && !wiz.running && wiz.step<5 && (wzName.value.trim()||wzPageTitle.value.trim()||wzPageBody.value.trim()||wiz.logoFile)) pending.push('New site');
     return pending;
   }
 
+  function operationBusy() {
+    return window.SheriffDeskBackend.isBusy() || editorBusy || fileOperationBusy || mediaUploading
+      || nvEditor.saving || cfEditor.saving || thEditor.saving || patSaving || !!wiz?.running
+      || !!window.SheriffContentImages?.isBusy() || !!window.SheriffIcons?.isBusy()
+      || !!window.SheriffInteractive?.isSaving() || !!window.SheriffSeeding?.isBusy()
+      || !!window.SheriffSnapshots?.isBusy() || !!window.SheriffCloudSync?.isBusy()
+      || !!window.SheriffBuildLog?.isBusy();
+  }
+
   function confirmPortalChange(next) {
-    if (editorBusy || fileOperationBusy || nvEditor.saving || cfEditor.saving || thEditor.saving
-        || edSave.textContent.includes('Saving') || patSave.textContent.includes('Saving')
-        || (window.SheriffInteractive && window.SheriffInteractive.isSaving())) {
+    if (operationBusy()) {
       say('Wait for the current save or file operation to finish.'); return false;
     }
     const pending = unsavedPanels();
@@ -3295,9 +3480,11 @@
   }
 
   function resetPortalPanels() {
+    fileListRequest++;fileInventoryDirty=true;mediaRequest++;
+    if(wiz&&!wiz.running&&!wizard.hidden)closeWizard();
     expandedFolders = new Set(); knownDirs = new Set(); edFiles = []; edDirs = [];
     edCwd = 'content'; edFilter.value = ''; renamingPath = null; hideFileMenu();
-    docConfig = {versions:[],default:null,mode:'manual'}; versionedPages = {}; versionedPageSet = new Set();
+    docConfig = {versions:[],default:null,mode:'manual',saveDefault:'revision'}; saveMode = 'revision'; versionedPages = {}; versionedPageSet = new Set();
     clearContentEditor(); tree.innerHTML = '';
     nvEditor.reset(); cfEditor.reset(); thEditor.reset();
     thLoadedPortal = null; thRequest++; thCurrentTheme = null; thSelected = null; thCards.innerHTML = '';
@@ -3307,8 +3494,25 @@
     updatePortalLink();
   }
 
+  let inventoryTimer;
+  window.addEventListener('sheriff:saved-changes', event => {
+    const detail = event.detail || {};
+    if (!detail.mutated || detail.portal !== portalContext.current) return;
+    fileInventoryDirty = true; fileListRequest++;
+    const paths = [detail.path, detail.from, detail.to].filter(Boolean);
+    if (paths.some(path => path.startsWith('patterns/'))) patLoadedPortal = null;
+    clearTimeout(inventoryTimer);
+    inventoryTimer = setTimeout(() => {
+      if (detail.portal !== portalContext.current) return;
+      if (currentViewKey() === 'content') void loadFiles();
+      if (currentViewKey() === 'media' && !mediaUploading) void loadMedia();
+    }, 80);
+  });
   window.SheriffDesk = {
     unsavedPanels,
+    makeFloatingPanel,
+    isBusy:operationBusy,
+    openWizard,
     notify: say,
     contentEditor: () => ({portal:portalContext.current,path:openFile,element:edText,generation:editorGeneration}),
     navigationEditor: () => ({portal:nvEditor.portal,path:nvEditor.path,element:document.getElementById('nv-text'),generation:nvEditor.generation,busy:nvEditor.saving}),
@@ -3323,8 +3527,10 @@
     patternToken,
     patternSource: body => setPatternMode(body, 'template'),
     refreshFiles: loadFiles,
+    revealContentRange,
     insertContent(text, target) {
       if (target.portal !== portalContext.current || target.path !== openFile || edText.disabled || fileOperationBusy || (target.generation !== undefined && target.generation !== editorGeneration)) return false;
+      if (target.visual) return window.SheriffVisualEditor?.insert(text, target.visual) || false;
       edText.setRangeText(text, target.start, target.end, 'end');
       edText.dispatchEvent(new Event('input', {bubbles:true}));
       return true;
@@ -3335,6 +3541,7 @@
     async portalRestored(portal) {
       if (portal === portalContext.current) resetPortalPanels();
       await loadPortals(portal);
+      await window.SheriffPendingBuilds?.refresh();
     }
   };
   portalContext.guard(confirmPortalChange);
@@ -3345,3 +3552,4 @@
   loadPortals().then(showView);
   showView();
 })();
+

@@ -1,0 +1,80 @@
+/// Sheriff categories and aliases are lists of names, not YALL expressions.
+/// Normalize their bare text in memory; never rewrite an author's Markdown.
+act normalize_list(original)
+    if :starts_with(original, "[") == false => return original
+    parts | []
+    part, quote | ""
+    escaped | false
+    for i in :range(1, original.len)
+        c | :slice(original, i, i + 1)
+        if escaped
+            escaped |= false
+        elif quote != ""
+            if c == "\\" => escaped |= true
+            if c == quote => quote |= ""
+        elif (c == "\"" or c == "'") and :trim(part) == ""
+            quote |= c
+        elif c == "[" or c == "\{"
+            return original
+        elif c == "," or c == "]"
+            value | :trim(part)
+            if !value.nix?
+                if :starts_with(value, "'") and :ends_with(value, "'") => value |= :json_stringify(:slice(value, 1, value.len - 1))
+                if :starts_with(value, "\"") == false and :starts_with(value, "'") == false => value |= :json_stringify(value)
+                :put_last!(parts, value)
+            xx
+            part |= ""
+            if c == "]" => return "[" + :join(parts, ", ") + "]" + :slice(original, i + 1, original.len)
+            skip
+        xx
+        part |= part + c
+    xx
+    /// Let YALL report an incomplete or advanced list rather than guessing.
+    return original
+xx
+
+act normalize(block)
+    lines | :split(block, "\n")
+    comment | false
+    for i in :range(0, lines.len)
+        line | lines[i]
+        clean | :trim(line)
+        if clean == "////"
+            comment |= !comment
+            skip
+        xx
+        if comment or :starts_with(clean, "///") or :starts_with(line, " ") or :starts_with(line, "\t") => skip
+        key | :trim(:keep_before(line, ":") ?? "")
+        original | :trim(:keep_after(line, ":") ?? "")
+        if key == "categories" or key == "aliases"
+            :update_at!(lines, i, key + ": " + normalize_list(original))
+        elif :starts_with(original, "[[")
+            /// A Sheriff wikilink in summary/thumb/etc is scalar text, not a YALL list.
+            :update_at!(lines, i, key + ": " + :json_stringify(original))
+        xx
+    xx
+    return :join(lines, "\n")
+xx
+
+act parse(block, source | "frontmatter")
+    return :yall_parse(normalize(block), source)
+xx
+
+act parse_reported(block, source | "frontmatter")
+    completed | false
+    parsed | nil
+    attempt
+        parsed |= parse(block, source)
+        completed |= true
+    ensure
+        if !completed
+            :say("SHERIFF ERROR: Invalid frontmatter")
+            :say("  File: {source}")
+            :say("  Step: Read page metadata")
+            :say("  Problem: Invalid metadata syntax. See the parser detail below.")
+            :say("SHERIFF ERROR END")
+        xx
+    xx
+    return parsed
+xx
+

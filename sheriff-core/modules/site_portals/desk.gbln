@@ -1,0 +1,321 @@
+import modules/site_portals/transfer as transfer
+import modules/desk_changes/state as changes
+import modules/site_portals/context as context
+import modules/site_portals/sites as sites
+
+act root_dir()
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    return root
+xx
+act param(query, name)
+    for part in :split(query, "&")
+        if :starts_with(part, name + "=") => return :url_decode(:keep_after(part,"=") ?? "")
+    xx
+    return ""
+xx
+act plain_name(value)
+    return :valtype(value) == "str" and !:trim(value).nix? and value.len <= 160 and :has(value,"\n") == false and :has(value,"\r") == false
+xx
+act unwrap(text)
+    data | :json_parse(text)
+    while :valtype(data) == "map" and :has(data,"body") and :has(data,"status")
+        data |= data{"body"}
+        if :valtype(data) == "str" => data |= :json_parse(data)
+    xx
+    return data
+xx
+act inventory(allowed | nil)
+    root | root_dir()
+    out, owned | []
+    folder | "{root}/site/sites"
+    if :file_exists(folder)
+        for id in :list_dirs(folder)
+            if context::valid_id(id) == false => skip
+            if :valtype(allowed) == "array" and :has(allowed,id) == false => skip
+            site | context::load_site(id)
+            if site.nix? => skip
+            members | []
+            for pair in site{"portals"}
+                source | pair[1]{"source"}
+                member | context::for_portal(source)
+                if member.nix? or member{"site_id"} != id or member{"portal_id"} != pair[0] => skip
+                :put_last!(members,{"id":pair[0],"source":source,"name":pair[1]{"name"} ?? pair[0],"icon":pair[1]{"icon"} ?? "layers"})
+                :put_last!(owned,source)
+            xx
+            :put_last!(out,{"id":id,"name":site{"name"} ?? id,"theme":site{"theme"} ?? "compendium","multisite_theming":context::theming(site),"logo":context::site_logo(id),"grouped":true,"portals":members})
+        xx
+    xx
+    if :file_exists("{root}/site/portals")
+        for source in :list_dirs("{root}/site/portals")
+            if :has(owned,source) or context::valid_id(source) == false => skip
+            if :valtype(allowed) == "array" and :has(allowed,source) == false => skip
+            file | "{root}/site/portals/{source}/config.yall"
+            if :file_exists(file) == false => skip
+            /// Listing identity must survive a malformed config so Desk can
+            /// still select this portal and repair its raw configuration.
+            cfg | {}
+            config_error | ""
+            attempt
+                cfg |= :yall_parse_file(file)
+                if :valtype(cfg) != "map"
+                    cfg |= {}
+                    config_error |= "Configuration must contain a YALL map: {file}"
+                xx
+            rescue err
+                config_error |= :str(err)
+            xx
+            name | cfg{"name"} ?? source
+            if :valtype(name) != "str" or :trim(name).nix? => name |= source
+            :put_last!(out,{"id":source,"name":name,"config_error":config_error,"grouped":false,"portals":[{"id":source,"source":source,"name":name}]})
+        xx
+    xx
+    return {"ok":true,"sites":out}
+xx
+act create(payload, adding | false)
+    root | root_dir()
+    id | payload{"id"}
+    if context::valid_id(id) == false or :has(["admin","api","public","data"],id) => return {"ok":false,"stderr":"Choose a valid site address."}
+    site | nil
+    if adding
+        site |= context::load_site(id)
+        if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    else
+        if :file_exists("{root}/site/sites/{id}") or :file_exists("{root}/site/portals/{id}") or :file_exists("{root}/dist/{id}") => return {"ok":false,"stderr":"That site address is already in use."}
+        if plain_name(payload{"name"}) == false => return {"ok":false,"stderr":"Enter a site name."}
+        site |= {"name":payload{"name"},"theme":payload{"theme"},"portals":{}}
+    xx
+    theme | site{"theme"} ?? "compendium"
+    if sites::supports_theme(theme) == false => return {"ok":false,"stderr":"Choose a theme with multisite support."}
+    rows | payload{"portals"}
+    if :valtype(rows) != "array" => return {"ok":false,"stderr":"Add at least one portal."}
+    if rows.len < 1 or rows.len > 20 => return {"ok":false,"stderr":"Create between 1 and 20 portals at a time."}
+    seen | []
+    for row in rows
+        slug | row{"id"}
+        if context::valid_id(slug) == false or plain_name(row{"name"}) == false => return {"ok":false,"stderr":"Each portal needs a name and a valid address."}
+        if :has(seen,slug) or :has(site{"portals"},slug) => return {"ok":false,"stderr":"Portal addresses must be unique within this site."}
+        :put_last!(seen,slug)
+        source | (id + "-" + slug)
+        if :file_exists("{root}/site/portals/{source}") => return {"ok":false,"stderr":"Portal source already exists: {source}"}
+        if sites::supports_theme(row{"theme"} ?? theme) == false => return {"ok":false,"stderr":"Choose a supported portal theme."}
+    xx
+    created | []
+    complete | false
+    attempt
+        for row in rows
+            slug | row{"id"}
+            source | (id + "-" + slug)
+            pick | row{"theme"} ?? theme
+            result | :json_parse(:run_cmd("goblin run desk/api/portal.gbln", ".", {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":"create&{source}&{pick}&{source}"}))
+            if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+            response | unwrap(result{"stdout"})
+            if response{"ok"} == false => return response
+            :put_last!(created,source)
+            /// A new portal starts with its own initials, not Sheriff's copied logo.
+            placeholder | "{root}/site/portals/{source}/public/logo.png"
+            if :file_exists(placeholder) => :delete_path!(placeholder)
+            cfg_file | "{root}/site/portals/{source}/config.yall"
+            cfg | :read_text(cfg_file)
+            :update_where!(cfg,"name: \"{source}\"","name: " + :json_stringify(row{"name"}))
+            cfg |= cfg + "\nmembership:\n  site: {id}\n  portal: {slug}\n"
+            :write_text!(cfg_file,cfg)
+            title | row{"page_title"} ?? row{"name"}
+            if plain_name(title) == false => title |= row{"name"}
+            body | row{"body"} ?? "Welcome to " + row{"name"} + "."
+            :write_text!("{root}/site/portals/{source}/content/index.md","^^^^\ntitle: {title}\nauthor: Sheriff\nlayout: wiki\nmeta_kind: wiki\nmeta_type: overview\ncanonical: index\n^^^^\n\n{body}\n")
+            :write_text!("{root}/site/portals/{source}/nav.yall","menus:\n  header:\n    Home: /index.html\n  left_wiki:\n    Explore:\n      Wiki home: /index.html\n      All Pages: /all_pages.html\n      Categories: /categories.html\n  left_docs:\n    Explore:\n      Wiki home: /index.html\n      All Pages: /all_pages.html\n      Categories: /categories.html\n  footer_left:\n    Built with Sheriff: /\n  footer_right:\n    Portals: /p/\n")
+            :update!(site{"portals"}{slug},{"source":source,"name":row{"name"},"icon":"layers"})
+        xx
+        member_lines | []
+        for pair in site{"portals"}
+            if adding and :has(seen,pair[0]) == false => skip
+            :put_last!(member_lines,"  " + pair[0] + ":\n    source: " + pair[1]{"source"} + "\n    name: " + :json_stringify(pair[1]{"name"}) + "\n    icon: " + (pair[1]{"icon"} ?? "layers"))
+        xx
+        folder | "{root}/site/sites/{id}"
+        :create_dir!(folder)
+        lines | ["name: " + :json_stringify(site{"name"}),"theme: " + theme,"# Multisite themes (uncomment to enable shared themes).\n# shared: every portal uses the main site theme above.\n# individual: each portal uses its own theme. This is the default.\n# multisite_theming: shared","# Enable one shared account menu across the site and all portals.\n# howdy:\n#   enabled: true","portals:",:join(member_lines,"\n")]
+        if adding
+            lines |= []
+            in_portals, inserted | false
+            for line in :split(:read_text("{folder}/site.yall"),"\n")
+                if in_portals and !:trim(line).nix? and :starts_with(line," ") == false and :starts_with(line,"#") == false
+                    :put_last!(lines,:join(member_lines,"\n"))
+                    inserted |= true
+                    in_portals |= false
+                xx
+                :put_last!(lines,line)
+                if :trim(line) == "portals:" => in_portals |= true
+            xx
+            if !inserted => :put_last!(lines,:join(member_lines,"\n"))
+        xx
+        :write_text!("{folder}/site.yall",:join(lines,"\n") + "\n")
+        complete |= true
+    ensure
+        if !complete
+            for source in created
+                :delete_path!("{root}/site/portals/{source}")
+            xx
+        xx
+    xx
+    return {"ok":true,"site":id,"portals":created}
+xx
+/// Validate every member before deleting anything, including the browser's
+/// reviewed member list. Standalone portals and mismatched registries are refused.
+act remove_site(payload)
+    root | root_dir()
+    id | payload{"id"}
+    if context::valid_id(id) == false or :has(["admin","api","public","data"],id) => return {"ok":false,"stderr":"Unknown site."}
+    site | context::load_site(id)
+    if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    if payload{"confirm"} != id => return {"ok":false,"stderr":"Type the site address to confirm deletion."}
+    reviewed | payload{"portals"}
+    if :valtype(reviewed) != "array" or reviewed.len != site{"portals"}.len => return {"ok":false,"stderr":"The portal list changed. Refresh and review it before deleting."}
+    sources | []
+    for pair in site{"portals"}
+        source | pair[1]{"source"}
+        if context::valid_id(source) == false or source == id => return {"ok":false,"stderr":"Invalid portal membership; nothing deleted."}
+        if :has(sources,source) or :has(reviewed,source) == false => return {"ok":false,"stderr":"The portal list changed. Nothing deleted."}
+        member | context::for_portal(source)
+        if member.nix? => return {"ok":false,"stderr":"Portal membership does not match; nothing deleted."}
+        if member{"site_id"} != id or member{"portal_id"} != pair[0] => return {"ok":false,"stderr":"Portal membership does not match; nothing deleted."}
+        /// Refuse a source referenced by another registry, even an invalid one.
+        for other in :list_dirs("{root}/site/sites")
+            if other == id => skip
+            registry | context::load_site(other)
+            if registry.nix? => skip
+            for entry in registry{"portals"}
+                if entry[1]{"source"} == source => return {"ok":false,"stderr":"A portal is also referenced by another site; nothing deleted."}
+            xx
+        xx
+        :put_last!(sources,source)
+    xx
+    if :file_exists("{root}/site/portals/{id}") => return {"ok":false,"stderr":"This address also belongs to a standalone portal; nothing deleted."}
+    for source in sources
+        result | :json_parse(:run_cmd("goblin run desk/api/portal.gbln", ".", {"SHERIFF_ROOT":root,"GOBLIN_QUERY_STRING":"delete&{source}"}))
+        if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"}}
+        response | unwrap(result{"stdout"})
+        if response{"ok"} == false => return response
+    xx
+    if :file_exists("{root}/dist/{id}") => :delete_path!("{root}/dist/{id}")
+    :delete_path!("{root}/site/sites/{id}")
+    return {"ok":true,"site":id,"deleted":sources}
+xx
+
+act upload_logo(query)
+    root | root_dir()
+    id | param(query,"site")
+    site | context::load_site(id)
+    if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    extension | :lower(param(query,"extension"))
+    if :has(["png","jpg","jpeg","webp","gif","avif","svg"],extension) == false => return {"ok":false,"stderr":"Choose a PNG, JPEG, WebP, GIF, AVIF or SVG logo."}
+    incoming | :env("GOBLIN_REQUEST_FILE")
+    if incoming.nix? or :file_exists(incoming) == false => return {"ok":false,"stderr":"Missing logo file."}
+    folder | "{root}/site/sites/{id}/public"
+    :create_dir!(folder)
+    :copy_file!(incoming,"{folder}/site-logo.{extension}")
+    for old in ["png","jpg","jpeg","webp","gif","avif","svg"]
+        if old != extension and :file_exists("{folder}/site-logo.{old}") => :delete_path!("{folder}/site-logo.{old}")
+    xx
+    return {"ok":true,"site":id,"logo":"site-logo.{extension}"}
+xx
+
+/// Shared theme changes belong to the parent site, never its member configs.
+act change_theme(payload)
+    id | payload{"id"}
+    site | context::load_site(id)
+    if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    if context::theming(site) != "shared" => return {"ok":false,"stderr":"This site uses individual portal themes."}
+    theme | payload{"theme"}
+    if sites::supports_theme(theme) == false => return {"ok":false,"stderr":"Choose a supported multisite theme."}
+    file | "../site/sites/{id}/site.yall"
+    source | :read_text(file)
+    lines | []
+    found | false
+    for line in :split(source,"\n")
+        if :starts_with(line,"theme:")
+            line |= "theme: {theme}"
+            found |= true
+        xx
+        :put_last!(lines,line)
+    xx
+    if !found => :put_last!(lines,"theme: {theme}")
+    updated | :join(lines,"\n")
+    expected | :yall_parse(source,"site.yall")
+    :update!(expected{"theme"},theme)
+    if :yall_parse(updated,"site.yall") != expected => return {"ok":false,"stderr":"Could not safely update site theme."}
+    :write_text!(file,updated)
+    return {"ok":true,"saved":true,"theme":theme}
+xx
+
+/// Parent-site config has a fixed path; portal membership is managed in Portals.
+act configuration(query, writing)
+    id | param(query,"site")
+    site | context::load_site(id)
+    if site.nix? => return {"ok":false,"stderr":"Unknown site."}
+    file | "../site/sites/{id}/site.yall"
+    current | :read_text(file)
+    if !writing => return {"ok":true,"content":current}
+    payload | :json_parse(:read_text(:env("GOBLIN_REQUEST_FILE")))
+    text | payload{"content"}
+    if :valtype(text) != "str" => return {"ok":false,"stderr":"Missing site configuration."}
+    if payload{"previous"} != current => return {"ok":false,"stderr":"Site config changed since it was opened. Reload before saving."}
+    cfg | :yall_parse(text,"site/sites/{id}/site.yall")
+    if :valtype(cfg) != "map" => return {"ok":false,"stderr":"Site configuration must be a map."}
+    if cfg{"portals"} != site{"portals"} => return {"ok":false,"stderr":"Manage portal membership in the Portals panel."}
+    if plain_name(cfg{"name"}) == false => return {"ok":false,"stderr":"Enter a site name."}
+    if sites::supports_theme(cfg{"theme"} ?? "compendium") == false => return {"ok":false,"stderr":"Choose a supported site theme."}
+    if :has(["shared","individual"],context::theming(cfg)) == false => return {"ok":false,"stderr":"multisite_theming must be shared or individual."}
+    if :has(cfg,"id") and cfg{"id"} != id => return {"ok":false,"stderr":"The site address cannot be changed in config."}
+    :write_text!(file,text)
+    for pair in site{"portals"}
+        changes::execute(root_dir(),pair[1]{"source"},"touch",{"path":"site.yall"})
+    xx
+    return {"ok":true,"saved":true}
+xx
+
+act handle()
+    query | :env("GOBLIN_QUERY_STRING")
+    verb | :keep_before(query,"&") ?? query
+    if verb == "list" => return inventory()
+    if verb == "transfer_export" => return transfer::export_site(param(query,"site"))
+    if verb == "transfer_import" => return transfer::helper(param(query,"site"),"site-import",{})
+    if verb == "output_archive"
+        id | param(query,"site")
+        if context::load_site(id).nix? => return {"ok":false,"stderr":"Unknown site."}
+        return transfer::helper(id,"site-output",{})
+    xx
+    if verb == "config_read" or verb == "config_write" => return configuration(query,verb == "config_write")
+    if verb == "theme" => return change_theme(:json_parse(:read_text(:env("GOBLIN_REQUEST_FILE"))))
+    if verb == "delete" => return remove_site(:json_parse(:read_text(:env("GOBLIN_REQUEST_FILE"))))
+    if verb == "logo" => return upload_logo(query)
+    if verb == "create" or verb == "add"
+        payload | :json_parse(:read_text(:env("GOBLIN_REQUEST_FILE")))
+        return create(payload,verb == "add")
+    xx
+    if verb == "build"
+        id | param(query,"site")
+        portal | param(query,"portal")
+        page | param(query,"path")
+        if context::valid_id(id) == false => return {"ok":false,"code":1,"stderr":"Unknown site."}
+        if !portal.nix? and context::valid_id(portal) == false => return {"ok":false,"code":1,"stderr":"Unknown portal."}
+        command | "goblin run modules/site_portals/cli.gbln {id}"
+        if !portal.nix? => command |= command + " portal " + portal
+        if !page.nix?
+            if portal.nix? or :has(page,"..") or :has(page,"\\") or :has(page,":") or :starts_with(page,"/") => return {"ok":false,"code":1,"stderr":"Use a relative page path."}
+            command |= command + " page desk-target"
+        xx
+        result | :json_parse(:run_cmd(command,".",{"SHERIFF_SITE_PAGE_TARGET":page}))
+        if result{"ok"}
+            for line in :split(result{"stdout"},"\n")
+                if :starts_with(line,"\{")
+                    data | :json_parse(line)
+                    if data{"ok"} == false => return {"ok":false,"code":1,"stdout":result{"stdout"},"stderr":data{"error"} ?? "Site build failed."}
+                xx
+            xx
+        xx
+        return result
+    xx
+    return {"ok":false,"stderr":"Unknown site action."}
+xx
+

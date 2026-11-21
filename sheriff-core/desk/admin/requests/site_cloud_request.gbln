@@ -1,0 +1,24 @@
+/// Private adapter: Cloud authenticates site ownership before invoking this driver.
+import modules/site_portals/context as context
+import modules/site_portals/desk as desk
+import modules/site_portals/sites as sites
+import modules/site_portals/transfer as transfer
+
+#local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
+
+act dispatch()
+    request | :json_parse(:read_text(:env("GOBLIN_REQUEST_FILE")))
+    mode | request{"mode"}
+    id | request{"site"}
+    if mode == "catalog" => return desk::inventory(request{"ids"})
+    if mode == "inspect" => return transfer::inspect(request{"folder"},id)
+    if mode == "prepare" => return sites::prepare(id,request{"portal"} ?? "",request{"page"} ?? "")
+    if mode == "assemble" => return sites::assemble(id,request{"portal"} ?? "",request{"output"},request{"completed"})
+    if mode == "operation" => return desk::handle()
+    return {"ok":false,"stderr":"Unknown hosted site operation."}
+xx
+attempt
+    :say(:json_stringify(dispatch()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

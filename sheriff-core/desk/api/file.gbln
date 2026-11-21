@@ -1,3 +1,11 @@
+import "../sheriff-core/modules/howdy/access.gbln" as access
+act guard(root, portal, payload)
+    attempt
+        return access::execute(root,portal,"guard",payload,"",true)
+    rescue err
+        return {"ok":false,"saved":false,"stderr":"Howdy access: " + :str(err)}
+    xx
+xx
 /// api/file.gbln
 /// All file operations inside a portal. The first query segment is the verb;
 /// everything after it is the original action's query string, verbatim.
@@ -307,6 +315,26 @@ act do_write(raw)
         root_base |= ".."
     xx
 
+    check | {"paths":[path],"path":path}
+    if parse_query_value(raw,"checked") == "1"
+        attempt
+            check |= :json_parse(content)
+            if :valtype(check{"content"}) != "str" => :provoke("Missing source text.")
+            content |= check{"content"}
+            :update!(check{"checked"},true)
+            :update!(check{"path"},path)
+            :update!(check{"paths"},[path,check{"base_path"}])
+        rescue err
+            :say(:json_stringify({"ok":false,"saved":false,"stderr":"Invalid checked save: " + :str(err)}))
+            return nil
+        xx
+    xx
+    decision | guard(root_base,portal,check)
+    if decision{"ok"} == false
+        :say(:json_stringify(decision))
+        return nil
+    xx
+
     portals_dir | "{root_base}/site/portals"
     known | :list_dirs(portals_dir)
 
@@ -508,6 +536,12 @@ act do_delete(query)
         root_base |= ".."
     xx
 
+    decision | guard(root_base,portal,{"paths":[path]})
+    if decision{"ok"} == false
+        :say(:json_stringify(decision))
+        return nil
+    xx
+
     portals_dir | "{root_base}/site/portals"
     known | :list_dirs(portals_dir)
 
@@ -685,6 +719,12 @@ act do_move(query)
 
     if root_base == ""
         root_base |= ".."
+    xx
+
+    decision | guard(root_base,portal,{"paths":[from,to]})
+    if decision{"ok"} == false
+        :say(:json_stringify(decision))
+        return nil
     xx
 
     portals_dir | "{root_base}/site/portals"

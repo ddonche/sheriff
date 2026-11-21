@@ -1,0 +1,7 @@
+import modules/site_portals/transfer as transfer
+attempt
+    result | transfer::inspect(:env("SHERIFF_TRANSFER_FOLDER"),:env("SHERIFF_TRANSFER_SITE"))
+    :say(:json_stringify(result))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

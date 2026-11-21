@@ -1,0 +1,180 @@
+/// Howdy owns editing policy. Identity/ownership come from the host, never a page.
+import modules/howdy/editor_assets as editor_assets
+act valid_id(value)
+    if :valtype(value) != "str" or value.nix? => return false
+    for c in :split(value, "")
+        if !:has("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-", c) => return false
+    xx
+    return true
+xx
+act valid_path(path)
+    if :valtype(path) != "str" or path.nix? => return false
+    if :has(path, "\\") or :has(path, ":") or :starts_with(path, "/") => return false
+    for part in :split(path, "/")
+        if part.nix? or :starts_with(part, ".") => return false
+    xx
+    return true
+xx
+act page(path)
+    return valid_path(path) and (:starts_with(path,"content/") or :starts_with(path,"blog/")) and :ends_with(:lower(path),".md")
+xx
+/// All documentation versions/revisions of an article share its lock.
+act key(path)
+    path |= :lower(path)
+    if !page(path) => return path
+    stem | path[0:path.len - 3]
+    name | :basename(stem)
+    revision | :split(path,"/").len >= 4 and :starts_with(name,"r") and name.len > 1
+    if revision
+        for c in :split(name[1:],"")
+            if !:has("0123456789",c) => revision |= false
+        xx
+    xx
+    if revision => return :dirname(:dirname(stem))
+    return stem
+xx
+act folder(root, portal)
+    if !valid_id(portal) => :provoke(false,"Invalid portal.")
+    if :env("SHERIFF_RUNTIME_MODE") == "cloud" => return "{root}/site/.desk/howdy/{portal}"
+    return "{root}/data/.desk/howdy/{portal}"
+xx
+act load(root, portal)
+    file | folder(root,portal) + "/access.json"
+    if !:file_exists(file) => return {"version":1,"editors":{},"locks":{}}
+    state | :read_json(file)
+    if :valtype(state{"editors"}) != "map" or :valtype(state{"locks"}) != "map" => :provoke(false,"Howdy permission state is invalid; editing is unavailable.")
+    return state
+xx
+act store(root, portal, state)
+    dir | folder(root,portal)
+    :create_dir!(dir)
+    :write_json!(dir + "/access.json",state)
+xx
+act without(map, removed)
+    out | {}
+    for name in :keys(map)
+        if name != removed => :update!(out{name},map{name})
+    xx
+    return out
+xx
+act denial(message, code | "forbidden")
+    return {"ok":false,"saved":false,"error":code,"stderr":message}
+xx
+act locked(state, path)
+    logical | key(path)
+    for item in :keys(state{"locks"})
+        if item == logical or :starts_with(item,logical + "/") or :starts_with(logical,item + "/") => return true
+    xx
+    return false
+xx
+act capabilities(state, subject, owner, path)
+    owner |= valid_id(subject) and state{"owner"} == subject
+    allowed | owner or (valid_id(subject) and (state{"policy"} == "signed_in" or :has(state{"editors"},subject)))
+    is_locked | !path.nix? and locked(state,path)
+    return {"owner":owner,"edit_content":allowed and !is_locked,"locked":is_locked,"manage_access":owner,"build_portal":owner,"edit_settings":owner}
+xx
+act split_source(text)
+    if !:starts_with(text,"^^^^") => :provoke(false,"This page has no Sheriff frontmatter. Repair it in Desk first.")
+    offset | 0
+    for line in :split(text,"\n")
+        if offset > 0 and :trim(line) == "^^^^"
+            end | offset + line.len
+            if :ends_with(line,"\r") => end |= end - 1
+            return {"prefix":text[0:end],"body":text[end:]}
+        xx
+        offset |= offset + line.len + 1
+    xx
+    :provoke(false,"This page has incomplete Sheriff frontmatter.")
+xx
+act execute(root, portal, verb, payload, subject, owner)
+    if !valid_id(portal) => return denial("Invalid portal.")
+    state | load(root,portal)
+    path | payload{"path"} ?? ""
+    if !path.nix? and !valid_path(path) => return denial("Invalid page path.")
+    caps | capabilities(state,subject,owner,path)
+    if verb == "policy"
+        if !owner => return denial("Only the site owner can change who may edit.")
+        if payload{"policy"} != "approved" and payload{"policy"} != "signed_in" => return denial("Choose an editing policy.")
+        :update!(state{"policy"}, payload{"policy"})
+        store(root,portal,state)
+        return {"ok":true,"editors":state{"editors"},"policy":state{"policy"},"capabilities":capabilities(state,subject,owner,path)}
+    xx
+    if verb == "page" => return {"ok":true,"capabilities":caps}
+    if verb == "manage"
+        if !owner => return denial("Only the site owner can manage editing access.")
+        return {"ok":true,"editors":state{"editors"},"policy":state{"policy"} ?? "approved","capabilities":caps}
+    xx
+    if verb == "grant" or verb == "revoke" or verb == "lock"
+        if !owner => return denial("Only the site owner can change editing access or page locks.")
+        if verb == "lock"
+            if !page(path) or :valtype(payload{"locked"}) != "bool" => return denial("Select a Markdown page and a lock state.")
+            if payload{"locked"}
+                :update!(state{"locks"}{key(path)},true)
+            else
+                :update!(state{"locks"},without(state{"locks"},key(path)))
+            xx
+        else
+            editor | payload{"subject"}
+            if !valid_id(editor) => return denial("Choose a Sheriff account.")
+            if verb == "grant"
+                :update!(state{"editors"}{editor},payload{"label"} ?? editor)
+            else
+                :update!(state{"editors"},without(state{"editors"},editor))
+            xx
+        xx
+        store(root,portal,state)
+        return {"ok":true,"editors":state{"editors"},"policy":state{"policy"} ?? "approved","capabilities":capabilities(state,subject,owner,path)}
+    xx
+    if verb == "guard"
+        if !owner => return denial("This operation requires the site owner.")
+        paths | payload{"paths"} ?? []
+        for candidate in paths
+            if !valid_path(candidate) => return denial("Invalid source path.")
+            if locked(state,candidate) => return denial("This page is locked. Unlock it in Page details before changing, moving or deleting it.","locked")
+        xx
+        if payload{"replace_source"} == true and :keys(state{"locks"}).len > 0 => return denial("Source replacement would bypass page locks. Unlock the affected portal's pages first.","locked")
+        if payload{"checked"} == true
+            base_path | payload{"base_path"}
+            if !page(base_path) or !page(path) or key(base_path) != key(path) => return denial("The save does not match the opened page.")
+            original | "{root}/site/portals/{portal}/{base_path}"
+            if !:file_exists(original) or :read_text(original) != payload{"base"} => return denial("This page changed after you opened it. Your edits have been kept. Reload the latest page before saving.","conflict")
+            if base_path != path and :file_exists("{root}/site/portals/{portal}/{path}") => return denial("That revision already exists. Reload the page before saving.","conflict")
+        xx
+        return {"ok":true}
+    xx
+    if verb == "read" or verb == "library" or verb == "prepare" or verb == "save"
+        if !page(path) => return denial("Content editing requires a Markdown page.")
+        if !owner
+            cfg | :yall_parse_file("{root}/site/portals/{portal}/config.yall")
+            options | cfg{"howdy"}
+            member | cfg{"membership"}
+            if :valtype(member) == "map" and valid_id(member{"site"})
+                parent | :yall_parse_file("{root}/site/sites/" + member{"site"} + "/site.yall")
+                options |= parent{"howdy"}
+            xx
+            if :valtype(options) != "map" or options{"enabled"} != true => return denial("Howdy editing is not enabled on this site.")
+        xx
+        if !caps{"edit_content"} => return denial("This page is locked or your account does not have editing access.")
+        file | "{root}/site/portals/{portal}/{path}"
+        if !:file_exists(file) => return denial("Page not found.","not_found")
+        if verb == "library" => return editor_assets::list(root,portal,payload{"kind"})
+        source | :read_text(file)
+        pieces | split_source(source)
+        if verb == "read" => return {"ok":true,"body":pieces{"body"},"base":source,"capabilities":caps}
+        if :valtype(payload{"body"}) != "str" or payload{"body"}.len > 2097152 => return denial("Page content must be text of at most 2 MB.")
+        if payload{"base"} != source => return denial("This page changed after you opened it. Your edits have been kept. Reload the latest page before saving.","conflict")
+        /// Visual serialization may trim leading blank lines. Keep the closing
+        /// frontmatter fence on its own line without changing the metadata.
+        body | payload{"body"}
+        if !:starts_with(body,"\n") and !:starts_with(body,"\r\n")
+            eol | "\n"
+            if :has(pieces{"prefix"},"\r\n") => eol |= "\r\n"
+            body |= eol + body
+        xx
+        next | pieces{"prefix"} + body
+        if verb == "prepare" => return {"ok":true,"content":next}
+        :write_text!(file,next)
+        return {"ok":true,"saved":true,"base":next}
+    xx
+    return denial("Unknown Howdy access operation.")
+xx

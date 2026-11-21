@@ -70,25 +70,30 @@ act plain_text(raw)
         :put_last!(lines, line)
     xx
     text |= :join(lines, "\n")
-    sweep text
-        "{{{" ... "}}}": :update_where!(text, self, " ")
+    /// Only scan syntax that is present; sweep otherwise treats paths as files.
+    if :has(text, "\{\{\{")
+        sweep text
+            "{{{" ... "}}}": :update_where!(text, self, " ")
+        xx
     xx
-    sweep text
-        "[[" ... "]]":
-            segment | self
-            inside | :keep_between(segment, "[[", "]]") ?? ""
-            parts | :split(inside, "|")
-            label | ""
-            if parts.len > 0 => label |= parts[0]
-            if :lower(label) == "icon"
-                label |= ""
-            elif :starts_with(:lower(label), "image:") or :starts_with(:lower(label), "video:")
-                label |= ""
-                if parts.len > 3 => label |= parts[3]
-            elif parts.len > 1
-                label |= parts[1]
-            xx
-            :update_where!(text, segment, label)
+    if :has(text, "[[")
+        sweep text
+            "[[" ... "]]":
+                segment | self
+                inside | :keep_between(segment, "[[", "]]") ?? ""
+                parts | :split(inside, "|")
+                label | ""
+                if parts.len > 0 => label |= parts[0]
+                if :lower(label) == "icon"
+                    label |= ""
+                elif :starts_with(:lower(label), "image:") or :starts_with(:lower(label), "video:")
+                    label |= ""
+                    if parts.len > 3 => label |= parts[3]
+                elif parts.len > 1
+                    label |= parts[1]
+                xx
+                :update_where!(text, segment, label)
+        xx
     xx
     text |= :md_to_html(text)
     sweep text
@@ -257,26 +262,7 @@ xx
 /// Actors only prepare records. They never write files or mutate page tokens.
 act prepare_record(message)
     fm | message{"frontmatter"} ?? {}
-    /// Frontier's legacy map conversion drops bracket lists. Parse this page's
-    /// source metadata with the Yall parser, retaining inline category additions.
-    source | message{"path"} ?? ""
-    if !source.nix? and :file_exists(source)
-        header | :keep_between(:read_text(source), "^^^^", "^^^^") ?? ""
-        if !header.nix?
-            parsed | :yall_parse(header, "prospector frontmatter")
-            if :valtype(parsed) == "map"
-                categories | header_list(header, parsed, "categories")
-                for category in strings(fm{"categories"})
-                    if :has(categories, category) == false => :put_last!(categories, category)
-                xx
-                for field in :keys(parsed)
-                    :update!(fm{field}, parsed{field})
-                xx
-                :update!(fm{"categories"}, categories)
-                :update!(fm{"aliases"}, header_list(header, parsed, "aliases"))
-            xx
-        xx
-    xx
+    /// Consume metadata prepared by Frontier; actors do not re-read source.
     href | scalar(message{"href"})
     key | scalar(message{"output_rel_no_ext"})
     if key.nix? => key |= scalar(message{"route_rel_no_ext"})

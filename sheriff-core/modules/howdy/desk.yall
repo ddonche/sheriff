@@ -1,0 +1,20 @@
+api_version: 1
+activation: enabled
+name: Howdy
+version: 0.1.0
+icon: user-round
+scope: site
+description: Sheriff Cloud login and the shared account menu on your website.
+help: Enable Howdy to show Log in / Sign up beside the theme toggle. Signing in does not grant editing permissions.
+settings:
+  enabled:
+    type: boolean
+    section: howdy
+    key: enabled
+    label: Enable Howdy
+    description: Show login and account controls on this site.
+    default: false
+
+panel:
+  entry: admin/panel.js
+  icons: [user-round-plus, user-round-minus]

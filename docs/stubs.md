@@ -78,15 +78,15 @@ active marker also count; code examples and comments do not.
 
 ## Explicit site seeding
 
-Trailboss Wiki's `seeder.gbln` is explicitly invoked through `seed.gbln` or Desk's
+Trailboss Wiki's `seeder.gbln` is explicitly invoked through `modules/trailboss_wiki/seed.gbln` or Desk's
 Portals > Seed pages dialog. It is not registered in any build schedule. Both
 entry points share parsing, naming, merge/conflict validation and reporting.
 
 From sheriff-core:
 
 ```text
-goblin run seed.gbln <portal> preview [source.yall]
-goblin run seed.gbln <portal> create [source.yall]
+goblin run modules/trailboss_wiki/seed.gbln <portal> preview [source.yall]
+goblin run modules/trailboss_wiki/seed.gbln <portal> create [source.yall]
 ```
 
 The default input is `<portal>/seeder.yall`. Preview is read-only. Creation saves

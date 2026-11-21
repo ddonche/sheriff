@@ -1,4 +1,5 @@
-import build_output as build_output
+import modules/site_portals/context as site_context
+import "build-support/output.gbln" as build_output
 /// modules/brindle_themes/brindle.gbln
 /// NEW BRINDLE: Only two responsibilities:
 /// (1) Apply layout (inject PAGE::TITLE + PAGE::CONTENT)
@@ -10,7 +11,7 @@ act resolve_theme_name(portal)
 
     if :file_exists(config_path) == false => return theme_name
 
-    cfg       | :yall_parse_file(config_path)
+    cfg       | site_context::config(config_path)
     theme_cfg | cfg{"theme"} ?? nil
 
     if :valtype(theme_cfg) == "map" and !theme_cfg{"name"}.nix?
@@ -107,7 +108,7 @@ act apply_layout(ctx)
     config_path | "../site/portals/{portal}/config.yall"
 
     if :file_exists(config_path)
-        cfg       | :yall_parse_file(config_path)
+        cfg       | site_context::config(config_path)
         theme_cfg | cfg{"theme"} ?? nil
 
         if :valtype(theme_cfg) == "map"
@@ -275,7 +276,7 @@ act apply_tokens(ctx)
     favicon_name | "favicon.ico"
 
     if :file_exists(config_path)
-        cfg       | :yall_parse_file(config_path)
+        cfg       | site_context::config(config_path)
         theme_cfg | cfg{"theme"} ?? nil
 
         if :valtype(theme_cfg) == "map"

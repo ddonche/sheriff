@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/admin/admin.css?v=47">
+<link rel="stylesheet" href="/admin/admin.css?v=modulecatalog2-howdyaccess2">
 </head>
 <body>
 
@@ -26,14 +26,48 @@
   <!-- brand -->
   <div class="brand">
     <img src="/admin/logo.png" alt="Sheriff logo">
-    <span class="word">Sheriff</span>
+    <span class="word">Sheriff</span><button id="desk-sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse navigation" title="Collapse navigation" aria-controls="desk-navigation" aria-expanded="true"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-panel-left-close"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M9 3v18" />
+  <path d="m16 15-3-3 3-3" />
+</svg></button>
   </div>
 
   <!-- header -->
   <header>
+    <div id="desk-site-control" class="desk-site-control" hidden><span id="desk-site-icon" aria-hidden="true"></span><div><label for="desk-site">Site</label><select id="desk-site" aria-label="Active site"></select><small id="desk-site-caption"></small></div></div>
     <select id="desk-portal" data-portal-select data-portal-primary aria-label="Active portal"></select>
+    <button class="btn" id="desk-build-site" type="button" hidden><!-- @license lucide-static v1.71.0 - ISC -->
+<svg
+  class="lucide lucide-hammer"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" />
+  <path d="m18 15 4-4" />
+  <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" />
+</svg>
+ Build site</button><span id="desk-site-error" role="alert" hidden></span>
     <span class="env-tag">LOCAL ADMIN</span>
-    <button class="btn primary" id="desk-publish" type="button" hidden>Publish</button><span id="desk-publish-status" role="status"></span>
+    <button class="btn primary" id="desk-publish" type="button" hidden>Publish</button><span id="desk-publish-status" role="status"></span><button id="desk-build-notice" class="desk-build-notice" type="button" hidden></button>
 
     <div class="header-actions">
       <a class="btn ghost" href="https://sheriff.sheriffcloud.com" target="_blank" rel="noopener">
@@ -48,7 +82,7 @@
   </header>
 
   <!-- sidebar -->
-  <nav>
+  <nav id="desk-navigation" aria-label="Desk navigation">
     <div class="nav-label">Manage</div>
     <a href="#dashboard" data-view="dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
@@ -87,6 +121,22 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 10-10c0 1.38-1.12 2.5-2.5 2.5H17a2 2 0 0 0-2 2v.5c0 1.38-1.12 2.5-2.5 2.5z"/></svg>
       Themes
     </a>
+    <a href="#modules" data-view="modules"><!-- @license lucide-static v1.71.0 - ISC -->
+<svg
+  class="lucide lucide-puzzle"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" />
+</svg>
+Modules</a>
     <a href="#config" data-view="config">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
       Config
@@ -95,12 +145,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v11h14V9M10 13h4"/></svg>
       Snapshots
     </a>
-    <div class="nav-label">Deploy</div>
-    <a href="#cloud" data-view="cloud">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-      Cloud Sync
-    </a>
-    <div class="nav-label">System</div>
+<div class="nav-label">System</div>
     <a href="#settings" data-view="settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -121,7 +166,7 @@
           <!-- welcome + status -->
           <div class="welcome">
             <h1>Welcome to Sheriff Desk</h1>
-            <p>This is your local admin. Everything below runs against the local workspace — build portals, manage content, and push to Sheriff Cloud when you're ready.</p>
+            <p>This is your local admin. Save edits to your local source without building. Build a page or portal to preview it here. Push to Cloud opens a review before you choose to build and publish online.</p>
             <div class="status-row">
               <div class="stat">
                 <div class="k">Workspace</div>
@@ -133,7 +178,7 @@
               </div>
               <div class="stat">
                 <div class="k">Build status</div>
-                <div class="v placeholder">Idle</div>
+                <div class="v placeholder" id="stat-build" role="status" aria-live="polite">Checking build history…</div><small id="stat-build-history" class="build-history" hidden></small>
               </div>
               <div class="stat">
                 <div class="k">Cloud</div>
@@ -217,14 +262,45 @@
       <template id="portal-card">
         <article class="portal">
           <div class="name">
-            <svg class="star teal"><use href="#badge-star"/></svg>
+            <span class="portal-icon-slot"></span>
             <span class="portal-name"></span>
             <span class="pill portal-pill">detected</span>
           </div>
           <div class="host">View: <a class="portal-host" href="#"></a></div>
           <div class="actions">
-            <a class="btn small portal-edit" href="#content">Edit content</a>
-            <button class="btn small primary portal-build" type="button">Build portal</button>
+            <a class="btn small portal-edit" href="#content"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-file-pen-line"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z" />
+  <path d="M14.487 7.858A1 1 0 0 1 14 7V2" />
+  <path d="M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516" />
+  <path d="M8 18h1" />
+</svg><span>Edit content</span></a>
+            <button class="btn small primary portal-build" type="button"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-hammer"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" />
+  <path d="m18 15 4-4" />
+  <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" />
+</svg><span data-portal-action-label>Build portal</span></button>
           </div>
         </article>
       </template>
@@ -262,24 +338,80 @@
             <button class="help-btn" type="button" data-help="content" title="Writing help">?</button>
             <a class="btn small" id="ed-open-portal" href="#" target="_blank" rel="noopener" hidden>Open portal ↗</a>
             <div class="ed-save-actions" role="group" aria-label="Save and build actions">
-              <button class="btn small primary" type="button" id="ed-save" disabled>Save</button>
+              <button class="btn small primary" type="button" id="ed-save" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2ZM7 3v6h10V3M7 21v-8h10v8"/></svg>Save</button>
+              <button class="btn small" type="button" id="ed-cancel" title="Discard unsaved edits and restore the saved version" disabled>Cancel</button>
               <button class="btn small" type="button" id="ed-build-page" disabled>Build page</button>
               <button class="btn small" type="button" id="ed-build-portal" disabled>Build portal</button>
             </div>
           </div>
           <div id="ed-editor-panel" class="ed-editor-panel" role="tabpanel" aria-labelledby="ed-tab-editor">
-            <div class="content-tools"><button class="btn small" type="button" id="ci-toggle" aria-expanded="false" aria-controls="ci-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Insert image</button>
+            <div class="editor-mode-row" id="editor-mode-row" hidden><button type="button" class="btn small page-details-toggle" id="page-details-toggle" aria-expanded="false" aria-controls="page-details"><span class="page-details-icon"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-file-text"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg></span><span>Page details</span><span class="page-details-chevron"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-chevron-down"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m6 9 6 6 6-6" />
+</svg></span></button><span id="page-details-caption">Title, layout, categories &amp; more</span><div id="visual-mode-tabs" class="visual-mode-tabs" role="tablist" aria-label="Editing mode" hidden><button type="button" data-mode="visual" role="tab" aria-selected="false" aria-controls="visual-surface" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z"/></svg>Visual</button><button type="button" data-mode="source" role="tab" aria-selected="true" aria-controls="ed-text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m8 5-7 7 7 7m8-14 7 7-7 7m-3-17-2 20"/></svg>Source</button></div></div>
+<details class="page-details" id="page-details" hidden>
+  <summary hidden>Page details</summary>
+  <div class="page-details-body"><div id="page-details-fields" class="page-details-grid">
+    <label for="pd-title">Title<input id="pd-title" data-page-field="title" autocomplete="off" placeholder="Page title"></label>
+    <label for="pd-layout">Layout<select id="pd-layout" data-page-field="layout"><option value="">Select a layout</option></select><small>Use a layout provided by your theme.</small></label>
+    <label for="pd-author">Author<input id="pd-author" data-page-field="author" autocomplete="off" placeholder="Author name"></label>
+    <label for="pd-categories">Categories<textarea id="pd-categories" data-page-field="categories" rows="2" placeholder="One category per line"></textarea><small>One category per line. Existing custom fields stay in Source.</small></label>
+    <label for="pd-summary">Summary<input id="pd-summary" data-page-field="summary" placeholder="A short description for search"></label>
+    <label for="pd-gloss">Glossary description<input id="pd-gloss" data-page-field="gloss" placeholder="Shown in link tooltips"></label>
+    <label class="page-field-wide" for="pd-thumb">Thumbnail<input id="pd-thumb" data-page-field="thumb" placeholder="/public/images/example.png" autocomplete="off"></label>
+  </div><p id="page-details-status" role="status">Changes here update Source. Save when you’re ready.</p></div>
+</details>
+
+<div id="visual-toolbar" class="visual-toolbar" aria-label="Text formatting" role="toolbar" hidden></div>
+            <div class="content-tools" role="group" aria-label="Insert content"><span class="content-tools-label">Insert</span><button class="btn small" type="button" id="ci-toggle" aria-expanded="false" aria-controls="ci-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Insert image</button>
+              <button class="btn small" type="button" id="visual-video-insert" aria-expanded="false" aria-controls="visual-video-properties" disabled>Insert video</button>
               <button class="btn small" type="button" id="cx-icons-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>Insert icon</button>
               <button class="btn small" type="button" id="cx-patterns-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Insert pattern</button>
+              <button class="btn small" type="button" id="visual-admonition-insert" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/></svg>Insert admonition</button>
             </div>
-            <section id="ci-panel" class="content-image-panel" aria-label="Insert image" hidden>
-              <form id="ci-form">
-                <div class="content-source-tabs" role="group" aria-label="Image source"><button type="button" data-ci-source="existing" aria-pressed="true">Existing images</button><button type="button" data-ci-source="upload" aria-pressed="false">Upload new</button></div>
+            <section id="ci-panel" class="content-image-panel help-drawer editor-dialog image-picker-dialog" role="dialog" aria-modal="false" aria-labelledby="ci-dialog-title" aria-label="Insert image" hidden>
+              <div class="hd-head"><span class="hd-title" id="ci-dialog-title">Insert image</span><button class="wiz-x" id="ci-close" type="button" aria-label="Close image picker" title="Close">&times;</button></div><form id="ci-form">
+                <div class="ci-toolbar"><div class="content-source-tabs" role="group" aria-label="Image source"><button type="button" data-ci-source="existing" aria-pressed="true">Existing images</button><button type="button" data-ci-source="upload" aria-pressed="false">Upload new</button></div><button class="btn small" id="ci-expand" type="button" aria-expanded="false" aria-controls="ci-scroll"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg><span>Expand gallery</span></button></div><div class="ci-scroll" id="ci-scroll">
                 <div class="ci-grid">
                   <select id="ci-source" aria-label="Image source" hidden><option value="existing">Existing image</option><option value="upload">Upload image</option></select>
                   <div class="ci-field ci-folder-field"><label for="ci-folder">Image folder</label><div class="ci-folder-row"><select id="ci-folder"></select><button class="btn small" type="button" id="ci-newfolder">New folder</button></div></div>
                   <div class="ci-field ci-file-field" id="ci-upload-row"><label for="ci-file">Image file</label><input id="ci-file" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.ico"></div>
-                  <div class="ci-field ci-file-field" id="ci-existing-row"><label for="ci-existing">Images in this folder</label><select id="ci-existing"><option value="">Choose an image…</option></select><div id="ci-library" class="ci-library" role="group" aria-label="Existing images"></div><p id="ci-library-empty" class="cx-muted" hidden>No images in this folder. Choose another folder or Upload new.</p></div>
+                  <div class="ci-field ci-file-field" id="ci-existing-row">
+                    <div class="ci-library-heading"><label for="ci-search">Images in this folder</label><span id="ci-library-count" class="cx-muted" role="status" aria-live="polite"></span></div>
+                    <input id="ci-search" type="search" placeholder="Filter by filename…" autocomplete="off" aria-label="Filter images by filename">
+                    <select id="ci-existing" hidden aria-label="Selected image"><option value="">Choose an image…</option></select>
+                    <p id="ci-selection" class="cx-muted" role="status"></p>
+                    <div id="ci-library" class="ci-library" role="group" aria-label="Existing images"></div>
+                    <p id="ci-library-empty" class="cx-muted" hidden>No images in this folder. Choose another folder or Upload new.</p>
+                    <button class="btn small" id="ci-more" type="button" hidden>Show more images</button>
+                  </div>
                   <div class="ci-field"><label for="ci-size">Size</label><select id="ci-size"><option value="full">Full</option><option value="half">Half</option><option value="thumb">Thumbnail</option><option value="mini">Mini</option><option value="icon">Icon</option></select></div>
                   <div class="ci-field"><label for="ci-align">Alignment</label><select id="ci-align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></div>
                   <div class="ci-field ci-caption-field"><label for="ci-caption">Caption (optional)</label><input id="ci-caption" type="text" placeholder="A description of the image"></div>
@@ -287,24 +419,81 @@
                 <div id="ci-newfolder-row" class="ci-newfolder-row" hidden><label for="ci-folder-name">New folder name</label><div><input id="ci-folder-name" type="text" placeholder="characters" autocomplete="off"><button class="btn small" type="button" id="ci-create-folder">Create folder</button><button class="btn small" type="button" id="ci-cancel-folder">Cancel</button></div></div>
                 <div class="ci-preview-row"><div class="ci-image-preview"><img id="ci-preview-image" alt="Selected image preview" hidden><span id="ci-preview-placeholder">Choose an image to preview it.</span></div><div class="ci-syntax"><span>Syntax preview</span><code id="ci-syntax-preview">Choose an image to generate its syntax.</code><p>The path is relative to public/images. Uploading does not build the site; save your edits, then use Build page or Build portal when ready.</p></div></div>
                 <p id="ci-status" class="ci-status" role="status" aria-live="polite"></p>
-                <div class="ci-actions"><button class="btn primary small" id="ci-insert" type="submit" disabled>Insert image</button><button class="btn small" type="button" id="ci-cancel">Cancel</button></div>
+                </div><div class="ci-actions"><button class="btn primary small" id="ci-insert" type="submit" disabled>Insert image</button><button class="btn small" type="button" id="ci-cancel">Cancel</button></div>
               </form>
             </section>
-            <section id="cx-panel" class="content-image-panel content-insert-panel" aria-labelledby="cx-title" hidden>
-              <div class="cx-heading"><h3 id="cx-title">Insert icon</h3><a id="cx-manage" href="#icons">Manage icons ↗</a></div>
+            <section id="cx-panel" class="content-image-panel content-insert-panel help-drawer editor-dialog insert-picker-dialog" role="dialog" aria-modal="false" aria-labelledby="cx-title" hidden>
+              <div class="hd-head"><span class="hd-title" id="cx-title">Insert icon</span><button class="wiz-x" id="cx-close" type="button" aria-label="Close insert picker" title="Close">&times;</button></div>
               <div class="cx-layout">
-                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div><button id="cx-more" class="btn small" type="button" hidden>Show more icons</button></div>
+                <div class="cx-browser"><label class="sr-only" for="cx-search">Search available items</label><input id="cx-search" type="search" placeholder="Search icons…" autocomplete="off"><label class="sr-only" for="cx-collection">Icon collection</label><select id="cx-collection" aria-label="Icon collection"><option value="">All icons</option><option value="core">Lucide</option><option value="brands">Brands</option><option value="portal">Uploaded</option></select><p id="cx-status" class="ci-status" role="status" aria-live="polite"></p><div id="cx-grid" class="cx-icon-grid" role="group" aria-label="Available icons"></div><button id="cx-more" class="btn small" type="button" hidden>Show more icons</button></div>
                 <div class="cx-detail">
-                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color" id="cx-color-help">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div></div>
+                  <div id="cx-icon-detail"><label for="cx-size">Size <span class="cx-muted">(optional, pixels)</span></label><input id="cx-size" type="number" min="8" max="256" step="1" placeholder="Match text"><div class="cx-selected-preview"><span id="cx-selected-icon" class="icons-preview" hidden></span></div><label for="cx-color" id="cx-color-help">Color <span class="cx-muted">(optional)</span></label><div class="cx-color-row"><input type="color" id="cx-color-picker" value="#22282c" aria-label="Choose icon color"><input type="text" id="cx-color" placeholder="Inherit text color"><button class="btn small" type="button" id="cx-reset-color">Reset</button></div><button class="btn small icon-brand-color" type="button" id="cx-brand-color" disabled>Use brand color</button><label for="cx-link">Link <span class="cx-muted">(optional)</span></label><input id="cx-link" type="text" placeholder="https://… or /page.html" maxlength="2048" aria-describedby="cx-link-help"><p id="cx-link-help" class="cx-muted">Web URL, site path, or #section.</p></div>
                   <h4 id="cx-name">Select an icon</h4><p id="cx-description" class="cx-muted"></p>
                   <div id="cx-pattern-detail" hidden><label for="cx-pattern-use">Insert as</label><select id="cx-pattern-use"><option value="token">Reusable token</option><option value="source">Editable copy</option></select></div>
                   <label for="cx-syntax">Will insert</label><textarea id="cx-syntax" readonly spellcheck="false" rows="4"></textarea>
                 </div>
               </div>
-              <div class="ci-actions"><button class="btn primary small" type="button" id="cx-insert" disabled>Insert icon</button><button class="btn small" type="button" id="cx-cancel">Cancel</button></div>
+              <div class="ci-actions"><a id="cx-manage" href="#icons">Manage icons ↗</a><button class="btn primary small" type="button" id="cx-insert" disabled>Insert icon</button><button class="btn small" type="button" id="cx-cancel">Cancel</button></div>
             </section>
             <div class="ed-version-bar" id="ed-version-bar" hidden></div>
+            <aside id="visual-video-properties" class="help-drawer editor-dialog video-settings-dialog" role="dialog" aria-modal="false" aria-labelledby="visual-video-title" hidden>
+  <div class="hd-head"><span class="hd-title" id="visual-video-title">Insert video</span><button class="wiz-x" id="visual-video-close" type="button" aria-label="Close video settings" title="Close">&times;</button></div>
+  <div class="hd-body">
+    <div class="page-details-grid">
+      <label for="visual-video-provider">Provider<select id="visual-video-provider"><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option></select></label>
+      <label for="visual-video-id">Video ID<input id="visual-video-id" autocomplete="off" placeholder="Video ID, not the full URL"></label>
+      <label for="visual-video-size">Size<select id="visual-video-size"><option value="full">Full</option><option value="half">Half</option><option value="thumb">Thumbnail</option></select></label>
+      <label for="visual-video-align">Alignment<select id="visual-video-align"><option value="center">Center</option><option value="left">Left</option><option value="right">Right</option></select></label>
+      <label class="page-field-wide" for="visual-video-caption">Caption (optional)<input id="visual-video-caption" autocomplete="off" placeholder="Describe this video"></label>
+    </div>
+    <p class="mono-hint">Half and thumbnail videos wrap beside text when aligned left or right. Consecutive videos form a group on the built page.</p>
+    <p id="visual-video-syntax" class="mono-hint" role="status"></p>
+    <button class="btn small" id="visual-video-play" type="button">Preview video</button><div id="visual-video-preview"></div>
+  </div>
+  <div class="hd-foot editor-dialog-footer"><button class="btn small danger" id="visual-video-remove" type="button" hidden>Remove from page</button><button class="btn small" id="visual-video-source" type="button" hidden>Edit in Source</button><span>Changes stay unsaved until Save.</span><button class="btn small" id="visual-video-cancel" type="button">Cancel</button><button class="btn small teal" id="visual-video-apply" type="button">Insert video</button></div>
+</aside>
+
+            <aside id="visual-image-properties" class="help-drawer editor-dialog image-settings-dialog" role="dialog" aria-modal="false" aria-labelledby="visual-image-title" hidden><div class="hd-head"><span class="hd-title" id="visual-image-title">Image settings</span><button class="wiz-x" id="visual-image-close" type="button" aria-label="Close image settings" title="Close">&times;</button></div><div class="hd-body"><p id="visual-image-path" class="mono-hint"></p><div class="page-details-grid visual-image-fields"><label for="visual-image-size">Size<select id="visual-image-size"><option value="full">Full</option><option value="half">Half</option><option value="thumb">Thumbnail</option><option value="mini">Mini</option><option value="icon">Icon</option></select></label><label for="visual-image-align">Alignment<select id="visual-image-align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><label class="page-field-wide" for="visual-image-caption"><span>Caption <span class="visual-field-optional">(optional)</span></span><input id="visual-image-caption" placeholder="Describe this image" autocomplete="off"></label></div>
+              <p id="visual-image-status" role="status">Changes stay unsaved until Save.</p></div><div class="hd-foot editor-dialog-footer"><button class="btn small" id="visual-image-replace" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h15l-4-4M20 17H5l4 4M20 7v5M4 17v-5"/></svg>Replace image</button><button class="btn small danger" id="visual-image-remove" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>Remove from page</button><button class="btn small teal" id="visual-image-done" type="button">Done</button></div></aside>
+            <aside id="visual-admonition-properties" class="help-drawer editor-dialog admonition-dialog" role="dialog" aria-modal="false" aria-labelledby="visual-admonition-settings-title" hidden>
+ <div class="hd-head"><span class="hd-title" id="visual-admonition-settings-title">Admonition</span><button class="wiz-x" id="visual-admonition-close" type="button" aria-label="Close admonition" title="Close">&times;</button></div>
+ <div class="hd-body"><div class="page-details-grid"><label for="visual-admonition-kind">Type<select id="visual-admonition-kind"><option value="note">Note</option><option value="tip">Tip</option><option value="warning">Warning</option><option value="important">Important</option><option value="example">Example</option><option value="strategy">Strategy</option><option value="lore">Lore</option><option value="spoiler">Spoiler</option></select></label><label for="visual-admonition-title">Title (optional)<input id="visual-admonition-title" autocomplete="off"></label></div>
+ <label class="editor-content-label" for="visual-admonition-content">Content</label><div id="visual-admonition-toolbar" class="visual-toolbar" role="toolbar" aria-label="Admonition formatting"></div><div id="visual-admonition-content"></div>
+ </div><div class="hd-foot editor-dialog-footer"><button class="btn small danger" id="visual-admonition-remove" type="button">Remove from page</button><span>Changes stay unsaved until Save.</span><button class="btn small teal" id="visual-admonition-done" type="button">Done</button></div>
+</aside>
+            <aside id="visual-pattern-properties" class="help-drawer editor-dialog pattern-settings-dialog" role="dialog" aria-modal="false" aria-labelledby="visual-pattern-title" hidden>
+              <div class="hd-head"><span class="hd-title" id="visual-pattern-title">Edit pattern</span><button class="wiz-x" id="visual-pattern-close" type="button" aria-label="Close pattern settings" title="Close">&times;</button></div>
+              <div class="hd-body">
+                <div class="page-details-grid"><label for="visual-pattern-name">Pattern name<input id="visual-pattern-name" autocomplete="off"></label><label for="visual-pattern-orientation">Layout<select id="visual-pattern-orientation"><option value="vertical">Vertical infobox</option><option value="horizontal">Horizontal</option></select></label></div>
+                <div class="visual-pattern-section-bar"><div id="visual-pattern-tabs" class="visual-pattern-tabs" role="group" aria-label="Pattern sections"></div><button class="btn small" id="visual-pattern-add-tab" type="button">Add edition tab</button></div>
+                <p class="mono-hint">Shared fields appear in every edition. Add tabs only when this pattern needs them.</p>
+                <div id="visual-pattern-tab-controls" class="visual-pattern-tab-controls" hidden><label for="visual-pattern-tab-name">Tab name<input id="visual-pattern-tab-name" autocomplete="off"></label><div><button class="btn small" id="visual-pattern-tab-left" type="button" title="Move tab left" aria-label="Move tab left"></button><button class="btn small" id="visual-pattern-tab-right" type="button" title="Move tab right" aria-label="Move tab right"></button><button class="btn small danger" id="visual-pattern-remove-tab" type="button">Remove tab and fields</button></div></div>
+                <div class="visual-pattern-field-head" aria-hidden="true"><span>Field name</span><span>Value</span></div><div id="visual-pattern-fields"></div>
+                <p id="visual-pattern-empty" class="mono-hint">No fields in this section yet.</p><button class="btn small" id="visual-pattern-add-field" type="button">Add field</button>
+                <p class="mono-hint">Values support Sheriff links, images, icons, and inline formatting. For example: <code>*[[A Book]]*</code>. Prefix a field name with <code>_</code> for a full-width row.</p>
+                <p id="visual-pattern-extra" class="mono-hint" hidden>Additional source lines are preserved. Use Edit in Source to change them.</p>
+                <p id="visual-pattern-status" role="status">Changes stay unsaved until Save.</p>
+              </div>
+              <div class="hd-foot editor-dialog-footer"><button class="btn small danger" id="visual-pattern-remove" type="button">Remove from page</button><button class="btn small" id="visual-pattern-source" type="button">Edit in Source</button><button class="btn small teal" id="visual-pattern-done" type="button">Done</button></div>
+            </aside>
+            <p id="visual-status" class="visual-status" role="status" hidden></p>
+            <div id="visual-surface" class="visual-surface" hidden></div>
             <textarea id="ed-text" class="ed-text" spellcheck="false" disabled placeholder="Select a file from the left to start editing."></textarea>
+            <button id="ed-back-to-top" class="ed-back-to-top" type="button" title="Back to top of editor" aria-label="Back to top of editor" hidden><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-arrow-up"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m5 12 7-7 7 7" />
+  <path d="M12 19V5" />
+</svg></button>
           </div>
           <div id="ed-log-panel" class="desk-build-panel" role="tabpanel" aria-labelledby="ed-tab-log" data-build-log="content" hidden>
             <div class="desk-build-heading"><div><strong data-build-title>Build log</strong><span data-build-status role="status" aria-live="polite">Idle</span></div><button class="btn small" type="button" data-build-copy disabled>Copy log</button></div>
@@ -345,16 +534,93 @@
       <template id="portal-manage-card">
         <article class="portal">
           <div class="name">
-            <svg class="star teal"><use href="#badge-star"/></svg>
+            <span class="portal-icon-slot"></span>
             <span class="portal-name"></span>
           </div>
           <div class="host">View: <a class="portal-host" href="#"></a></div>
           <div class="actions">
-            <a class="btn small portal-edit" href="#content">Edit content</a>
-            <button class="btn small primary portal-build" type="button">Build portal</button>
-            <button class="btn small portal-seed" type="button"><svg width="14" height="14" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21V10M12 14C5 14 3 9 3 4c7 0 9 4 9 8M12 11c0-5 4-8 9-8 0 6-3 10-9 10"/></svg> Seed pages</button>
-            <button class="btn small portal-rename" type="button">Rename</button>
-            <button class="btn small portal-delete" type="button">Delete</button>
+            <a class="btn small portal-edit" href="#content"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-file-pen-line"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14.364 13.634a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506l4.013-4.009a1 1 0 0 0-3.004-3.004z" />
+  <path d="M14.487 7.858A1 1 0 0 1 14 7V2" />
+  <path d="M20 19.645V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l2.516 2.516" />
+  <path d="M8 18h1" />
+</svg><span>Edit content</span></a>
+            <button class="btn small primary portal-build" type="button"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-hammer"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" />
+  <path d="m18 15 4-4" />
+  <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" />
+</svg><span data-portal-action-label>Build portal</span></button>
+            <button class="btn small portal-seed" type="button"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-sprout"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3" />
+  <path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4" />
+  <path d="M5 21h14" />
+</svg><span>Seed pages</span></button>
+            <button class="btn small portal-rename portal-action-icon" type="button" aria-label="Rename portal" title="Rename portal"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-pencil"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+  <path d="m15 5 4 4" />
+</svg></button>
+            <button class="btn small portal-delete portal-action-icon" type="button" aria-label="Delete portal" title="Delete portal"><svg aria-hidden="true" focusable="false"
+  class="lucide lucide-trash-2"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 11v6" />
+  <path d="M14 11v6" />
+  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+  <path d="M3 6h18" />
+  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+</svg></button>
           </div>
         </article>
       </template>
@@ -370,7 +636,6 @@
         <div class="snapshot-table-wrap" id="ss-table"><table class="snapshot-table"><thead><tr><th scope="col">Name</th><th scope="col">Date and time</th><th scope="col">Size</th><th scope="col" class="snapshot-actions-head">Actions</th></tr></thead><tbody id="ss-rows"></tbody></table></div>
         <div class="snapshot-empty" id="ss-empty" hidden><h2>No snapshots yet</h2><p>Save your first snapshot of this portal.</p><button class="btn primary" id="ss-first" type="button">Save snapshot</button></div>
         <p class="snapshot-footer">Each snapshot includes all saved source files and assets in the selected portal.</p>
-        <details class="snapshot-build-log" id="ss-build-log" hidden><summary>Build output</summary><pre id="ss-build-output"></pre></details>
       </div>
     </section>
 
@@ -526,7 +791,7 @@
     <section class="view" id="view-navigation" hidden>
       <div class="cfg-wrap">
         <div class="view-head"><h2 class="bracket">Navigation</h2><button class="help-btn" type="button" data-help="navigation" title="Help">?</button></div>
-        <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Saving rebuilds the portal.</p>
+        <p class="np-hint" style="margin-bottom:4px">Your site's menus (nav.yall). Save keeps your changes. Use Save &amp; rebuild when ready to update the portal.</p>
         <div class="cfg-editor">
           <div class="content-tools"><button class="btn small" type="button" id="nv-icons-toggle" aria-expanded="false" aria-controls="cx-panel" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg>Insert icon</button></div>
           <div id="nv-picker-host"></div>
@@ -534,7 +799,7 @@
           <div class="cfg-foot">
             <span class="ed-status" id="nv-status"></span>
             <span class="ed-dirty" id="nv-dirty" hidden>● unsaved</span>
-            <button class="btn primary small" type="button" id="nv-save" disabled>Save &amp; rebuild</button>
+            <button class="btn primary small" type="button" id="nv-save" disabled>Save</button><button class="btn small" type="button" id="nv-build" disabled>Save &amp; rebuild</button>
           </div>
         </div>
       </div>
@@ -554,7 +819,7 @@
               <div class="cfg-foot">
                 <span class="ed-status" id="th-status"></span>
                 <span class="ed-dirty" id="th-dirty" hidden>● unsaved</span>
-                <button class="btn primary small" type="button" id="th-save" disabled>Save &amp; rebuild</button>
+                <button class="btn primary small" type="button" id="th-save" disabled>Save</button><button class="btn small" type="button" id="th-build" disabled>Save &amp; rebuild</button>
               </div>
             </div>
           </div>
@@ -571,11 +836,31 @@
       </div>
     </section>
 
+    <section class="view" id="view-modules" hidden>
+      <div class="cfg-wrap">
+        <div class="view-head"><button class="btn small" id="modules-back" type="button" hidden>← Modules</button><h2 class="bracket" id="modules-title">Modules</h2></div>
+        <p class="np-hint" id="modules-scope"></p>
+        <p class="np-hint module-intro" id="modules-intro">Manage installed modules. Open a module for its control panel.</p>
+        <div id="modules-panels" class="module-panels"></div>
+        <p class="ed-status err" id="modules-error" role="alert"></p>
+        <div class="cfg-foot module-actions">
+          <span id="modules-status" class="ed-status" role="status"></span>
+          <span id="modules-dirty" class="ed-dirty" hidden>● unsaved</span>
+          <button class="btn primary small" id="modules-save" type="button" disabled>Save</button>
+          <button class="btn small" id="modules-build" type="button" disabled>Save &amp; rebuild</button>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ CONFIG VIEW ============ -->
     <section class="view" id="view-config" hidden>
       <div class="cfg-wrap">
         <div class="view-head"><h2 class="bracket">Config</h2><button class="help-btn" type="button" data-help="config" title="Help">?</button></div>
-        <p class="np-hint" style="margin-bottom:4px">Your site's configuration (config.yall). Saving rebuilds the portal.</p>
+        <div class="cfg-tabs" id="cf-scope" role="group" aria-label="Configuration scope" hidden>
+          <button class="cfg-tab" type="button" id="cf-site" aria-pressed="false">Site config</button>
+          <button class="cfg-tab active" type="button" id="cf-portal" aria-pressed="true">Portal config</button>
+        </div>
+        <p class="np-hint" id="cf-scope-note" style="margin-bottom:4px">Portal configuration (config.yall). Save keeps your changes. Save &amp; rebuild updates the portal.</p>
         <details class="cfg-version-badges" id="cf-version-badges" hidden>
           <summary>Version badge tokens</summary>
           <p id="cf-version-badge-note" class="np-hint"></p>
@@ -586,7 +871,7 @@
           <div class="cfg-foot">
             <span class="ed-status" id="cf-status"></span>
             <span class="ed-dirty" id="cf-dirty" hidden>● unsaved</span>
-            <button class="btn primary small" type="button" id="cf-save" disabled>Save &amp; rebuild</button>
+            <button class="btn primary small" type="button" id="cf-save" disabled>Save</button><button class="btn small" type="button" id="cf-build" disabled>Save &amp; rebuild</button>
           </div>
         </div>
       </div>
@@ -596,7 +881,7 @@
     <section class="view" id="view-icons" hidden>
       <div class="icons-wrap">
         <div class="view-head"><h2 class="bracket">Icons</h2><button class="btn primary small" id="ic-upload-toggle" type="button">Upload PNG</button></div>
-        <p class="icons-intro">Find a Lucide icon or upload a PNG for your portal, choose its size, and copy its syntax.</p>
+        <p class="icons-intro">Choose a Lucide icon, a brand logo, or your own uploaded PNG. Set its size, color, and optional link, then copy its syntax.</p>
         <form id="ic-upload-form" class="panel icons-upload" hidden>
           <h3>Upload a PNG icon</h3>
           <p>For the selected portal. PNGs keep their original colors and transparency. Up to 1 MB.</p>
@@ -613,12 +898,13 @@
               <p id="ic-size-help" class="icons-size-help">8–256 px. Leave empty to use the theme’s inline size.</p>
               <label for="ic-color">Color <span>(optional)</span></label>
               <div class="icons-color-control"><input id="ic-color-picker" type="color" value="#22282c" aria-label="Choose icon color"><input id="ic-color" type="text" placeholder="Inherit styling" maxlength="120" spellcheck="false"></div>
-              <div class="icons-color-footer"><span id="ic-color-help">Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
+              <button class="btn small icon-brand-color" id="ic-brand-color" type="button" disabled>Use brand color</button><div class="icons-color-footer"><span id="ic-color-help">Uses the surrounding text color.</span><button id="ic-reset-color" type="button">Reset</button></div>
             </div>
             <div class="panel icons-selection" id="ic-selection">
               <div class="icons-selection-preview"><span id="ic-selected-preview" class="icons-preview" role="img" aria-label="Selected icon" hidden></span></div>
               <h3 id="ic-selected-name">Select an icon</h3>
               <span id="ic-selected-source" class="icons-source"></span>
+              <label for="ic-link">Link (optional)</label><input id="ic-link" type="text" placeholder="https://… or /page.html" maxlength="2048" aria-describedby="ic-link-help"><p id="ic-link-help" class="icons-size-help">Web URL, site path, or #section.</p>
               <label for="ic-syntax">Paste into your content</label>
               <textarea id="ic-syntax" readonly rows="3" spellcheck="false" aria-label="Selected icon syntax"></textarea>
               <button id="ic-copy" class="btn primary" type="button" disabled>Copy syntax</button>
@@ -628,6 +914,7 @@
           <div class="icons-browser">
             <div class="icons-search-bar">
               <div class="icons-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="ic-search" type="search" placeholder="Search icons…" aria-label="Find an icon" autocomplete="off"></div>
+              <label class="sr-only" for="ic-collection">Icon collection</label><select id="ic-collection" aria-label="Icon collection"><option value="">All icons</option><option value="core">Lucide</option><option value="brands">Brands</option><option value="portal">Uploaded</option></select>
               <button id="ic-refresh" class="btn" type="button">Refresh</button>
             </div>
             <p id="ic-status" class="icons-status" role="status" aria-live="polite"></p>
@@ -639,15 +926,29 @@
       </div>
     </section>
 
-    <section class="view" id="view-cloud" hidden></section>
+
 
     <!-- ============ PLACEHOLDER VIEW ============ -->
-    <section class="view" id="view-placeholder" hidden>
-      <div class="placeholder-wrap">
-        <h2 class="bracket"><span id="ph-title">Section</span></h2>
-        <div class="panel">
-          <p class="ph-text" id="ph-text">This section isn't built yet.</p>
-        </div>
+    <section class="view" id="view-settings" hidden>
+      <div class="settings-wrap">
+        <div class="view-head"><h2 class="bracket">Settings</h2><button class="help-btn" data-help="settings" title="Help with settings" aria-label="Help with settings">?</button></div>
+        <p class="np-hint">Use the existing editors to change the selected website. Saved changes stay pending until you choose to build.</p>
+        <section class="panel" aria-labelledby="settings-site-title">
+          <h3 id="settings-site-title">Website settings</h3>
+          <p class="np-hint">These settings belong to the portal shown in the header.</p>
+          <div class="settings-links">
+            <a href="#config"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 17h16M8 3v8M16 13v8"/></svg><span><strong>Configuration</strong><small>Site name, branding, active theme, routing, and documentation versions.</small></span><span aria-hidden="true">→</span></a>
+            <a href="#navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span><strong>Navigation</strong><small>Menus and links in nav.yall.</small></span><span aria-hidden="true">→</span></a>
+            <a href="#themes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg><span><strong>Themes</strong><small>Choose a theme or edit its templates and CSS.</small></span><span aria-hidden="true">→</span></a>
+          </div>
+        </section>
+        <section class="panel" id="settings-cloud" aria-labelledby="settings-cloud-title">
+          <h3 id="settings-cloud-title">Sheriff Cloud account &amp; hosting</h3>
+          <p class="np-hint">Sign-in connects your account across sites. Custom domains, enabled features, and plan settings belong to your Cloud account and hosted sites.</p>
+          <div class="settings-actions"><button class="btn teal" id="settings-account" type="button">Sheriff Cloud account</button><a class="btn ghost" href="https://admin.sheriffcloud.com" target="_blank" rel="noopener">Open Cloud admin ↗</a></div>
+          <p class="np-hint">Push and Pull stay in the existing portal workflow. Opening account settings does not build or transfer a website.</p>
+        </section>
+        <p class="np-hint" id="settings-hosted-note" hidden>Account, domains, enabled features, and plan controls are managed in your surrounding Cloud admin workspace. The editors above manage this website’s source files.</p>
       </div>
     </section>
 
@@ -679,12 +980,13 @@
     <div class="wiz-body">
 
       <section class="wiz-step" data-step="1">
-        <h3>Name your site</h3>
+        <fieldset id="wiz-structure" class="wiz-structure"><legend>What are you creating?</legend><label><input type="radio" name="wz-structure" value="single" checked><strong>One portal</strong><span>A wiki or docs site with its own address.</span></label><label><input type="radio" name="wz-structure" value="group"><strong>Multiple portals</strong><span>One website with several wikis or subject areas.</span></label></fieldset>
+        <h3 id="wz-site-name-label">Name your site</h3>
         <p class="wiz-sub">What should this site be called?</p>
         <input id="wz-name" class="wiz-input" type="text" placeholder="Goblin Docs" spellcheck="false" autocomplete="off">
         <label class="ed-label" for="wz-slug" style="margin-top:14px">Address</label>
         <input id="wz-slug" class="wiz-input mono" type="text" spellcheck="false" autocomplete="off">
-        <p class="wiz-hint">Your site will run at <span class="mono-hint" id="wz-slug-preview">name</span>.localhost:5173</p>
+        <span id="wz-slug-preview-compat" hidden></span><p class="wiz-hint" id="wz-address-hint">Your site will run at <span class="mono-hint" id="wz-slug-preview">name</span>.localhost:5173</p>
         <p class="wiz-err" id="wz-name-err" hidden></p>
       </section>
 
@@ -711,10 +1013,31 @@
       </section>
 
       <section class="wiz-step" data-step="4" hidden>
+        <section id="wz-group-portals" hidden><h3 id="wz-portals-heading">Your portals</h3><p class="wiz-sub">Each portal has its own content and wiki address. You can add more later.</p><div id="wz-portals"></div><button class="btn small" id="wz-add-portal" type="button">Add portal</button><template id="wiz-portal-trash"><!-- @license lucide-static v1.71.0 - ISC -->
+<svg
+  class="lucide lucide-trash-2"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 11v6" />
+  <path d="M14 11v6" />
+  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+  <path d="M3 6h18" />
+  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+</svg>
+</template></section>
         <h3>Write your first page</h3>
-        <p class="wiz-sub">This becomes your home page. Keep it short — you can edit it any time.</p>
+        <p id="wz-first-page-note" class="wiz-sub">This becomes your home page. Keep it short — you can edit it any time.</p>
         <input id="wz-page-title" class="wiz-input" type="text" placeholder="Welcome" spellcheck="false">
         <textarea id="wz-page-body" class="wiz-textarea" spellcheck="false" placeholder="A few lines about what this site is."></textarea>
+        <p class="wiz-hint">Sheriff will prepare your site so you can open it immediately after setup.</p>
       </section>
 
       <section class="wiz-step" data-step="5" hidden>
@@ -726,7 +1049,8 @@
           <li data-task="build"><span class="wp-mark"></span>Build site</li>
         </ul>
         <div class="wiz-done" id="wz-done" hidden>
-          <a class="btn teal" id="wz-view-site" href="#" target="_blank" rel="noopener">View site ↗</a>
+          <p>Your site is ready to view. You can keep editing it in Desk.</p>
+          <a class="btn teal" id="wz-view-site" href="#" target="_blank" rel="noopener">Open site ↗</a>
         </div>
         <p class="wiz-err" id="wz-run-err" hidden></p>
       </section>
@@ -869,7 +1193,7 @@ leadership = [[House Andergard]]</pre>
     <div class="wiz-body npm-body">
       <label class="ed-label" for="rp-name">New name</label>
       <input id="rp-name" class="wiz-input mono" type="text" placeholder="portal-name" spellcheck="false" autocomplete="off">
-      <p class="wiz-hint">Renaming <span class="mono-hint" id="rp-old">portal</span>. Its built output is discarded and the portal is rebuilt under the new name.</p>
+      <p class="wiz-hint">Renaming <span class="mono-hint" id="rp-old">portal</span>. Its old built output is discarded. Build the portal when ready to preview it at the new address. Renaming does not publish to Cloud.</p>
       <p class="wiz-err" id="rp-err" hidden></p>
     </div>
     <div class="wiz-foot">
@@ -914,20 +1238,85 @@ leadership = [[House Andergard]]</pre>
   <footer><button class="btn" id="seed-report" type="button" hidden>Download report</button><button class="btn primary" id="seed-create" type="button" disabled>Create pages</button></footer>
 </dialog>
 
+<aside id="changes-dialog" class="help-drawer changes-review" role="dialog" aria-modal="false" aria-labelledby="changes-title" tabindex="-1" hidden>
+  <div class="hd-head">
+    <span class="hd-title" id="changes-title">Ready to build</span>
+    <button class="wiz-x" id="changes-close" type="button" aria-label="Close saved changes" title="Close">&times;</button>
+  </div>
+  <div class="hd-body">
+    <p class="changes-hint" id="changes-portal"></p>
+    <p id="changes-summary" role="status"></p>
+    <p id="changes-unsaved" class="changes-hint"></p>
+    <details id="changes-page-section" open hidden><summary>Changed pages</summary><div class="hd-section"><ul id="changes-pages" class="changes-files"></ul></div></details>
+    <details id="changes-shared-section" open hidden><summary>Site-wide changes</summary><div class="hd-section"><ul id="changes-shared" class="changes-files"></ul></div></details>
+    <p class="changes-hint">You can keep editing and build later. A page build runs only that page’s schedule. A portal build also updates navigation, categories, and other shared output.</p>
+    <p id="changes-progress" role="status" hidden></p>
+  </div>
+  <div class="hd-foot changes-actions">
+    <button class="btn small ghost" id="changes-refresh" type="button">Refresh</button>
+    <button class="btn small teal" id="changes-build-pages" type="button" hidden>Build changed pages</button>
+    <button class="btn small primary" id="changes-build-portal" type="button" hidden>Build portal</button>
+  </div>
+</aside>
+
 <div id="toast" role="status">Not wired up yet</div>
 
-<script src="/admin/help.js?v=18"></script>
-<script src="/admin/backend.js?v=2"></script>
-<script src="/admin/portal-context.js?v=2"></script>
-<script src="/admin/build-log.js?v=3"></script>
+<script src="/admin/backend.js?v=access1"></script>
+<script src="/admin/help.js?v=29"></script>
+<script src="/admin/portal-context.js?v=4"></script>
+<script src="/admin/build-log.js?v=modulecatalog2"></script>
 <script src="/admin/cloud-transfer.js?v=1"></script>
-<script src="/admin/cloud-sync.js?v=4"></script>
-<script src="/admin/admin.js?v=48"></script>
-<script src="/admin/content-images.js?v=2"></script>
-<script src="/admin/content-inserts.js?v=4"></script>
-<script src="/admin/icons.js?v=4"></script>
-<script src="/admin/interactive-editor.js?v=5"></script>
-<script src="/admin/snapshots.js?v=2"></script>
-<script src="/admin/seeding.js?v=2"></script>
+<script src="/admin/cloud-sync.js?v=access1"></script>
+<script src="/admin/sites.js?v=access1"></script>
+<script src="/admin/modules.js?v=catalog2"></script>
+<script src="/admin/floating-panel.js"></script>
+<script src="/admin/pattern-options.js?v=1"></script>
+<script src="/admin/admin.js?v=page-pickers1"></script>
+<script src="/admin/content-images.js?v=7"></script>
+<script src="/admin/icon-options.js?v=1"></script>
+<script src="/admin/content-inserts.js?v=9"></script>
+<script src="/admin/icons.js?v=7"></script>
+<script src="/admin/interactive-editor.js?v=7"></script>
+<script src="/admin/snapshots.js?v=4"></script>
+<script src="/admin/seeding.js?v=3"></script>
+<script src="/admin/page-details.js?v=5"></script>
+<script src="/admin/howdy-access.js?v=3"></script>
+<script src="/admin/visual-editor.js?v=16"></script>
+<script src="/admin/pending-builds.js?v=3"></script>
+<template id="site-build-icon"><!-- @license lucide-static v1.71.0 - ISC -->
+<svg
+  class="lucide lucide-hammer"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9" />
+  <path d="m18 15 4-4" />
+  <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" />
+</svg>
+</template>
+<template id="site-add-icon"><!-- @license lucide-static v1.71.0 - ISC -->
+<svg
+  class="lucide lucide-plus"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="M12 5v14" />
+</svg>
+</template>
 </body>
 </html>

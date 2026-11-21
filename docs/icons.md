@@ -1,86 +1,204 @@
-# Icons
+^^^^
+title: Icons
+author: Sheriff Docs
+layout: docs
+meta_kind: docs
+meta_type: guide
+summary: Insert Lucide icons, brand logos, and custom PNG icons with optional colors, sizes, and links.
+gloss: Small reusable graphics for content, navigation, patterns, and admonitions.
+canonical: icons
+^^^^
 
-Use an icon anywhere in article text with:
+Sheriff includes Lucide icons for general use and Simple Icons for brand logos. You can also upload your own PNG icons through Desk. All three use the same Sheriff syntax.
+
+---
+
+## Syntax
 
 ```markdown
 [[icon|name]]
-[[icon|name|color]]
-[[icon|name|color|size]]
-[[icon|name||size]]
+[[icon|name|color|size|link]]
 ```
 
-For example:
+Only `icon` and the name are required. Color, size, and link are optional. Leave an empty slot when skipping an option before another:
 
 ```markdown
-[[icon|download]] Download Sheriff.
-[[icon|warning|orange]] Experimental feature.
-[[icon|heart|#d04455]] A favorite.
+[[icon|book]]
+[[icon|book|orange]]
+[[icon|book||24]]
+[[icon|github|brand|24|https://github.com/gohugoio/hugo]]
+[[icon|discord|||https://discord.com/invite/example]]
 ```
 
-Color is optional. Without it, the icon inherits the surrounding text color and scales with the font size. Named CSS colors, hex colors, and RGB/HSL colors are supported.
-
-## Size
-
-The optional fourth argument is a whole-number pixel size from 8 to 256. Leave color empty when setting only a size:
+The established order is **name, color, size, link**. Sheriff also accepts **name, size, color, link** when the first option is a valid pixel size, so this works too:
 
 ```markdown
-[[icon|book|orange|24]]
-[[icon|book||32]]
+[[icon|reddit|24|brand|https://reddit.com/r/example]]
 ```
 
-Without a size, icons keep the theme's inline, text-relative size. Invalid sizes fall back to that size. Both Desk pickers include an optional Size field, a live syntax preview, and full-catalog search; previews load in batches with Show more.
+Desk generates the established `color|size` order. Existing icons do not need changing.
 
-## Finding icons
+---
 
-Use **Insert icon** beside Insert image in the Content editor to insert at the cursor (or replace selected text). Insertion leaves the page unsaved. Open **Icons** in Sheriff Desk to browse the full Lucide catalog and the active portal's icons. Search by name, optionally enter a color, and click **Copy syntax**. Paste the result into your content. Icon names match their SVG filenames without the extension.
+## Choosing Icons in Desk
 
-## Admonitions and patterns
+Open **Icons** to browse the library. Choose **All icons**, **Lucide**, **Brands**, or **Uploaded**, then search by name or brand title. Select a tile to preview it, choose any optional settings, and click **Copy syntax**.
+
+In the Content editor, click **Insert icon** in the Insert area. The same controls are available there. Select the icon and click **Insert icon** to place its syntax at the cursor, or replace selected text. This works in both Visual and Source modes. Your page remains unsaved until you save it.
+
+The Navigation editor also has an **Insert icon** button for `nav.yall`. Use it within a menu label; keep the menu destination in the usual value after the label.
+
+---
+
+## Colors
+
+Without a color, SVG icons inherit the surrounding text color. This follows your theme, light or dark mode, and link styling.
+
+Use `brand` to select a brand logo's bundled color:
 
 ```markdown
-::: warning [[icon|warning]] Experimental feature
+[[icon|reddit|brand]]
+[[icon|discord|brand]]
+[[icon|youtube|brand]]
+```
 
-[[icon|info]] This feature may change.
+In Desk, select a brand icon and click **Use brand color**. **Reset** returns to inherited text color. Brand colors stay the same in light and dark mode, so an inherited or custom color may suit your background better.
 
-:::
+You can also supply a CSS color:
 
-::: pattern horizontal Feature
+```markdown
+[[icon|heart|#d04455]]
+[[icon|github|white]]
+[[icon|info|rgb(50, 150, 171)]]
+[[icon|check|hsl(145, 60%, 40%)]]
+```
+
+PNG icons keep their original colors and transparency. Color overrides do not recolor them. The `brand` option falls back to inherited styling for icons without brand-color metadata.
+
+---
+
+## Sizes
+
+Use a whole-number pixel size from **8 to 256**:
+
+```markdown
+[[icon|book||18]]
+[[icon|warning|orange|24]]
+[[icon|discord|brand|32]]
+```
+
+Without a size, the icon uses your theme's text-relative inline size. Invalid sizes fall back to that default.
+
+---
+
+## Clickable Icons
+
+Add a link as the fifth part of the syntax to make the icon clickable:
+
+```markdown
+[[icon|github|brand|24|https://github.com/gohugoio/hugo]]
+[[icon|reddit|brand|24|https://reddit.com/r/example]]
+[[icon|book||20|/docs/index.html]]
+[[icon|arrow-up||18|#top]]
+```
+
+The link can be an HTTP or HTTPS URL, a site path beginning with `/`, or a section beginning with `#`. Unsafe links such as `javascript:` are ignored. The icon still renders. Desk highlights invalid links and disables insertion or copying until you fix them.
+
+Linked icons have an accessible name based on their icon name. They work in ordinary content, tables, and pattern fields:
+
+```markdown
+::: pattern horizontal Community
 @mode = template
-status = [[icon|warning|orange]] Experimental
-help = [[icon|book]] Read the documentation
+source = [[icon|github|brand|24|https://github.com/gohugoio/hugo]]
+chat = [[icon|discord|brand|24|https://discord.com/invite/example]]
 :::
 ```
 
-Icons also work in headings, lists, tables, and content tabs, and in reusable patterns. Syntax inside inline code or code blocks stays literal.
+---
 
-You can also put the icon before the admonition type. For example:
+## Names and Collisions
+
+Names use lowercase letters, numbers, and hyphens. Desk shows the exact name to use.
+
+Existing names keep their meaning. For example, Lucide's `x` is a close symbol. Use `brand-x` for the X logo:
 
 ```markdown
-::: [[icon|warning]] lore
-A historical note.
-:::
+[[icon|x]]
+[[icon|brand-x|brand|24]]
 ```
 
-## Navigation menus
+The `brand-` prefix explicitly selects a Simple Icons logo. It works for any bundled brand, including `brand-github` and `brand-discord`.
 
-Use the same icon syntax in a quoted menu label in `nav.yall`:
+For plain names, Sheriff checks your portal's SVG first, then its PNG, then Lucide, then Simple Icons. A portal icon named `github.svg` therefore replaces the plain `github` icon for that portal. `brand-github` still selects the bundled logo. Desk lists a colliding brand under its prefixed name so both choices remain available. Reserve existing `brand-` names for the bundled collection.
+
+An unknown icon displays a question mark with the missing name in its tooltip. Brand availability follows the bundled Simple Icons version; names and colors may change in future catalog updates.
+
+---
+
+## Uploading Your Own PNG Icons
+
+In **Desk → Icons**, click **Upload PNG**. Choose a PNG up to **1 MB**, enter a unique lowercase name with hyphens, and upload it. Desk prevents an upload from replacing a name already in the catalog.
+
+For example, an icon named `everwind-emblem` can be used like this:
+
+```markdown
+[[icon|everwind-emblem]]
+[[icon|everwind-emblem||32]]
+[[icon|everwind-emblem||32|/about.html]]
+```
+
+Uploads belong to the selected portal and live in its `public/icons/` directory. You can also place SVG files there yourself. PNG icons work inside patterns, navigation, and admonitions just like SVG icons.
+
+---
+
+## Navigation, Headers, and Footers
+
+Put icon syntax inside the quoted label in `nav.yall`. Put the destination after the label, as usual:
 
 ```yaml
 menus:
   left_docs:
     Reference:
-      "[[icon|book]] Documentation": /docs/index.html
-      "[[icon|code]] Syntax": /docs/syntax.html
-      "[[icon|warning|orange]] Experimental": /docs/experimental.html
+      "[[icon|book||18]] Documentation": /docs/index.html
+  footer_right:
+    "[[icon|github|brand|20]] GitHub": https://github.com/gohugoio/hugo
+    "[[icon|discord|brand|20]] Discord": https://discord.com/invite/example
 ```
 
-Icons work in sidebar, header dropdown, and footer labels, including group headings. Without an explicit color, they inherit the label's color and active-link styling. Rebuild the portal after changing its navigation.
+The menu's destination controls the whole item. An icon's optional link is ignored inside an already linked menu item, preventing nested links. Rebuild the portal after changing navigation.
 
-## Custom icons
+---
 
-Sheriff bundles all 2,350 SVGs from `lucide-static` 1.71.0 plus the compatible `warning` alias for `triangle-alert`. The exact version and package integrity are recorded in `sheriff-core/assets/lucide/catalog.json`. Put custom SVGs in your portal's `public/icons/` folder. Use lowercase names with hyphens, such as `my-icon.svg`, then write `[[icon|my-icon]]`. A custom icon with the same filename replaces the built-in icon for that portal.
+## Other Content
 
-Rendering copies referenced icons to `dist/{portal}/public/icons/` and includes `LUCIDE-LICENSE.txt`. The full catalog stays available in Desk without being copied into every published site. Page builds publish the icons they reference without running pre/post schedules. Built-in source files live in `sheriff-core/assets/icons/`.
+Icons work in headings, lists, tables, content tabs, and reusable patterns. They can also appear in admonition titles:
 
-An unknown name displays a question mark with the missing name in its tooltip. An invalid color falls back to the surrounding styling.
+```markdown
+## [[icon|book]] Further Reading
 
-Update the bundled catalog deliberately with `python tools/sync-lucide-icons.py <exact-version>`. The importer verifies npm package integrity, retains license notices, and refuses to silently remove existing icon names. Core catalog updates require a portal build to refresh previously published assets.
+- [[icon|check]] Install Sheriff.
+- [[icon|settings]] Configure your portal.
+
+::: [[icon|triangle-alert|orange]] warning Experimental feature
+This feature may change.
+:::
+```
+
+Syntax inside inline code and code blocks remains literal.
+
+---
+
+## Bundled Assets
+
+Sheriff bundles Lucide and Simple Icons locally. Published pages do not contact an icon API or CDN. Rendering copies the referenced SVG or PNG files into the portal's output, including during single-page builds. The entire catalog is available in Desk without copying every icon into every website.
+
+The bundled Simple Icons version is **16.38.0**, containing **3,472 brand icons**. Its version, package integrity, source information, guidelines, and license details are retained under `sheriff-core/assets/simple-icons/`. Referenced brand SVGs retain their upstream metadata; the Simple Icons license and disclaimer accompany published brand icons. Brand logos remain subject to their owners' usage guidelines.
+
+---
+
+::: nav
+related [[Images]] - pictures, captions, and alignment
+related [[Patterns]] - reusable content and infoboxes
+related [[Admonitions & Spoilers]] - callout blocks and their icons
+related [[Navigation]] - site menus, headers, and footers
+:::

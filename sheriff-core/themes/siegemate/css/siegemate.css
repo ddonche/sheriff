@@ -5,6 +5,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
 
 :root {
+  --sheriff-control-radius: 0.5rem;
+  --sheriff-panel-radius: 0.5rem;
+  --sheriff-font-body: var(--vk-font-body);
   /* ── Vekke palette ─────────────────────────────────── */
   --vk-bg-base:       #0a0a0c;
   --vk-bg-surface:    #282c30;
@@ -109,8 +112,8 @@ a[href^="https://"] {
   position: relative;
 }
 
-a[href^="http://"]::after,
-a[href^="https://"]::after {
+a[href^="http://"]:not(.sheriff-icon-link):not(.sheriff-github-badge)::after,
+a[href^="https://"]:not(.sheriff-icon-link):not(.sheriff-github-badge)::after {
   content: "";
   display: inline-block;
 
@@ -3130,3 +3133,22 @@ section.sheriff-footnote-columns > ol > li { break-inside: avoid; }
 .sheriff-image-viewer [hidden] { display: none; }
 @media (max-width: 600px) { .sheriff-image-viewer { width: calc(100vw - 1rem); padding: .5rem; } }
 @media print { .sheriff-image-viewer { display: none !important; } }
+
+/* Explicit image galleries: theme-owned figures, grouped layout and no floats. */
+.sheriff-gallery{display:flow-root;container-type:inline-size;container-name:sheriff-gallery;margin:1.25rem 0}
+.sheriff-gallery-2{--sheriff-gallery-columns:2}
+.sheriff-gallery-3{--sheriff-gallery-columns:3}
+.sheriff-gallery-4{--sheriff-gallery-columns:4}
+.sheriff-gallery-grid{display:grid;grid-template-columns:repeat(var(--sheriff-gallery-columns,3),minmax(0,1fr));gap:1rem;align-items:start}
+.sheriff-gallery-item{display:flow-root;min-width:0}
+.sheriff-gallery-item>p:first-child{margin-top:0}
+.sheriff-gallery-item .sheriff-image-block{display:block;float:none!important;clear:none!important;width:100%;max-width:100%;margin:0!important;box-sizing:border-box}
+.sheriff-gallery-item .sheriff-image{float:none!important;width:100%;max-width:100%;height:auto;box-sizing:border-box}
+@container sheriff-gallery (max-width:42rem){.sheriff-gallery-4>.sheriff-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container sheriff-gallery (max-width:30rem){.sheriff-gallery-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.sheriff-gallery-grid{grid-template-columns:1fr}}
+
+/* Shared header actions use the active theme, including portal overrides. */
+.sheriff-header-action{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font:inherit;line-height:inherit;color:var(--sheriff-link);background:transparent;border:0;border-radius:0;padding:.35rem 0;cursor:pointer;text-decoration:none;}
+.sheriff-header-action:hover{color:var(--sheriff-link-hover);}
+.sheriff-header-action:focus-visible{outline:2px solid var(--sheriff-accent);outline-offset:3px;}

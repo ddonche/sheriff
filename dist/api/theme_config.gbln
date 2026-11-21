@@ -1,0 +1,260 @@
+/// Inspect config.yall or prepare a theme-name edit. This endpoint never writes
+/// source or builds. The existing file Save & rebuild path applies the result.
+act key_name(text)
+    /// YALL keeps quotes in keys; do not treat a quoted custom key as theme.
+    return :trim(text)
+xx
+act indentation(line)
+    n | 0
+    for c in :split(line, "")
+        if c != " " => stop
+        n |= n + 1
+    xx
+    return n
+xx
+act scalar_start(text, start)
+    while start < text.len
+        if !:has([" ", "\t"], :slice(text, start, start + 1)) => stop
+        start |= start + 1
+    xx
+    return start
+xx
+act replace_scalar(text, start, theme)
+    start |= scalar_start(text, start)
+    end | start
+    quote | ""
+    escaped | false
+    while end < text.len
+        c | :slice(text, end, end + 1)
+        if quote != ""
+            if escaped
+                escaped |= false
+            elif c == "\\"
+                escaped |= true
+            elif c == quote
+                quote |= ""
+            xx
+        elif c == "\""
+            quote |= c
+        elif :has(["\r", "\n", ",", "}"], c)
+            stop
+        elif :slice(text, end, end + 5) == "<----" and end > start and :has([" ", "\t"], :slice(text, end - 1, end))
+            stop
+        xx
+        end |= end + 1
+    xx
+    while end > start and :has([" ", "\t"], :slice(text, end - 1, end))
+        end |= end - 1
+    xx
+    first | :slice(text, start, start + 1)
+    value | theme
+    if first == "\"" => value |= first + theme + first
+    return :slice(text, 0, start) + value + :slice(text, end, text.len)
+xx
+act inline_theme(text, open, theme)
+    depth | 0
+    quote | ""
+    escaped | false
+    comment | false
+    key_start | open + 1
+    i | open
+    while i < text.len
+        c | :slice(text, i, i + 1)
+        if comment
+            if c == "\n" => comment |= false
+        elif quote != ""
+            if escaped
+                escaped |= false
+            elif c == "\\"
+                escaped |= true
+            elif c == quote
+                quote |= ""
+            xx
+        elif :slice(text, i, i + 5) == "<----"
+            comment |= true
+        elif c == "\""
+            quote |= c
+        elif c == "\{" or c == "["
+            depth |= depth + 1
+        elif c == "}" or c == "]"
+            depth |= depth - 1
+            if depth == 0 => stop
+        elif c == "," and depth == 1
+            key_start |= i + 1
+        elif c == ":" and depth == 1
+            if key_name(:slice(text, key_start, i)) == "name"
+                return replace_scalar(text, i + 1, theme)
+            xx
+        xx
+        i |= i + 1
+    xx
+    suffix | ", "
+    if :starts_with(:trim(:slice(text, open + 1, text.len)), "}") => suffix |= ""
+    return :slice(text, 0, open + 1) + "name: " + theme + suffix + :slice(text, open + 1, text.len)
+xx
+act edit_theme(source, theme)
+    lines | :split(source, "\n")
+    header | -1
+    block_comment | false
+    for n in :range(0, lines.len)
+        line | lines[n]
+        clean | :trim(line)
+        if clean == "////"
+            block_comment |= !block_comment
+            skip
+        xx
+        if block_comment or :starts_with(clean, "///") => skip
+        if indentation(line) == 0 and key_name(:keep_before(line, ":") ?? "") == "theme"
+            header |= n
+            stop
+        xx
+    xx
+    newline | "\n"
+    if :has(source, "\r\n") => newline |= "\r\n"
+    if header == -1 => return source + newline + "theme:" + newline + "  name: " + theme + newline
+    colon | (:keep_before(lines[header], ":") ?? "").len
+    value | scalar_start(lines[header], colon + 1)
+    if :slice(lines[header], value, value + 1) == "\{"
+        /// Include continuation lines when an inline map spans multiple lines.
+        prefix | :join(:slice(lines, 0, header), "\n")
+        tail | :join(:slice(lines, header, lines.len), "\n")
+        if header > 0 => prefix |= prefix + "\n"
+        return prefix + inline_theme(tail, value, theme)
+    xx
+    end | header + 1
+    child_indent | 0
+    block_comment |= false
+    while end < lines.len
+        clean | :trim(lines[end])
+        if clean == "////"
+            block_comment |= !block_comment
+        elif !block_comment and clean != "" and !:starts_with(clean, "///")
+            indent | indentation(lines[end])
+            if indent == 0 => stop
+            if child_indent == 0 or indent < child_indent => child_indent |= indent
+        xx
+        end |= end + 1
+    xx
+    if child_indent == 0 => child_indent |= 2
+    block_comment |= false
+    for n in :range(header + 1, end)
+        line | lines[n]
+        clean | :trim(line)
+        if clean == "////"
+            block_comment |= !block_comment
+            skip
+        xx
+        if block_comment or :starts_with(clean, "///") => skip
+        if indentation(line) == child_indent and key_name(:keep_before(line, ":") ?? "") == "name"
+            colon |= (:keep_before(line, ":") ?? "").len
+            :update_at!(lines, n, replace_scalar(line, colon + 1, theme))
+            return :join(lines, "\n")
+        xx
+    xx
+    padding | ""
+    for n in :range(0, child_indent)
+        padding |= padding + " "
+    xx
+    ending | ""
+    if newline == "\r\n" => ending |= "\r"
+    :update_at!(lines, header, lines[header] + "\n" + padding + "name: " + theme + ending)
+    return :join(lines, "\n")
+xx
+/// Read-only previews use the renderer's Core-default / portal-override order.
+/// Return only configured icons; do not enumerate the full icon library here.
+act admonition_settings(root, portal, theme)
+    icons | {}
+    previews | {}
+    known | false
+    for themes in ["{root}/sheriff-core/themes", "{root}/site/portals/{portal}/themes"]
+        if :file_exists(themes) and :has(:list_dirs(themes), theme) => known |= true
+    xx
+    if !known => return {"icons":icons,"previews":previews}
+    for path in ["{root}/sheriff-core/themes/{theme}/templates.yall", "{root}/site/portals/{portal}/themes/{theme}/templates.yall"]
+        if !:file_exists(path) => skip
+        templates | :yall_parse_file(path)
+        if :valtype(templates) != "map" => skip
+        map | templates{"admonition_icons"} ?? {}
+        if :valtype(map) != "map" => skip
+        for pair in map
+            :update!(icons{pair[0]}, pair[1])
+        xx
+    xx
+    for pair in icons
+        if :valtype(pair[1]) != "str" => skip
+        name | :trim(pair[1])
+        if :starts_with(name, "\"") and :ends_with(name, "\"") => name |= :slice(name, 1, name.len - 1)
+        if name == "" or :slug(name) != name => skip
+        preview | {}
+        brand | (name)
+        if :starts_with(name, "brand-") => brand |= :keep_after(name, "brand-")
+        brand_file | "{root}/sheriff-core/assets/simple-icons/icons/{brand}.svg"
+        if :file_exists(brand_file) == true
+            svg | :read_text(brand_file)
+            preview |= {"name":name,"svg":svg,"brandColor": :keep_between(svg, "data-brand-color=\"", "\"")}
+        xx
+        for dir in ["{root}/sheriff-core/assets/icons", "{root}/site/portals/{portal}/public/icons"]
+            if dir == "{root}/site/portals/{portal}/public/icons" and :file_exists("{dir}/{name}.png")
+                preview |= {"name":name,"path":"public/icons/{name}.png"}
+            xx
+            if :file_exists("{dir}/{name}.svg") => preview |= {"name":name,"svg": :read_text("{dir}/{name}.svg")}
+        xx
+        /// Explicit provider names must not be replaced by a same-named upload.
+        if :starts_with(name, "brand-") and :file_exists(brand_file)
+            svg | :read_text(brand_file)
+            preview |= {"name":name,"svg":svg,"brandColor": :keep_between(svg, "data-brand-color=\"", "\"")}
+        xx
+        :update!(previews{name}, preview)
+    xx
+    return {"icons":icons,"previews":previews}
+xx
+act handle()
+    root | :trim(:env("SHERIFF_ROOT"))
+    if root.nix? => root |= ".."
+    parts | :split(:env("GOBLIN_QUERY_STRING"), "&")
+    portal | :url_decode(parts[0] ?? "")
+    requested | ""
+    if parts.len > 1 => requested |= :url_decode(parts[1])
+    if !:has(:list_dirs("{root}/site/portals"), portal) => return {"ok":false,"stderr":"Unknown portal."}
+    path | "{root}/site/portals/{portal}/config.yall"
+    source | :read_text(path)
+    cfg | :yall_parse(source, "config.yall")
+    if :valtype(cfg) != "map" => return {"ok":false,"stderr":"config.yall must contain a map."}
+    settings | cfg{"theme"} ?? {}
+    if :valtype(settings) != "map" => return {"ok":false,"stderr":"The theme setting must be a map."}
+    current | settings{"name"} ?? "outpost"
+    if :valtype(current) != "str" => return {"ok":false,"stderr":"The theme name must be text."}
+    current |= :trim(current)
+    shared_site | ""
+    member | cfg{"membership"}
+    if :valtype(member) == "map"
+        id | member{"site"} ?? ""
+        slug | member{"portal"} ?? ""
+        if :valtype(id) == "str" and :slug(id) == id and !id.nix?
+            registry_file | "{root}/site/sites/{id}/site.yall"
+            if :file_exists(registry_file)
+                site | :yall_parse_file(registry_file)
+                if site{"portals"}{slug}{"source"} == portal and site{"multisite_theming"} == "shared"
+                    current |= site{"theme"} ?? "compendium"
+                    shared_site |= id
+                xx
+            xx
+        xx
+    xx
+    if requested == "" => return {"ok":true,"theme":current,"shared_site":shared_site, "admonitions":admonition_settings(root, portal, current)}
+    if !shared_site.nix? => return {"ok":false,"stderr":"Change the shared site theme through the site theme action."}
+    if !:has(:list_dirs("{root}/sheriff-core/themes"), requested) => return {"ok":false,"stderr":"Unknown theme."}
+    :update!(settings{"name"}, requested)
+    expected | cfg
+    :update!(expected{"theme"}, settings)
+    updated | edit_theme(source, requested)
+    if :yall_parse(updated, "config.yall") != expected
+        return {"ok":false,"stderr":"Could not update only theme.name. config.yall was left unchanged."}
+    xx
+    return {"ok":true,"theme":requested,"previous_theme":current,"content":updated}
+xx
+attempt
+    :say(:json_stringify(handle()))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

@@ -1,0 +1,197 @@
+/// Desk panel API v1. Installed modules own their declarations and panel code.
+/// Desk owns discovery, activation settings and authenticated dispatch.
+act valid_name(value)
+    if :valtype(value) != "str" or value.nix? => return false
+    for c in :split(value, "")
+        if :has("abcdefghijklmnopqrstuvwxyz0123456789_-", c) == false => return false
+    xx
+    return true
+xx
+
+act definitions()
+    result | []
+    for folder in ["modules", "glams"]
+        if :file_exists(folder) == false => skip
+        for name in :list_dirs(folder)
+            if valid_name(name) == false => skip
+            file | "{folder}/{name}/desk.yall"
+            if :file_exists(file) == false => skip
+            attempt
+                panel | :yall_parse_file(file)
+                if :valtype(panel) != "map" => skip
+                if :valtype(panel{"settings"}) != "map" => :update!(panel{"settings"},{})
+                :update!(panel{"id"}, "{folder}/{name}")
+                :put_last!(result, panel)
+            rescue err
+                :put_last!(result, {"id":"{folder}/{name}","name":name,"error":"Could not read {file}: " + :str(err),"settings":{}})
+            xx
+        xx
+    xx
+    return result
+xx
+
+act setting(cfg, field)
+    section | cfg{field{"section"}}
+    if :valtype(section) != "map" => return field{"default"} ?? false
+    return section{field{"key"}} ?? field{"default"} ?? false
+xx
+
+act inspect(text)
+    cfg | :yall_parse(text,"Module settings")
+    if :valtype(cfg) != "map" => return {"ok":false,"stderr":"Configuration must be a YALL map."}
+    panels | definitions()
+    out | []
+    for panel in panels
+        fields | []
+        for id in :keys(panel{"settings"})
+            field | panel{"settings"}{id}
+            if :valtype(field) != "map" => skip
+            if field{"type"} != "boolean" => skip
+            if valid_name(field{"section"}) == false or valid_name(field{"key"}) == false => skip
+            :update!(field{"id"},id)
+            :update!(field{"value"},setting(cfg,field))
+            :put_last!(fields,field)
+        xx
+        :update!(panel{"fields"},fields)
+        :update!(panel{"activation"},panel{"activation"} ?? "enabled")
+        :update!(panel{"api_version"},panel{"api_version"} ?? 1)
+        icon | panel{"icon"} ?? "puzzle"
+        if valid_name(icon) == false => icon |= "puzzle"
+        icon_file | "assets/icons/{icon}.svg"
+        if :file_exists(icon_file) => :update!(panel{"icon_svg"},:read_text(icon_file))
+        :update!(panel{"settings"},nil)
+        :put_last!(out,panel)
+    xx
+    return {"ok":true,"panels":out}
+xx
+
+/// Only installed declarations select executable files. The browser cannot
+/// supply paths or commands; v1 entries use conservative module-relative paths.
+act declared_file(module_id, declaration, extension)
+    if :valtype(declaration) != "str" => return ""
+    parts | :split(declaration,"/")
+    if parts.len < 1 => return ""
+    for i in :range(0,parts.len)
+        part | parts[i]
+        if i == parts.len - 1
+            if :ends_with(part,extension) == false => return ""
+            part |= part[0:part.len - extension.len]
+        xx
+        if valid_name(part) == false => return ""
+    xx
+    file | "{module_id}/{declaration}"
+    if :file_exists(file) == false => return ""
+    return file
+xx
+
+act find_module(module_id)
+    for panel in definitions()
+        if panel{"id"} == module_id => return panel
+    xx
+    return nil
+xx
+
+act panel_source(module_id)
+    panel | find_module(module_id)
+    if :valtype(panel) != "map" => return {"ok":false,"stderr":"Module is not installed."}
+    if (panel{"api_version"} ?? 1) != 1 => return {"ok":false,"stderr":"This module requires a different Desk panel API version."}
+    declaration | panel{"panel"}
+    if :valtype(declaration) != "map" => return {"ok":true,"source":"","icons":{}}
+    file | declared_file(module_id,declaration{"entry"},".js")
+    if file == "" => return {"ok":false,"stderr":"Module panel entry is missing or invalid. Reinstall the module."}
+    source | :read_text(file)
+    if source.len > 1048576 => return {"ok":false,"stderr":"Module panel entry exceeds 1 MB."}
+    icons | {}
+    names | declaration{"icons"}
+    if :valtype(names) == "array"
+        for name in names
+            if valid_name(name) and :file_exists("assets/icons/{name}.svg") => :update!(icons{name},:read_text("assets/icons/{name}.svg"))
+        xx
+    xx
+    return {"ok":true,"source":source,"icons":icons}
+xx
+
+act panel_action(module_id, verb, payload, portal)
+    panel | find_module(module_id)
+    if :valtype(panel) != "map" => return {"ok":false,"stderr":"Module is not installed."}
+    if (panel{"api_version"} ?? 1) != 1 => return {"ok":false,"stderr":"Unsupported Desk panel API version."}
+    declaration | panel{"panel"}
+    if :valtype(declaration) != "map" => return {"ok":false,"stderr":"Module has no panel handler."}
+    allowed | declaration{"actions"}
+    if valid_name(verb) == false or :valtype(allowed) != "array" => return {"ok":false,"stderr":"Unknown module action."}
+    if :has(allowed,verb) == false => return {"ok":false,"stderr":"Unknown module action."}
+    if valid_name(portal) == false => return {"ok":false,"stderr":"Select a portal first."}
+    handler | declared_file(module_id,declaration{"handler"},".gbln")
+    if handler == "" => return {"ok":false,"stderr":"Module panel handler is missing or invalid."}
+    root | :env("SHERIFF_ROOT") ?? ".."
+    directory | "{root}/data/desk-module-requests"
+    :create_dir!(directory)
+    file | "{directory}/" + :uuid_v4() + ".json"
+    :write_text!(file,:json_stringify({"action":verb,"payload":payload ?? {}}))
+    result | nil
+    attempt
+        result |= :json_parse(:run_cmd("goblin run {handler}",".",{"GOBLIN_METHOD":"POST","GOBLIN_REQUEST_FILE":file,"GOBLIN_BODY":"","SHERIFF_MODULE_ID":module_id,"SHERIFF_MODULE_PORTAL":portal,"SHERIFF_ROOT":root,"SHERIFF_RUNTIME_MODE": :env("SHERIFF_RUNTIME_MODE") ?? "local","SHERIFF_ACCESS_OWNER": :env("SHERIFF_ACCESS_OWNER") ?? "","SHERIFF_ACCESS_SUBJECT": :env("SHERIFF_ACCESS_SUBJECT") ?? ""}))
+    ensure
+        :delete_path!(file)
+    xx
+    if result{"ok"} == false => return {"ok":false,"stderr":result{"stderr"} ?? "Module handler failed."}
+    return :json_parse(result{"stdout"})
+xx
+
+/// Patch one declared boolean in the existing source buffer. Inline/duplicate
+/// maps require Source editing rather than silently rewriting user configuration.
+act patch(text, module_id, field_id, next)
+    if :valtype(next) != "bool" => return {"ok":false,"stderr":"This setting requires true or false."}
+    selected | nil
+    for panel in definitions()
+        if panel{"id"} == module_id => selected |= panel{"settings"}{field_id}
+    xx
+    if :valtype(selected) != "map" or selected{"type"} != "boolean" => return {"ok":false,"stderr":"Unknown module setting."}
+    section | selected{"section"}
+    key | selected{"key"}
+    if valid_name(section) == false or valid_name(key) == false => return {"ok":false,"stderr":"Invalid setting declaration."}
+    cfg | :yall_parse(text,"Module settings")
+    if :valtype(cfg) != "map" => return {"ok":false,"stderr":"Configuration must be a YALL map."}
+    lines | :split(text,"\n")
+    start, at | -1
+    inside | false
+    for i in :range(0,lines.len)
+        line | lines[i]
+        clean | :trim(line)
+        if clean.nix? or :starts_with(clean,"#") => skip
+        if :starts_with(line," ") == false and :starts_with(line,"\t") == false
+            inside |= false
+            if :trim(:keep_before(line,":") ?? "") == section
+                if start >= 0 => return {"ok":false,"stderr":"This section occurs more than once. Edit it in Config first."}
+                if !(:trim(:keep_after(line,":") ?? "").nix?) => return {"ok":false,"stderr":"Edit the inline map in Config before using these controls."}
+                start |= i
+                inside |= true
+            xx
+        elif inside and (:starts_with(line,"\t") or :starts_with(line," ") and :starts_with(line,"  ") == false)
+            return {"ok":false,"stderr":"Use two spaces for this section's settings in Config first."}
+        elif inside and :starts_with(line,"  ") and :starts_with(line,"   ") == false
+            if :trim(:keep_before(clean,":") ?? "") == key
+                if at >= 0 => return {"ok":false,"stderr":"This setting occurs more than once. Edit it in Config first."}
+                at |= i
+            xx
+        xx
+    xx
+    value | "false"
+    if next => value |= "true"
+    if start < 0
+        text |= text + "\n{section}:\n  {key}: {value}\n"
+    elif at >= 0
+        comment | :keep_after(lines[at],"#") ?? ""
+        prefix | ""
+        if !comment.nix? => prefix |= "  #" + comment + "\n"
+        :update_at!(lines,at,prefix + "  {key}: {value}")
+        text |= :join(lines,"\n")
+    else
+        :update_at!(lines,start,lines[start] + "\n  {key}: {value}")
+        text |= :join(lines,"\n")
+    xx
+    if setting(:yall_parse(text,"Module settings"),selected) != next => return {"ok":false,"stderr":"Could not update this setting safely. Edit it in Config."}
+    result | inspect(text)
+    :update!(result{"content"},text)
+    return result
+xx

@@ -1,3 +1,4 @@
+import "build-support/workspace_files.gbln" as workspace_files
 import modules/markdown_core/fenced_code as fenced_code
 import modules/markdown_core/content_tabs as content_tabs
 import modules/markdown_core/markdown as markdown
@@ -314,7 +315,7 @@ act publish_patterns(pre_ctx)
         :create_dir!(patterns_dir)
     xx
 
-    for path in :walk(patterns_dir, "**/*.txt")
+    for path in workspace_files::files(patterns_dir, "**/*.txt", true)
         raw | :read_text(path)
         if raw.nix? => skip
 

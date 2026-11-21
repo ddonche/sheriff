@@ -1,0 +1,22 @@
+import modules/desk_changes/state as changes
+
+act query_value(query, key)
+    for part in :split(query, "&")
+        if :starts_with(part, key + "=") => return :url_decode(:keep_after(part, "=") ?? "")
+    xx
+    return ""
+xx
+attempt
+    root | :env("SHERIFF_ROOT")
+    if root.nix? => root |= ".."
+    query | :env("GOBLIN_QUERY_STRING")
+    body | :env("GOBLIN_BODY")
+    request | :env("GOBLIN_REQUEST_FILE")
+    if !request.nix? => body |= :read_text(request)
+    payload | {}
+    if !body.nix? => payload |= :json_parse(body)
+    verb | :keep_before(query, "&") ?? query
+    :say(:json_stringify(changes::execute(root, query_value(query,"portal"), verb, payload)))
+rescue err
+    :say(:json_stringify({"ok":false,"stderr": :str(err)}))
+xx

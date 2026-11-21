@@ -1,4 +1,6 @@
-import build_output as build_output
+import "build-support/workspace_files.gbln" as workspace_files
+import modules/site_portals/context as site_context
+import "build-support/output.gbln" as build_output
 /// modules/stagehand/stagehand.gbln
 /// Stagehand: backstage crew for Sheriff.
 /// - Copies theme/public assets (once per portal)
@@ -18,7 +20,7 @@ act resolve_theme_name(portal)
     theme_name|"outpost"
 
     if :file_exists(config_path)
-        cfg|:yall_parse_file(config_path)
+        cfg|site_context::config(config_path)
         if !cfg.nix? && :valtype(cfg)=="map" && !cfg{"theme"}.nix?
             theme_cfg|cfg{"theme"}
             if :valtype(theme_cfg)=="map" && !theme_cfg{"name"}.nix?
@@ -30,7 +32,38 @@ act resolve_theme_name(portal)
     return theme_name
 xx
 
+/// Keep active endpoints available while the browser polls the build log.
+/// Remove retired files only after their replacements have been copied.
+act sync_desk(desk_src, dist_root)
+    if :file_exists(desk_src) == false => return 0
+    desk_files | workspace_files::files(desk_src, "**/*", true)
+    for asset in desk_files
+        rel_path | :path_relative_to(asset, desk_src)
+        :update_where!(rel_path, "\\", "/")
+        if :starts_with(rel_path, "admin/requests/") or :starts_with(rel_path, "admin/server/") => skip
+        dest | "{dist_root}/{rel_path}"
+        :create_dir!(:dirname(dest))
+        if :ends_with(rel_path, ".gbln") and :file_exists(dest)
+            if :read_text(asset) == :read_text(dest) => skip
+        xx
+        :copy_file!(asset, dest)
+    xx
+    for managed in ["admin", "api"]
+        folder | "{dist_root}/{managed}"
+        if :file_exists(folder) == false => skip
+        for previous in workspace_files::files(folder, "**/*", true)
+            rel_path | :path_relative_to(previous, dist_root)
+            :update_where!(rel_path, "\\", "/")
+            if :starts_with(rel_path, "admin/requests/") or :starts_with(rel_path, "admin/server/") or :file_exists("{desk_src}/{rel_path}") == false
+                :delete_path!(previous)
+            xx
+        xx
+    xx
+    return desk_files.len
+xx
+
 act copy_assets(pre_ctx)
+    workspace_files::report("../sheriff-core")
     portal | pre_ctx{"portal"}
     if portal.nix?
         :say("STAGEHAND: No portal in pre_ctx; skipping copy_assets")
@@ -40,7 +73,7 @@ act copy_assets(pre_ctx)
     config_path | "../site/portals/{portal}/config.yall"
     theme_name  | "outpost"   /// sensible default
     if :file_exists(config_path)
-        cfg | :yall_parse_file(config_path)
+        cfg | site_context::config(config_path)
         if !cfg.nix? && !cfg{"theme"}.nix?
             theme_cfg | cfg{"theme"}
             if !theme_cfg{"name"}.nix?
@@ -63,6 +96,11 @@ act copy_assets(pre_ctx)
     else
         :say("STAGEHAND: Theme CSS NOT FOUND for theme '{theme_name}' at {theme_css_src}")
     xx
+    /// Shared site stylesheet is copied once, before concurrent page rendering.
+    member | site_context::for_portal(portal)
+    if !member.nix?
+        :copy_file!("themes/{theme_name}/css/site-portals.css", "{public_css_dest}/site-portals.css")
+    xx
     /// The icon renderer publishes referenced Core icons as it renders pages.
     /// Portal public files still take precedence over matching library names.
     /// ----- 3) Copy portal public/ → dist/{portal}/public -----
@@ -71,7 +109,7 @@ act copy_assets(pre_ctx)
     assets_copied | 0
     if :file_exists(public_src)
         :create_dir!(public_dest)
-        for asset in :walk(public_src, "**/*.*")
+        for asset in workspace_files::files(public_src, "**/*", true)
             rel_path | :path_relative_to(asset, public_src)
             dir      | :dirname(rel_path)
             dest     | "{public_dest}/{rel_path}"
@@ -136,7 +174,7 @@ act copy_assets(pre_ctx)
         :say("STAGEHAND: Copied custom index.html to dist/{portal}/index.html")
     xx
     /// Hosted Sheriff keeps its own application and API files in dist.
-    if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud"
+    if :lower(:trim(:env("SHERIFF_RUNTIME_MODE"))) == "cloud" or :env("SHERIFF_SKIP_DESK_SYNC") == "1"
         :say("STAGEHAND: Cloud mode; skipping local Sheriff Desk sync")
         return pre_ctx
     xx
@@ -144,32 +182,12 @@ act copy_assets(pre_ctx)
     /// ------------------------------------------------------------
     /// 5) Sync Sheriff Desk (local admin) from sheriff-core → dist root
     /// desk/index.html → dist/index.html, desk/admin/ → dist/admin/
-    /// dist/admin is cleared first so removed/renamed desk files do
-    /// not linger in dist as live .gbln endpoints
+    /// Retired files are pruned without removing the running API directory.
     /// ------------------------------------------------------------
     desk_src  | "../sheriff-core/desk"
     dist_root | "../dist"
     if :file_exists(desk_src)
-        if :file_exists("{dist_root}/admin")
-            :delete_path!("{dist_root}/admin")
-        xx
-        if :file_exists("{dist_root}/api")
-            :delete_path!("{dist_root}/api")
-        xx
-        desk_copied | 0
-        for asset in :walk(desk_src, "**/*.*")
-            rel_path | :path_relative_to(asset, desk_src)
-            dir      | :dirname(rel_path)
-            dest     | "{dist_root}/{rel_path}"
-            if dir != ""
-                dest_dir | "{dist_root}/{dir}"
-                if :file_exists(dest_dir) == false
-                    :create_dir!(dest_dir)
-                xx
-            xx
-            :copy_file!(asset, dest)
-            :update!(desk_copied, desk_copied + 1)
-        xx
+        desk_copied | sync_desk(desk_src, dist_root)
         :say("STAGEHAND: Synced Sheriff Desk ({desk_copied} files) to dist")
     else
         :say("STAGEHAND: sheriff-core/desk not found; skipping Desk sync")

@@ -1,7 +1,7 @@
 // Local save/build contract, using a disposable source tree and a tiny build fixture.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'sheriff-save-actions-')),core=path.join(tmp,'sheriff-core'),portal=path.join(tmp,'site/portals/test');
-fs.mkdirSync(core,{recursive:true});fs.mkdirSync(portal,{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/desk/api/file.gbln'),path.join(core,'file.gbln'));
+fs.mkdirSync(path.join(core,'modules/howdy'),{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/modules/howdy/access.gbln'),path.join(core,'modules/howdy/access.gbln'));fs.mkdirSync(portal,{recursive:true});fs.copyFileSync(path.join(root,'sheriff-core/desk/api/file.gbln'),path.join(core,'file.gbln'));
 fs.writeFileSync(path.join(core,'main.gbln'),'if args.len == 2\n    :put_last!(args, :env("SHERIFF_PAGE_TARGET"))\nxx\n:write_json!("../build-call.json", args)\nif :file_exists("../fail-build")\n    :read_text("forced-build-failure")\nxx\n:say("Fixture built")\n');
 let checks=0;
 function unwrap(v){for(let n=0;n<8;n++){if(typeof v==='string'){try{v=JSON.parse(v);continue}catch{break}}if(v&&typeof v.body==='string'&&typeof v.status==='number'){v=v.body;continue}break}return v;}

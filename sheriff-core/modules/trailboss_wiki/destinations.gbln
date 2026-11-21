@@ -1,0 +1,342 @@
+/// Stable destinations for unwritten articles. These are generated HTML, never
+/// article sources, route records, search documents, or stub articles.
+import modules/trailboss_wiki/routes_json as routes
+import "build-support/output.gbln" as output
+
+act escape(value)
+    text | :str(value ?? "")
+    for pair in [["&","&amp;"],["<","&lt;"],[">","&gt;"],["\"","&quot;"]]
+        :update_where!(text,pair[0],pair[1])
+    xx
+    return text
+xx
+
+/// Use one URL-safe filename on disk and in links, even after nginx/R2 decoding.
+/// Escape literal tildes before replacing percent escapes, keeping names unique.
+/// The reserved directory prevents a canonical name overwriting article output.
+act key(slug)
+    name | :url_encode(slug)
+    :update_where!(name,"~","%7E")
+    :update_where!(name,"%","~")
+    return name
+xx
+
+act href(portal, slug)
+    cfg | routes::load_cfg(portal)
+    return routes::build_href(routes::get_url_root(cfg),"_wiki/" + key(slug))
+xx
+
+act state_path(portal)
+    return "../data/.sheriff/missing-pages/{portal}.json"
+xx
+
+act read_state(portal)
+    for file in [state_path(portal),"../dist/{portal}/public/missing-pages.json"]
+        if :file_exists(file)
+            data | :read_json(file)
+            if data{"version"} == 1 and :valtype(data{"targets"}) == "map"
+                return data{"targets"}
+            xx
+        xx
+    xx
+    return {}
+xx
+
+act new_target(slug, title)
+    return {"slug":slug,"title":title,"sources":[],"resolved_href":"","resolved_source":""}
+xx
+
+/// This public manifest contains only names and incoming public links, allowing
+/// a transferred build to retain its directory on the next incremental build.
+act save_state(portal, targets)
+    data | {"version":1,"targets":targets}
+    file | state_path(portal)
+    :create_dir!(:dirname(file))
+    :write_json!(file,data)
+    file |= output::directory(portal) + "/public/missing-pages.json"
+    :create_dir!(:dirname(file))
+    :write_json!(file,data)
+xx
+
+act add_links(targets, wanted, portal)
+    for item in wanted
+        if :valtype(item) != "map"
+            skip
+        xx
+        if (item{"portal"} ?? portal) != portal
+            skip
+        xx
+        slug | item{"slug"} ?? => skip
+        target | targets{slug} ?? new_target(slug,item{"title"} ?? slug)
+        source | {"href":item{"source_href"} ?? "","title":item{"source_title"} ?? ""}
+        seen | false
+        for old in target{"sources"}
+            if old{"href"} == source{"href"}
+                seen |= true
+            xx
+        xx
+        if !seen and !source{"href"}.nix?
+            :put_last!(target{"sources"},source)
+        xx
+        :update!(targets{slug},target)
+    xx
+    return targets
+xx
+
+/// Full builds already collect content wikilinks; also collect missing Scout
+/// menu links, which have been rendered after that pass.
+act collect(ctx)
+    if ctx{"missing_generated"} == true
+        return ctx
+    xx
+    if ctx{"frontmatter"}{"meta_type"} == "generated"
+        return ctx
+    xx
+    wanted | ctx{"wanted_pages"} ?? []
+    portal | ctx{"portal"}
+    start | href(portal,"")
+    start |= :keep_before(start,".html")
+    html | ctx{"body"} ?? ""
+    sweep html
+        "<a " ... "</a>":
+            if !:has(self,"sheriff-missing-link")
+                skip
+            xx
+            url | :keep_between(self,"href=\"","\"") ?? ""
+            if !:starts_with(url,start)
+                skip
+            xx
+            encoded | :keep_after(url,start)
+            encoded |= :keep_before(encoded,".html") ?? ""
+            if encoded.nix?
+                skip
+            xx
+            :update_where!(encoded,"~","%")
+            slug | :url_decode(encoded)
+            seen | false
+            for old in wanted
+                if old{"slug"} == slug
+                    if old{"portal"} == portal
+                        if old{"source_href"} == ctx{"href"}
+                            seen |= true
+                        xx
+                    xx
+                xx
+            xx
+            if seen
+                skip
+            xx
+            :put_last!(wanted,{"portal":portal,"slug":slug,"title":slug,"source_href":ctx{"href"},"source_title":ctx{"frontmatter"}{"title"} ?? ctx{"href"}})
+    xx
+    :update!(ctx{"wanted_pages"},wanted)
+    return ctx
+xx
+
+act resolve(targets, portal, ctx, full)
+    index | {}
+    for route in routes::load_routes_json(portal)
+        names | [route{"canonical_slug"} ?? route{"slug"}]
+        for alias in route{"aliases"} ?? []
+            :put_last!(names,routes::canonical_to_slug(alias))
+        xx
+        for name in names
+            if !name.nix? and !:has(index,name)
+                :update!(index{name},{"href":route{"href"},"source":route{"source_path"}})
+            xx
+        xx
+    xx
+    /// A newly created page is absent from the last full build's route table.
+    if !full and ctx{"frontmatter"}{"meta_type"} != "generated"
+        version | ctx{"documentation_version"} ?? ""
+        default_version | ctx{"default_documentation_version"} ?? ""
+        if version.nix? or default_version.nix? or version == default_version
+            canonical | routes::canonical_to_slug(ctx{"frontmatter"}{"canonical"} ?? :stem(ctx{"path"}))
+            names | [canonical]
+            for alias in ctx{"frontmatter"}{"aliases"} ?? []
+                :put_last!(names,routes::canonical_to_slug(alias))
+            xx
+            for name in names
+                if !name.nix?
+                    :update!(index{name},{"href":ctx{"href"},"source":ctx{"path"}})
+                xx
+            xx
+        xx
+    xx
+    for slug in :keys(targets)
+        target | targets{slug}
+        found | index{slug}
+        if !found.nix?
+            :update!(target{"resolved_href"},found{"href"})
+            :update!(target{"resolved_source"},found{"source"})
+        elif full or !:file_exists(target{"resolved_source"} ?? "")
+            :update!(target{"resolved_href"},"")
+            :update!(target{"resolved_source"},"")
+        xx
+        :update!(targets{slug},target)
+    xx
+    return targets
+xx
+
+/// Reuse the installed theme and ordinary module renderers, without scheduling
+/// another build, indexing a fake article, or executing portal PRE/POST acts.
+act render(ctx, title, body, rel, categories)
+    page | {}
+    for field in :keys(ctx)
+        :update!(page{field},ctx{field})
+    xx
+    :update!(page{"body"},body)
+    :update!(page{"frontmatter"},{"title":title,"layout":"admin","meta_kind":"wiki","meta_type":"generated","generated_by":"missing-pages","categories":categories,"search":false})
+    :update!(page{"path"},"../site/portals/" + ctx{"portal"} + "/generated/" + rel + ".md")
+    :update!(page{"route_rel_no_ext"},rel)
+    :update!(page{"output_rel_no_ext"},rel)
+    :update!(page{"missing_generated"},true)
+    :update!(page{"build_mode"},"generated")
+    :update!(page{"wanted_pages"},[])
+    :update!(page{"backlinks"},[])
+    :update!(page{"tokens"},{})
+    crumbs | []
+    if !categories.nix?
+        directory | routes::build_href(routes::get_url_root(routes::load_cfg(ctx{"portal"})),"categories/missing-pages")
+        :put_last!(crumbs,{"title":"Missing Pages","href":directory})
+    xx
+    :put_last!(crumbs,{"title":title})
+    :update!(page{"breadcrumb_items"},crumbs)
+    :clear_tokens("SLOT")
+    schedule | []
+    for step in ctx{"schedule"}
+        if step == "frontier::strip_frontmatter" or :starts_with(step,"prospector::") or step == "trailboss::publish_missing_destinations"
+            skip
+        xx
+        :put_last!(schedule,step)
+    xx
+    page |= :summon(page,schedule)
+    html | page{"body"}
+    :update_where!(html,"</head>","<meta name=\"robots\" content=\"noindex\"></head>")
+    return html
+xx
+
+act write_redirect(portal, slug, target)
+    url | escape(target)
+    script_url | :json_stringify(target)
+    :update_where!(script_url,"<","\\u003c")
+    html | "<!doctype html><html><head><meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"0;url={url}\"><link rel=\"canonical\" href=\"{url}\"></head><body><a href=\"{url}\">Continue to article</a><script>location.replace({script_url} + location.hash)</script></body></html>"
+    file | output::directory(portal) + "/_wiki/" + key(slug) + ".html"
+    :create_dir!(:dirname(file))
+    :write_text!(file,html)
+xx
+
+act write_pages(ctx, targets, previous | {})
+    portal | ctx{"portal"}
+    url_root | routes::get_url_root(routes::load_cfg(portal))
+    listing | routes::build_href(url_root,"categories/missing-pages")
+    rows | []
+    /// Every unwritten article has the same themed notice. Render its shell
+    /// once per publication, then fill escaped title/canonical and safe URL
+    /// slots. Do not run the entire page schedule for every missing target.
+    notice_shell | nil
+    directory | output::directory(portal) + "/_wiki"
+    :create_dir!(directory)
+    for slug in :sort(:keys(targets))
+        target | targets{slug}
+        changed | !:has(previous,slug)
+        if !changed => changed |= :json_stringify(target) != :json_stringify(previous{slug})
+        /// Fresh hosted output is disposable. Re-emit this page's destinations
+        /// even on a retry whose private manifest was already updated.
+        affected | target{"resolved_source"} == ctx{"path"}
+        for source in target{"sources"}
+            if source{"href"} == ctx{"href"}
+                affected |= true
+            xx
+        xx
+        if !target{"resolved_href"}.nix?
+            if changed or affected
+                write_redirect(portal,slug,target{"resolved_href"})
+            xx
+            skip
+        xx
+        if target{"sources"}.nix?
+            skip
+        xx
+        title | escape(target{"title"})
+        url | routes::build_href(url_root,"_wiki/" + key(slug))
+        safe_url | escape(url)
+        incoming | []
+        for source in target{"sources"}
+            source_url | escape(source{"href"})
+            source_title | escape(source{"title"})
+            :put_last!(incoming,"<a class=\"sheriff-link\" href=\"{source_url}\">{source_title}</a>")
+        xx
+        sources | :join(incoming," · ")
+        count | incoming.len
+        noun | "pages"
+        if count == 1
+            noun |= "page"
+        xx
+        line | "<li><details class=\"sheriff-wanted-item\"><summary class=\"sheriff-wanted-summary\"><span class=\"sheriff-wanted-toggle\" aria-hidden=\"true\"></span><span class=\"sheriff-wanted-title\"><a class=\"sheriff-link sheriff-missing-link\" href=\"{safe_url}\">{title}</a></span><span class=\"sheriff-wanted-count\">{count} referring {noun}</span></summary><div class=\"sheriff-wanted-source-panel\">{sources}</div></details></li>"
+        :put_last!(rows,{"title":target{"title"},"line":line})
+        if !changed and !affected
+            skip
+        xx
+        if notice_shell.nix?
+            body | "<div class=\"sheriff-stub\" role=\"note\"><span class=\"sheriff-stub-content\"><strong class=\"sheriff-stub-title\">This page hasn’t been created yet.</strong><span class=\"sheriff-stub-text\">Other pages link here, but nobody has written this article yet.</span></span></div><p><a class=\"sheriff-link\" href=\"{listing}\">Browse missing pages</a></p>"
+            notice_ctx | ctx
+            :update!(notice_ctx{"missing_slug"},"sheriffmissingcanonical8a64")
+            notice_shell |= render(notice_ctx,"SHERIFFMISSINGTITLE8A64",body,"_wiki/sheriffmissingpath8a64",["Missing Pages"])
+        xx
+        rendered | notice_shell
+        :update_where!(rendered,"sheriffmissingpath8a64",key(slug))
+        :update_where!(rendered,"sheriffmissingcanonical8a64",escape(slug))
+        :update_where!(rendered,"SHERIFFMISSINGTITLE8A64",title)
+        file | directory + "/" + key(slug) + ".html"
+        :write_text!(file,rendered)
+    xx
+    body | "These articles haven’t been created yet. Expand an entry to see which pages link to it."
+    if rows.nix?
+        body |= body + "\n\nNo missing pages."
+    else
+        body |= body + "\n\n" + routes::render_alphabetical_index(rows)
+    xx
+    html | render(ctx,"Missing Pages",body,"categories/missing-pages",[])
+    folder | output::directory(portal)
+    :create_dir!(folder + "/categories")
+    :write_text!(folder + "/categories/missing-pages.html",html)
+    /// Existing menus and incoming Wanted Pages links keep working.
+    :write_text!(folder + "/wanted-pages.html",html)
+xx
+
+act publish(ctx, full | false)
+    if ctx{"missing_generated"} == true
+        return ctx
+    xx
+    portal | ctx{"portal"} ?? => return ctx
+    targets | read_state(portal)
+    previous | {}
+    if full
+        for slug in :keys(targets)
+            :update!(targets{slug}{"sources"},[])
+        xx
+    else
+        previous |= :json_parse(:json_stringify(targets))
+        source_href | ctx{"href"}
+        for slug in :keys(targets)
+            sources | []
+            for source in targets{slug}{"sources"}
+                if source{"href"} != source_href
+                    :put_last!(sources,source)
+                xx
+            xx
+            :update!(targets{slug}{"sources"},sources)
+        xx
+    xx
+    targets |= add_links(targets,ctx{"wanted_pages"} ?? [],portal)
+    targets |= resolve(targets,portal,ctx,full)
+    /// No directory or manifest work is needed on sites with no missing links.
+    if !targets.nix? or :json_stringify(targets) != :json_stringify(previous) or full
+        if full
+            previous |= {}
+        xx
+        write_pages(ctx,targets,previous)
+        save_state(portal,targets)
+    xx
+    return ctx
+xx

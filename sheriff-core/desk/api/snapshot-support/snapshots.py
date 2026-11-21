@@ -113,7 +113,80 @@ def extract(archive, destination):
                 stamp = dt.datetime(*entry.date_time).timestamp()
                 os.utime(target, (stamp, stamp))
 
+
+# Binary archive/rename support for the Goblin site-transfer module.
+def transfer_source(name):
+    if not isinstance(name, str) or len(name) > 1024 or re.search(r'[\\:\x00-\x1f]', name): return False
+    parts = name.split('/')
+    if any(not p or p in ('.', '..') or p.startswith('.') for p in parts): return False
+    if re.search(r'(^|/)(credentials(?:\.[^/]*)?|[^/]*\.(pem|key))$', name, re.I): return False
+    if name == 'site/site.yall': return True
+    if name.startswith('site/public/'): return True
+    match = re.fullmatch(r'portals/([a-z0-9][a-z0-9_-]*)/(.+)', name)
+    return bool(match and (re.match(r'^(content|blog|public|patterns|themes)/', match[2]) or re.fullmatch(r'(config|nav|assets|widgets|seeder)\.yall', match[2])))
+
+def site_transfer():
+    import io, subprocess
+    portal_id(PORTAL)
+    plan = json.loads(os.environ.get('SHERIFF_SNAPSHOT_BODY') or '{}')
+    work = inside(f'data/.desk/site-transfers/{PORTAL}')
+    work.mkdir(parents=True, exist_ok=True)
+    with PortalLock(work):
+        if ACTION in ('site-export','site-output'):
+            data = io.BytesIO()
+            total = 0
+            with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
+                roots = [(inside(f'dist/{PORTAL}'), '')] if ACTION == 'site-output' else [(inside(f'site/sites/{PORTAL}'), 'site/')] + [(inside(f'site/portals/{p}'), f'portals/{p}/') for p in plan.get('sources', [])]
+                for folder, prefix in roots:
+                    source_ok(folder)
+                    for file in sorted(folder.rglob('*')):
+                        if not file.is_file(): continue
+                        name = prefix + file.relative_to(folder).as_posix()
+                        if ACTION == 'site-export' and not transfer_source(name): continue
+                        if ACTION == 'site-output' and (any(p.startswith('.') for p in name.split('/')) or name.split('/')[0] in ('admin','api','site','data','node_modules','sheriff-core')): continue
+                        total += file.stat().st_size
+                        if total > 48*1024*1024: raise ValueError('Transfer exceeds 48 MB.')
+                        archive.write(file, name)
+            return {'ok':True,'zip_base64':base64.b64encode(data.getvalue()).decode('ascii')}
+        if ACTION != 'site-import': raise ValueError('Unknown site transfer action.')
+        stage = work / ('incoming-' + uuid.uuid4().hex)
+        fresh = stage / 'source'
+        archive = Path(os.environ.get('SHERIFF_TRANSFER_FILE', ''))
+        try:
+            with zipfile.ZipFile(archive) as zipped:
+                entries = zipped.infolist()
+                if len(entries) > 20000 or sum(e.file_size for e in entries) > 48*1024*1024: raise ValueError('Transfer exceeds its limit.')
+                for entry in entries:
+                    if not entry.is_dir() and not transfer_source(entry.filename): raise ValueError('Unsupported grouped source path.')
+            extract(archive, fresh)
+            env = {k:v for k,v in os.environ.items() if not k.startswith('GOBLIN_')}
+            env.update(SHERIFF_TRANSFER_FOLDER=str(fresh), SHERIFF_TRANSFER_SITE=PORTAL)
+            checked = subprocess.run([os.environ.get('SHERIFF_GOBLIN') or 'goblin','run','desk/admin/requests/site_transfer_request.gbln'], cwd=ROOT/'sheriff-core',env=env,capture_output=True,text=True,encoding='utf-8',timeout=60)
+            result = json.loads(checked.stdout)
+            if checked.returncode or not result.get('ok'): raise ValueError(result.get('stderr') or checked.stderr)
+            targets = [('site/sites/'+PORTAL, fresh/'site')]
+            for p in dict.fromkeys(result['sources']+result['previous_sources']):
+                portal_id(p); targets.append(('site/portals/'+p, fresh/'portals'/p))
+            previous = work/'previous'
+            if previous.exists(): shutil.rmtree(previous)
+            moved, installed = [], []
+            try:
+                for relative, incoming in targets:
+                    target, backup = inside(relative), inside(str((previous/relative).relative_to(ROOT)))
+                    if target.exists():
+                        source_ok(target); backup.parent.mkdir(parents=True,exist_ok=True);target.rename(backup);moved.append((target,backup))
+                    if incoming.exists():
+                        target.parent.mkdir(parents=True,exist_ok=True);incoming.rename(target);installed.append(target)
+            except Exception:
+                for target in reversed(installed): shutil.rmtree(target)
+                for target, backup in reversed(moved): backup.rename(target)
+                raise
+            return {'ok':True,'site':PORTAL,'portals':result['sources'],'backup':str(previous.relative_to(ROOT))}
+        finally:
+            if stage.exists(): shutil.rmtree(stage)
+
 def main():
+    if ACTION.startswith("site-"): return site_transfer()
     base = inside(SNAPSHOT_DIR)
     if ACTION == 'list' and not PORTAL:
         portals = []

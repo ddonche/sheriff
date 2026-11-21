@@ -1,7 +1,7 @@
 /// sheriff-core/main.gbln
 /// import "../site/portals/sheriff/manifest.imports"
 import "../sheriff-core/manifest.imports"
-import "build_output.gbln" as build_output
+import "build-support/output.gbln" as build_output
 
 #local::build_output |= :env("SHERIFF_BUILD_OUTPUT")
 
@@ -35,11 +35,20 @@ act run_pre_schedule(cfg)
         return pre_ctx
     xx
 
+    completed | false
+    attempt
     for act_name in pre_schedule
         :say("---- RUNNING PRE ACT ----")
         :say(act_name)
 
-        ret | :summon(pre_ctx, [act_name])
+        ret | nil
+        step_complete | false
+        attempt
+            ret |= :summon(pre_ctx, [act_name])
+            step_complete |= true
+        ensure
+            if !step_complete => report_build_error(pre_ctx, act_name, "Portal preparation")
+        xx
 
         if ret.nix?
             :say("!!!! THIS ACT RETURNED NIL !!!!")
@@ -50,6 +59,10 @@ act run_pre_schedule(cfg)
         xx
     xx
 
+    completed |= true
+    ensure
+        if !completed => cancel_build_resources(pre_ctx)
+    xx
     return pre_ctx
 xx
 
@@ -71,7 +84,14 @@ act run_post_schedule(cfg, pre_ctx)
         :say("---- RUNNING POST ACT ----")
         :say(act_name)
 
-        ret | :summon(post_ctx, [act_name])
+        ret | nil
+        step_complete | false
+        attempt
+            ret |= :summon(post_ctx, [act_name])
+            step_complete |= true
+        ensure
+            if !step_complete => report_build_error(post_ctx, act_name, "Portal finalization")
+        xx
 
         if ret.nix?
             :say("!!!! THIS POST ACT RETURNED NIL !!!!")
@@ -230,6 +250,32 @@ act page_build_progress(count, path)
     return count + 1
 xx
 
+/// Report context while the original runtime error unwinds normally. Do not
+/// provoke/abort here: ensure blocks must release actors and output leases.
+act report_build_error(ctx, act_name, phase)
+    portal | ctx{"portal"} ?? #local::portal
+    path | ctx{"path"}
+    :say("SHERIFF ERROR: {phase} failed")
+    :say("  Portal: {portal}")
+    if !path.nix? => :say("  File: {path}")
+    :say("  Step: {act_name}")
+    :say("  Problem: This step failed. See the runtime detail below.")
+    :say("SHERIFF ERROR END")
+xx
+
+act run_page_schedule(ctx, schedule)
+    for act_name in schedule
+        completed | false
+        attempt
+            ctx |= :summon(ctx, [act_name])
+            completed |= true
+        ensure
+            if !completed => report_build_error(ctx, act_name, "Page build")
+        xx
+    xx
+    return ctx
+xx
+
 act render_record(record, build_ctx)
     pre_ctx | build_ctx{"pre_ctx"}
     schedule | build_ctx{"schedule"}
@@ -267,7 +313,7 @@ act render_record(record, build_ctx)
 
     :clear_tokens("SLOT")
 
-    ctx |= :summon(ctx, schedule)
+    ctx |= run_page_schedule(ctx, schedule)
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)
@@ -418,7 +464,7 @@ act build_one_page(target)
     /// Single-page builds execute only the page schedule. No pre/post acts.
     :clear_tokens("SLOT")
 
-    ctx |= :summon(ctx, schedule)
+    ctx |= run_page_schedule(ctx, schedule)
 
     dir      | :dirname(output_rel_no_ext)
     base     | :stem(output_rel_no_ext)
