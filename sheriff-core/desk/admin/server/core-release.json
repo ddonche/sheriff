@@ -2,8 +2,8 @@
   "schema": 1,
   "source": {
     "repository": "https://github.com/ddonche/sheriff.git",
-    "commit": "3fcbccf43cc81b5b7f9b3219dc3411b2e717d4e2",
-    "workingTree": true
+    "commit": "af3df9bc46d988eb10a7592b2b88aeed062118b5",
+    "workingTree": false
   },
   "coreSha256": "f79d4181a275683b2b8619ed17371ff6bb8dfe5320ef9af0cd05e4f85b96195d",
   "goblin": {
